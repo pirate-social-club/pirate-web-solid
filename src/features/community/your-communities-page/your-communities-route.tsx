@@ -18,12 +18,14 @@ import { Button, Type } from "../../../design-system.ts";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
-import { readSongTitle as readPublicSongTitle } from "../../posts/post-composer/song-excerpt-source.ts";
+import { readSongTitle as readPublicSongTitle, type SongSourceReader } from "../../posts/post-composer/song-excerpt-source.ts";
 import {
   useApplicationSession,
   type ApplicationSessionState,
 } from "../../shell/application-session.tsx";
+import type { FreshVideoEntry } from "../../posts/video-outcomes/fresh-composer-entry.ts";
 import { YourCommunitiesPageView, type YourCommunitySummary } from "./your-communities-page.tsx";
+
 
 type MembershipRouteState =
   | Readonly<{ kind: "loading" }>
@@ -32,11 +34,13 @@ type MembershipRouteState =
   | Readonly<{ kind: "error"; message: string }>;
 
 export interface YourCommunitiesRouteProps {
+  readonly freshVideo?: FreshVideoEntry;
   readonly initialVideoSong?: { readonly postId: string };
   readonly applicationSession?: Accessor<ApplicationSessionState | undefined>;
   readonly loadMemberships?: () => Promise<readonly AccountCommunityMembership[]>;
   /** The pending song's title, when the step names it. */
   readonly readSongTitle?: (postId: string) => Promise<string | null>;
+  readonly videoSongReader?: SongSourceReader;
   readonly resolvePostingSession?: () => Promise<SessionResolution>;
   readonly navigate?: (href: string) => void;
 }
@@ -134,14 +138,14 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
     const current = state();
     return current.kind === "ready" ? current.memberships : [];
   });
-  const songPending = () => props.initialVideoSong !== undefined;
+  const videoPending = () => props.initialVideoSong !== undefined || props.freshVideo !== undefined;
   const joinedCommunities = createMemo(() => memberships()
-    .filter(item => !songPending() || (item.membership_status === "member" && item.can_post === true))
-    .map(item => summary(item, songPending())));
+    .filter(item => !videoPending() || (item.membership_status === "member" && item.can_post === true))
+    .map(item => summary(item, videoPending())));
   // The step is about one song, so its heading says which. The title is a
   // courtesy read: without it the heading still makes sense.
   createEffect(
-    () => props.initialVideoSong?.postId,
+    () => props.freshVideo?.song?.postId ?? props.initialVideoSong?.postId,
     (postId) => {
       const request = ++titleRequest;
       queueMicrotask(() => {
@@ -157,10 +161,11 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   // Creating a community leaves the step and drops the song, so it is offered
   // only where it is the way forward: with no community to post in. There the
   // page says what will happen before it offers the action.
-  const noDestination = () => songPending() && joinedCommunities().length === 0;
-  const offerCreate = () => !songPending() || noDestination();
+  const noDestination = () => videoPending() && joinedCommunities().length === 0;
+  const offerCreate = () => !videoPending() || noDestination();
   const heading = () => {
-    if (!songPending()) return "Your communities";
+    if (!videoPending()) return "Your communities";
+    if (props.freshVideo?.song === null) return "Post a video";
     const title = songTitle();
     return title === null ? "Post a video with this song" : `Post a video with “${title}”`;
   };
@@ -233,7 +238,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
 
   return (
     <main data-route-path="/communities" data-communities-state={state().kind}>
-      <Title>{songPending() ? "Post a video" : "Your communities"} | Pirate</Title>
+      <Title>{videoPending() ? "Post a video" : "Your communities"} | Pirate</Title>
       <Show when={state().kind === "loading"}>
         <PageContainer>
           <Type as="p" role="status">
@@ -246,7 +251,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <Type as="h1" variant="h1">
             Your communities
           </Type>
-          <Type as="p">{props.initialVideoSong === undefined
+          <Type as="p">{!videoPending()
             ? "Sign in to see your communities."
             : "Sign in to choose where to post your video."}</Type>
           <Button class="w-fit" onClick={requestGlobalSignIn}>
@@ -273,10 +278,12 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         <YourCommunitiesPageView
           createCommunityLabel={offerCreate() ? "Create community" : undefined}
           createCommunityBelow={noDestination()}
-          description={!songPending() ? undefined : noDestination()
-            ? "You don't have a community where you can post this video yet. Create one, then come back to the song and choose Use this song again."
+          description={!videoPending() ? undefined : noDestination()
+            ? props.freshVideo?.song === null
+              ? "You don't have a community where you can post this video yet. Create one, then come back to post your video."
+              : "You don't have a community where you can post this video yet. Create one, then come back to the song and choose Use this song again."
             : "Choose a community to post it in."}
-          emptyJoinedLabel={songPending() ? "" : "You aren't a member of a community yet."}
+          emptyJoinedLabel={videoPending() ? "" : "You aren't a member of a community yet."}
           joinedCommunities={joinedCommunities()}
           joinedLabel="Communities"
           onCreateCommunity={offerCreate() ? () => navigate("/communities/new") : undefined}
@@ -285,8 +292,8 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
             if (community.resourceHref !== null && community.resourceHref !== undefined)
               navigate(community.resourceHref);
           }}
-          postActionLabel={songPending() ? (community) => `Post video in ${community.displayName}` : undefined}
-          postActionText={songPending() ? "Post video" : undefined}
+          postActionLabel={videoPending() ? (community) => `Post video in ${community.displayName}` : undefined}
+          postActionText={videoPending() ? "Post video" : undefined}
           postingCommunityId={postingCommunityId()}
           title={heading()}
         />
@@ -310,6 +317,8 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
               <CreatePostDialog
                 communityContext={{ id: community().communityId, name: community().displayName }}
                 initialVideoSong={props.initialVideoSong}
+                freshVideo={props.freshVideo}
+                videoSongReader={props.videoSongReader}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}

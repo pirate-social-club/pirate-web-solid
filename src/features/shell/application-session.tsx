@@ -11,15 +11,25 @@ import type { AccountSessionResolution, SessionResolution } from "../../api/sess
 export type ApplicationSessionState = "resolving" | "failed" | AccountSessionResolution | SessionResolution;
 export type ApplicationSessionAccessor = Accessor<ApplicationSessionState | undefined>;
 
+const ApplicationSessionPendingContext = createContext<Accessor<boolean>>(() => false);
+
 const ApplicationSessionContext = createContext<ApplicationSessionAccessor>(() => undefined);
 
 export function ApplicationSessionProvider(props: {
   readonly children: JSX.Element;
   readonly state: Accessor<ApplicationSessionState>;
+  /** The shell may retain its authenticated chrome while a new check runs. */
+  readonly pending?: Accessor<boolean>;
 }) {
-  return <ApplicationSessionContext value={props.state}>{props.children}</ApplicationSessionContext>;
+  return <ApplicationSessionPendingContext value={props.pending ?? (() => false)}>
+    <ApplicationSessionContext value={props.state}>{props.children}</ApplicationSessionContext>
+  </ApplicationSessionPendingContext>;
 }
 
 export function useApplicationSession(): ApplicationSessionAccessor {
   return useContext(ApplicationSessionContext);
+}
+
+export function useApplicationSessionPending(): Accessor<boolean> {
+  return useContext(ApplicationSessionPendingContext);
 }

@@ -4,7 +4,7 @@ import { ActionFooterShell, Button, buttonVariants, cn, FormNote, MobilePageHead
 import { SongExcerptComposer } from "../post-composer/song-excerpt-composer";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import { songLengthForClip } from "./clip-duration";
-import { isRetainedVersion } from "./coordinator";
+import { isRetainedVersion, type VideoStorage } from "./coordinator";
 import { useVideoComposerSession, type VideoComposerSessionProps } from "./video-composer-session";
 import { SongReviewPreview } from "./song-review-preview";
 import { createBrowserVideoStorage } from "./storage";
@@ -22,7 +22,20 @@ export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSessi
     const eligible = props.personaOptions?.filter(option => !option.communityId || option.communityId === communityId);
     return { communityId, principalId: props.principalId, hasProfiles: eligible === undefined || eligible.length > 0, ready: Boolean(personaId) && (eligible === undefined || eligible.some(option => option.id === personaId)) };
   });
-  const storage = untrack(() => props.storage ?? createBrowserVideoStorage(props.principalId));
+  const freshVideo = untrack(() => props.freshVideo);
+  const existingStorage = untrack(() => props.storage ?? createBrowserVideoStorage(props.principalId));
+  // A fresh entry cannot restore or overwrite an earlier unresolved upload.
+  let savedHere = false;
+  const storage: VideoStorage = freshVideo === undefined ? existingStorage : {
+    exclusive: work => existingStorage.exclusive(work),
+    async load() {
+      const stored = await existingStorage.load();
+      if (!savedHere && stored !== null) throw new Error("Finish your earlier video upload before posting a new video.");
+      return stored;
+    },
+    async save(record) { await existingStorage.save(record); savedHere = true; },
+    remove: () => existingStorage.remove(),
+  };
   const [clientReady, setClientReady] = createSignal(false);
   const [admitted, setAdmitted] = createSignal(entry.ready, { ownedWrite: true });
   // The page may still be resolving its active profile. Accept it before the
@@ -51,7 +64,7 @@ export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSessi
   if (!isServer) queueMicrotask(() => {
     if (disposed) return;
     setClientReady(true);
-    if (entry.ready) setChecking(false);
+    if (entry.ready || freshVideo !== undefined) setChecking(false);
     else void checkRetained();
   });
   return <Show when={clientReady() && (admitted() || retained())} fallback={
@@ -71,7 +84,7 @@ export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSessi
         </Show>
       </div>
     </ActionFooterShell>
-  }><VideoComposerSession {...props} storage={storage} /></Show>;
+  }><VideoComposerSession {...props} freshVideo={freshVideo} storage={storage} /></Show>;
 }
 
 function VideoComposerSession(props: VideoComposerSessionProps) {
@@ -169,7 +182,7 @@ function VideoComposerSession(props: VideoComposerSessionProps) {
               personaId={chosenPersonaId() || undefined}
               disabled={captureStatus() === "recording" || finalizing()}
               clipLengthMs={songLengthForClip(clipDurationMs())}
-              preflight={songPreflight} initialSong={props.initialSong}
+              preflight={songPreflight} initialSong={props.freshVideo === undefined ? props.initialSong : props.freshVideo.song ?? undefined}
               {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
               onPlan={plan => send({ type: "SONG_PLAN", plan })}
               onChoice={choice => send({ type: "SONG_CHOICE", choice })}

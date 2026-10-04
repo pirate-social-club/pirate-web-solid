@@ -117,6 +117,7 @@
     "post_telegramLinkCallbackVerify",
     "post_telegramLinkTransactionsTransactionIdConfirm",
     "post_telegramLinkGrantsRevoke",
-    "post_telegramLinkAssociationUnlink"
+    "post_telegramLinkAssociationUnlink",
+    "post_videoOutcomesClaim"
   ]
 }

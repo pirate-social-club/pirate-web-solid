@@ -37,7 +37,7 @@ export type SongSourceState =
   | { readonly kind: "error"; readonly reason: string; readonly retryable: boolean };
 
 export type SongSourceRequest =
-  | { readonly kind: "post"; readonly postId: string }
+  | { readonly kind: "post"; readonly postId: string; readonly communityId?: string }
   | { readonly kind: "slug"; readonly slug: string };
 
 export type SongSourceRead = {
@@ -151,7 +151,7 @@ type PublicPostContent = {
   readonly kind: "content" | "age_locked";
   readonly post_id?: string;
   readonly content?: {
-    readonly post: { readonly post_type?: string; readonly song_title?: string | null; readonly title?: string | null };
+    readonly post: { readonly community?: string; readonly post_type?: string; readonly song_title?: string | null; readonly title?: string | null };
   };
 };
 
@@ -188,6 +188,10 @@ export function createSongSourceReader(): SongSourceReader {
       if (!postId) throw new SongSourceError("not_found", "Song not found", false);
       if (response.content && response.content.post.post_type !== "song") {
         throw new SongSourceError("not_found", "Post is not a song", false);
+      }
+      if (request.kind === "post" && request.communityId !== undefined
+        && response.content?.post.community !== request.communityId) {
+        throw new SongSourceError("not_found", "Song community changed", false);
       }
       title = response.content?.post.song_title?.trim() || response.content?.post.title?.trim() || null;
     } catch (error) {

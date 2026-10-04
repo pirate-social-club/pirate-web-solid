@@ -31,9 +31,12 @@ import {
 } from "../features/posts/feed/public-feed-fixtures.ts";
 import { HomeVideoFeed } from "../features/posts/video-feed/home-video-feed.tsx";
 import type { HomeVideoFeedProps } from "../features/posts/video-feed/home-video-feed.tsx";
-import { useApplicationSession } from "../features/shell/application-session.tsx";
+import { HomeVideoOutcome } from "../features/posts/video-outcomes/home-video-outcome.tsx";
+import type { claimVideoOutcome } from "../features/posts/video-outcomes/claim.ts";
+import { useApplicationSession, useApplicationSessionPending } from "../features/shell/application-session.tsx";
 
 export interface HomeRouteProps {
+  readonly claimVideoOutcome?: typeof claimVideoOutcome;
   /** Test seam; production resolves the host-only api-next session cookie. */
   readonly resolveSession?: () => Promise<AccountSessionResolution>;
   readonly publicData?: PublicFeedProps["data"];
@@ -108,23 +111,26 @@ function HydrationFixtures() {
  * turn anonymous discovery into a blank or blocked home page.
  */
 export default function HomeRoute(props: HomeRouteProps = {}) {
-  const [session, setSession] = createSignal<HomeRouteSession>("resolving");
+  const [session, setSession] = createSignal<HomeRouteSession>("resolving", { ownedWrite: true });
   const applicationSession = useApplicationSession();
+  const applicationSessionPending = useApplicationSessionPending();
   const hydrationFixtures = isHydrationFixtureRequest();
   const reviewFixture = isLocalFeedReviewRequest();
   const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
+  const sessionResolutionPending = () => props.resolveSession === undefined && applicationSessionPending();
   const authenticatedSession = () => {
+    if (sessionResolutionPending()) return undefined;
     const current = session();
     return current === "resolving" || current === "anonymous" || current === "failed" ? undefined : current;
   };
-  const sessionStatus = () => session() === "resolving"
+  const sessionStatus = () => sessionResolutionPending() || session() === "resolving"
     ? "resolving"
     : session() === "anonymous" ? "anonymous" : session() === "failed" ? "failed" : "authenticated";
 
   createEffect(
     () => applicationSession?.(),
     (resolved) => {
-      if (props.resolveSession === undefined && resolved !== undefined && resolved !== "resolving") {
+      if (props.resolveSession === undefined && resolved !== undefined) {
         setSession(resolved);
       }
     },
@@ -165,6 +171,12 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
               resolveSongLink: reviewSongLinks,
             }
             : {})}
+        />
+        <HomeVideoOutcome
+          session={sessionResolutionPending() ? "resolving"
+            : props.resolveSession === undefined ? applicationSession() ?? session() : session()}
+          claim={props.claimVideoOutcome}
+          navigate={props.navigate}
         />
         <Show when={hydrationFixtures}>
           <HydrationFixtures />

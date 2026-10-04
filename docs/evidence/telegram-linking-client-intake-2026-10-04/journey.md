@@ -170,3 +170,30 @@ owner test credentials were available in this session. The controller did not
 mount there, so no live rendering result is claimed. The browser session was
 closed. Acceptance still needs an actual staging community and owner session;
 this source repair has not been deployed or activated.
+
+## Notice-main intake, October 4
+
+Combined preserved Telegram c1465dd02ffcd4991093718f6ce04514a806953f with
+published notice main 3170a23031fa22a66365f5cf5b842459c924c37f in the owned
+Telegram worktree. The merge conflicts were only bun.lock, package.json and
+vendor/api-client-provenance.json. Retain the exact reviewed client 0.108
+artifact and package/lock bytes from c1465dd. The artifact already contains
+post_videoOutcomesClaim; extend its declared consumer scope with that operation.
+Both suites' discovery entries and provenance-check requirements merge together.
+No Telegram or notice runtime implementation is manually rewritten.
+
+Fresh combined-source verification passes 162 component tests covering linking,
+owner settings, notices and video composer behavior; 326 API/Worker tests;
+three SSR tests covering linking and Home; app type checking; test ownership;
+lint with warnings; immutable client provenance and runtime-table checks; and
+the memory-bounded Worker build with chunk warnings. Frozen installation keeps
+the retained lockfile unchanged. Changed-script checking reports zero findings.
+Broad app/Storybook and real phones are not repeated for this intake.
+
+The shared executor retains canonical publication and deployment custody on
+3170 until its release or recovery decision. This combined candidate is isolated
+review material, not an update to that pinned release. Publication as a patch
+preserves the successor; exact independent review, fresh live register and
+custody handback remain required before canonical integration. One staging song
+is separately proven ready in the authoritative task record; Telegram flags,
+credentials, permissions and learner phone acceptance are untouched here.

@@ -81,7 +81,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
 
   return (
     <ActivePersonaProvider>
-      <ApplicationSessionProvider state={session}>
+      <ApplicationSessionProvider state={session} pending={accountPending}>
         <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
           activeItemId={policy().activeItemId}

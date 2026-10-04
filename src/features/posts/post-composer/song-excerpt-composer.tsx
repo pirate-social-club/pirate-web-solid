@@ -70,7 +70,7 @@ export function SongExcerptComposer(props: {
   personaId?: string;
   preflight?: SongIntervalPreflight;
   disabled?: boolean;
-  initialSong?: { readonly postId: string };
+  initialSong?: { readonly postId: string; readonly communityId?: string };
   /** Songs offered in the picker; defaults to the community's songs. */
   songs?: SongPickerSource;
   /** Leaves the composer from the song picker, before any song is chosen. */
@@ -413,7 +413,7 @@ export function SongExcerptComposer(props: {
   // Entering from a song post loads that song once, without a paste step, and
   // only after the first render, so a server render never starts the read.
   onSettled(() => {
-    if (initialSong) void loadSong({ kind: "post", postId: initialSong.postId });
+    if (initialSong) void loadSong({ kind: "post", postId: initialSong.postId, ...(initialSong.communityId === undefined ? {} : { communityId: initialSong.communityId }) });
   });
 
   /** The length comes from the audio element, not from the payload: the element

@@ -17,7 +17,12 @@ export const GENERATED_LOCALE_CATALOGS = {
       "unavailable": "موجز الفيديو العام غير متاح.",
       "videoBy": "فيديو بواسطة {author}",
       "videoDescription": "وصف الفيديو",
-      "videoLabel": "فيديو {title}"
+      "videoLabel": "فيديو {title}",
+      "videoOutcome": {
+        "policyBlock": "لم يتم نشر الفيديو الخاص بك لأنه لم يستوفِ إرشاداتنا.",
+        "processingFailure": "تعذر نشر الفيديو الخاص بك.",
+        "recordAgain": "سجّل مرة أخرى"
+      }
     },
     "routes": {
       "community": {
@@ -275,7 +280,12 @@ export const GENERATED_LOCALE_CATALOGS = {
       "unavailable": "The public video feed is unavailable.",
       "videoBy": "Video by {author}",
       "videoDescription": "Video description",
-      "videoLabel": "{title} video"
+      "videoLabel": "{title} video",
+      "videoOutcome": {
+        "policyBlock": "Your video wasn't posted because it didn't meet our guidelines.",
+        "processingFailure": "Your video couldn't be posted.",
+        "recordAgain": "Record again"
+      }
     },
     "routes": {
       "community": {
@@ -533,7 +543,12 @@ export const GENERATED_LOCALE_CATALOGS = {
       "unavailable": "公开视频动态暂不可用。",
       "videoBy": "{author} 的视频",
       "videoDescription": "视频描述",
-      "videoLabel": "{title} 视频"
+      "videoLabel": "{title} 视频",
+      "videoOutcome": {
+        "policyBlock": "你的视频未发布，因为它不符合我们的准则。",
+        "processingFailure": "你的视频未能发布。",
+        "recordAgain": "重新录制"
+      }
     },
     "routes": {
       "community": {
