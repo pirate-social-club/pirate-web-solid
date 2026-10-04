@@ -8,11 +8,20 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.102.0 declares expired_unfunded and the deliberate pause response.
-// Reviewed drift is limited to reward funding enums and 503 rewards_paused.
-const expectedDigest = "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b";
+// Client 0.108.0 adds Telegram linking. The existing operation review found
+// only optional binding_generation on HNS attachment reads; see the intake evidence.
+const expectedDigest = "713a9a40d7813fe5040c2b0933850b9355ab4ebeeabf02e9500faa44a09f23f4";
 
 const operations = [
+  "get_telegramLinkAccount",
+  "post_telegramLinkTransactions",
+  "get_telegramLinkTransactionsTransactionId",
+  "post_telegramLinkTransactionsTransactionIdVerify",
+  "post_telegramLinkCallbackVerify",
+  "post_telegramLinkTransactionsTransactionIdConfirm",
+  "post_telegramLinkGrantsRevoke",
+  "post_telegramLinkAssociationUnlink",
+
   "post_communitiesCommunityIdSpacesOwnershipStart",
   "post_communitiesCommunityIdSpacesOwnershipPoll",
   "get_communitiesCommunityIdSpacesOperatorAssignments",

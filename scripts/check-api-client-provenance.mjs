@@ -11,6 +11,15 @@ const clients = [
     dependency: "@pirate/api-client",
     provenance: "vendor/api-client-provenance.json",
     expectedScope: [
+      "get_telegramLinkAccount",
+      "post_telegramLinkTransactions",
+      "get_telegramLinkTransactionsTransactionId",
+      "post_telegramLinkTransactionsTransactionIdVerify",
+      "post_telegramLinkCallbackVerify",
+      "post_telegramLinkTransactionsTransactionIdConfirm",
+      "post_telegramLinkGrantsRevoke",
+      "post_telegramLinkAssociationUnlink",
+
       "post_communitiesCommunityIdPostsPostIdRewardOffers",
       "post_rewardOffersOfferIdMegapotPoolLegs",
       "post_rewardOffersOfferIdAssetBonusLegs",

@@ -97,6 +97,8 @@ export default defineConfig({
       "src/features/karaoke/karaoke-practice-playback.test.tsx",
       "src/features/karaoke/karaoke-lyric-feedback.test.tsx",
       "src/features/identity/activity-persona-preparation.test.ts",
+      "src/features/identity/telegram-linking/telegram-linking.test.ts",
+      "src/features/identity/telegram-linking/telegram-linking-page.test.tsx",
       "src/features/identity/community-persona-choice-sheet.test.tsx",
       "src/features/identity/community-persona-choice.test.ts",
       "src/features/posts/feed/public-feed.test.tsx",

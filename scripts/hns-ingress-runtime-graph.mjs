@@ -10,6 +10,7 @@ const APPLICATION_EDGES = new Set([
   "./api/index.ts",
   "./api/verification-config.ts",
   "./features/posts/public-post/public-post-sitemap.ts",
+  "./features/identity/telegram-linking/telegram-linking-privacy.ts",
 ]);
 const SECURITY_EDGES = new Set([
   "./features/profiles/persona-public-profile/persona-public-profile.model.ts",

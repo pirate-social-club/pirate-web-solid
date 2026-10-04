@@ -5,6 +5,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ingressRuntimePaths, readIngressRuntimeSources, runtimeEdges } from "./hns-ingress-runtime-graph.mjs";
 
+test("Telegram page privacy is an application callback; unknown adapter edges still refuse", async () => {
+  const root = await mkdtemp(join(tmpdir(), "hns-application-callback-"));
+  try {
+    await mkdir(join(root, "src"));
+    const adapter = 'import "./features/identity/telegram-linking/telegram-linking-privacy.ts";';
+    await writeFile(join(root, "src/worker.ts"), adapter);
+    const sources = await readIngressRuntimeSources(root);
+    assert.deepEqual(ingressRuntimePaths(sources), ["src/worker.ts"]);
+    assert.equal(sources.get("src/worker.ts").toString(), adapter);
+    await writeFile(join(root, "src/worker.ts"), adapter + '\nimport "./unreviewed.ts";');
+    await assert.rejects(readIngressRuntimeSources(root), /unclassified_adapter_edge/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("the parser distinguishes mixed value imports, empty imports and type-only reexports", () => {
   assert.deepEqual(runtimeEdges("module.ts", Buffer.from(`
     import type { A } from "types";

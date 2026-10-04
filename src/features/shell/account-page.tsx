@@ -42,6 +42,7 @@ export function AccountPage(props: { navigate: (href: string) => void; profile?:
           <Button onClick={() => personas?.setPickerOpen(true)}>Switch profile</Button>
           <Show when={personas?.selected()}><Button variant="outline" onClick={() => props.navigate(`/p/${encodeURIComponent(personas!.selected()!.personaId)}`)}>View profile</Button></Show>
           <Button variant="outline" onClick={() => props.navigate("/wallet")}>Wallet</Button>
+          <Button variant="outline" onClick={() => props.navigate("/telegram/link/account")}>Telegram connections</Button>
         </div>
         <Button class="self-start" variant="ghost" onClick={() => void signOut()} disabled={pending()}>{pending() ? "Signing out…" : "Sign out"}</Button>
       </Show>
