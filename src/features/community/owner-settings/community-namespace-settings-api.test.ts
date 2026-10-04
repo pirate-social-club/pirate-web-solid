@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
+import type { PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryPollResponse } from "@pirate/api-client";
 
 import { createApiClient } from "../../../api/client";
 import { createCommunityNamespaceSettingsApi, type HnsSessionLocator } from "./community-namespace-settings-api";
@@ -352,7 +353,7 @@ describe("community import discovery", () => {
 
   test("discards a discovered expired session while preserving the current attachment", async () => {
     const sessionLocator = locator();
-    const attachment = { canonical_route: { root_label_display: "current-name" }, status: "active" };
+    const attachment = { canonical_route: { family: "hns", root_label_display: "current-name" }, status: "active" };
     // SAFETY: This fake exposes exactly the generated discovery read used by the adapter.
     const api = createCommunityNamespaceSettingsApi({
       client: {
@@ -372,12 +373,12 @@ describe("community import discovery", () => {
     });
 
     const snapshot = await api.read();
-    expect(snapshot.next_action).toEqual({ kind: "choose_namespace" });
-    expect(snapshot.attachment).toEqual({ root_label: "current-name", status: "active" });
+    expect(snapshot.next_action).toMatchObject({ kind: "verified", canonical_route: "https://app.current-name/" });
+    expect(snapshot.attachment).toEqual({ root_label: "current-name", status: "active", can_recover_ownership: false });
     expect(sessionLocator.value).toBeNull();
   });
 
-  test.each([null, { canonical_route: { root_label_display: "midnight" }, status: "active" }])(
+  test.each([null, { canonical_route: { family: "hns", root_label_display: "midnight" }, status: "active" }])(
     "reports account-scoped absence independently of attachment %j", async (attachment) => {
       const api = createCommunityNamespaceSettingsApi({
         // SAFETY: Only the generated discovery fields consumed by this adapter are returned.
@@ -385,8 +386,8 @@ describe("community import discovery", () => {
         communityId: common.community_id, communityPath: "/c/community-1", locator: locator(),
       });
       const snapshot = await api.read();
-      expect(snapshot.next_action).toEqual({ kind: "choose_namespace", no_account_import: true });
-      expect(snapshot.attachment).toEqual(attachment === null ? null : { root_label: "midnight", status: "active" });
+      expect(snapshot.next_action).toMatchObject(attachment === null ? { kind: "choose_namespace", no_account_import: true } : {kind:"verified",canonical_route:"https://app.midnight/"});
+      expect(snapshot.attachment).toEqual(attachment === null ? null : { root_label: "midnight", status: "active", can_recover_ownership: false });
     },
   );
 
@@ -465,4 +466,257 @@ test("the vendored client decodes a lifecycle-bearing HNS session response", asy
   });
   expect(decoded.session?.lifecycle?.phase).toBe("checking_authority");
   expect(decoded.session?.lifecycle?.permitted_actions).toContain("poll");
+});
+
+const recoveryChallenge = {
+  ownership_source: "hns_parent_chain_txt",
+  challenge_name: "harbor",
+  challenge_value: "pirate-verification=recovery-fixture",
+  expires_at: "2099-10-03T12:00:00.000Z",
+} as const;
+const recoveryStart = {
+  route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8,
+  channel: "poll_result", status: "pending", expires_at: recoveryChallenge.expires_at,
+  challenge: recoveryChallenge, replayed: false,
+} as const;
+const recoveryRoute = {
+  family: "hns", root_label: "harbor", root_label_display: "harbor", path_segment: "harbor", href: "/c/harbor", app_host: null,
+} as const;
+function retainedRoot(status = "suspended", generation: number | undefined = 8) {
+  return {
+    community_id: common.community_id,
+    attachment: {
+      canonical_route: { family: "hns", root_label_display: "harbor" }, status, can_recover_ownership: true,
+      ...(generation === undefined ? {} : { binding_generation: generation }),
+    },
+    session: { ...common, root_label: "harbor", revision: 43, status: "activated", publish_plan: null, publish_plan_sha256: null, readiness_result_sha256: null, retry_after_seconds: null },
+  };
+}
+function recoveryApi(client: unknown, importLocator = locator()) {
+  return createCommunityNamespaceSettingsApi({
+    // SAFETY: Each fake supplies the generated methods used in its scenario.
+    client: client as never, communityId: common.community_id, communityPath: "/c/harbor",
+    readCsrfToken: () => "csrf-fixture", locator: importLocator,
+  });
+}
+
+test("restores a retained root through owner recovery using binding generation, never import revision", async () => {
+  const discovery = vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce(retainedRoot("active", 9));
+  const start = vi.fn(async (_request: { body: { idempotency_key: string; expected_generation: number } }) => recoveryStart);
+  const poll = vi.fn<(_request: unknown) => Promise<PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryPollResponse>>()
+    .mockResolvedValueOnce({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8, replayed: false, status: "pending", retry_after_seconds: 30, result_hash: null })
+    .mockResolvedValueOnce({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 9, replayed: false, status: "verified", retry_after_seconds: null, result_hash: "a".repeat(64), canonical_route: recoveryRoute });
+  const imports = vi.fn();
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: discovery,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll,
+    post_communitiesCommunityIdHnsRootImports: imports });
+  let state = await api.read();
+  expect(state.generation).toBe(8);
+  expect(state.next_action.kind).toBe("owner_recovery");
+  state = await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "recover-key" });
+  expect(state.next_action).toMatchObject({ kind: "owner_recovery", status: "pending", challenge: recoveryChallenge });
+  expect(start.mock.calls[0]).toEqual([{ path: { communityId: common.community_id }, body: { expected_generation: 8, idempotency_key: expect.stringMatching(/^hns-recovery:start:[0-9a-f]{64}$/) } }, expect.objectContaining({ credentials: "same-origin" })]);
+  state = await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "check-1" });
+  expect(state.next_action).toMatchObject({ status: "pending", challenge: recoveryChallenge });
+  state = await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "check-2" });
+  expect(state.attachment).toMatchObject({ status: "active", binding_generation: 9 });
+  expect(state.next_action).toMatchObject({ kind: "verified", canonical_route: "https://app.harbor/" });
+  expect(imports).not.toHaveBeenCalled();
+  expect(poll.mock.calls[0]?.[0]).toMatchObject({ body: { route_recovery_id: "recovery-1", session_id: "recovery-session-1", expected_generation: 8, channel: "poll_result" } });
+});
+
+test("a lost start response and reload resume the same challenge without another admission key", async () => {
+  const start = vi.fn<(_request: { body: { idempotency_key: string; expected_generation: number } }) => Promise<Omit<typeof recoveryStart, "replayed"> & { replayed: boolean }>>().mockRejectedValueOnce(new Error("response lost"))
+    .mockResolvedValueOnce({ ...recoveryStart, replayed: true });
+  const client = { get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start };
+  const first = recoveryApi(client);
+  await first.read();
+  await expect(first.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "first-key" })).rejects.toThrow("response lost");
+  const reloaded = recoveryApi(client);
+  expect((await reloaded.read()).next_action).toMatchObject({ status: "required" });
+  const state = await reloaded.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "new-page-key" });
+  expect(state.next_action).toMatchObject({ challenge: recoveryChallenge });
+  expect(start.mock.calls[0]?.[0]).toEqual(start.mock.calls[1]?.[0]);
+});
+
+test("an expired recovery requests a fresh challenge explicitly, without restarting the root import", async () => {
+  const start = vi.fn(async (_request: { body: { idempotency_key: string; expected_generation: number } }): Promise<import("@pirate/api-client").PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryStartResponse> => recoveryStart);
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: async () => ({ ...recoveryStart, generation: 9, status: "expired", retry_after_seconds: null, result_hash: "a".repeat(64) }) });
+  await api.read();
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "first-key" });
+  expect((await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "poll-key" })).next_action).toMatchObject({ status: "expired" });
+  start.mockResolvedValueOnce({ ...recoveryStart, generation: 9 });
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 9, idempotency_key: "fresh-key" });
+  expect(start.mock.calls[0]?.[0].body.idempotency_key).not.toBe(start.mock.calls[1]?.[0].body.idempotency_key);
+  expect(start.mock.calls[1]?.[0].body.expected_generation).toBe(9);
+});
+
+test("an activated import deep link checks current ownership instead of showing expired evidence as verified", async () => {
+  const importKey = locator(); importKey.value = "session-1";
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    get_communitiesCommunityIdHnsRootImportsSessionId: async () => retainedRoot().session }, importKey);
+  expect((await api.read()).next_action).toMatchObject({ kind: "owner_recovery", status: "required" });
+  expect(importKey.value).toBeNull();
+});
+
+test("a suspended attachment without its binding generation cannot fall back to an activated import", async () => {
+  const retained = retainedRoot();
+  const start = vi.fn();
+  const imports = vi.fn();
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImports: async () => ({
+      ...retained,
+      attachment: { canonical_route: retained.attachment.canonical_route, status: "suspended" },
+    }),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdHnsRootImports: imports,
+  });
+  await expect(api.read()).rejects.toThrow("Ownership verification has expired");
+  await expect(api.execute({ kind: "start_owner_recovery", expected_generation: 43, idempotency_key: "wrong-generation" })).rejects.toThrow("Refresh the community address");
+  expect(start).not.toHaveBeenCalled();
+  expect(imports).not.toHaveBeenCalled();
+});
+
+test("a discovery response for another community cannot start owner recovery", async () => {
+  const start = vi.fn();
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImports: async () => ({ ...retainedRoot(), community_id: "another-community" }),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+  });
+  await expect(api.read()).rejects.toThrow("did not match this community");
+  expect(start).not.toHaveBeenCalled();
+});
+
+test("a lost successful poll response is recovered from current ownership after reload", async () => {
+  const discovery = vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce(retainedRoot("active", 9));
+  const start = vi.fn(async () => recoveryStart);
+  const poll = vi.fn().mockRejectedValueOnce(new Error("verified response lost"));
+  const client = {
+    get_communitiesCommunityIdHnsRootImports: discovery,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll,
+  };
+  const first = recoveryApi(client);
+  await first.read();
+  await first.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "saved-recovery" });
+  await expect(first.execute({ kind: "poll", expected_generation: 8, idempotency_key: "lost-poll" })).rejects.toThrow("verified response lost");
+  const reloaded = recoveryApi(client);
+  expect((await reloaded.read()).next_action).toMatchObject({ kind: "verified", canonical_route: "https://app.harbor/" });
+  expect(start).toHaveBeenCalledOnce();
+  expect(poll).toHaveBeenCalledOnce();
+});
+
+test("recovery refuses a stale binding generation before invoking the verifier", async () => {
+  const start = vi.fn();
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start });
+  await api.read();
+  await expect(api.execute({ kind: "start_owner_recovery", expected_generation: 43, idempotency_key: "wrong-clock" })).rejects.toThrow("address changed");
+  expect(start).not.toHaveBeenCalled();
+});
+
+test("the pinned generated client carries binding generation and cookie/CSRF recovery requests, including pending 503", async () => {
+  const requests: Request[] = [];
+  const route = { family: "hns", root_label: "harbor", root_label_display: "harbor", path_segment: "harbor", href: "/c/harbor", app_host: null };
+  const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/start")) return Response.json(recoveryStart, { status: 201 });
+    if (path.endsWith("/poll")) return Response.json({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8, status: "unavailable", replayed: false, retry_after_seconds: 30, result_hash: null }, { status: 503 });
+    return Response.json({ community_id: common.community_id, attachment: { canonical_route: route, status: "suspended", can_recover_ownership: true, binding_generation: 8 }, session: null });
+  });
+  const api = createCommunityNamespaceSettingsApi({ communityId: common.community_id, communityPath: "/c/harbor", origin: "https://pirate.example", fetchImpl, readCsrfToken: () => "csrf-fixture", locator: locator() });
+  expect((await api.read()).generation).toBe(8);
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "recovery-key" });
+  expect((await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "poll-key" })).next_action).toMatchObject({ status: "unavailable", challenge: recoveryChallenge });
+  expect(requests.map((request) => request.credentials)).toEqual(["same-origin", "same-origin", "same-origin"]);
+  expect(requests.slice(1).map((request) => request.headers.get("x-csrf-token"))).toEqual(["csrf-fixture", "csrf-fixture"]);
+  expect(await requests[1]?.json()).toEqual({ expected_generation: 8, idempotency_key: expect.stringMatching(/^hns-recovery:start:[0-9a-f]{64}$/) });
+  expect(new URL(requests[1]!.url).pathname).toBe("/api/communities/community-1/canonical-route/ownership-recovery/start");
+});
+
+test("same-owner tabs use the same start and pending poll identity without shared browser storage", async () => {
+  const start = vi.fn(async () => recoveryStart);
+  const poll = vi.fn(async () => ({route_recovery_id:"recovery-1", session_id:"recovery-session-1",generation:8,status:"pending",replayed:false,retry_after_seconds:30,result_hash:null}));
+  const client = {get_communitiesCommunityIdHnsRootImports:async()=>retainedRoot(),post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:start,post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll:poll};
+  for (let index=0; index<2; index++) {
+    const api=recoveryApi(client);
+    await api.read();
+    await api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:`tab-${index}`});
+    await api.execute({kind:"poll",expected_generation:8,idempotency_key:`poll-tab-${index}`});
+  }
+  expect(start.mock.calls[0]).toEqual(start.mock.calls[1]);
+  expect(poll.mock.calls[0]).toEqual(poll.mock.calls[1]);
+});
+
+test("a delayed return reconciles an expired challenge before showing any publication instructions", async () => {
+  const start=vi.fn(async()=>({...recoveryStart,challenge:{...recoveryChallenge,expires_at:"2000-01-01T00:00:00Z"}}));
+  const poll=vi.fn(async()=>({route_recovery_id:"recovery-1",session_id:"recovery-session-1",generation:9,status:"expired",replayed:false,retry_after_seconds:null,result_hash:"a".repeat(64)}));
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:async()=>retainedRoot(),post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:start,post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll:poll});
+  await api.read();
+  const state=await api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"delayed"});
+  expect(state.generation).toBe(9);
+  expect(state.next_action).toMatchObject({kind:"owner_recovery",status:"expired"});
+  expect(state.next_action).not.toHaveProperty("challenge");
+  expect(poll).toHaveBeenCalledOnce();
+});
+
+test("rejected recovery advances generation and preserves its reason",async()=>{
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:async()=>retainedRoot(),post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:async()=>recoveryStart,post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll:async()=>({route_recovery_id:"recovery-1",session_id:"recovery-session-1",generation:9,status:"rejected",reason_code:"txt_value_mismatch",replayed:false,retry_after_seconds:null,result_hash:"a".repeat(64)})});
+  await api.read();await api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"start"});
+  const state=await api.execute({kind:"poll",expected_generation:8,idempotency_key:"poll"});
+  expect(state.generation).toBe(9);expect(state.next_action).toMatchObject({status:"rejected",reason_code:"txt_value_mismatch"});
+});
+
+test("route management permission does not imply creator recovery permission", async()=>{
+  const start=vi.fn();
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:async()=>({...retainedRoot(),attachment:{...retainedRoot().attachment,can_recover_ownership:false}}),post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:start});
+  expect((await api.read()).next_action).toMatchObject({kind:"owner_recovery",status:"denied"});
+  await expect(api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"non-creator"})).rejects.toThrow("Only the community creator");
+  expect(start).not.toHaveBeenCalled();
+});
+
+
+test.each([{generation:9,allowed:true,status:"required"},{generation:8,allowed:false,status:"denied"}])("recovery presentation drops a cached challenge when current authority changes ($generation/$allowed)",async({generation,allowed,status})=>{
+  const changed=retainedRoot("suspended",generation);
+  const discovery=vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce({...changed,attachment:{...changed.attachment,can_recover_ownership:allowed}});
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:discovery,post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:async()=>recoveryStart});
+  await api.read();
+  expect((await api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"start"})).next_action).toMatchObject({challenge:recoveryChallenge});
+  const current=await api.read();
+  expect(current.generation).toBe(generation);
+  expect(current.next_action).toMatchObject({kind:"owner_recovery",status});
+  expect(current.next_action).not.toHaveProperty("challenge");
+});
+
+
+test.each(["active","suspended"])("HNS recovery does not project a Spaces attachment as an HNS host (%s)",async(status)=>{
+  const root=retainedRoot(status);
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:async()=>({...root,session:null,attachment:{...root.attachment,canonical_route:{family:"spaces",root_label_display:"harbor"}}})});
+  const current=await api.read();
+  expect(current.next_action.kind).toBe("choose_namespace");
+  expect(JSON.stringify(current.next_action)).not.toContain("app.harbor");
+});
+
+test.each(["active", "suspended"])("a current Spaces attachment supersedes a retained activated HNS import (%s)", async (status) => {
+  const root = retainedRoot(status);
+  const importLocator = locator();
+  importLocator.write(root.session.root_import_session_id);
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImportsSessionId: async () => root.session,
+    get_communitiesCommunityIdHnsRootImports: async () => ({
+      ...root,
+      attachment: { ...root.attachment, canonical_route: { family: "spaces", root_label_display: "harbor" } },
+    }),
+  }, importLocator);
+  const current = await api.read();
+  expect(current.next_action.kind).toBe("choose_namespace");
+  expect(JSON.stringify(current.next_action)).not.toContain("app.harbor");
+  expect(current.generation).not.toBe(root.session.revision);
+  expect(importLocator.read()).toBeNull();
 });

@@ -2,6 +2,7 @@ import {
   createPirateApiClient,
   type PirateApiClient,
   type PostCommunitiesCommunityIdHnsRootImportsResponse,
+  type PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryStartResponse,
 } from "@pirate/api-client";
 import {
   createGeneratedApiClient,
@@ -30,6 +31,8 @@ type RootImportClient = Pick<
   | "get_communitiesCommunityIdHnsRootImportsSessionId"
   | "post_communitiesCommunityIdHnsRootImportsSessionIdPoll"
   | "post_communitiesCommunityIdHnsRootImportsSessionIdActivate"
+  | "post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart"
+  | "post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll"
 >;
 
 export interface HnsSessionLocator {
@@ -50,23 +53,28 @@ export interface CommunityNamespaceSettingsApiOptions {
 
 const SESSION_QUERY = "hns_import_session";
 
-function browserSessionLocator(): HnsSessionLocator {
+async function recoveryKey(kind: "start" | "poll", ...identity: ReadonlyArray<string | number>): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(identity)));
+  return `hns-recovery:${kind}:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function browserSessionLocator(query = SESSION_QUERY): HnsSessionLocator {
   return {
     read: () => {
       if (typeof location === "undefined") return null;
-      const value = new URL(location.href).searchParams.get(SESSION_QUERY);
+      const value = new URL(location.href).searchParams.get(query);
       return value !== null && value.length > 0 && value.length <= 256 ? value : null;
     },
     write: (sessionId) => {
       if (typeof location === "undefined" || typeof history === "undefined") return;
       const url = new URL(location.href);
-      url.searchParams.set(SESSION_QUERY, sessionId);
+      url.searchParams.set(query, sessionId);
       history.replaceState(history.state, "", url);
     },
     clear: () => {
       if (typeof location === "undefined" || typeof history === "undefined") return;
       const url = new URL(location.href);
-      url.searchParams.delete(SESSION_QUERY);
+      url.searchParams.delete(query);
       history.replaceState(history.state, "", url);
     },
   };
@@ -370,10 +378,30 @@ export function createCommunityNamespaceSettingsApi(
   let current = chooseSnapshot(options.communityId);
   let attachment: NamespaceAttachment | null = null;
   let currentSessionId: string | null = null;
+  let recovery: PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryStartResponse | null = null;
+
+  const recoverySnapshot = (
+    status: Extract<NamespaceSettingsSnapshot["next_action"], { kind: "owner_recovery" }>["status"],
+  ): NamespaceSettingsSnapshot => {
+    if (attachment?.binding_generation === undefined) {
+      throw new CommunityNamespaceSettingsApiError("Refresh the page before restoring verification.");
+    }
+    return {
+      attachment,
+      community_id: options.communityId,
+      family: "hns",
+      generation: attachment.binding_generation,
+      root_label: attachment.root_label,
+      next_action: {
+        kind: "owner_recovery", status,
+        ...(recovery === null ? {} : { challenge: recovery.challenge }),
+      },
+    };
+  };
 
   const acceptSession = (response: RootImportSnapshot): NamespaceSettingsSnapshot => {
     const mapped = mapSnapshot(response, options.communityPath, attachment);
-    if (mapped.next_action.kind === "expired") {
+      if (mapped.next_action.kind === "expired") {
       locator.clear();
       currentSessionId = null;
       current = { ...chooseSnapshot(options.communityId), attachment };
@@ -397,34 +425,123 @@ export function createCommunityNamespaceSettingsApi(
     if (response.community_id !== options.communityId || response.root_import_session_id !== sessionId) {
       throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
     }
+    // A completed import can outlive its ownership evidence. Read the current
+    // attachment before projecting it as verified from an old deep link.
+    if (response.status === "activated") return discover();
     return acceptSession(response);
+  };
+
+  const discover = async (): Promise<NamespaceSettingsSnapshot> => {
+    const response = await client().get_communitiesCommunityIdHnsRootImports({
+      path: { communityId: options.communityId },
+    }, { credentials: "same-origin" });
+    if (response.community_id !== options.communityId
+      || (response.session !== null && response.session.community_id !== options.communityId)) {
+      throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
+    }
+    attachment = response.attachment === null ? null : {
+      root_label: response.attachment.canonical_route.root_label_display,
+      status: response.attachment.status,
+      ...(response.attachment.binding_generation === undefined ? {} : { binding_generation: response.attachment.binding_generation }),
+      can_recover_ownership: response.attachment.can_recover_ownership === true,
+    };
+    if (recovery !== null && (recovery.generation !== attachment?.binding_generation || attachment?.can_recover_ownership !== true)) recovery = null;
+    if (attachment?.status === "suspended" && response.attachment?.canonical_route.family === "hns") {
+      if (attachment.binding_generation === undefined) {
+        throw new CommunityNamespaceSettingsApiError("Ownership verification has expired. Refresh the page before restoring it.");
+      }
+      currentSessionId = null;
+      locator.clear();
+      current = recoverySnapshot(attachment.can_recover_ownership ? "required" : "denied");
+      return current;
+    }
+    recovery = null;
+    const session = response.attachment !== null && response.attachment.canonical_route.family !== "hns" ? null : response.session;
+    currentSessionId = session?.root_import_session_id ?? null;
+    if (session === null) locator.clear();
+    if (attachment?.status === "active" && response.attachment?.canonical_route.family === "hns" && (session === null || session.status === "activated" || session.status === "expired")) {
+      locator.clear();
+      current = { attachment, community_id: options.communityId, family: "hns", generation: attachment.binding_generation ?? 1, root_label: attachment.root_label,
+        next_action: {kind:"verified",canonical_route: `https://app.${attachment.root_label}/`,canonical_route_label:`app.${attachment.root_label}`,fallback_route:`/c/${options.communityId}`,fallback_route_label:"Community page"} };
+      return current;
+    }
+    current = session !== null ? acceptSession(session) : {
+      ...chooseSnapshot(options.communityId), attachment,
+      next_action: { kind: "choose_namespace", no_account_import: true },
+    };
+    return current;
+  };
+
+  const pollRecovery = async (): Promise<NamespaceSettingsSnapshot> => {
+    if (recovery === null || attachment === null) throw new CommunityNamespaceSettingsApiError("Refresh ownership verification before checking it.");
+    const response = await client().post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll({
+      path: { communityId: options.communityId },
+      body: {
+        route_recovery_id: recovery.route_recovery_id,
+        session_id: recovery.session_id,
+        expected_generation: recovery.generation,
+        idempotency_key: await recoveryKey("poll", options.communityId, recovery.generation, recovery.route_recovery_id, recovery.session_id),
+        channel: "poll_result",
+      },
+    }, writeOptions());
+    if (response.route_recovery_id !== recovery.route_recovery_id || response.session_id !== recovery.session_id) {
+      throw new CommunityNamespaceSettingsApiError("The recovery response did not match this verification.");
+    }
+    if (response.status === "verified") {
+      if (response.generation !== recovery.generation + 1 || response.canonical_route.root_label_display !== attachment.root_label) {
+        throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
+      }
+      return discover();
+    }
+    const terminal = response.status === "expired" || response.status === "rejected";
+    if (response.generation !== recovery.generation + (terminal ? 1 : 0)) {
+      throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
+    }
+    if (terminal) {
+      attachment = { ...attachment, binding_generation: response.generation };
+      recovery = null;
+    }
+    current = recoverySnapshot(response.status);
+    if (response.status === "rejected") current = { ...current, next_action: { ...current.next_action, kind: "owner_recovery", status: "rejected", reason_code: response.reason_code } };
+    return current;
   };
 
   return {
     read: async () => {
+      if (current.next_action.kind === "owner_recovery") return discover();
       const sessionId = currentSessionId ?? locator.read();
       if (sessionId !== null) return load(sessionId);
-      const response = await client().get_communitiesCommunityIdHnsRootImports({
-        path: { communityId: options.communityId },
-      }, { credentials: "same-origin" });
-      if (response.community_id !== options.communityId
-        || (response.session !== null && response.session.community_id !== options.communityId)) {
-        throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
-      }
-      attachment = response.attachment === null ? null : {
-        root_label: response.attachment.canonical_route.root_label_display,
-        status: response.attachment.status,
-      };
-      currentSessionId = response.session?.root_import_session_id ?? null;
-      if (response.session !== null) {
-        current = acceptSession(response.session);
-      } else {
-        current = { ...chooseSnapshot(options.communityId), attachment,
-          next_action: { kind: "choose_namespace", no_account_import: true } };
-      }
-      return current;
+      return discover();
     },
     execute: async (command: NamespaceSettingsCommand) => {
+      if (current.next_action.kind === "owner_recovery") {
+        if (attachment?.binding_generation === undefined || command.expected_generation !== attachment.binding_generation) {
+          throw new CommunityNamespaceSettingsApiError("The community address changed. Refresh and try again.");
+        }
+        if (command.kind === "start_owner_recovery") {
+          if (!attachment.can_recover_ownership) throw new CommunityNamespaceSettingsApiError("Only the community creator can restore ownership verification.");
+          const requestOptions = writeOptions();
+          const key = await recoveryKey("start", options.communityId, attachment.binding_generation);
+          const response = await client().post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart({
+            path: { communityId: options.communityId },
+            body: { expected_generation: attachment.binding_generation, idempotency_key: key },
+          }, requestOptions);
+          if (response.generation !== attachment.binding_generation) {
+            throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
+          }
+          recovery = response;
+          if (Date.parse(response.challenge.expires_at) <= Date.now()) return pollRecovery();
+          current = recoverySnapshot("pending");
+          return current;
+        }
+        if (command.kind === "poll" && recovery !== null) {
+          return pollRecovery();
+        }
+        throw new CommunityNamespaceSettingsApiError("Restore ownership verification for the attached name before changing its setup.");
+      }
+      if (command.kind === "start_owner_recovery") {
+        throw new CommunityNamespaceSettingsApiError("Refresh the community address before restoring ownership verification.");
+      }
       if (command.kind === "poll") {
         const sessionId = currentSessionId ?? locator.read();
         if (sessionId === null) throw new CommunityNamespaceSettingsApiError("The HNS verification session is missing.");

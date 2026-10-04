@@ -8,9 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.102.0 declares expired_unfunded and the deliberate pause response.
-// Reviewed drift is limited to reward funding enums and 503 rewards_paused.
-const expectedDigest = "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b";
+// Client 0.109.0 adds the optional authenticated creator recovery capability.
+// Comparison with 0.108.0 found only that discovery response addition;
+// success statuses and error definitions are unchanged.
+const expectedDigest = "40934757fe43d2b84343246590158775a115b1c278f08bf67f4124addec3c812";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
