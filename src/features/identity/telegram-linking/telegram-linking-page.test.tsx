@@ -136,6 +136,19 @@ test("voice requirement and owner access appear before sign-in and login navigat
   button(container, "Continue with Telegram").click();
   expect(navigate).toHaveBeenCalledWith("https://oauth.telegram.org/auth?client_id=123"); expect(api.confirm).not.toHaveBeenCalled();
 });
+test("pending-wallet preparation clears the provider display and offers safe setup recovery", async () => {
+  callbackUrl(); const api = fixture();
+  const prepare = vi.fn(async () => ({ activity_presentation: null, community_id: "music", object: "activity_persona_preparation" as const, persona_id: "eligible", persona_status: "pending_wallet" as const }));
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={async () => ({ ...session, personas: [persona("eligible", null)] })} preparePersona={prepare} />);
+  await vi.waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+  container.querySelector<HTMLInputElement>("input")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Use this persona in this community"));
+  button(container, "Use this persona in this community").click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Finish persona and wallet setup on Pirate"));
+  expect(container.querySelector("a[href='/p/song/study']")).not.toBeNull();
+  expect(container.textContent).not.toContain("learner_fixture");
+  expect(api.confirm).not.toHaveBeenCalled();
+});
 test("unlink requires a separate explicit review and revoke is scoped to one bot", async () => {
   const api = fixture();
   const container = mount(() => <TelegramConnectionsPage api={api} resolveSession={async () => session} />);
