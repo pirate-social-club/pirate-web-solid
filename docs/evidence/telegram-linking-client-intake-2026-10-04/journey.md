@@ -103,3 +103,12 @@ Cloudflare request logging. Dashboard logging settings have not been inspected.
 The operator acceptance must verify that callback code and state are excluded
 from platform request logs before activation. Neither a code alone nor this UI
 allows bypassing the server's verifier and browser/session binding.
+
+
+Final source review added a stale initial-read failure case. It failed against
+bd87cda because an older rejected account read overwrote a newer successful
+header sign-in. Initial read failures now use the same revision guard as
+successful reads; errors from the actual linking operation remain handled.
+The focused suite passes 33 tests after this correction. Final type checking,
+focused changed-file lint with warnings, the SSR test covering all three views
+and the resource-bounded Worker build pass. No browser or operator acceptance is implied.

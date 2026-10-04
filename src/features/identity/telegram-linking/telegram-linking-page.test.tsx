@@ -295,3 +295,20 @@ test("failed account revalidation discards confirmation without exposing the err
   expect(container.textContent).not.toContain("private session diagnostics");
   expect(api.confirm).not.toHaveBeenCalled();
 });
+
+
+test("an older initial read failure cannot overwrite a successful header sign-in", async () => {
+  history.replaceState(null, "", `/telegram/link?navigation_reference=${id}`);
+  const api = fixture(); let reads = 0;
+  const initial = Promise.withResolvers<AuthenticatedSession>();
+  const resolve = vi.fn(() => ++reads === 1 ? initial.promise : Promise.resolve(session));
+  const container = mount(() => <TelegramLinkingPage mode="start" api={api} resolveSession={resolve} />);
+  await vi.waitFor(() => expect(resolve).toHaveBeenCalledTimes(1));
+  refreshSession();
+  await vi.waitFor(() => expect(container.textContent).toContain("Review this link"));
+  initial.reject(new Error("obsolete session failure"));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await vi.waitFor(() => expect(container.textContent).toContain("Review this link"));
+  expect(container.querySelector("[role=alert]")).toBeNull();
+  expect(api.start).not.toHaveBeenCalled();
+});

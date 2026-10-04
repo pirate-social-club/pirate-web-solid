@@ -196,8 +196,11 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
     void (async () => {
       try {
         const revision = sessionRevision;
-        const resolved = await (props.resolveSession ?? resolveSession)();
-        if (!active || revision !== sessionRevision) return;
+        const resolved = await (props.resolveSession ?? resolveSession)().catch(error => {
+          if (active && revision === sessionRevision) fail(error);
+          return undefined;
+        });
+        if (!active || revision !== sessionRevision || resolved === undefined) return;
         await initialise(resolved);
       } catch (error) { fail(error); }
     })();
