@@ -79,10 +79,12 @@ test("no eligible persona offers the existing community Study preparation journe
   expect(api.confirm).not.toHaveBeenCalled();
   expect(container.textContent).toContain("fresh link");
 });
-test("session refresh during verification cancels stale confirmation without accepting its result", async () => {
+test.each(["anonymous", "other-account"])("%s after session refresh cancels in-flight verification", async changed => {
   callbackUrl(); const api = fixture(); const pending = Promise.withResolvers<TelegramLinkTransaction>();
   api.verify = vi.fn(() => pending.promise);
-  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={async () => session} />);
+  let reads = 0;
+  const resolve = async () => ++reads === 1 ? session : changed === "anonymous" ? "anonymous" as const : { ...session, userId: changed };
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={resolve} />);
   await vi.waitFor(() => expect(api.verify).toHaveBeenCalled()); refreshSession(); pending.resolve(transaction);
   await vi.waitFor(() => expect(container.textContent).toContain("Your Pirate session changed"));
   expect(container.textContent).not.toContain("learner_fixture"); expect(api.confirm).not.toHaveBeenCalled();
@@ -163,4 +165,133 @@ test("unlink requires a separate explicit review and revoke is scoped to one bot
   await vi.waitFor(() => expect(container.textContent).toContain("Unlink this Telegram account"));
   button(container, "Unlink this Telegram account").click();
   await vi.waitFor(() => expect(api.unlink).toHaveBeenCalledWith("456", expect.any(AbortSignal)));
+});
+
+
+test("header sign-in before starting an attempt keeps the original navigation reference", async () => {
+  history.replaceState(null, "", `/telegram/link?navigation_reference=${id}`);
+  const api = fixture(); let reads = 0;
+  const container = mount(() => <TelegramLinkingPage mode="start" api={api} resolveSession={async () => ++reads === 1 ? "anonymous" : session} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Sign in to Pirate first"));
+  refreshSession();
+  await vi.waitFor(() => expect(container.textContent).toContain("Review this link"));
+  expect(api.start).not.toHaveBeenCalled();
+  button(container, "Review this link").click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Continue with Telegram"));
+  expect(api.start).toHaveBeenCalledWith(id, expect.any(AbortSignal));
+});
+
+test("same-account refresh preserves confirmation and explicit persona choice", async () => {
+  callbackUrl(); const api = fixture();
+  const checked = Promise.withResolvers<AuthenticatedSession>(); let reads = 0;
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={() => ++reads === 1 ? Promise.resolve(session) : checked.promise} />);
+  await vi.waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+  container.querySelector<HTMLInputElement>("input")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Link this Telegram and persona"));
+  refreshSession();
+  await vi.waitFor(() => expect(button(container, "Link this Telegram and persona").disabled).toBe(true));
+  checked.resolve(session);
+  await vi.waitFor(() => expect(button(container, "Link this Telegram and persona").disabled).toBe(false));
+  expect(container.querySelector<HTMLInputElement>("input")!.checked).toBe(true);
+  expect(api.verify).toHaveBeenCalledTimes(1);
+  button(container, "Link this Telegram and persona").click();
+  await vi.waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+});
+
+test("in-flight verification waits for a same-account recheck without exchanging the code twice", async () => {
+  callbackUrl(); const api = fixture();
+  const verified = Promise.withResolvers<TelegramLinkTransaction>();
+  const checked = Promise.withResolvers<AuthenticatedSession>(); let reads = 0;
+  api.verify = vi.fn(() => verified.promise);
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={() => ++reads === 1 ? Promise.resolve(session) : checked.promise} />);
+  await vi.waitFor(() => expect(api.verify).toHaveBeenCalledTimes(1));
+  refreshSession(); verified.resolve(transaction);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(container.querySelector("input")).toBeNull();
+  checked.resolve(session);
+  await vi.waitFor(() => expect(container.textContent).toContain("learner_fixture"));
+  expect(api.verify).toHaveBeenCalledTimes(1);
+  expect(api.confirm).not.toHaveBeenCalled();
+});
+
+test("confirmation cannot run before the refreshed account is known", async () => {
+  callbackUrl(); const api = fixture();
+  const checked = Promise.withResolvers<AuthenticatedSession>(); let reads = 0;
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={() => ++reads === 1 ? Promise.resolve(session) : checked.promise} />);
+  await vi.waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+  container.querySelector<HTMLInputElement>("input")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Link this Telegram and persona"));
+  refreshSession();
+  await vi.waitFor(() => expect(button(container, "Link this Telegram and persona").disabled).toBe(true));
+  button(container, "Link this Telegram and persona").click();
+  expect(api.confirm).not.toHaveBeenCalled();
+  checked.resolve({ ...session, userId: "other-account" });
+  await vi.waitFor(() => expect(container.textContent).toContain("Your Pirate session changed"));
+  expect(container.textContent).not.toContain("learner_fixture");
+});
+
+test("an older refresh cannot replace a newer signed-out result", async () => {
+  callbackUrl(); const api = fixture(); let reads = 0;
+  const older = Promise.withResolvers<AuthenticatedSession>();
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={() => ++reads === 1 ? Promise.resolve(session) : reads === 2 ? older.promise : Promise.resolve("anonymous")} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("learner_fixture"));
+  refreshSession(); refreshSession();
+  await vi.waitFor(() => expect(container.textContent).toContain("Your Pirate session changed"));
+  older.resolve(session);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(container.querySelector("input")).toBeNull();
+  expect(api.confirm).not.toHaveBeenCalled();
+});
+
+test("same-account refresh does not override an API refusal of the original session binding", async () => {
+  callbackUrl(); const api = fixture();
+  const checked = Promise.withResolvers<AuthenticatedSession>(); let reads = 0;
+  api.confirm = vi.fn(async () => { throw new ApiClientError(
+    { code: "conflict", name: "Conflict", retryable: false, status: 409 },
+    { error: { code: "conflict", message: "fixture session rotated", retryable: false } },
+  ); });
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={() => ++reads === 1 ? Promise.resolve(session) : checked.promise} />);
+  await vi.waitFor(() => expect(container.querySelector("input")).not.toBeNull());
+  refreshSession();
+  await vi.waitFor(() => expect(container.querySelector<HTMLFieldSetElement>("fieldset")!.disabled).toBe(true));
+  checked.resolve(session);
+  await vi.waitFor(() => expect(container.querySelector<HTMLFieldSetElement>("fieldset")!.disabled).toBe(false));
+  container.querySelector<HTMLInputElement>("input")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Link this Telegram and persona"));
+  button(container, "Link this Telegram and persona").click();
+  await vi.waitFor(() => expect(container.querySelector("[role=alert]")).not.toBeNull());
+  expect(container.textContent).not.toContain("Linked to eligible");
+  expect(container.textContent).not.toContain("fixture session rotated");
+  expect(api.confirm).toHaveBeenCalledTimes(1);
+});
+
+
+test("header sign-in wins over an older initial anonymous session read", async () => {
+  history.replaceState(null, "", `/telegram/link?navigation_reference=${id}`);
+  const api = fixture(); let reads = 0;
+  const initial = Promise.withResolvers<"anonymous">();
+  const resolve = vi.fn(() => ++reads === 1 ? initial.promise : Promise.resolve(session));
+  const container = mount(() => <TelegramLinkingPage mode="start" api={api} resolveSession={resolve} />);
+  await vi.waitFor(() => expect(resolve).toHaveBeenCalledTimes(1));
+  refreshSession();
+  await vi.waitFor(() => expect(container.textContent).toContain("Review this link"));
+  initial.resolve("anonymous");
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(container.textContent).toContain("Review this link");
+  expect(api.start).not.toHaveBeenCalled();
+});
+
+test("failed account revalidation discards confirmation without exposing the error", async () => {
+  callbackUrl(); const api = fixture(); let reads = 0;
+  const resolve = async () => {
+    if (++reads === 1) return session;
+    throw new Error("private session diagnostics");
+  };
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={resolve} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("learner_fixture"));
+  refreshSession();
+  await vi.waitFor(() => expect(container.textContent).toContain("Your Pirate session could not be checked"));
+  expect(container.textContent).not.toContain("learner_fixture");
+  expect(container.textContent).not.toContain("private session diagnostics");
+  expect(api.confirm).not.toHaveBeenCalled();
 });

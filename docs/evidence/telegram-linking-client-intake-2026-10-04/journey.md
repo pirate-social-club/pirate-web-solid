@@ -18,7 +18,11 @@ captured only in memory and removed from the address before asynchronous work.
 No tab storage supplies the attempt. A verified transaction id supports a
 browser-bound confirmation reload through the existing read endpoint. Provider
 display data appears only on initial confirmation and is discarded on completion
-or failure. Changed sessions abort pending work and require a fresh bot journey.
+or failure. Account changes and sign-out abort pending work and require a fresh bot journey.
+A routine frontend cache refresh rechecks the account and preserves the journey
+when it is unchanged. API requests continue to enforce the original session
+and private browser binding; matching account ids cannot override a real
+sign-in session change.
 Generic conflicts never claim an identity conflict; only the API's specific
 reason supplies that recovery copy. Raw errors are never rendered.
 
@@ -75,3 +79,27 @@ and wallet confirmation. Pending-wallet recovery uses that route too, clears
 the Telegram display projection and requires a fresh bot link. The focused
 transport/component suite now passes 22 tests. Final type/build verification
 and remaining broad checks must be recorded separately before integration.
+
+
+The October 4 review repair allows header sign-in before an attempt starts and
+preserves explicit persona choice across same-account cache refreshes. Actions
+pause while the refreshed account is unknown. In-flight API results wait for
+that recheck, and older session reads cannot overwrite newer results. Sign-out,
+account changes and failed revalidation clear confirmation and abort pending
+work. Persona preparation keeps its existing explicit readback.
+
+Focused verification passes 32 transport and component tests, including header
+sign-in, initial-read and verification races, changed account, sign-out, failed
+revalidation and an API refusal after a same-account refresh. Type checking,
+lint with warnings and the SSR test covering all three views pass. The first
+SSR command used an incorrect filename and found no tests; the corrected command
+passed. The first new component run had two assertion timing failures; deferred
+session fixtures now wait for the disabled state before checking continuation.
+The resource-bounded Worker build passes with chunk-size warnings. The full
+prior verification is not claimed to have been rerun for this repair.
+
+Application query stripping does not hide the original callback URL from
+Cloudflare request logging. Dashboard logging settings have not been inspected.
+The operator acceptance must verify that callback code and state are excluded
+from platform request logs before activation. Neither a code alone nor this UI
+allows bypassing the server's verifier and browser/session binding.
