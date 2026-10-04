@@ -702,3 +702,21 @@ test.each(["active","suspended"])("HNS recovery does not project a Spaces attach
   expect(current.next_action.kind).toBe("choose_namespace");
   expect(JSON.stringify(current.next_action)).not.toContain("app.harbor");
 });
+
+test.each(["active", "suspended"])("a current Spaces attachment supersedes a retained activated HNS import (%s)", async (status) => {
+  const root = retainedRoot(status);
+  const importLocator = locator();
+  importLocator.write(root.session.root_import_session_id);
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImportsSessionId: async () => root.session,
+    get_communitiesCommunityIdHnsRootImports: async () => ({
+      ...root,
+      attachment: { ...root.attachment, canonical_route: { family: "spaces", root_label_display: "harbor" } },
+    }),
+  }, importLocator);
+  const current = await api.read();
+  expect(current.next_action.kind).toBe("choose_namespace");
+  expect(JSON.stringify(current.next_action)).not.toContain("app.harbor");
+  expect(current.generation).not.toBe(root.session.revision);
+  expect(importLocator.read()).toBeNull();
+});

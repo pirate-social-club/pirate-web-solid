@@ -456,14 +456,16 @@ export function createCommunityNamespaceSettingsApi(
       return current;
     }
     recovery = null;
-    currentSessionId = response.session?.root_import_session_id ?? null;
-    if (attachment?.status === "active" && response.attachment?.canonical_route.family === "hns" && (response.session === null || response.session.status === "activated" || response.session.status === "expired")) {
+    const session = response.attachment !== null && response.attachment.canonical_route.family !== "hns" ? null : response.session;
+    currentSessionId = session?.root_import_session_id ?? null;
+    if (session === null) locator.clear();
+    if (attachment?.status === "active" && response.attachment?.canonical_route.family === "hns" && (session === null || session.status === "activated" || session.status === "expired")) {
       locator.clear();
       current = { attachment, community_id: options.communityId, family: "hns", generation: attachment.binding_generation ?? 1, root_label: attachment.root_label,
         next_action: {kind:"verified",canonical_route: `https://app.${attachment.root_label}/`,canonical_route_label:`app.${attachment.root_label}`,fallback_route:`/c/${options.communityId}`,fallback_route_label:"Community page"} };
       return current;
     }
-    current = response.session !== null ? acceptSession(response.session) : {
+    current = session !== null ? acceptSession(session) : {
       ...chooseSnapshot(options.communityId), attachment,
       next_action: { kind: "choose_namespace", no_account_import: true },
     };
