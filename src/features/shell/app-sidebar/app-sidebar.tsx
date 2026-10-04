@@ -29,6 +29,7 @@ export interface AppSidebarProps {
   resourceItems?: readonly SidebarItem[];
   resourcesLabel?: string;
   sections?: readonly SidebarSection[];
+  communityContent?: JSX.Element;
   class?: string;
   collapsed?: boolean;
   mediaAction?: JSX.Element;
@@ -38,7 +39,7 @@ export interface AppSidebarProps {
 }
 
 function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: (id: string) => void }) {
-  const content = () => <><Show when={props.item.icon} fallback={<IconList class="size-5" />}>{props.item.icon}</Show><Type as="span" variant="body" class="min-w-0 flex-1 truncate">{props.item.label}</Type></>;
+  const content = () => <><span aria-hidden="true" class="shrink-0"><Show when={props.item.icon} fallback={<IconList class="size-5" />}>{props.item.icon}</Show></span><Type as="span" variant="body" class="min-w-0 flex-1 truncate">{props.item.label}</Type></>;
   const classes = () => cn("flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", props.active && "bg-sidebar-accent text-sidebar-accent-foreground");
   return <Show when={props.item.href} fallback={<button aria-current={props.active ? "page" : undefined} class={classes()} onClick={() => props.onNavigate?.(props.item.id)} type="button">{content()}</button>}>
     <a href={props.item.href} aria-current={props.active ? "page" : undefined} class={classes()} onClick={event => {
@@ -58,6 +59,7 @@ export function AppSidebar(props: AppSidebarProps) {
     <Show when={props.mediaAction && !props.collapsed}><div class="mb-4">{props.mediaAction}</div></Show>
     <nav aria-label="Main navigation" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
       <Show when={props.primaryItems?.length}><div class="flex flex-col gap-1"><For each={props.primaryItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></Show>
+      {props.communityContent}
       <For each={sections()}>{(section) => <section aria-labelledby={`${headingId}-${section.id}`}><Show when={!props.collapsed}><Type as="h2" variant="overline" class="px-3 pb-1 text-muted-foreground" id={`${headingId}-${section.id}`}>{section.label}</Type></Show><div class="flex flex-col gap-1"><For each={section.items}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div><Show when={!props.collapsed && section.action}>{section.action}</Show></section>}</For>
       <Show when={props.resourceItems?.length}><section aria-labelledby={`${headingId}-resources`}><Show when={!props.collapsed}><Type as="h2" variant="overline" class="px-3 pb-1 text-muted-foreground" id={`${headingId}-resources`}>{props.resourcesLabel ?? "Resources"}</Type></Show><div class="flex flex-col gap-1"><For each={props.resourceItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section></Show>
     </nav>
