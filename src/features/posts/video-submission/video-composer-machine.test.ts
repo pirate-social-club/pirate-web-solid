@@ -55,7 +55,7 @@ function fixture(overrides: Partial<ComposerOperations> = {}, clock?: SimulatedC
     syncPreview() {}, closePreview() {}, discardPrepared() {},
     ...overrides,
   };
-  const actor = createActor(createVideoComposerMachine(operations, true), { clock }).start();
+  const actor = createActor(createVideoComposerMachine(operations, true), clock ? { clock } : undefined).start();
   const inState = (state: string) => {
     const [parent, child] = state.split(".");
     const value = actor.getSnapshot().value;
