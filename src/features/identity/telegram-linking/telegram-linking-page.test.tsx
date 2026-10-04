@@ -70,6 +70,15 @@ test("reloaded confirmation uses browser-bound transaction read and numeric iden
   expect(api.get).toHaveBeenCalledWith(id, expect.any(AbortSignal)); expect(api.verify).not.toHaveBeenCalled();
   expect(container.textContent).not.toContain("learner_fixture");
 });
+test("no eligible persona offers the existing community Study preparation journey", async () => {
+  callbackUrl(); const api = fixture();
+  const container = mount(() => <TelegramLinkingPage mode="callback" api={api} resolveSession={async () => ({ ...session, personas: [persona("other-community", "elsewhere")] })} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Set up your Study persona on Pirate"));
+  expect(container.querySelector("a[href='/p/song/study']")).not.toBeNull();
+  expect(container.querySelector("input[type=radio]")).toBeNull();
+  expect(api.confirm).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("fresh link");
+});
 test("session refresh during verification cancels stale confirmation without accepting its result", async () => {
   callbackUrl(); const api = fixture(); const pending = Promise.withResolvers<TelegramLinkTransaction>();
   api.verify = vi.fn(() => pending.promise);

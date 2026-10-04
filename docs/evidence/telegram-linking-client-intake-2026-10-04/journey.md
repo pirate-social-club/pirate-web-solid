@@ -50,3 +50,28 @@ Android testing must cover email codes, Google, X and browser wallets in both
 Telegram's in-app browser and the system browser, account/session changes,
 new-tab return, proof-to-sender id equality and nonce behavior. No deployment,
 credential, permission, flag or production money changes are part of this source.
+
+The full application run passed 316 API, 1422 app and 36 SSR tests, plus the
+production configuration, HNS identity, type, helper, discovery, lint, provenance,
+runtime-table and icon checks before entering shared UI. Several shared UI
+cases exceeded their unchanged five-second limits under concurrent host load;
+that run was stopped and the complete shared UI suite passed serially with
+420 tests in 73 files. Solid Doctor passed with its existing warnings.
+The dependency audit returned six high, ten moderate and six low advisory
+entries for braces and undici. A separate audit of the exact base lockfile
+returned identical JSON; only the API artifact differs in the lockfile.
+
+Broad browser regression remains incomplete. The first text-post harness missed
+its 60-second cold-start deadline during dependency optimization; the retry hit
+its 3 GiB cgroup limit. The first Storybook build hit its 2 GiB limit. Two later
+attempts were stopped when host memory was scarce, including one requiring a
+kill after polite termination did not release it. These are failed or unfinished
+checks, not a successful full verify or Storybook result. No other lane's
+processes or resources were stopped.
+
+Final review changed the no-eligible-persona recovery from Settings to the
+existing selected-song Study route, which supports explicit persona preparation
+and wallet confirmation. Pending-wallet recovery uses that route too, clears
+the Telegram display projection and requires a fresh bot link. The focused
+transport/component suite now passes 22 tests. Final type/build verification
+and remaining broad checks must be recorded separately before integration.

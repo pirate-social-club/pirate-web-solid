@@ -22,6 +22,7 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
   const [personaId, setPersonaId] = createSignal("");
   const [message, setMessage] = createSignal("");
   const [retryable, setRetryable] = createSignal(false);
+  const [needsPersonaSetup, setNeedsPersonaSetup] = createSignal(false);
   let reference: string | undefined;
   let authorization: string | undefined;
   let callback: TelegramCallback | undefined;
@@ -42,6 +43,7 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
   const candidates = () => communityJoinCandidates(session()?.personas ?? [], transaction()?.community_id ?? "");
   const selected = () => candidates().find(persona => persona.personaId === personaId());
   const botUrl = () => communityBotUrl(transaction()?.bot_username ?? "");
+  const personaSetupHref = () => `/p/${encodeURIComponent(transaction()?.post_id ?? "")}/study`;
 
   async function verify() {
     if (phase() === "busy") return;
@@ -87,6 +89,8 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
       });
       if (!active) return;
       if (result.persona_status !== "active" || result.persona_id !== persona.personaId) {
+        setNeedsPersonaSetup(true);
+        setTransaction({ ...current, confirmation_display: undefined });
         setMessage("Finish setting up this persona on Pirate before linking. Then return to your bot for a fresh link.");
         setRetryable(false); setPhase("error"); return;
       }
@@ -119,6 +123,7 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
       if (preparingPersona) return;
       active = false; controller.abort(); callback = undefined; authorization = undefined;
       setTransaction(undefined); setPersonaId(""); setRetryable(false);
+      setNeedsPersonaSetup(false);
       setMessage("Your Pirate session changed. Return to your community bot and start a fresh link.");
       setPhase("error");
     });
@@ -199,7 +204,7 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
             </label>
           )}</For>
         </fieldset>
-        <Show when={candidates().length === 0}><p>You need an active eligible persona. <a href="/settings" class="underline">Set up your persona on Pirate</a>, then start a fresh link.</p></Show>
+        <Show when={candidates().length === 0}><p>You need an active persona for this community. <a href={personaSetupHref()} class="underline">Set up your Study persona on Pirate</a>, then return to your community bot for a fresh link.</p></Show>
         <Show when={selected()?.communityBinding === null}>
           <p>This persona will become bound to {transaction()?.community_name}.</p>
           <Button onClick={() => void prepare()}>Use this persona in this community</Button>
@@ -216,6 +221,7 @@ export function TelegramLinkingPage(props: TelegramLinkingPageProps) {
       </Show>
       <Show when={phase() === "error"}>
         <p role="alert">{message()}</p>
+        <Show when={needsPersonaSetup()}><a class="underline" href={personaSetupHref()}>Finish persona and wallet setup on Pirate</a></Show>
         <Show when={retryable() && callback !== undefined}><Button onClick={() => void verify()}>Try again</Button></Show>
       </Show>
       <a href="/telegram/link/account" class="block underline">Manage Telegram connections</a>
