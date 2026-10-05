@@ -149,7 +149,16 @@ function rejectionStatus(error: unknown): number | undefined {
   return typeof error.status === "number" ? error.status : undefined;
 }
 
+class AvatarPreparationError extends Error {
+  constructor(purpose: "community" | "persona") {
+    super(purpose === "community"
+      ? "Could not upload the community image. Your setup is still here. Try again or choose another image."
+      : "Could not upload your profile image. Your setup is still here. Try again or choose another image.");
+  }
+}
+
 function safeError(error: unknown, fallback: string): string {
+  if (error instanceof AvatarPreparationError) return error.message;
   if (error instanceof CommunityCreationApiError && error.code === "csrf_required") {
     return "Refresh the page, then try again.";
   }
@@ -575,11 +584,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     signal: AbortSignal;
   }
 
-  const optionalAvatar = async (
+  const prepareAvatar = async (
     prepare: () => Promise<Blob>,
     purpose: "community" | "persona",
     context: AvatarPreparationContext,
-  ): Promise<string | undefined> => {
+  ): Promise<string> => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const abort = () => controller.abort();
@@ -613,17 +622,16 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       });
       const assetId = await Promise.race([upload, cancelled, timeout]);
       if (controller.signal.aborted || context.signal.aborted || !active
-        || signedIn(session())?.userId !== context.accountId || flowScope() !== context.routeScope) return undefined;
+        || signedIn(session())?.userId !== context.accountId || flowScope() !== context.routeScope) {
+        throw new DOMException("aborted", "AbortError");
+      }
+      if (!avatarAssetPattern.test(assetId)) throw new Error("avatar_upload_invalid");
       rememberAvatarRef(purpose, assetId, context.routeScope);
       return assetId;
-    } catch {
-      // Avatar images are deliberately optional. The creation request still
-      // proceeds and the API response records the omission outcome.
-      if (active && !context.signal.aborted && signedIn(session())?.userId === context.accountId
-        && flowScope() === context.routeScope) {
-        setMessage("An optional avatar could not be prepared or uploaded; creation will continue.");
-      }
-      return undefined;
+    } catch (error) {
+      if (!active || context.signal.aborted || activationAbort.signal.aborted
+        || signedIn(session())?.userId !== context.accountId || flowScope() !== context.routeScope) throw error;
+      throw new AvatarPreparationError(purpose);
     } finally {
       activationAbort.signal.removeEventListener("abort", abort);
       context.signal.removeEventListener("abort", abort);
@@ -631,7 +639,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
-  const draftWithOptionalAvatars = async (
+  const draftWithAvatars = async (
     source: CreateCommunityDraft,
     context: AvatarPreparationContext,
   ): Promise<CreateCommunityDraft> => {
@@ -642,8 +650,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (recovered !== undefined) next.communityAvatarRef = recovered;
       else if (communityAvatarFile() !== undefined) {
         const selected = communityAvatarFile()!;
-        const ref = await optionalAvatar(async () => selected, "community", context);
-        if (ref !== undefined) next.communityAvatarRef = ref;
+        next.communityAvatarRef = await prepareAvatar(async () => selected, "community", context);
       }
     }
     if (!active || context.signal.aborted) return next;
@@ -660,12 +667,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         return next;
       }
       const selected = personaAvatarFile();
-      const ref = await optionalAvatar(
+      next.personaAvatarRef = await prepareAvatar(
         selected === undefined ? () => rasterizeProfile(next.profileAvatarSeed) : async () => selected,
         "persona",
         context,
       );
-      if (ref !== undefined) next.personaAvatarRef = ref;
     }
     return next;
   };
@@ -698,8 +704,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
         if (latest.committedHref || draftConflict()) return;
         if (draftEdited()) {
-          const draftToSubmit = await draftWithOptionalAvatars(currentDraft, submissionContext);
-          if (!active || signedIn(session())?.userId !== owner.userId) return;
+          const draftToSubmit = await draftWithAvatars(currentDraft, submissionContext);
+          if (!active || submissionContext.signal.aborted || signedIn(session())?.userId !== owner.userId) return;
           setDraft(draftToSubmit);
           const updated = await api.updateIntent({
             intentId: latest.intentId,
@@ -722,7 +728,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           await runCommit(latest.revision, latest.intentId, owner.userId);
       } catch (error) {
         continuing = false;
-        if (active) setMessage(safeError(error, "Could not save your changes. Your setup is still here. Try again."));
+        if (active && !submissionContext.signal.aborted && signedIn(session())?.userId === owner.userId) setMessage(safeError(error, "Could not save your changes. Your setup is still here. Try again."));
       } finally { if (active) setBusy(false); }
       return;
     }
@@ -739,12 +745,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     setBusy(true);
     setMessage("");
     try {
-      // Preserve the owning account's recoverable draft before optional media
+      // Preserve the owning account's recoverable draft before avatar
       // work starts so an account switch during preparation loses neither
       // account's state.
       writeSubmittedDraft(submissionContext.routeScope, currentDraft);
-      const draftToSubmit = await draftWithOptionalAvatars(currentDraft, submissionContext);
-      if (!active || signedIn(session())?.userId !== owner.userId) return;
+      const draftToSubmit = await draftWithAvatars(currentDraft, submissionContext);
+      if (!active || submissionContext.signal.aborted || signedIn(session())?.userId !== owner.userId) return;
       setDraft(draftToSubmit);
       writeSubmittedDraft(submissionContext.routeScope, draftToSubmit);
       const created = await api.createIntent({
@@ -774,7 +780,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       }
     } catch (error) {
       continuing = false;
-      if (active) setMessage(safeError(error, "Couldn't create your community. Try again."));
+      if (active && !submissionContext.signal.aborted && signedIn(session())?.userId === owner.userId) setMessage(safeError(error, "Couldn't create your community. Try again."));
     } finally {
       if (active) setBusy(false);
     }
@@ -805,14 +811,14 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   return (
-    <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
+    <main data-creation-state={creationState()} data-route-path="/communities/new" class="h-dvh overflow-hidden bg-background text-foreground">
       <Title>Create community</Title>
       <Show
         when={session() !== "anonymous"}
         fallback={
           // A signed-out visitor is sent to sign-in and returns to creation;
           // the form is never shown to someone who cannot submit it.
-          <div class="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col items-center justify-center gap-4 px-5 text-center">
+          <div class="mx-auto flex h-full w-full max-w-2xl flex-col items-center justify-center gap-4 px-5 text-center">
             <Type as="h1" variant="h4" class="text-lg">{routesCopy().title}</Type>
             <Button class="h-11 w-full max-w-xs" onClick={() => requestGlobalSignIn()}>{routesCopy().signInToCreate}</Button>
           </div>

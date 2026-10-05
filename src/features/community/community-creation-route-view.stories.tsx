@@ -39,10 +39,10 @@ const successfulAvatarUpload = fn(async (input: Parameters<NonNullable<Community
     : "avatar-22222222-2222-4222-8222-222222222222",
 );
 const successfulAvatarCreate = fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => avatarCandidateIntent);
-const omittedAvatarUpload = fn(async (_input: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) => {
-  throw new Error("optional upload unavailable");
+const failedAvatarUpload = fn(async (_input: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) => {
+  throw new Error("upload unavailable");
 });
-const omittedAvatarCreate = fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => avatarCandidateIntent);
+const failedAvatarCreate = fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => avatarCandidateIntent);
 
 function avatarStoryApi(
   uploadAvatar: NonNullable<CommunityCreationApi["uploadAvatar"]>,
@@ -57,7 +57,7 @@ function avatarStoryApi(
   };
 }
 
-async function completeAvatarStory(canvasElement: HTMLElement): Promise<void> {
+async function completeAvatarStory(canvasElement: HTMLElement, uploadFailure = false): Promise<void> {
   const canvas = within(canvasElement);
   await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
   await userEvent.upload(
@@ -67,7 +67,9 @@ async function completeAvatarStory(canvasElement: HTMLElement): Promise<void> {
   await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Avatar harbor");
   await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
   await userEvent.click(await canvas.findByRole("button", { name: "Create" }));
-  await waitFor(() => expect(canvas.getByText("This community requirement is not available right now. Your setup is still here.")).toBeInTheDocument());
+  await waitFor(() => expect(canvas.getByText(uploadFailure
+    ? "Could not upload the community image. Your setup is still here. Try again or choose another image."
+    : "This community requirement is not available right now. Your setup is still here.")).toBeInTheDocument());
 }
 
 const stateOf = (container: HTMLElement) =>
@@ -193,20 +195,19 @@ export const AvatarAttachmentCandidate: Story = {
   },
 };
 
-export const AvatarUploadOmitted: Story = {
-  name: "Avatar upload omitted",
+export const AvatarUploadFailed: Story = {
+  name: "Avatar upload failed keeps setup",
   args: {
-    api: avatarStoryApi(omittedAvatarUpload, omittedAvatarCreate),
+    api: avatarStoryApi(failedAvatarUpload, failedAvatarCreate),
     avatarAuthoring: true,
     resolveSession: async () => ({ status: "authenticated", userId: "account-one", personas: [] }),
   },
   play: async ({ canvasElement }) => {
-    omittedAvatarUpload.mockClear();
-    omittedAvatarCreate.mockClear();
-    await completeAvatarStory(canvasElement);
-    await expect(omittedAvatarUpload).toHaveBeenCalledTimes(2);
-    const submitted = omittedAvatarCreate.mock.calls[0]?.[0].draft;
-    await expect(submitted.communityAvatarRef).toBeUndefined();
-    await expect(submitted.personaAvatarRef).toBeUndefined();
+    failedAvatarUpload.mockClear();
+    failedAvatarCreate.mockClear();
+    await completeAvatarStory(canvasElement, true);
+    await expect(failedAvatarUpload).toHaveBeenCalledOnce();
+    await expect(failedAvatarCreate).not.toHaveBeenCalled();
+    await expect(within(canvasElement).getByRole("button", { name: "Create" })).toBeEnabled();
   },
 };

@@ -188,7 +188,11 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             <div class="mx-auto flex w-full max-w-2xl items-center gap-3 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
               <Show
                 when={step() > 1}
-                fallback={<span aria-hidden="true" class="size-10" />}
+                fallback={
+                  <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
+                    <IconX class="size-5" />
+                  </IconButton>
+                }
               >
                 <IconButton
                   aria-label={backLabel()}
@@ -199,14 +203,11 @@ export function CreateCommunityView(props: CreateCommunityProps) {
                 </IconButton>
               </Show>
               <Type as="h1" variant="body-strong" class="flex-1 text-center">{stepTitle()}</Type>
-              {/*
-                Deliberate difference from the video review surface, which has
-                no exit: every creation page keeps the close action reachable
-                next to the back arrow.
-              */}
-              <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
-                <IconX class="size-5" />
-              </IconButton>
+              <Show when={step() > 1} fallback={<span aria-hidden="true" class="size-10" />}>
+                <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
+                  <IconX class="size-5" />
+                </IconButton>
+              </Show>
             </div>
           </header>
         }

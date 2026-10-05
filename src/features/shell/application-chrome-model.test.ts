@@ -53,7 +53,7 @@ describe("application chrome policy", () => {
 
   test("separates the membership index from community creation", () => {
     expect(resolveApplicationChrome("/communities")).toMatchObject({ activeItemId: "your-communities", mobileTitle: "Your communities" });
-    expect(resolveApplicationChrome("/communities/new")).toMatchObject({ activeItemId: "create-community", mobileTitle: "Create community" });
+    expect(resolveApplicationChrome("/communities/new")).toMatchObject({ mode: "bare", activeItemId: "create-community", mobileTitle: "Create community" });
   });
 
   test("highlights Profile only on the viewer's own public profile", () => {

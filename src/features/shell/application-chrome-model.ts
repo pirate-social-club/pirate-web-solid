@@ -79,7 +79,8 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
       activeItemId: segments[1] === "new" ? "create-community" : "your-communities",
       mobileActiveItem: "none",
       mobileTitle: segments[1] === "new" ? "Create community" : "Your communities",
-      mode: "standard",
+      // Creation owns its header, scrolling body and action footer, like an activity session.
+      mode: segments[1] === "new" ? "bare" : "standard",
     };
   }
 

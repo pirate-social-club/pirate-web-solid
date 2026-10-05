@@ -197,8 +197,14 @@ describe("Community creation avatar authoring candidate", () => {
     }));
   });
 
-  test("continues creation when both optional uploads fail", async () => {
-    const uploadAvatar = vi.fn(async () => { throw new Error("storage unavailable"); });
+  test.each(["community", "persona"] as const)("keeps the form and retries when the %s upload fails", async (purpose) => {
+    let fail = true;
+    const uploadAvatar = vi.fn(async (input: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) => {
+      if (fail && input.purpose === purpose) throw new Error("storage unavailable");
+      return input.purpose === "community"
+        ? "avatar-11111111-1111-4111-8111-111111111111"
+        : "avatar-22222222-2222-4222-8222-222222222222";
+    });
     const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
     const container = render(() => <CommunityCreationRouteView
       api={api({ createIntent: createIntentRequest, uploadAvatar })}
@@ -210,20 +216,33 @@ describe("Community creation avatar authoring candidate", () => {
     await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
     chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community.png");
     const name = nameField(container);
-    name.value = "Fallback harbor";
+    name.value = "Retry harbor";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
     fillPublicName(container);
+    if (purpose === "persona") chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "profile.png");
     finalSubmit(container)!.click();
 
+    const label = purpose === "community" ? "the community" : "your profile";
+    await vi.waitFor(() => expect(container.textContent).toContain(`Could not upload ${label} image.`));
+    expect(createIntentRequest).not.toHaveBeenCalled();
+    expect(finalSubmit(container)?.disabled).toBe(false);
+    expect(publicNameField(container)?.value).toBe("River Room");
+    const failedCall = uploadAvatar.mock.calls.find(([input]) => input.purpose === purpose)![0];
+    fail = false;
+    finalSubmit(container)!.click();
     await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
-    expect(uploadAvatar).toHaveBeenCalledTimes(2);
-    const submitted = createIntentRequest.mock.calls[0]?.[0].draft;
-    expect(submitted.communityAvatarRef).toBeUndefined();
-    expect(submitted.personaAvatarRef).toBeUndefined();
+    expect(createIntentRequest.mock.calls[0]?.[0].draft).toMatchObject({
+      communityAvatarRef: "avatar-11111111-1111-4111-8111-111111111111",
+      personaAvatarRef: "avatar-22222222-2222-4222-8222-222222222222",
+    });
+    const retryCall = uploadAvatar.mock.calls.filter(([input]) => input.purpose === purpose)[1]![0];
+    expect(retryCall.file).toBe(failedCall.file);
+    expect(retryCall.idempotencyKey).toBe(failedCall.idempotencyKey);
+    if (purpose === "persona") expect(uploadAvatar.mock.calls.filter(([input]) => input.purpose === "community")).toHaveLength(1);
   });
 
-  test("continues creation when generated-avatar rasterization never settles", async () => {
+  test("keeps creation open when generated-avatar rasterization times out", async () => {
     const uploadAvatar = vi.fn();
     const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
     const rasterize = vi.fn(() => new Promise<Blob>(() => {}));
@@ -241,10 +260,11 @@ describe("Community creation avatar authoring candidate", () => {
     fillPublicName(container);
     finalSubmit(container)!.click();
 
-    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not upload your profile image."));
+    expect(createIntentRequest).not.toHaveBeenCalled();
     expect(rasterize).toHaveBeenCalledOnce();
     expect(uploadAvatar).not.toHaveBeenCalled();
-    expect(createIntentRequest.mock.calls[0]?.[0].draft.personaAvatarRef).toBeUndefined();
+    expect(finalSubmit(container)?.disabled).toBe(false);
   });
 
   test("keeps the generated default stable across a pre-intent reload", async () => {
@@ -607,7 +627,7 @@ describe("Community creation production route", () => {
     expect(container.querySelector("[data-route-path='/communities/new']")).not.toBeNull();
     expect(container.querySelector("[aria-label='Loading community creation']")).toBeNull();
     expect(container.querySelector("[data-create-community]")).not.toBeNull();
-    expect(container.querySelector(".h-dvh")).toBeNull();
+    expect(container.querySelector("main.h-dvh")).not.toBeNull();
   });
 
   test("offers the sign-in prompt instead of the form while signed out", async () => {
