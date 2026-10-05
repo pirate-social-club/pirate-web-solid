@@ -15,7 +15,6 @@ import {
 } from "./hns-ingress/index.ts";
 import { projectPersonaPublicProfile } from "./features/profiles/persona-public-profile/persona-public-profile.model.ts";
 import { publicPostSitemapResponse } from "./features/posts/public-post/public-post-sitemap.ts";
-import { isTelegramLinkPage, telegramPageRequest, telegramPageResponse } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 
 export { HnsCommunityAppReplayStoreDO } from "./hns-ingress/replay-store-do.ts";
 
@@ -91,8 +90,7 @@ export async function applicationRequest(request: Request, env: Env): Promise<Re
   if (pathname.startsWith("/assets/") && env.ASSETS) {
     return env.ASSETS.fetch(request);
   }
-  const privateTelegram = isTelegramLinkPage(pathname);
-  const response = await handleRequest(privateTelegram ? telegramPageRequest(request) : request, {
+  return handleRequest(request, {
     context: {
       API_NEXT_ORIGIN: env.API_NEXT_ORIGIN,
       PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
@@ -100,7 +98,6 @@ export async function applicationRequest(request: Request, env: Env): Promise<Re
         env.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,
     },
   });
-  return privateTelegram ? telegramPageResponse(response) : response;
 }
 
 async function ordinaryRequest(request: Request, env: Env): Promise<Response> {

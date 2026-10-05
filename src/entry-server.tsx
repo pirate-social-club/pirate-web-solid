@@ -1,3 +1,4 @@
+import { isTelegramLinkPage, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
 import { getRequestEvent, httpHeader, httpStatus, renderToStream } from "@solidjs/web";
 import type { Component } from "solid-js";
@@ -50,6 +51,12 @@ export async function render(
   dependencies: EntryServerRenderDependencies = {},
 ) {
   const event = getRequestEvent();
+  if (isTelegramLinkPage(new URL(request.url).pathname)) {
+    request = telegramPageRequest(request);
+    // The router reads the request event, not this function's argument.
+    // Scrub both before preflights, routing or hydration serialization starts.
+    if (event !== undefined) event.request = request;
+  }
   const nonce = event?.locals.cspNonce;
   const Application = dependencies.Application ?? App;
   if (event !== undefined) {

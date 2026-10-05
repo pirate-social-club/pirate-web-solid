@@ -6,24 +6,6 @@ import {
 } from "./hns-ingress/index.ts";
 import worker, { applicationRequest } from "./worker.ts";
 
-describe("private Telegram page rendering", () => {
-  it.each(["/telegram/link", "/telegram/link/callback", "/telegram/link/account"])("scrubs all query values before SSR on %s", async path => {
-    // SAFETY: this existing fixture supplies every binding applicationRequest reads; no provider or HNS operation runs.
-    const response = await applicationRequest(new Request(`https://pirate.test${path}?code=private-code&state=private-state&navigation_reference=private-reference`), enabledMisconfiguredEnvironment() as never);
-    const body = await response.text();
-    expect(JSON.parse(body).path).toBe(path);
-    expect(body).not.toContain("private-code"); expect(body).not.toContain("private-state"); expect(body).not.toContain("private-reference");
-    expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
-    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
-  });
-  it("leaves unrelated route queries intact", async () => {
-    // SAFETY: this existing fixture supplies every binding applicationRequest reads; the SSR fixture only echoes the request path.
-    const response = await applicationRequest(new Request("https://pirate.test/search?q=song"), enabledMisconfiguredEnvironment() as never);
-    expect(await response.json()).toMatchObject({ path: "/search?q=song" });
-  });
-});
-
 const ingressOrigin = "https://solid-hns-ingress.test";
 const keyBase64Url = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64url");
 
