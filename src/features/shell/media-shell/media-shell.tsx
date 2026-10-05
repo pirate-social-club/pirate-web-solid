@@ -27,6 +27,7 @@ import {
   requestGlobalSignIn,
 } from "../../auth/global-sign-in-host.tsx";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
 import { PersonaSwitcherSheet, type SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
@@ -320,17 +321,13 @@ export function ApplicationChrome(props: MediaShellProps) {
           userAvatarSrc={footerPersona()?.avatarSrc ?? undefined}
         />
         <Show when={signedIn() && ((switchTarget()?.personas.length ?? 0) > 0 || switchTarget()?.unavailable)}>
-          <IconButton
-            aria-label={desktopProfileLabel()}
-            aria-haspopup={switchable() || switchTarget()?.unavailable ? "dialog" : undefined}
-            class="fixed bottom-5 end-5 z-40 hidden size-12 rounded-full border border-border-soft bg-background shadow-md md:flex"
-            data-community-profile-control
-            title={footerPersona() ? `Posting as ${footerPersona()!.displayName}` : desktopProfileLabel()}
+          <CommunityPersonaControl
+            desktopOnly
+            label={desktopProfileLabel()}
+            opensPicker={switchable() || switchTarget()?.unavailable === true}
+            persona={footerPersona()}
             onClick={() => { if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher(); else openFooterProfile(); }}
-            variant="ghost"
-          >
-            <Avatar class="size-8" fallback={footerPersona()?.displayName ?? "Profile"} size="sm" src={footerPersona()?.avatarSrc ?? undefined} />
-          </IconButton>
+          />
         </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
           {(target) => (

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
+import { toast } from "../../../design-system";
 
 import type { SessionResolution } from "../../../api/session.ts";
 import {
@@ -9,7 +10,7 @@ import type {
   CommunityEngagementApi,
   CommunityJoinAction,
 } from "./community-engagement-api.ts";
-import type { CommunityPageSuccess, CommunityPageViewState } from "./community-page.model";
+import type { CommunityPageSuccess } from "./community-page.model";
 
 const rules = [
   { title: "Keep posts on topic", body: "Memes belong in the weekly discussion thread.", position: 1 },
@@ -52,7 +53,7 @@ const surfaceData = {
 function success(
   overrides: Partial<CommunityPageSuccess> = {},
   community: Partial<CommunityPageSuccess["community"]> = {},
-): CommunityPageViewState {
+): CommunityPageSuccess {
   return {
     kind: "success",
     status: 200,
@@ -114,6 +115,49 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const StandalonePostingProfiles: Story = {
+  args: {
+    surfaceData,
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: async () => ({
+      status: "authenticated",
+      userId: "storybook-account",
+      personas: ["Harbor", "Night Shift"].map((displayName, index) => ({
+        personaId: `storybook-persona-${index}`,
+        displayName,
+        avatarRef: null,
+        primaryPublicHandle: null,
+        communityBinding: { communityId: success().communityId, bindingSource: "first_membership" },
+      })),
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const control = await canvas.findByRole("button", { name: "Switch posting profile" });
+    await userEvent.click(control);
+    const picker = await body.findByRole("dialog");
+    await userEvent.click(within(picker).getByRole("radio", { name: /Night Shift/ }));
+    await expect(control).toHaveAttribute("title", "Posting as Night Shift");
+    const id = toast.info("Posting profile selected", { duration: 60000 });
+    try {
+      const status = await body.findByRole("status");
+      await waitFor(() => {
+        const feedback = status.getBoundingClientRect();
+        const profile = control.getBoundingClientRect();
+        const separated = feedback.right <= profile.left || feedback.bottom <= profile.top;
+        expect(separated).toBe(true);
+      });
+    } finally { toast.dismiss(id); }
+  },
+};
+
+export const StandalonePostingProfilesMobile: Story = {
+  ...StandalonePostingProfiles,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
 
 export const Default: Story = {
   name: "Open community",

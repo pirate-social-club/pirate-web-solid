@@ -36,6 +36,8 @@ import {
 } from "../../posts/post-engagement/post-engagement.tsx";
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
+import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
 import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
@@ -159,6 +161,7 @@ function SuccessState(props: {
   // selection so the page still works without chrome.
   const personaStore = useActivePersonaStoreOptional();
   const [localPersonaId, setLocalPersonaId] = createSignal<string>();
+  const [localSwitcherOpen, setLocalSwitcherOpen] = createSignal(false);
   const selectedPersonaId = () => personaStore === undefined
     ? localPersonaId()
     : personaStore.activePersonaId(communityId);
@@ -485,7 +488,7 @@ function SuccessState(props: {
             canJoin
             community={community()}
             createPostBusy={postingBusy()}
-            createPostLabel={engagement.personaRetryAvailable() ? "Retry profiles" : "Post"}
+            createPostLabel={engagement.personaRetryAvailable() ? "Retry and open Post" : "Post"}
             followBusy={engagement.followBusy()}
             following={engagement.following()}
             joinBusy={engagement.joinBusy()}
@@ -549,7 +552,7 @@ function SuccessState(props: {
               else replaced it, and it nested an alert inside a polite region.
               The retry control is not an outcome, so it stays on the page, in
               the Post action, which retries the required profile read. */}
-          <Toaster />
+          <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
             createNewUnavailable
@@ -561,7 +564,26 @@ function SuccessState(props: {
             open={engagement.joinPersonaStep()}
             personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
           />
-
+          <Show when={personaStore === undefined}>
+            <Show when={personaOptions().length > 1 || engagement.personaRetryAvailable()}>
+              <CommunityPersonaControl
+                label={engagement.personaRetryAvailable() ? "Retry profiles" : "Switch posting profile"}
+                opensPicker
+                persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
+                onClick={() => setLocalSwitcherOpen(true)}
+              />
+            </Show>
+            <PersonaSwitcherSheet
+              open={localSwitcherOpen()}
+              onOpenChange={setLocalSwitcherOpen}
+              personas={personaOptions()}
+              selectedPersonaId={selectedPersonaId() ?? ""}
+              onSelect={personaId => { selectPersonaId(personaId); setLocalSwitcherOpen(false); }}
+              loading={engagement.personaRetryBusy()}
+              unavailable={engagement.personaRetryAvailable()}
+              onRetry={() => void engagement.retryPersonas()}
+            />
+          </Show>
       </div>
       {/* The membership mode is stated visibly once, in the About card the
           shell renders from membershipMode. The names storefront link lived

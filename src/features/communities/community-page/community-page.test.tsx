@@ -170,7 +170,7 @@ function render(ui: () => JSX.Element, withChrome = false): HTMLElement {
   return container;
 }
 
-function renderPersonaEngagement(): HTMLElement {
+function renderPersonaEngagement(withChrome = true): HTMLElement {
   return render(() => (
     <CommunityPage
       client={{
@@ -201,7 +201,7 @@ function renderPersonaEngagement(): HTMLElement {
         ],
       })}
     />
-  ), true);
+  ), withChrome);
 }
 
 /** Kobalte opens on pointerdown, which a bare click() does not produce. */
@@ -380,6 +380,20 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(
       document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled,
     ).toBe(false));
+  });
+
+  test("an isolated community page switches authorship from its bottom-right control", async () => {
+    const container = renderPersonaEngagement(false);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")).not.toBeNull());
+    expect(container.querySelector("[data-application-chrome]")).toBeNull();
+    expect(container.querySelector("[data-community-persona-reserved]")).toBeNull();
+    container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector("input[value='persona-two']")).not.toBeNull());
+    document.body.querySelector<HTMLInputElement>("input[value='persona-two']")!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")?.getAttribute("title")).toBe("Posting as Persona Two"));
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")?.disabled).toBe(false));
   });
 
   test("renders the public community projection and canonical metadata", async () => {
@@ -569,7 +583,7 @@ describe("CommunityPage", () => {
     // The profile failure is over, which shows in the control it governs
     // rather than in an announcement that has its own lifetime.
     expect([...container.querySelectorAll("button")]
-      .some(button => button.textContent?.trim() === "Retry profiles")).toBe(false);
+      .some(button => button.textContent?.trim() === "Retry and open Post")).toBe(false);
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
     expect(contextualComposerOpen()).toBe(true);
   });
@@ -606,7 +620,7 @@ describe("CommunityPage", () => {
     // This viewer is a member, so Spec 016 leaves them no follow to exercise
     // here; the controller suite covers a follow succeeding while profiles are
     // unavailable. What matters on the page is that the retry is offered.
-    expect([...container.querySelectorAll("button")].some(button => button.textContent?.trim() === "Retry profiles")).toBe(true);
+    expect([...container.querySelectorAll("button")].some(button => button.textContent?.trim() === "Retry and open Post")).toBe(true);
     unavailable = false;
     member = false;
     container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!.click();

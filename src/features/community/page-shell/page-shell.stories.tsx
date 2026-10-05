@@ -124,7 +124,7 @@ export const MembershipUnavailable: Story = {
   render: () => <CommunityPageShell community={geometryCommunity} following={false} joined={false} joinDisabled joinLabel="Unavailable" />,
 };
 export const PostingProfilesUnavailable: Story = {
-  render: () => <CommunityPageShell community={geometryCommunity} following joined createPostLabel="Retry profiles" onCreatePost={() => undefined} />,
+  render: () => <CommunityPageShell community={geometryCommunity} following joined createPostLabel="Retry and open Post" onCreatePost={() => undefined} />,
 };
 export const SortAndManagement: Story = {
   render: () => <CommunityPageShell community={geometryCommunity} following joined onCreatePost={() => undefined} onManage={() => undefined} />,
