@@ -98,6 +98,6 @@ export const CountsWithoutViewer: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole("button", { name: "Upvote" })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
-    await expect(canvas.getByText("Just now")).toBeVisible();
+    await expect(canvas.getByText(/Just now/u)).toBeVisible();
   },
 };
