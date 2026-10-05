@@ -19,3 +19,23 @@ export function createCommentThreadReader(
       },
     });
 }
+
+/** One published-comment projection for persisted threads and profile activity. */
+export function projectPublishedComment(
+  item: Exclude<CommentThreadPage["items"][number], { readonly kind: "age_locked" }>,
+): import("./post-engagement-model.ts").CommentThreadItem {
+  return {
+    id: item.comment_id,
+    parentId: item.parent_comment_id,
+    body: item.body,
+    depth: item.depth,
+    replyCount: item.reply_count,
+    state: "published",
+    submissionId: null,
+    caseRef: null,
+    href: null,
+    authorAvatarRef: item.author_persona?.avatar_ref,
+    createdAt: item.created_at,
+    authorLabel: item.author_persona?.primary_public_handle ?? item.author_persona?.display_name ?? "Public creator",
+  };
+}

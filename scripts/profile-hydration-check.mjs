@@ -10,7 +10,7 @@ const solidPort = 4189;
 const origin = `http://127.0.0.1:${solidPort}`;
 const media = "/storybook/karaoke-artwork.svg";
 const profile = {
-  id: "profile-owned", object: "profile", display_name: "Owned profile",
+  id: "owned", object: "profile", display_name: "Owned profile",
   avatar_ref: media, avatar_source: "upload", cover_ref: media, cover_source: "upload",
   bio: "Public biography", bio_source: "manual", preferred_locale: "en",
   global_handle: { id: "handle-owned", object: "global_handle", label: "owned.pirate", status: "active" },
@@ -19,6 +19,7 @@ const profile = {
 let authenticated = false;
 const publicCalls = [];
 const credentialLeaks = [];
+const activityCalls = [];
 const upstream = createServer((request, response) => {
   const path = new URL(request.url, "http://fixture").pathname;
   const send = (status, body) => {
@@ -47,6 +48,15 @@ const upstream = createServer((request, response) => {
     wallet_set: { evm: null }, community_binding: null, created_at: "2026-09-01T00:00:00Z", retired_at: null,
   }] });
   if (path === "/community-memberships" && authenticated) return send(200, { items: [], next_cursor: null });
+  if (path === "/public/communities/popular") return send(200, { object: "popular_community_list", ranked_by: "members", items: [] });
+  if (path === "/users/me/moderation-communities" && authenticated) return send(200, { object: "moderation_community_page", capability: "moderation.view", items: [], next_cursor: null });
+  if (path === "/public/personas/owned/activity") {
+    activityCalls.push({ authenticated, path });
+    return send(200, { object: "profile_activity_page", next_cursor: null, items: authenticated ? [{
+      kind: "comment", activity_id: "member-comment", activity_at: "2026-10-05T11:00:00.000000Z", community_id: "member-community", community_name: "Member community", post_id: "member-post", post_title: "Member post", href: "/posts/member-post",
+      comment: { comment_id: "member-comment", parent_comment_id: null, body: "Viewer-readable activity fixture", author_persona: { persona_id: "owned", object: "persona", display_name: "Owned profile", avatar_ref: media, primary_public_handle: "owned.pirate" }, depth: 0, reply_count: 0, status: "published", content_rating: "general", created_at: "2026-10-05T11:00:00Z" },
+    }] : [] });
+  }
   return send(path === "/users/me" ? 401 : 404, { error: { code: path === "/users/me" ? "auth_error" : "not_found", message: "Fixture response", retryable: false } });
 });
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -96,22 +106,36 @@ try {
         const html = await result.text();
         assert(html.includes("Public biography") && html.includes(media), `${route}: public response missing from SSR`);
         assert(!html.includes('href="/settings"'), `${route}: private action leaked into SSR`);
-        await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30000 });
+        assert(!html.includes("Viewer-readable activity fixture"), `${route}: viewer activity leaked into SSR`);
+        try {
+          await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30000 });
+        } catch (error) {
+          throw new Error(`${route}: hydration did not settle: ${failures.join("; ")}`, { cause: error });
+        }
         await page.locator(`[data-shell-auth='${authenticated ? "authenticated" : "anonymous"}']`).waitFor();
         const settings = page.locator("[data-profile-layout]").getByRole("link", { name: "Settings", exact: true });
         if (authenticated) await settings.waitFor({ state: "visible" });
         else assert(await settings.count() === 0, `${route}: visitor settings`);
         assert(await page.evaluate(() => window.initialProfileHeading === document.querySelector("[data-profile-layout] h1")), `${route}: hydration replaced the SSR hero`);
-        assert(await page.getByRole("tab").count() === 0, `${route}: unavailable activity tabs`);
+        assert(await page.getByRole("tab").count() === 3, `${route}: activity tabs missing`);
+        if (authenticated) await page.getByText("Viewer-readable activity fixture").waitFor();
+        else await page.getByText("No activity to show.").waitFor();
+        await page.getByRole("tab", { name: "Comments", exact: true }).click();
+        await page.waitForFunction(() => document.querySelector('[role="tab"][aria-label="Comments"]')?.getAttribute("aria-selected") === "true");
+        assert(await page.evaluate(() => window.location.hash) === "#comments", `${route}: tab hash missing`);
         if (route === "/p/owned") assert(await page.locator("[data-profile-handle]").count() === 0, "Duplicate persona handle");
-        await page.waitForFunction(() => [...document.querySelectorAll("[data-profile-layout] img")].length === 2 && [...document.querySelectorAll("[data-profile-layout] img")].every(image => image.complete && image.naturalWidth > 0));
+        await page.waitForFunction(() => {
+          const heroImages = [...document.querySelectorAll('[data-profile-layout] > section[aria-label="Profile"] img')];
+          return heroImages.length === 2 && heroImages.every(image => image.complete && image.naturalWidth > 0);
+        });
         assert(failures.length === 0, `${route}: ${failures.join("; ")}`);
       } finally { await context.close(); }
     }
   }
   assert(publicCalls.length === 4, `Expected four server reads, received ${publicCalls.length}`);
   assert(credentialLeaks.length === 0, "Public profile forwarded private credentials");
-  console.log(JSON.stringify({ ok: true, routes: ["/u/owned.pirate", "/p/owned"], viewers: ["anonymous", "owner"], successfulPublicReads: publicCalls.length, hydrationErrors: 0 }));
+  assert(activityCalls.length >= 8, "Hydrated activity and Comments reads missing");
+  console.log(JSON.stringify({ ok: true, routes: ["/u/owned.pirate", "/p/owned"], viewers: ["anonymous", "owner"], successfulPublicReads: publicCalls.length, activityReads: activityCalls.length, privateActivityInSsr: false, hydrationErrors: 0 }));
 } catch (error) {
   process.stderr.write(workerLog);
   throw error;

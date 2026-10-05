@@ -1,3 +1,4 @@
+import { ProfileActivity, type ProfileActivityDependencies } from "../profile-page/profile-activity.tsx";
 import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
 import type { Navigator } from "@solidjs/router";
@@ -15,6 +16,7 @@ import {
 
 export interface PublicProfilePageProps {
   readonly handle: string;
+  readonly activityDependencies?: ProfileActivityDependencies;
   readonly client?: PublicProfileClient;
   readonly data?: PublicProfileViewState | PromiseLike<PublicProfileViewState>;
   readonly navigate?: Navigator;
@@ -83,7 +85,7 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
   );
 }
 
-function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
+function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator; readonly activityDependencies?: ProfileActivityDependencies }) {
   const copy = profileCopy();
   // A retained success component can be handed a different successful profile
   // when only the route handle changes. Every derived value must stay reactive
@@ -107,10 +109,10 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
       <Meta property="og:description" content={description()} />
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
-      <ProfileLayout name={displayName()} handle={state().canonicalHandle}
+      <ProfileLayout name={displayName()} handle={state().canonicalHandle} personaId={state().profile.personaId}
         avatarRef={state().profile.avatarRef} coverRef={state().profile.coverRef}
         servingOrigin={requestOrigin()} bio={state().profile.bio}
-        />
+        ><ProfileActivity personaId={state().profile.personaId} dependencies={props.activityDependencies} /></ProfileLayout>
       <Show when={!state().isCanonical}><AliasRedirect state={state()} navigate={props.navigate} /></Show>
     </main>
   );
@@ -129,14 +131,14 @@ function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly n
   return <p role="status">{`Redirecting to ${props.state.canonicalHandle}`}</p>;
 }
 
-function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator }) {
+function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator; readonly activityDependencies?: ProfileActivityDependencies }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show
       when={success()}
       fallback={<MessageState state={props.state} />}
     >
-      {state => <SuccessState state={state()} navigate={props.navigate} />}
+      {state => <SuccessState state={state()} navigate={props.navigate} activityDependencies={props.activityDependencies} />}
     </Show>
   );
 }
@@ -152,7 +154,7 @@ function ProfileData(props: PublicProfilePageProps) {
     { deferStream: true },
   );
 
-  return <ProfileState state={state()} navigate={props.navigate} />;
+  return <ProfileState state={state()} navigate={props.navigate} activityDependencies={props.activityDependencies} />;
 }
 
 export function PublicProfilePage(props: PublicProfilePageProps) {

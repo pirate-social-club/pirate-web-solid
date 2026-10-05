@@ -1,10 +1,17 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createEffect, createRoot, createSignal } from "solid-js";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
 import { ApplicationChrome } from "./media-shell";
+
+const discoveryFetch = vi.fn(async (input: RequestInfo | URL) => {
+  const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+  if (path === "/api/public/communities/popular") return Response.json({ object: "popular_community_list", ranked_by: "members", items: [{ community_id: "public-discovery", display_name: "Public discovery", resource_href: "/c/public-discovery", member_count: 3 }] });
+  return Response.json({ code: "auth_error", message: "Authentication required" }, { status: 401 });
+});
+beforeEach(() => { discoveryFetch.mockClear(); vi.stubGlobal("fetch", discoveryFetch); });
 
 const disposers: Array<() => void> = [];
 
@@ -26,6 +33,7 @@ function render(ui: () => JSX.Element): HTMLElement {
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
+  vi.unstubAllGlobals();
 });
 
 describe("Application navigation", () => {
@@ -291,13 +299,13 @@ describe("community application navigation", () => {
   });
 });
 
-test("anonymous production defaults hide community discovery without an error or retry", async () => {
-  const memberships = vi.fn();
-  const container = render(() => <ApplicationChrome signedIn={false} loadCommunities={memberships}>Feed</ApplicationChrome>);
-  await vi.waitFor(() => expect(container.querySelector('[aria-label="Create community"]')).toBeNull());
-  expect(memberships).not.toHaveBeenCalled();
+test("anonymous production defaults load public discovery and offer community creation", async () => {
+  discoveryFetch.mockClear();
+  const container = render(() => <ApplicationChrome signedIn={false}>Feed</ApplicationChrome>);
+  await vi.waitFor(() => expect(container.querySelector('a[href="/c/public-discovery"]')).not.toBeNull());
+  expect(discoveryFetch).toHaveBeenCalledTimes(1);
   expect(container.textContent).not.toContain("Communities couldn’t be loaded");
-  expect(container.querySelector('[aria-label="Create community"]')).toBeNull();
+  expect(container.querySelector('[aria-label="Create community"]')).not.toBeNull();
 });
 
 test("route navigation updates the current community without reloading memberships", async () => {
@@ -317,4 +325,18 @@ test("an authenticated account without profiles can reach Settings through the p
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"] a[href="/settings"]')).not.toBeNull());
   document.querySelector<HTMLAnchorElement>('[role="dialog"] a[href="/settings"]')!.click();
   await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/settings"));
+});
+
+test("changing the resolved account removes the previous private navigation before new data arrives", async () => {
+  const [viewer, setViewer] = createSignal("first-account");
+  let resolve!: (value: { joined: []; popular: []; moderated: [] }) => void;
+  const second = new Promise<{ joined: []; popular: []; moderated: [] }>(done => { resolve = done; });
+  let requests = 0;
+  const load = vi.fn(async () => ++requests === 1 ? { joined: [], popular: [], moderated: [{ communityId: "private-old", displayName: "Private moderator entry", href: "/c/private-old" }] } : second);
+  const container = render(() => <ApplicationChrome signedIn viewerId={viewer()} loadCommunityNavigation={load}>Feed</ApplicationChrome>);
+  await vi.waitFor(() => expect(container.querySelector('a[href="/c/private-old"]')).not.toBeNull());
+  setViewer("second-account");
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  expect(container.querySelector('a[href="/c/private-old"]')).toBeNull();
+  resolve({ joined: [], popular: [], moderated: [] });
 });

@@ -31,7 +31,7 @@ function finiteCount(value: number | string | null | undefined): number {
 
 type ThreadItem = GetPublicCommunitiesCommunityRefFeedResponse["items"][number];
 
-function threadPost(item: ThreadItem): CommunityPost | null {
+export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | null {
   if ("kind" in item) return null;
   const post = item.post;
   if (post.status !== "published") return null;
@@ -73,7 +73,7 @@ export function normalizeCommunityThreadPage(
 ): CommunityThreadPage {
   return {
     posts: response.items.flatMap(item => {
-      const projected = threadPost(item);
+      const projected = projectCommunityThreadPost(item);
       return projected ? [projected] : [];
     }),
     ...(response.items.some(item => "kind" in item) ? { ageLockedCount: response.items.filter(item => "kind" in item).length } : {}),

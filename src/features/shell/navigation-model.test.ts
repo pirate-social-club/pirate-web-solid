@@ -38,6 +38,13 @@ describe("community navigation projection", () => {
     expect(sections.seeAllJoined).toBe(true);
     expect(sections.moderated).toEqual([]);
   });
+  test("moderator separation cannot hide the membership overflow destination", () => {
+    const joined = Array.from({ length: 6 }, (_, index) => community(`joined-${index}`));
+    const sections = communityNavigationSections({ joined, popular: [community("popular")], moderated: joined });
+    expect(sections.communities.map(item => item.communityId)).toEqual(["popular"]);
+    expect(sections.moderated).toHaveLength(6);
+    expect(sections.seeAllJoined).toBe(true);
+  });
   test("anonymous discovery preserves server ranking without a membership link", () => {
     const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], moderated: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["ranked-first", "ranked-second"]);

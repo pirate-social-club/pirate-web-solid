@@ -40,6 +40,7 @@ export async function render(
   request: Request,
   context?: {
     readonly clientEntry?: string;
+    readonly VERIFIED_COMMUNITY_APP_ID?: string;
     readonly API_NEXT_ORIGIN?: string;
     readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
     readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;
@@ -56,6 +57,12 @@ export async function render(
     // The router reads the request event, not this function's argument.
     // Scrub both before preflights, routing or hydration serialization starts.
     if (event !== undefined) event.request = request;
+  }
+  if (event !== undefined) {
+    // SAFETY: Worker context carries only the verified ingress dispatch result.
+    const locals = event.locals as typeof event.locals & { verifiedCommunityAppId?: string; profileActivityHydrationDisabled?: boolean };
+    locals.verifiedCommunityAppId = context?.VERIFIED_COMMUNITY_APP_ID;
+    locals.profileActivityHydrationDisabled = context?.DISABLE_HYDRATION === true;
   }
   const nonce = event?.locals.cspNonce;
   const Application = dependencies.Application ?? App;
@@ -177,6 +184,7 @@ export async function render(
     () => (
       <Document
         clientEntry={context?.clientEntry}
+        communityAppId={context?.VERIFIED_COMMUNITY_APP_ID}
         canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}
         communityCreationAvatarAuthoring={
           context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true"

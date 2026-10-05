@@ -14,6 +14,7 @@ import {
   ApplicationSessionProvider,
   type ApplicationSessionState,
 } from "./features/shell/application-session.tsx";
+import { currentApplicationNavigationScope } from "./features/shell/application-navigation-scope.ts";
 import { ApplicationChrome } from "./features/shell/media-shell/media-shell.tsx";
 import { RootErrorState } from "./features/shell/app-shell/app-shell.tsx";
 import { transformDirectHnsCommunityRootPath } from "./hns-community-route-transform.ts";
@@ -42,6 +43,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
     const handle = current.personas.find(persona => persona.primaryPublicHandle !== null)?.primaryPublicHandle;
     return handle ? buildPublicProfilePath(handle) : undefined;
   });
+  const viewerId = createMemo(() => { const current = session(); return typeof current === "object" ? current.userId : undefined; });
   const policy = createMemo(() => resolveApplicationChrome(location.pathname, profileHref()));
   const personas = createApplicationPersonas(session);
   let active = true;
@@ -84,6 +86,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
       <ApplicationSessionProvider state={session} pending={accountPending}>
         <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
+          navigationScope={currentApplicationNavigationScope()}
           currentPath={location.pathname}
           activeItemId={policy().activeItemId}
           mobileActiveItem={policy().mobileActiveItem}
@@ -99,6 +102,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
           onPersonaSelect={personas.select}
           pickerOpen={personas.pickerOpen()}
           onPickerOpenChange={personas.setPickerOpen}
+          viewerId={viewerId()}
           signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
           sessionUnavailable={session() === "failed"}
           sessionResolving={session() === "resolving"}

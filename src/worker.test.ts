@@ -113,6 +113,16 @@ describe("Solid Worker HNS isolation", () => {
     await expect(response.json()).resolves.toEqual({ enabled: true, privyAppId: "test-app-id" });
   });
 
+  it("binds only the verified dispatch community and ignores a browser-supplied scope header", async () => {
+    const request = new Request("https://pirate.sc/", { headers: { "x-community-app-id": "forged" } });
+    // SAFETY: the fixture defines all environment fields read by application dispatch.
+    const environment = enabledMisconfiguredEnvironment() as never;
+    const ordinary = await applicationRequest(request, environment);
+    expect(await ordinary.json()).not.toHaveProperty("communityAppId");
+    const verified = await applicationRequest(request, environment, "verified-community");
+    expect(await verified.json()).toHaveProperty("communityAppId", "verified-community");
+  });
+
   it("keeps ordinary ICANN traffic available when enabled HNS assembly is misconfigured", async () => {
     const environment = enabledMisconfiguredEnvironment();
     const ordinary = await fetchWorker(

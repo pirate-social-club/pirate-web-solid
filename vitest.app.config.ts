@@ -145,6 +145,8 @@ export default defineConfig({
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
       "src/features/profiles/persona-public-profile/persona-public-profile.test.tsx",
       "src/features/shell/media-shell/media-shell.test.tsx",
+      "src/features/shell/community-navigation-api.test.ts",
+      "src/features/profiles/profile-page/profile-activity.test.tsx",
       "src/features/shell/application-chrome-model.test.ts",
       "src/features/shell/navigation-model.test.ts",
       "src/features/shell/recordings-settings.test.tsx",

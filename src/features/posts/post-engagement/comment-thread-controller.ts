@@ -1,6 +1,6 @@
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { createMemo, createSignal, onCleanup, type Accessor, type Setter } from "solid-js";
-import { createCommentThreadReader, type CommentThreadReader, type CommentThreadPage } from "./comment-thread-api.ts";
+import { projectPublishedComment, createCommentThreadReader, type CommentThreadReader, type CommentThreadPage } from "./comment-thread-api.ts";
 import type { CommentThreadItem } from "./post-engagement-model.ts";
 
 /** Owns lazy persisted pages; local pending submissions remain in the same thread. */
@@ -37,23 +37,7 @@ export function createCommentThreadController(options: {
               caseRef: null,
               href: null,
             }
-          : {
-              id: item.comment_id,
-              parentId: item.parent_comment_id,
-              body: item.body,
-              depth: item.depth,
-              replyCount: item.reply_count,
-              state: "published",
-              submissionId: null,
-              caseRef: null,
-              href: null,
-              authorAvatarRef: item.author_persona?.avatar_ref,
-              createdAt: item.created_at,
-              authorLabel:
-                item.author_persona?.primary_public_handle ??
-                item.author_persona?.display_name ??
-                "Public creator",
-            },
+          : projectPublishedComment(item),
       );
   };
   const loadComments = async (parentId?: string): Promise<void> => {

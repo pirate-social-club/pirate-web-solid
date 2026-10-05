@@ -25,7 +25,8 @@ import type { ApplicationChromeMode, ApplicationChromeRoute } from "../applicati
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem } from "../app-sidebar/app-sidebar";
 import { navigationPath, profilePath, profileSwitch, scopedPrimaryNavigation, primaryNavigationLabel, platformNavigationScope, navigationHomePath, type ApplicationNavigationScope, type CommunityNavigationState, type CommunityNavigationData } from "../navigation-model.ts";
-import { loadDrawerCommunities, NavigationDrawer, type DrawerCommunity } from "../navigation-drawer.tsx";
+import { NavigationDrawer, type DrawerCommunity } from "../navigation-drawer.tsx";
+import { loadCommunityAppNavigation, loadCommunityNavigation as loadDefaultCommunityNavigation } from "../community-navigation-api.ts";
 import type { ShellNavItem } from "../shell-model.ts";
 
 export type MediaShellRoute = ApplicationChromeRoute;
@@ -36,7 +37,7 @@ export interface MediaShellProps {
   readonly currentPath?: string;
   /** Resolve host scope before mounting, including server render and hydration. */
   readonly navigationScope?: ApplicationNavigationScope;
-  /** Reviewed navigation data; public discovery and moderated-by-me API binding follows. */
+  /** Explicit fixtures or pre-resolved navigation data. */
   readonly communityNavigation?: CommunityNavigationState;
   readonly loadCommunityNavigation?: (signedIn: boolean) => Promise<CommunityNavigationData>;
   readonly mobileActiveItem?: ShellNavItem | "none";
@@ -45,6 +46,8 @@ export interface MediaShellProps {
   readonly mode?: ApplicationChromeMode;
   readonly navigate?: (href: string) => void;
   readonly signedIn?: boolean;
+  /** Browser-only account identity invalidates private navigation after account changes. */
+  readonly viewerId?: string;
   /** The account's profiles; selection is private navigation context only. */
   readonly personas?: readonly SwitchablePersona[];
   readonly selectedPersonaId?: string;
@@ -59,7 +62,7 @@ export interface MediaShellProps {
   readonly sessionResolving?: boolean;
   readonly sessionPending?: boolean;
   readonly onSessionRetry?: () => void;
-  /** Existing membership loader; discovery and ownership use the expanded loader. */
+  /** Membership-only fixture seam; production uses the complete API loader. */
   readonly loadCommunities?: () => Promise<readonly DrawerCommunity[]>;
   /** Compatibility seam for existing stories; `mode="immersive"` is canonical. */
   readonly immersive?: boolean;
@@ -73,9 +76,11 @@ export function ApplicationChrome(props: MediaShellProps) {
   const signedIn = () => props.signedIn === true;
   const scope = (): ApplicationNavigationScope => {
     const current = props.navigationScope ?? platformNavigationScope;
-    return current.kind === "community" && !signedIn()
-      ? { kind: "community", community: current.community }
-      : current;
+    if (current.kind !== "community") return current;
+    if (!signedIn()) return { kind: "community", community: current.community };
+    const state = navigationState();
+    const permitted = state.kind === "ready" && state.data.moderated.some(item => item.communityId === current.community.communityId);
+    return { ...current, moderationHref: current.moderationHref ?? (permitted ? `/c/${encodeURIComponent(current.community.communityId)}/settings/moderation_queue` : undefined) };
   };
   const communityScope = () => { const current = scope(); return current.kind === "community" ? current : undefined; };
   const homePath = () => navigationHomePath(scope());
@@ -218,34 +223,43 @@ export function ApplicationChrome(props: MediaShellProps) {
     return (props.personas?.length ?? 0) > 1;
   };
 
-  const [communities, setCommunities] = createSignal<CommunityNavigationState>(!signedIn() && !props.loadCommunityNavigation ? { kind: "hidden" } : { kind: "loading" });
+  const [communities, setCommunities] = createSignal<CommunityNavigationState>({ kind: "loading" });
   let communityRequest = 0;
+  const [communityOwner, setCommunityOwner] = createSignal<string>();
+  const ownerKey = () => signedIn() ? `account:${props.viewerId ?? "unresolved"}` : "anonymous";
   const loadCommunities = () => {
     const request = ++communityRequest;
-    if (scope().kind === "community") return;
-    if (!signedIn() && !props.loadCommunityNavigation) { setCommunities({ kind: "hidden" }); return; }
     setCommunities({ kind: "loading" });
-    // No fabricated public discovery or ownership projection: until the new
-    // API reads land, the existing loader supplies memberships only.
+    setCommunityOwner(ownerKey());
+    const currentScope = scope();
+    if (currentScope.kind === "community") {
+      if (!signedIn()) { setCommunities({ kind: "hidden" }); return; }
+      setCommunities({ kind: "loading" });
+      void loadCommunityAppNavigation(currentScope.community.communityId)
+        .then(data => { if (request === communityRequest) setCommunities({ kind: "ready", data }); })
+        .catch(() => { if (request === communityRequest) setCommunities({ kind: "error" }); });
+      return;
+    }
+    setCommunities({ kind: "loading" });
     const loading = props.loadCommunityNavigation
       ? props.loadCommunityNavigation(signedIn())
-      : signedIn()
-        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], moderated: [] }))
-        : Promise.reject(new Error("community_discovery_unavailable"));
+      : props.loadCommunities
+        ? (signedIn() ? props.loadCommunities() : Promise.resolve([])).then(joined => ({ joined, popular: [], moderated: [] }))
+        : loadDefaultCommunityNavigation(signedIn());
     void loading
       .then(data => { if (request === communityRequest) setCommunities({ kind: "ready", data }); })
       .catch(() => { if (request === communityRequest) setCommunities({ kind: "error" }); });
   };
   onCleanup(() => { communityRequest++; });
-  createEffect(() => [signedIn(), props.sessionResolving, props.communityNavigation, scope().kind] as const, ([, resolving, supplied, scopeKind]) => {
+  createEffect(() => [signedIn(), props.sessionResolving, props.communityNavigation, props.viewerId, props.navigationScope?.kind, props.navigationScope?.kind === "community" ? props.navigationScope.community.communityId : undefined] as const, ([, resolving, supplied]) => {
     const request = ++communityRequest;
     queueMicrotask(() => {
-      if (request !== communityRequest || supplied || scopeKind === "community") return;
+      if (request !== communityRequest || supplied) return;
       if (resolving) { setCommunities({ kind: "loading" }); return; }
       loadCommunities();
     });
   });
-  const navigationState = () => props.communityNavigation ?? communities();
+  const navigationState = (): CommunityNavigationState => props.communityNavigation ?? (communityOwner() === ownerKey() ? communities() : { kind: "loading" });
 
   createEffect(() => props.activeItemId, (_, previous) => { if (previous !== undefined) setMenuOpen(false); });
   createEffect(desktop, (wide, previous) => { if (wide && previous === false) setMenuOpen(false); });

@@ -1,3 +1,4 @@
+import { ProfileActivity, type ProfileActivityDependencies } from "../profile-page/profile-activity.tsx";
 import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { Loading, Show, createMemo } from "solid-js";
@@ -7,6 +8,7 @@ import {
 } from "./persona-public-profile.model.ts";
 
 export interface PersonaPublicProfileProps {
+  readonly activityDependencies?: ProfileActivityDependencies;
   readonly state: PersonaPublicProfileState | PromiseLike<PersonaPublicProfileState>;
 }
 
@@ -18,7 +20,7 @@ function failureCopy(state: PersonaPublicProfileState): string {
         : "The profile could not be loaded.";
 }
 
-function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
+function Success(props: { readonly state: PersonaPublicProfileSuccess; readonly activityDependencies?: ProfileActivityDependencies }) {
   const persona = () => props.state.response.persona;
   const name = () => persona().display_name?.trim() || persona().primary_public_handle || "Pirate persona";
   const description = () => props.state.response.profile.bio?.trim() || `${name()} on Pirate`;
@@ -34,12 +36,12 @@ function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
       <ProfileLayout name={name()} handle={handle()} personaId={persona().persona_id}
         avatarRef={persona().avatar_ref} coverRef={props.state.response.profile.cover_ref}
         servingOrigin={props.state.servingOrigin} bio={props.state.response.profile.bio}
-        names={props.state.response.handle_grants.map(grant => grant.display_identifier)} />
+        names={props.state.response.handle_grants.map(grant => grant.display_identifier)}><ProfileActivity personaId={persona().persona_id} dependencies={props.activityDependencies} /></ProfileLayout>
     </main>
   );
 }
 
-function PersonaState(props: { readonly state: PersonaPublicProfileState }) {
+function PersonaState(props: { readonly state: PersonaPublicProfileState; readonly activityDependencies?: ProfileActivityDependencies }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show
@@ -52,14 +54,14 @@ function PersonaState(props: { readonly state: PersonaPublicProfileState }) {
         </main>
       )}
     >
-      {state => <Success state={state()} />}
+      {state => <Success state={state()} activityDependencies={props.activityDependencies} />}
     </Show>
   );
 }
 
 function PersonaData(props: PersonaPublicProfileProps) {
   const state = createMemo(() => props.state, { deferStream: true });
-  return <PersonaState state={state()} />;
+  return <PersonaState state={state()} activityDependencies={props.activityDependencies} />;
 }
 
 export function PersonaPublicProfile(props: PersonaPublicProfileProps) {

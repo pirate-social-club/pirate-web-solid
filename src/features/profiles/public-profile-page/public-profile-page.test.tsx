@@ -37,6 +37,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const activityDependencies = { resolveSession: async () => "anonymous" as const, client: { get_publicPersonasPersonaIdActivity: async () => ({ object: "profile_activity_page" as const, items: [], next_cursor: null }) } };
+
 const profileResponse = (communities: GetPublicProfilesHandleResponse["created_communities"] = []): GetPublicProfilesHandleResponse => ({
   profile: {
     id: "profile-1",
@@ -90,37 +92,37 @@ describe("PublicProfilePage", () => {
     expect(container.querySelector("a[href^='/c/']")).toBeNull();
     expect(container.querySelectorAll("img")[1]?.getAttribute("src")).toBe(new URL("/media/avatar-public", window.location.origin).toString());
     expect(container.querySelectorAll("img")[0]?.getAttribute("src")).toBe(new URL("/media/cover-public", window.location.origin).toString());
-    expect(container.querySelector("button")).toBeNull();
-    expect(container.querySelectorAll("[role=tab]")).toHaveLength(0);
+    expect(container.querySelector("button:not([role=tab])")).toBeNull();
+    expect(container.querySelectorAll("[role=tab]")).toHaveLength(3);
   });
 
   test("keeps a minimal public profile free of empty sections and viewer controls", async () => {
-    const container = render(() => <PublicProfilePage handle="captain-one" client={client(profileResponse())} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="captain-one" client={client(profileResponse())} />);
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.querySelector("#created-communities-heading")).toBeNull();
     expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-one.pirate");
-    expect(container.querySelector("button, input, textarea, [data-viewer-control], a[href='/settings']")).toBeNull();
+    expect(container.querySelector("button:not([role=tab]), input, textarea, [data-viewer-control], a[href='/settings']")).toBeNull();
   });
 
   test("rejects foreign and non-HTTP profile media", async () => {
     const result = profileResponse();
-    const container = render(() => <PublicProfilePage handle="captain-one" client={client({ ...result, profile: { ...result.profile, avatar_ref: "https://foreign.example/avatar.png", cover_ref: "javascript:alert(1)" } })} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="captain-one" client={client({ ...result, profile: { ...result.profile, avatar_ref: "https://foreign.example/avatar.png", cover_ref: "javascript:alert(1)" } })} />);
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelectorAll("[role=tab]")).toHaveLength(0);
+    expect(container.querySelectorAll("[role=tab]")).toHaveLength(3);
   });
 
   test("renders invalid, missing, and unavailable states without raw errors", async () => {
-    const invalid = render(() => <PublicProfilePage handle="bad_handle" client={client(profileResponse())} />);
+    const invalid = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="bad_handle" client={client(profileResponse())} />);
     await vi.waitFor(() => expect(invalid.querySelector("[data-profile-state='invalid']")).not.toBeNull());
     expect(invalid.textContent).toContain("That profile handle is not valid.");
 
-    const notFound = render(() => <PublicProfilePage handle="missing" client={client({ status: 404, message: "secret" })} />);
+    const notFound = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="missing" client={client({ status: 404, message: "secret" })} />);
     await vi.waitFor(() => expect(notFound.querySelector("[data-profile-state='not-found']")).not.toBeNull());
     expect(notFound.textContent).toContain("This profile could not be found.");
     expect(notFound.textContent).not.toContain("secret");
 
-    const unavailable = render(() => <PublicProfilePage handle="captain-one" client={client({ _tag: "ApiClientProtocolError", status: 500, message: "credential=secret" })} />);
+    const unavailable = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="captain-one" client={client({ _tag: "ApiClientProtocolError", status: 500, message: "credential=secret" })} />);
     await vi.waitFor(() => expect(unavailable.querySelector("[data-profile-state='unavailable']")).not.toBeNull());
     expect(unavailable.textContent).toContain("This profile is temporarily unavailable.");
     expect(unavailable.textContent).not.toContain("credential");
@@ -129,7 +131,7 @@ describe("PublicProfilePage", () => {
   test("publishes canonical metadata and renders alias as a redirect state", async () => {
     const response = profileResponse();
     const aliasResponse = { ...response, is_canonical: false, requested_handle_label: "old-name.pirate" };
-    const container = render(() => <PublicProfilePage handle="old-name" client={client(aliasResponse)} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="old-name" client={client(aliasResponse)} />);
     await vi.waitFor(() => expect(container.querySelector("[data-profile-state='alias']")).not.toBeNull());
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     const ogUrl = document.head.querySelector("meta[property='og:url']")?.getAttribute("content");
@@ -141,7 +143,7 @@ describe("PublicProfilePage", () => {
 
   test("uses the request locale for localized status copy", async () => {
     window.history.replaceState(null, "", "/u/bad_handle?lang=zh");
-    const container = render(() => <PublicProfilePage handle="bad_handle" client={client(profileResponse())} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="bad_handle" client={client(profileResponse())} />);
     await vi.waitFor(() => expect(container.querySelector("[data-profile-state='invalid']")).not.toBeNull());
     expect(container.textContent).toContain("该个人资料句柄无效。");
   });
@@ -153,13 +155,13 @@ describe("PublicProfilePage", () => {
     canonicalHandle: `${handle}.pirate`,
     canonicalPath: `/u/${handle}.pirate`,
     isCanonical: true,
-    profile: { displayName: `${handle} profile`, handle: `${handle}.pirate`, bio: `Bio for ${handle}` },
+    profile: { personaId: `persona-${handle}`, displayName: `${handle} profile`, handle: `${handle}.pirate`, bio: `Bio for ${handle}` },
     communities: [{ name: `Harbor ${handle}`, href: `/c/harbor-${handle}` }],
   });
 
   test("updates a retained successful profile when another result arrives", async () => {
     const [state, setState] = createSignal<PublicProfileViewState>(successState("captain-one"));
-    const container = render(() => <PublicProfilePage handle="captain-one" data={state()} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="captain-one" data={state()} />);
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-one profile"));
     setState(successState("captain-two"));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
@@ -173,7 +175,7 @@ describe("PublicProfilePage", () => {
 
   test("updates a retained failure state when the error kind changes", async () => {
     const [state, setState] = createSignal<PublicProfileViewState>({ kind: "not-found", status: 404 });
-    const container = render(() => <PublicProfilePage handle="missing" data={state()} />);
+    const container = render(() => <PublicProfilePage activityDependencies={activityDependencies} handle="missing" data={state()} />);
     await vi.waitFor(() => expect(container.querySelector("[data-profile-state='not-found']")).not.toBeNull());
     setState({ kind: "invalid", status: 400 });
     await vi.waitFor(() => expect(container.querySelector("[data-profile-state='invalid']")).not.toBeNull());
@@ -224,12 +226,13 @@ describe("PublicProfilePage", () => {
     const container = render(() => <TestRouter>{routerProps => routerProps.children}</TestRouter>);
 
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-one profile"));
-    expect(fetchImpl).toHaveBeenCalledOnce();
+    const profileReads = () => fetchImpl.mock.calls.filter(([input]) => new URL(input instanceof Request ? input.url : String(input)).pathname.startsWith("/api/public-profiles/"));
+    expect(profileReads()).toHaveLength(1);
 
     navigate!("/u/captain-two.pirate");
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(profileReads()).toHaveLength(2));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
-    const secondInput = fetchImpl.mock.calls[1]![0];
+    const secondInput = profileReads()[1]![0];
     const secondPath = new URL(secondInput instanceof Request ? secondInput.url : String(secondInput)).pathname;
     expect(secondPath).toContain("captain-two");
     expect(container.textContent).toContain("Bio for captain-two");
@@ -241,11 +244,11 @@ describe("PublicProfilePage", () => {
     // Revalidating the second handle must refetch it and never fall back to
     // the first handle's preloaded result.
     revalidate("public-profile");
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(profileReads()).toHaveLength(3));
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(container.querySelector("h1")?.textContent).toBe("captain-two profile");
     expect(container.textContent).not.toContain("captain-one profile");
-    const thirdInput = fetchImpl.mock.calls[2]![0];
+    const thirdInput = profileReads()[2]![0];
     const thirdPath = new URL(thirdInput instanceof Request ? thirdInput.url : String(thirdInput)).pathname;
     expect(thirdPath).toContain("captain-two");
   });

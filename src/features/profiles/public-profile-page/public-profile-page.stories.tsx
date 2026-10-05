@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
+import { profileActivityDependencies } from "../profile-page/profile-activity-fixtures.ts";
 import { PublicProfilePage } from "./public-profile-page";
 import type { PublicProfileViewState } from "./public-profile-page.model";
 
@@ -15,6 +16,7 @@ function success(
     canonicalPath: "/u/nightshift",
     isCanonical: true,
     profile: {
+      personaId: "profile-story",
       displayName: "Night Shift",
       handle: "nightshift",
       bio: "Late-night sets and long-form mixes.",
@@ -30,7 +32,7 @@ function success(
 const meta = {
   title: "Screens/Profiles/PublicProfilePage",
   component: PublicProfilePage,
-  args: { handle: "nightshift", data: success() },
+  args: { handle: "nightshift", data: success(), activityDependencies: profileActivityDependencies(true) },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof PublicProfilePage>;
 
@@ -53,7 +55,7 @@ export const NoCommunities: Story = {
 export const NoBio: Story = {
   name: "No bio or display name",
   args: {
-    data: success({ profile: { displayName: null, handle: "nightshift", bio: null } }),
+    data: success({ profile: { personaId: "profile-story", displayName: null, handle: "nightshift", bio: null } }),
   },
 };
 

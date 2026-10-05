@@ -21,7 +21,7 @@ type ProfileClient = Parameters<typeof PublicProfilePage>[0]["client"];
 
 const response = (overrides: Partial<GetPublicProfilesHandleResponse> = {}): GetPublicProfilesHandleResponse => ({
   profile: {
-    id: "profile-secret-id",
+    id: "public-persona-id",
     object: "profile",
     display_name: "  Captain <One>  ",
     avatar_ref: "opaque-avatar-ref",
@@ -117,7 +117,8 @@ describe("public profile model", () => {
     });
     expect(result.kind === "success" && result.profile.avatarRef).toBe("opaque-avatar-ref");
     expect(result.kind === "success" && result.profile.coverRef).toBe("opaque-cover-ref");
-    expect(JSON.stringify(result)).not.toContain("profile-secret-id");
+    expect(result.kind === "success" && result.profile.personaId).toBe("public-persona-id");
+    expect(JSON.stringify(result)).not.toContain("handle-secret-id");
     expect(JSON.stringify(result)).not.toContain("community-secret-id");
     expect(result).toMatchObject({ canonicalPath: "/u/captain-one.pirate" });
   });
@@ -186,8 +187,9 @@ describe("public profile model", () => {
       canonicalPath: "/u/captain-one.pirate",
       isCanonical: true,
     });
-    expect(rendered.body).not.toContain("profile-secret-id");
-    expect(JSON.stringify(rendered.data)).not.toContain("profile-secret-id");
+    expect(rendered.body).not.toContain("handle-secret-id");
+    expect(JSON.stringify(rendered.data)).not.toContain("handle-secret-id");
+    expect(rendered.data).toMatchObject({ profile: { personaId: "public-persona-id" } });
   });
 
   test("commits invalid, missing, and unavailable SSR responses before the stream head", async () => {

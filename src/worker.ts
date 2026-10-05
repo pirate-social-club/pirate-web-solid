@@ -28,7 +28,7 @@ async function hnsComposition(env: Env): Promise<ProductionHnsCommunityAppIngres
     env,
     dispatch: {
       assets: (request) => env.ASSETS.fetch(request),
-      ssr: (request) => applicationRequest(request, env),
+      ssr: (request, community) => applicationRequest(request, env, community.communityId),
     },
   });
   hnsCompositionByEnvironment.set(env, created);
@@ -78,7 +78,7 @@ function hnsAssemblyFailureResponse(): Response {
   });
 }
 
-export async function applicationRequest(request: Request, env: Env): Promise<Response> {
+export async function applicationRequest(request: Request, env: Env, verifiedCommunityAppId?: string): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (pathname === VERIFICATION_CONFIG_PATH) {
     return verificationConfigResponse(request, {
@@ -92,6 +92,7 @@ export async function applicationRequest(request: Request, env: Env): Promise<Re
   }
   return handleRequest(request, {
     context: {
+      VERIFIED_COMMUNITY_APP_ID: verifiedCommunityAppId,
       API_NEXT_ORIGIN: env.API_NEXT_ORIGIN,
       PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
       COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED:

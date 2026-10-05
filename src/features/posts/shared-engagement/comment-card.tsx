@@ -29,6 +29,8 @@ function visibleCommentBody(item: CommentThreadItem): string {
 
 export interface CommentCardProps {
   readonly item: CommentThreadItem;
+  /** Profile activity is a flat list; post threads retain nesting. */
+  readonly nested?: boolean;
   readonly onAgeVerified?: (signal: AbortSignal) => void | Promise<void>;
   readonly menuActions?: readonly ContentAction[];
   readonly communityLabel?: string;
@@ -40,7 +42,7 @@ export interface CommentCardProps {
 export function CommentCard(props: CommentCardProps) {
   const item = () => props.item;
   return <Card class="border-border-soft" data-comment-depth={item().depth} data-comment-id={item().id} data-comment-state={item().state}
-    style={{ "margin-inline-start": `${Math.min(item().depth, 8) * 0.75}rem` }}>
+    style={{ "margin-inline-start": `${props.nested === false ? 0 : Math.min(item().depth, 8) * 0.75}rem` }}>
     <CardContent class="flex flex-col gap-3 p-4">
       <div class="flex min-w-0 items-center gap-2">
         <Show when={item().authorLabel && item().state !== "age_locked"}><CommunityAvatar avatarSrc={item().authorAvatarRef} communityId={item().id} displayName={item().authorLabel ?? "Public creator"} size="xs" /></Show>

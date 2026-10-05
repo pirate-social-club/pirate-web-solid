@@ -86,7 +86,7 @@ describe("public profile preflight", () => {
       canonicalHandle: "captain-one.pirate",
       canonicalPath: "/u/captain-one.pirate",
       isCanonical: true,
-      profile: { displayName: "Captain One", handle: "captain-one.pirate", bio: null },
+      profile: { personaId: "persona-1", displayName: "Captain One", handle: "captain-one.pirate", bio: null },
       communities: [],
     });
     expect(success.status).toBe(200);
@@ -102,7 +102,7 @@ describe("public profile preflight", () => {
       canonicalHandle: "captain-one.pirate",
       canonicalPath: "/u/captain-one.pirate",
       isCanonical: false,
-      profile: { displayName: "Captain One", handle: "captain-one.pirate", bio: null },
+      profile: { personaId: "persona-1", displayName: "Captain One", handle: "captain-one.pirate", bio: null },
       communities: [],
     });
     expect(alias.status).toBe(302);

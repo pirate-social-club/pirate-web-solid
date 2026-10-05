@@ -45,6 +45,8 @@ export default defineConfig({
       "src/features/posts/public-post/public-post-activities-ssr.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime-ssr.test.tsx",
       "src/features/profiles/own-profile-settings-ssr.test.tsx",
+      "src/features/profiles/profile-page/profile-activity-ssr.test.tsx",
+      "src/features/shell/application-navigation-scope-ssr.test.tsx",
       "src/features/posts/shared-engagement/comment-card-ssr.test.tsx",
     ],
   },

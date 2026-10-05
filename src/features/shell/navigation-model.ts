@@ -87,7 +87,7 @@ export function communityNavigationSections(data: CommunityNavigationData, limit
     communities: communities.slice(0, limit),
     moderated,
     // Keep overflow reachable without adding a redundant link to short lists.
-    seeAllJoined: joined.length > limit,
+    seeAllJoined: uniqueCommunities(data.joined).length > limit,
   };
 }
 

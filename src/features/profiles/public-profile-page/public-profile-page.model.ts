@@ -17,6 +17,7 @@ export type PublicProfileSuccess = Readonly<{
   readonly canonicalPath: string;
   readonly isCanonical: boolean;
   readonly profile: Readonly<{
+    readonly personaId: string;
     readonly displayName: string | null;
     readonly handle: string;
     readonly bio: string | null;
@@ -143,6 +144,7 @@ export function projectPublicProfile(
     canonicalPath: buildPublicProfilePath(resolved.labelDisplay),
     isCanonical: response.is_canonical,
     profile: {
+      personaId: profile.id,
       displayName: profile.display_name?.trim() || null,
       handle: resolved.labelDisplay,
       bio: profile.bio?.trim() || null,
