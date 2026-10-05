@@ -1,4 +1,5 @@
 /** @jsxImportSource @solidjs/web */
+import { ExplorePage } from "../explore-page.tsx";
 import { createMemo, createSignal, omit } from "solid-js";
 import { switcherPersonas } from "../../identity/persona-switcher-sheet/persona-switcher-fixtures.ts";
 import { Type } from "../../../design-system";
@@ -16,7 +17,7 @@ const communities: readonly DrawerCommunity[] = [
 
 // Review fixtures only; popularity order represents descending member count.
 export const popularNavigation: CommunityNavigationData = {
-  joined: [], moderated: [], popular: [
+  joined: [], created: [], popular: [
     { communityId: "community_sounds", displayName: "World of Sound", href: "/c/world-of-sound" },
     { communityId: "community_lofi", displayName: "Late Night Lo-Fi", href: "/c/late-night" },
     { communityId: "community_songwriters", displayName: "Songwriters Circle", href: "/c/songwriters" },
@@ -26,7 +27,7 @@ export const popularNavigation: CommunityNavigationData = {
 export const memberNavigation: CommunityNavigationData = { ...popularNavigation, joined: communities };
 export const creatorNavigation: CommunityNavigationData = {
   ...memberNavigation,
-  moderated: [{ communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" }],
+  created: [{ communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" }],
 };
 export const manyJoinedNavigation: CommunityNavigationData = {
   ...memberNavigation,
@@ -89,7 +90,7 @@ export function ShellStory(props: Partial<MediaShellProps> & { readonly initialP
           joined={true}
           onBack={() => setPath("/communities")}
         />
-      ) : <PagePreview path={path()} title={policy().mobileTitle} />}
+       ) : path() === "/explore" ? <ExplorePage /> : <PagePreview path={path()} title={policy().mobileTitle} />}
     </MediaShell>
   );
 }

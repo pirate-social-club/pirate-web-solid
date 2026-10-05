@@ -81,5 +81,5 @@ export function createApplicationPersonas(
   };
 }
 
-export const ApplicationPersonasContext = createContext<ApplicationPersonas>();
+export const ApplicationPersonasContext = createContext<ApplicationPersonas | null>(null);
 export const useApplicationPersonas = () => useContext(ApplicationPersonasContext);

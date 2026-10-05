@@ -158,9 +158,9 @@ export const CommunitiesError: Story = {
   },
 };
 export const ManyJoinedCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: manyJoinedNavigation }} /> };
-export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], moderated: [] } }} /> };
+export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], created: [] } }} /> };
 export const DesktopNavigation: Story = {
-  render: () => <ShellStory communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  render: () => <ShellStory communityNavigation={{ kind: "ready", data: { ...manyJoinedNavigation, created: creatorNavigation.created } }} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const navigation = within(canvas.getByRole("navigation", { name: "Main navigation" }));
@@ -206,7 +206,7 @@ async function checkCommunityScope(navigation: ReturnType<typeof within>, modera
   await expect(navigation.queryByRole("link", { name: "Night Shift Radio" })).not.toBeInTheDocument();
   await expect(navigation.queryByRole("link", { name: "Terms" })).not.toBeInTheDocument();
   await expect(navigation.queryByRole("link", { name: "Privacy" })).not.toBeInTheDocument();
-  await expect(navigation.getByRole("link", { name: "For You" })).toHaveAttribute("href", "/c/harbor");
+  await expect(navigation.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/c/harbor");
   if (moderator) {
     await expect(navigation.getByRole("link", { name: "Moderation" })).toHaveAttribute("href", "/c/harbor/settings/moderation_queue");
   } else {
@@ -239,5 +239,22 @@ export const CommunityAppModeratorDrawer: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Open navigation" }, { timeout: 10000 }));
     await checkCommunityScope(within(await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Navigation" })), true);
+  },
+};
+
+export const AnonymousProductionDefaults: Story = {
+  render: () => <ShellStory signedIn={false} communityNavigation={undefined} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.queryByRole("button", { name: "Create community" })).not.toBeInTheDocument());
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
+  },
+};
+export const Explore: Story = {
+  render: () => <ShellStory initialPath="/explore" signedIn={false} communityNavigation={undefined} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("heading", { name: "Explore" })).toBeInTheDocument();
+    await expect(canvas.getByText("Community discovery is not available yet.")).toBeInTheDocument();
   },
 };

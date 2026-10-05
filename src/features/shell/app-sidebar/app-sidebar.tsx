@@ -1,23 +1,19 @@
 /** @jsxImportSource @solidjs/web */
-import { For, Show, createUniqueId } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { For, Show } from "solid-js";
+import { Dynamic, type JSX } from "@solidjs/web";
 
-import { IconList, Type, cn } from "../../../design-system";
+import { CommunityNavigation } from "../community-navigation.tsx";
+import type { ApplicationNavigationScope, CommunityNavigationState } from "../navigation-model.ts";
+
+import { Avatar, Button, IconGlobe, IconHouse, IconPlaylist, IconWallet, IconList, Type, cn } from "../../../design-system";
 
 export interface SidebarItem {
   id: string;
   label: string;
   href?: string;
-  icon?: JSX.Element;
+  iconKind?: "home" | "explore" | "songs" | "wallet" | "profile";
+  avatar?: { readonly fallback: string; readonly seed?: string | null; readonly src?: string | null };
   badge?: string;
-}
-
-export interface SidebarSection {
-  id: string;
-  label: string;
-  items: readonly SidebarItem[];
-  defaultOpen?: boolean;
-  action?: JSX.Element;
 }
 
 export interface AppSidebarProps {
@@ -26,20 +22,31 @@ export interface AppSidebarProps {
   brandLabel?: string;
   homeAriaLabel?: string;
   primaryItems?: readonly SidebarItem[];
-  resourceItems?: readonly SidebarItem[];
-  resourcesLabel?: string;
-  sections?: readonly SidebarSection[];
-  communityContent?: JSX.Element;
+  communityState?: CommunityNavigationState;
+  navigationScope?: ApplicationNavigationScope;
+  currentPath?: string;
+  onNavigateCommunity?: (href: string) => void;
+  onRetryCommunities?: () => void;
   class?: string;
   collapsed?: boolean;
   mediaAction?: JSX.Element;
-  footer?: JSX.Element;
+  accountControl?: {
+    readonly label: string;
+    readonly displayName: string;
+    readonly handle?: string | null;
+    readonly avatarSrc?: string | null;
+    readonly avatarSeed?: string | null;
+    readonly onClick: () => void;
+  };
+  signInAction?: { readonly onClick: () => void; readonly prepare: () => void; readonly preload: () => void };
   onHomeClick?: () => void;
   onNavigate?: (id: string) => void;
 }
 
+const sidebarIcons = { home: IconHouse, explore: IconGlobe, songs: IconPlaylist, wallet: IconWallet, profile: IconList };
+
 function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: (id: string) => void }) {
-  const content = () => <><span aria-hidden="true" class="shrink-0"><Show when={props.item.icon} fallback={<IconList class="size-5" />}>{props.item.icon}</Show></span><Type as="span" variant="body" class="min-w-0 flex-1 truncate">{props.item.label}</Type></>;
+  const content = () => <><span aria-hidden="true" class="shrink-0"><Show when={props.item.iconKind === "profile"} fallback={<Dynamic component={sidebarIcons[props.item.iconKind ?? "profile"]} class="size-5" />}><Avatar class="size-5" fallback={props.item.avatar?.fallback ?? "Profile"} fallbackSeed={props.item.avatar?.seed ?? undefined} src={props.item.avatar?.src ?? undefined} size="sm" /></Show></span><Type as="span" variant="body" class="min-w-0 flex-1 truncate">{props.item.label}</Type></>;
   const classes = () => cn("flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", props.active && "bg-sidebar-accent text-sidebar-accent-foreground");
   return <Show when={props.item.href} fallback={<button aria-current={props.active ? "page" : undefined} class={classes()} onClick={() => props.onNavigate?.(props.item.id)} type="button">{content()}</button>}>
     <a href={props.item.href} aria-current={props.active ? "page" : undefined} class={classes()} onClick={event => {
@@ -51,20 +58,25 @@ function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: 
 }
 
 export function AppSidebar(props: AppSidebarProps) {
-  const headingId = createUniqueId();
-  const sections = () => props.sections ?? [];
   return <aside aria-label={props.brandLabel ?? "Navigation"} class={cn("flex min-h-0 w-[15.5rem] shrink-0 flex-col border-e border-sidebar-border bg-sidebar p-4 text-sidebar-foreground", props.collapsed && "w-20 px-2", props.class)}>
     {/* Each app domain is its own product: no brand block unless a host names one. */}
     <Show when={props.brandLabel}>{label => <button aria-label={props.homeAriaLabel ?? "Go to home"} class="mb-5 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-start transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={props.onHomeClick} type="button"><Show when={!props.collapsed}><Type as="span" variant="h4" class="tracking-wide">{label()}</Type></Show></button>}</Show>
     <Show when={props.mediaAction && !props.collapsed}><div class="mb-4">{props.mediaAction}</div></Show>
     <nav aria-label="Main navigation" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
       <Show when={props.primaryItems?.length}><div class="flex flex-col gap-1"><For each={props.primaryItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></Show>
-      {props.communityContent}
-      <For each={sections()}>{(section) => <section aria-labelledby={`${headingId}-${section.id}`}><Show when={!props.collapsed}><Type as="h2" variant="overline" class="px-3 pb-1 text-muted-foreground" id={`${headingId}-${section.id}`}>{section.label}</Type></Show><div class="flex flex-col gap-1"><For each={section.items}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div><Show when={!props.collapsed && section.action}>{section.action}</Show></section>}</For>
-      <Show when={props.resourceItems?.length}><section aria-labelledby={`${headingId}-resources`}><Show when={!props.collapsed}><Type as="h2" variant="overline" class="px-3 pb-1 text-muted-foreground" id={`${headingId}-resources`}>{props.resourcesLabel ?? "Resources"}</Type></Show><div class="flex flex-col gap-1"><For each={props.resourceItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section></Show>
+      <Show when={props.navigationScope?.kind === "community" || props.communityState && props.communityState.kind !== "hidden"}>
+        <CommunityNavigation state={props.communityState ?? { kind: "hidden" }} scope={props.navigationScope} currentPath={props.currentPath} onNavigate={href => props.onNavigateCommunity?.(href)} onRetry={() => props.onRetryCommunities?.()} />
+      </Show>
     </nav>
-    <Show when={!props.collapsed && props.footer !== undefined}>
-      <div class="mt-4 border-t border-sidebar-border pt-4">{props.footer}</div>
+    <Show when={!props.collapsed && (props.accountControl || props.signInAction)}>
+      <div class="mt-4 border-t border-sidebar-border pt-4">
+        <Show when={props.accountControl} fallback={<Button class="w-full" onClick={() => props.signInAction?.onClick()} onFocus={() => props.signInAction?.prepare()} onPointerDown={() => props.signInAction?.prepare()} onPointerEnter={() => props.signInAction?.preload()}>Sign in</Button>}>
+          {account => <button aria-label={account().label} aria-haspopup="dialog" onClick={() => account().onClick()} type="button" class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar fallback={account().displayName} fallbackSeed={account().avatarSeed ?? account().displayName} src={account().avatarSrc ?? undefined} size="sm" />
+            <span class="min-w-0 flex-1"><span class="block truncate text-base font-semibold leading-6">{account().displayName}</span><Show when={account().handle}><span class="block truncate text-base leading-5 text-muted-foreground">{account().handle}</span></Show></span>
+          </button>}
+        </Show>
+      </div>
     </Show>
   </aside>;
 }

@@ -45,9 +45,9 @@ function PlatformCommunityNavigation(props: CommunityNavigationProps) {
         }}>See all</a></Show>
       </>}</Show>
     </section>
-    <Show when={sections()?.moderated.length}>{_ => <section aria-labelledby={`${id}-moderator`}>
+    <Show when={sections()?.created.length}>{_ => <section aria-labelledby={`${id}-moderator`}>
       <Type as="h2" id={`${id}-moderator`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Moderator</Type>
-      <ul class="flex flex-col gap-1"><For each={sections()?.moderated}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
+      <ul class="flex flex-col gap-1"><For each={sections()?.created}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
     </section>}</Show>
   </div>;
 }
@@ -56,7 +56,7 @@ function PlatformCommunityNavigation(props: CommunityNavigationProps) {
 /** Community apps never render cross-community discovery or creation. */
 export function CommunityNavigation(props: CommunityNavigationProps) {
   const id = createUniqueId();
-  return <Show when={props.scope?.kind === "community" ? props.scope : undefined} fallback={<PlatformCommunityNavigation {...props} />}>
+  return <Show when={props.scope?.kind === "community" ? props.scope : undefined} fallback={<Show when={props.state.kind !== "hidden"}><PlatformCommunityNavigation {...props} /></Show>}>
     {scope => <Show when={scope().moderationHref}>{href => <section aria-labelledby={`${id}-moderator`}>
       <Type as="h2" id={`${id}-moderator`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Moderator</Type>
       <ul><CommunityLink community={{ ...scope().community, displayName: "Moderation", href: href() }} currentPath={props.currentPath} onNavigate={props.onNavigate} /></ul>

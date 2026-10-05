@@ -17,7 +17,7 @@ export function drawerCommunityFromMembership(membership: AccountCommunityMember
 }
 
 export async function loadDrawerCommunities(): Promise<readonly DrawerCommunity[]> {
-  return (await loadAccountCommunityMemberships()).map(drawerCommunityFromMembership);
+  return (await loadAccountCommunityMemberships({ itemLimit: 6, pageLimit: 6 })).map(drawerCommunityFromMembership);
 }
 
 export interface NavigationDrawerProps {

@@ -20,6 +20,8 @@ export interface LoadAccountCommunityMembershipsOptions extends ApiClientFactory
   readonly client?: AccountCommunityMembershipClient;
   readonly pageLimit?: number;
   readonly maxPages?: number;
+  /** A navigation preview may stop without materializing the full membership set. */
+  readonly itemLimit?: number;
 }
 
 function hasAsciiControl(value: string): boolean {
@@ -74,6 +76,7 @@ export async function loadAccountCommunityMemberships(
 ): Promise<readonly AccountCommunityMembership[]> {
   const pageLimit = options.pageLimit ?? 100;
   const maxPages = options.maxPages ?? 100;
+  if (options.itemLimit !== undefined && (!Number.isSafeInteger(options.itemLimit) || options.itemLimit < 1)) throw new TypeError("invalid membership item limit");
   if (
     !Number.isSafeInteger(pageLimit) ||
     pageLimit < 1 ||
@@ -104,6 +107,7 @@ export async function loadAccountCommunityMemberships(
         throw new AccountCommunityMembershipProjectionError();
       communityIds.add(item.community_id);
       items.push(item);
+      if (options.itemLimit !== undefined && items.length >= options.itemLimit) return items;
     }
     if (page.next_cursor === null) return items;
     if (!validCursor(page.next_cursor) || cursors.has(page.next_cursor)) {

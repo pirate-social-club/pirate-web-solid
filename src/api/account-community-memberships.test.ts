@@ -120,3 +120,10 @@ describe("account community memberships adapter", () => {
     ).resolves.toEqual([]);
   });
 });
+
+test("a sidebar preview stops after the overflow item without fetching later pages", async () => {
+  const get = vi.fn().mockResolvedValue({ object: "account_community_membership_page", items: Array.from({ length: 6 }, (_, index) => membership(`preview-${index}`, true)), next_cursor: "more" });
+  const items = await loadAccountCommunityMemberships({ client: { get_usersMeCommunityMemberships: get }, itemLimit: 6, pageLimit: 6 });
+  expect(items).toHaveLength(6);
+  expect(get).toHaveBeenCalledExactlyOnceWith({ query: { limit: "6" } });
+});

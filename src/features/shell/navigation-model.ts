@@ -1,8 +1,7 @@
 /** One destination map for desktop, the mobile drawer and the four mobile tabs. */
 export const navigationPaths = {
-  home: "/", explore: "/explore", post: "/communities", songs: "/songs",
-  wallet: "/wallet", profile: "/me", settings: "/settings",
-  "your-communities": "/communities", "create-community": "/communities/new",
+  home: "/", explore: "/explore", songs: "/songs",
+  wallet: "/wallet", profile: "/me",
 } as const;
 
 const paths = new Map<string, string>(Object.entries(navigationPaths));
@@ -57,11 +56,12 @@ export interface NavigationCommunity {
 export interface CommunityNavigationData {
   readonly joined: readonly NavigationCommunity[];
   readonly popular: readonly NavigationCommunity[];
-  /** Server-authorized moderation destinations; membership alone grants no access. */
-  readonly moderated: readonly NavigationCommunity[];
+  /** Communities created by the viewer; this projection grants no moderation access. */
+  readonly created: readonly NavigationCommunity[];
 }
 
 export type CommunityNavigationState =
+  | { readonly kind: "hidden" }
   | { readonly kind: "loading" }
   | { readonly kind: "error" }
   | { readonly kind: "ready"; readonly data: CommunityNavigationData };
@@ -79,16 +79,16 @@ function uniqueCommunities(communities: readonly NavigationCommunity[], excluded
 
 /** One projection for the desktop sidebar and phone drawer, with no recents. */
 export function communityNavigationSections(data: CommunityNavigationData, limit = sidebarCommunityLimit) {
-  const moderated = uniqueCommunities(data.moderated);
-  const moderatedIds = new Set(moderated.map(community => community.communityId));
-  const joined = uniqueCommunities(data.joined, moderatedIds);
-  const popular = uniqueCommunities(data.popular, new Set([...moderatedIds, ...joined.map(community => community.communityId)]));
+  const created = uniqueCommunities(data.created);
+  const createdIds = new Set(created.map(community => community.communityId));
+  const joined = uniqueCommunities(data.joined, createdIds);
+  const popular = uniqueCommunities(data.popular, new Set([...createdIds, ...joined.map(community => community.communityId)]));
   const communities = [...joined, ...popular];
   return {
     communities: communities.slice(0, limit),
-    moderated,
-    // Always retain access to the full account list, including moderated entries.
-    seeAllJoined: data.joined.length > 0,
+    created,
+    // Keep overflow reachable without adding a redundant link to short lists.
+    seeAllJoined: joined.length > limit,
   };
 }
 
@@ -112,5 +112,5 @@ export function navigationHomePath(scope: ApplicationNavigationScope): string {
 export function scopedPrimaryNavigation(scope: ApplicationNavigationScope) {
   return primaryNavigation
     .filter(item => scope.kind === "platform" || item.id !== "explore")
-    .map(item => ({ ...item, href: item.id === "home" ? navigationHomePath(scope) : item.href }));
+    .map(item => ({ ...item, label: item.id === "home" && scope.kind === "community" ? "Home" : item.label, href: item.id === "home" ? navigationHomePath(scope) : item.href }));
 }

@@ -1,16 +1,11 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
 import {
-  Avatar,
   Button,
   IconButton,
-  IconGlobe,
-  IconHouse,
   IconList,
-  IconPlaylist,
-  IconWallet,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -30,7 +25,6 @@ import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome
 import { AppSidebar, SidebarContent, type SidebarItem } from "../app-sidebar/app-sidebar";
 import { navigationPath, profilePath, profileSwitch, scopedPrimaryNavigation, primaryNavigationLabel, platformNavigationScope, navigationHomePath, type ApplicationNavigationScope, type CommunityNavigationState, type CommunityNavigationData } from "../navigation-model.ts";
 import { loadDrawerCommunities, NavigationDrawer, type DrawerCommunity } from "../navigation-drawer.tsx";
-import { CommunityNavigation } from "../community-navigation.tsx";
 import type { ShellNavItem } from "../shell-model.ts";
 
 export type MediaShellRoute = ApplicationChromeRoute;
@@ -41,7 +35,7 @@ export interface MediaShellProps {
   readonly currentPath?: string;
   /** Resolve host scope before mounting, including server render and hydration. */
   readonly navigationScope?: ApplicationNavigationScope;
-  /** Reviewed navigation data; public discovery and moderation-access API binding follows. */
+  /** Reviewed navigation data; public discovery and created-by-me API binding follows. */
   readonly communityNavigation?: CommunityNavigationState;
   readonly loadCommunityNavigation?: (signedIn: boolean) => Promise<CommunityNavigationData>;
   readonly mobileActiveItem?: ShellNavItem | "none";
@@ -84,7 +78,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   };
   const communityScope = () => { const current = scope(); return current.kind === "community" ? current : undefined; };
   const homePath = () => navigationHomePath(scope());
-  const activeItem = () => props.activeItemId ?? "home";
+  const activeItem = () => scope().kind === "community" && props.currentPath === homePath() ? "home" : props.activeItemId ?? "home";
   const mode = () => props.mode ?? (props.immersive ? "immersive" : "standard");
   const immersive = () => mode() === "immersive";
   const desktop = createMediaQuery("(min-width: 768px)");
@@ -194,18 +188,19 @@ export function ApplicationChrome(props: MediaShellProps) {
     return (props.personas?.length ?? 0) > 1;
   };
 
-  const [communities, setCommunities] = createSignal<CommunityNavigationState>({ kind: "loading" });
+  const [communities, setCommunities] = createSignal<CommunityNavigationState>(!signedIn() && !props.loadCommunityNavigation ? { kind: "hidden" } : { kind: "loading" });
   let communityRequest = 0;
   const loadCommunities = () => {
     const request = ++communityRequest;
     if (scope().kind === "community") return;
+    if (!signedIn() && !props.loadCommunityNavigation) { setCommunities({ kind: "hidden" }); return; }
     setCommunities({ kind: "loading" });
     // No fabricated public discovery or ownership projection: until the new
     // API reads land, the existing loader supplies memberships only.
     const loading = props.loadCommunityNavigation
       ? props.loadCommunityNavigation(signedIn())
       : signedIn()
-        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], moderated: [] }))
+        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], created: [] }))
         : Promise.reject(new Error("community_discovery_unavailable"));
     void loading
       .then(data => { if (request === communityRequest) setCommunities({ kind: "ready", data }); })
@@ -227,26 +222,15 @@ export function ApplicationChrome(props: MediaShellProps) {
   const primaryItems = (): readonly SidebarItem[] => scopedPrimaryNavigation(scope()).map(item => ({
     ...item,
     href: item.id === "profile" && selected() ? profilePath(selected()!) : item.href,
-    icon: item.id === "profile"
-      ? <Avatar class="size-5" fallback={selected()?.displayName ?? "Profile"} fallbackSeed={selected()?.avatarSeed ?? selected()?.displayName} size="sm" src={selected()?.avatarSrc ?? undefined} />
-      : item.id === "home" ? <IconHouse class="size-5" />
-      : item.id === "explore" ? <IconGlobe class="size-5" />
-      : item.id === "songs" ? <IconPlaylist class="size-5" />
-      : <IconWallet class="size-5" />,
+    iconKind: item.id,
+    avatar: item.id === "profile" ? { fallback: selected()?.displayName ?? "Profile", seed: selected()?.avatarSeed ?? selected()?.displayName, src: selected()?.avatarSrc } : undefined,
   }));
   const profileLabel = () => selected() ? `Switch profile, currently ${selected()!.displayName}` : "Profile";
-  const profileControl = () => <button aria-label={profileLabel()} aria-haspopup="dialog" onClick={openProfilePicker} type="button" class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-    <Avatar fallback={selected()?.displayName ?? "Profile"} fallbackSeed={selected()?.avatarSeed ?? selected()?.displayName} src={selected()?.avatarSrc ?? undefined} size="sm" />
-    <span class="min-w-0 flex-1"><Type as="span" variant="body-strong" class="block truncate">{selected()?.displayName ?? "Profile"}</Type><Show when={selected()?.publicHandle}><Type as="span" variant="caption" class="block truncate">{selected()?.publicHandle}</Type></Show></span>
-  </button>;
-  const accountAction = () => <Show when={signedIn() || props.sessionResolving || props.sessionUnavailable} fallback={<Button class="w-full" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets}>Sign in</Button>}>{profileControl()}</Show>;
   /** Desktop only: the phone has footer tabs and the communities drawer. */
   function NavigationSidebar() {
-    // Create one set per render: repeated prop reads must not recreate JSX
-    // during SSR/hydration.
-    const items = primaryItems();
-    const footer = accountAction();
-    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" footer={footer} homeAriaLabel="Go home" brandLabel={communityScope()?.community.displayName} onHomeClick={() => go(homePath())} onNavigate={navigateById} primaryItems={items} communityContent={<CommunityNavigation state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />} />;
+    // Keep the projection reactive and pure; the sidebar owns icon rendering.
+    const items = createMemo(primaryItems);
+    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" accountControl={signedIn() || props.sessionResolving || props.sessionUnavailable ? { label: profileLabel(), displayName: selected()?.displayName ?? "Profile", handle: selected()?.publicHandle, avatarSrc: selected()?.avatarSrc, avatarSeed: selected()?.avatarSeed, onClick: openProfilePicker } : undefined} signInAction={{ onClick: requestGlobalSignIn, prepare: prepareGlobalSignIn, preload: preloadGlobalSignInAssets }} homeAriaLabel="Go home" brandLabel={communityScope()?.community.displayName} onHomeClick={() => go(homePath())} onNavigate={navigateById} primaryItems={items()} communityState={navigationState()} navigationScope={scope()} currentPath={props.currentPath} onNavigateCommunity={go} onRetryCommunities={loadCommunities} />;
   }
 
   return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
@@ -285,7 +269,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           activeItem={props.mobileActiveItem ?? "home"}
           avatarFallback={selected()?.displayName ?? "Profile"}
           labels={{
-            home: primaryNavigationLabel("home"),
+            home: scope().kind === "community" ? "Home" : primaryNavigationLabel("home"),
             songs: primaryNavigationLabel("songs"),
             wallet: primaryNavigationLabel("wallet"),
             profile: primaryNavigationLabel("profile"),
@@ -319,7 +303,7 @@ export function ApplicationChrome(props: MediaShellProps) {
         <span aria-live="polite" class="sr-only">{switchAnnouncement()}</span>
       </SidebarContent>
     </div>
-    <PersonaSwitcherSheet title="Your profiles" onAfterClose={afterPickerClose} open={pickerOpen()} onOpenChange={setPickerOpen} personas={props.personas ?? []} selectedPersonaId={props.selectedPersonaId ?? ""} onSelect={id => { props.onPersonaSelect?.(id); setPickerOpen(false); }} loading={props.sessionResolving || props.personasLoading || (props.sessionUnavailable && props.sessionPending)} unavailable={props.sessionUnavailable || props.personasUnavailable} onRetry={props.sessionUnavailable ? props.onSessionRetry : props.onPersonasRetry} />
+    <PersonaSwitcherSheet footer={<Show when={signedIn() && !selected()}><a href="/settings" class="mx-4 mt-4 rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go("/settings"); }}>Settings</a></Show>} title="Your profiles" onAfterClose={afterPickerClose} open={pickerOpen()} onOpenChange={setPickerOpen} personas={props.personas ?? []} selectedPersonaId={props.selectedPersonaId ?? ""} onSelect={id => { props.onPersonaSelect?.(id); setPickerOpen(false); }} loading={props.sessionResolving || props.personasLoading || (props.sessionUnavailable && props.sessionPending)} unavailable={props.sessionUnavailable || props.personasUnavailable} onRetry={props.sessionUnavailable ? props.onSessionRetry : props.onPersonasRetry} />
   </div></Show>;
 }
 

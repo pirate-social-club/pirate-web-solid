@@ -22,24 +22,24 @@ describe("navigation model", () => {
 const community = (communityId: string) => ({ communityId, displayName: communityId, href: `/c/${communityId}` });
 
 describe("community navigation projection", () => {
-  test("joins first, keeps moderation destinations separate, and deduplicates both sections", () => {
+  test("joins first, keeps created communities separate, and deduplicates both sections", () => {
     const sections = communityNavigationSections({
       joined: [community("joined"), community("created"), community("joined")],
       popular: [community("popular"), community("joined"), community("created"), community("popular")],
-      moderated: [community("created"), community("created")],
+      created: [community("created"), community("created")],
     });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined", "popular"]);
-    expect(sections.moderated.map(item => item.communityId)).toEqual(["created"]);
-    expect(sections.seeAllJoined).toBe(true);
+    expect(sections.created.map(item => item.communityId)).toEqual(["created"]);
+    expect(sections.seeAllJoined).toBe(false);
   });
   test("caps heavy membership while keeping a way to the full list", () => {
-    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], moderated: [] });
+    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], created: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined-0", "joined-1", "joined-2", "joined-3", "joined-4"]);
     expect(sections.seeAllJoined).toBe(true);
-    expect(sections.moderated).toEqual([]);
+    expect(sections.created).toEqual([]);
   });
   test("anonymous discovery preserves server ranking without a membership link", () => {
-    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], moderated: [] });
+    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], created: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["ranked-first", "ranked-second"]);
     expect(sections.seeAllJoined).toBe(false);
   });
@@ -51,6 +51,7 @@ describe("community application scope", () => {
     expect(navigationHomePath(scope)).toBe("/c/harbor");
     expect(scopedPrimaryNavigation(scope).map(item => item.id)).toEqual(["home", "songs", "wallet", "profile"]);
     expect(scopedPrimaryNavigation(scope)[0]?.href).toBe("/c/harbor");
+    expect(scopedPrimaryNavigation(scope)[0]?.label).toBe("Home");
     expect(scopedPrimaryNavigation({ kind: "platform" }).some(item => item.id === "explore")).toBe(true);
   });
 });
