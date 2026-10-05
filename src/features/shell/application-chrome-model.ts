@@ -3,7 +3,6 @@ import type { ShellNavItem } from "./shell-model.ts";
 export type ApplicationChromeMode = "bare" | "immersive" | "standard";
 export type ApplicationChromeRoute =
   | "home"
-  | "explore"
   | "songs"
   | "wallet"
   | "profile"
@@ -83,9 +82,7 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
       mode: "standard",
     };
   }
-  if (first === "explore") {
-    return { activeItemId: "explore", mobileActiveItem: "none", mobileTitle: "Explore", mode: "standard" };
-  }
+
   if (first === "songs") {
     return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Your songs", mode: "standard" };
   }

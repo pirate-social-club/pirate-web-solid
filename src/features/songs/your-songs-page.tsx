@@ -56,7 +56,7 @@ export function YourSongsPage(props: YourSongsPageProps) {
       <Show when={props.loadMoreFailed}><Type role="alert">More songs could not be loaded. Try Load more again.</Type></Show>
       <Show when={props.onLoadMore}><Button variant="outline" onClick={props.onLoadMore} disabled={props.loadingMore}>{props.loadingMore ? "Loading…" : "Load more"}</Button></Show>
     </Show></section>
-    <section aria-labelledby="songs-to-learn-heading" class="space-y-4">
+    <Show when={props.trending?.length || props.trendingState === "loading" || props.trendingState === "unavailable"}><section aria-labelledby="songs-to-learn-heading" class="space-y-4">
       <div><Type as="h2" variant="h3" id="songs-to-learn-heading">Songs to learn</Type><Type class="text-muted-foreground">Find something new to study or sing.</Type></div>
       <Show when={props.trendingState === "not-yet-available"}><Type>For now, find a song post in For You and choose Study or Karaoke.</Type><Button variant="outline" onClick={() => props.navigate("/")}>Browse For You</Button></Show>
       <Show when={props.trendingState === "loading"}><Type role="status">Loading songs…</Type></Show>
@@ -66,6 +66,6 @@ export function YourSongsPage(props: YourSongsPageProps) {
           <SongCollection label="Songs to learn" songs={props.trending ?? []} navigate={props.navigate} />
         </Show>
       </Show>
-    </section>
+    </section></Show>
   </main>;
 }

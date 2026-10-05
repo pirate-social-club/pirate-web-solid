@@ -22,24 +22,24 @@ describe("navigation model", () => {
 const community = (communityId: string) => ({ communityId, displayName: communityId, href: `/c/${communityId}` });
 
 describe("community navigation projection", () => {
-  test("joins first, keeps created communities separate, and deduplicates both sections", () => {
+  test("joins first, keeps moderated communities separate, and deduplicates both sections", () => {
     const sections = communityNavigationSections({
-      joined: [community("joined"), community("created"), community("joined")],
-      popular: [community("popular"), community("joined"), community("created"), community("popular")],
-      created: [community("created"), community("created")],
+      joined: [community("joined"), community("moderated"), community("joined")],
+      popular: [community("popular"), community("joined"), community("moderated"), community("popular")],
+      moderated: [community("moderated"), community("moderated")],
     });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined", "popular"]);
-    expect(sections.created.map(item => item.communityId)).toEqual(["created"]);
+    expect(sections.moderated.map(item => item.communityId)).toEqual(["moderated"]);
     expect(sections.seeAllJoined).toBe(false);
   });
   test("caps heavy membership while keeping a way to the full list", () => {
-    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], created: [] });
+    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], moderated: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined-0", "joined-1", "joined-2", "joined-3", "joined-4"]);
     expect(sections.seeAllJoined).toBe(true);
-    expect(sections.created).toEqual([]);
+    expect(sections.moderated).toEqual([]);
   });
   test("anonymous discovery preserves server ranking without a membership link", () => {
-    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], created: [] });
+    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], moderated: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["ranked-first", "ranked-second"]);
     expect(sections.seeAllJoined).toBe(false);
   });

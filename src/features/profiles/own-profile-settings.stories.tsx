@@ -38,3 +38,5 @@ export const OwnProfileSettings: Story = {
     await expect(canvas.getByRole("button", { name: "Switch profile" })).toBeInTheDocument();
   },
 };
+
+export const ProfileHeader: Story = { render: () => <ProfileSettingsReview /> };

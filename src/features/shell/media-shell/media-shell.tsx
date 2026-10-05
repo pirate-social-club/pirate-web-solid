@@ -35,7 +35,7 @@ export interface MediaShellProps {
   readonly currentPath?: string;
   /** Resolve host scope before mounting, including server render and hydration. */
   readonly navigationScope?: ApplicationNavigationScope;
-  /** Reviewed navigation data; public discovery and created-by-me API binding follows. */
+  /** Reviewed navigation data; public discovery and moderated-by-me API binding follows. */
   readonly communityNavigation?: CommunityNavigationState;
   readonly loadCommunityNavigation?: (signedIn: boolean) => Promise<CommunityNavigationData>;
   readonly mobileActiveItem?: ShellNavItem | "none";
@@ -200,7 +200,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     const loading = props.loadCommunityNavigation
       ? props.loadCommunityNavigation(signedIn())
       : signedIn()
-        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], created: [] }))
+        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], moderated: [] }))
         : Promise.reject(new Error("community_discovery_unavailable"));
     void loading
       .then(data => { if (request === communityRequest) setCommunities({ kind: "ready", data }); })

@@ -18,7 +18,7 @@ export const NotYetAvailable: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Song history is coming soon" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Songs to learn" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "Songs to learn" })).not.toBeInTheDocument();
   },
 };
 export const NotYetAvailableMobile: Story = { ...NotYetAvailable, globals: { viewport: { value: "mobile1", isRotated: false } } };

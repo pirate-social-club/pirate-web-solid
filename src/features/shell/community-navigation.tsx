@@ -45,9 +45,9 @@ function PlatformCommunityNavigation(props: CommunityNavigationProps) {
         }}>See all</a></Show>
       </>}</Show>
     </section>
-    <Show when={sections()?.created.length}>{_ => <section aria-labelledby={`${id}-moderator`}>
+    <Show when={sections()?.moderated.length}>{_ => <section aria-labelledby={`${id}-moderator`}>
       <Type as="h2" id={`${id}-moderator`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Moderator</Type>
-      <ul class="flex flex-col gap-1"><For each={sections()?.created}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
+      <ul class="flex flex-col gap-1"><For each={sections()?.moderated}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
     </section>}</Show>
   </div>;
 }

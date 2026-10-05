@@ -114,8 +114,8 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
         </div>
         <div class="mt-4 min-w-0">
           <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{displayName()}</h1>
-          <OwnProfileSettings handle={state().canonicalHandle} />
           <p class="mt-1 break-all text-sm text-muted-foreground" data-profile-handle={state().profile.handle}>@{state().profile.handle}</p>
+          <OwnProfileSettings handle={state().canonicalHandle} />
           <Show when={state().profile.bio}>
             {bio => <p class="mt-5 max-w-2xl whitespace-pre-wrap break-words leading-relaxed">{bio()}</p>}
           </Show>

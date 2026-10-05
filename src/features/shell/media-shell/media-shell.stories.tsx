@@ -158,9 +158,9 @@ export const CommunitiesError: Story = {
   },
 };
 export const ManyJoinedCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: manyJoinedNavigation }} /> };
-export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], created: [] } }} /> };
+export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], moderated: [] } }} /> };
 export const DesktopNavigation: Story = {
-  render: () => <ShellStory communityNavigation={{ kind: "ready", data: { ...manyJoinedNavigation, created: creatorNavigation.created } }} />,
+  render: () => <ShellStory communityNavigation={{ kind: "ready", data: { ...manyJoinedNavigation, moderated: creatorNavigation.moderated } }} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const navigation = within(canvas.getByRole("navigation", { name: "Main navigation" }));
@@ -248,13 +248,5 @@ export const AnonymousProductionDefaults: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Create community" })).not.toBeInTheDocument());
     await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
-  },
-};
-export const Explore: Story = {
-  render: () => <ShellStory initialPath="/explore" signedIn={false} communityNavigation={undefined} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Explore" })).toBeInTheDocument();
-    await expect(canvas.getByText("Find songs to learn on Your Songs.")).toBeInTheDocument();
   },
 };

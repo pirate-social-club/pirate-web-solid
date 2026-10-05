@@ -64,8 +64,8 @@ function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
         </div>
         <div class="mt-4 min-w-0">
           <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{name()}</h1>
-          <OwnProfileSettings personaId={persona().persona_id} />
           <Show when={handle() !== name() ? handle() : undefined}>{value => <p class="mt-1 break-all text-sm text-muted-foreground">@{value()}</p>}</Show>
+          <OwnProfileSettings personaId={persona().persona_id} />
           <Show when={props.state.response.profile.bio}>
             {bio => <p class="mt-5 max-w-2xl whitespace-pre-wrap break-words leading-relaxed">{bio()}</p>}
           </Show>

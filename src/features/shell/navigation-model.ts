@@ -1,6 +1,6 @@
 /** One destination map for desktop, the mobile drawer and the four mobile tabs. */
 export const navigationPaths = {
-  home: "/", explore: "/explore", songs: "/songs",
+  home: "/", songs: "/songs",
   wallet: "/wallet", profile: "/me",
 } as const;
 
@@ -55,8 +55,8 @@ export interface NavigationCommunity {
 export interface CommunityNavigationData {
   readonly joined: readonly NavigationCommunity[];
   readonly popular: readonly NavigationCommunity[];
-  /** Communities created by the viewer; this projection grants no moderation access. */
-  readonly created: readonly NavigationCommunity[];
+  /** Communities where the viewer has server-confirmed moderation access. */
+  readonly moderated: readonly NavigationCommunity[];
 }
 
 export type CommunityNavigationState =
@@ -78,14 +78,14 @@ function uniqueCommunities(communities: readonly NavigationCommunity[], excluded
 
 /** One projection for the desktop sidebar and phone drawer, with no recents. */
 export function communityNavigationSections(data: CommunityNavigationData, limit = sidebarCommunityLimit) {
-  const created = uniqueCommunities(data.created);
-  const createdIds = new Set(created.map(community => community.communityId));
-  const joined = uniqueCommunities(data.joined, createdIds);
-  const popular = uniqueCommunities(data.popular, new Set([...createdIds, ...joined.map(community => community.communityId)]));
+  const moderated = uniqueCommunities(data.moderated);
+  const moderatedIds = new Set(moderated.map(community => community.communityId));
+  const joined = uniqueCommunities(data.joined, moderatedIds);
+  const popular = uniqueCommunities(data.popular, new Set([...moderatedIds, ...joined.map(community => community.communityId)]));
   const communities = [...joined, ...popular];
   return {
     communities: communities.slice(0, limit),
-    created,
+    moderated,
     // Keep overflow reachable without adding a redundant link to short lists.
     seeAllJoined: joined.length > limit,
   };

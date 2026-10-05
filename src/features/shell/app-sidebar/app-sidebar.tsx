@@ -5,13 +5,13 @@ import { Dynamic, type JSX } from "@solidjs/web";
 import { CommunityNavigation } from "../community-navigation.tsx";
 import type { ApplicationNavigationScope, CommunityNavigationState } from "../navigation-model.ts";
 
-import { Avatar, Button, IconGlobe, IconHouse, IconPlaylist, IconWallet, IconList, Type, cn } from "../../../design-system";
+import { Avatar, Button, IconHouse, IconPlaylist, IconWallet, IconList, Type, cn } from "../../../design-system";
 
 export interface SidebarItem {
   id: string;
   label: string;
   href?: string;
-  iconKind?: "home" | "explore" | "songs" | "wallet" | "profile";
+  iconKind?: "home" | "songs" | "wallet" | "profile";
   avatar?: { readonly fallback: string; readonly seed?: string | null; readonly src?: string | null };
   badge?: string;
 }
@@ -43,7 +43,7 @@ export interface AppSidebarProps {
   onNavigate?: (id: string) => void;
 }
 
-const sidebarIcons = { home: IconHouse, explore: IconGlobe, songs: IconPlaylist, wallet: IconWallet, profile: IconList };
+const sidebarIcons = { home: IconHouse, songs: IconPlaylist, wallet: IconWallet, profile: IconList };
 
 function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: (id: string) => void }) {
   const content = () => <><span aria-hidden="true" class="shrink-0"><Show when={props.item.iconKind === "profile"} fallback={<Dynamic component={sidebarIcons[props.item.iconKind ?? "profile"]} class="size-5" />}><Avatar class="size-5" fallback={props.item.avatar?.fallback ?? "Profile"} fallbackSeed={props.item.avatar?.seed ?? undefined} src={props.item.avatar?.src ?? undefined} size="sm" /></Show></span><Type as="span" variant="body" class="min-w-0 flex-1 truncate">{props.item.label}</Type></>;
