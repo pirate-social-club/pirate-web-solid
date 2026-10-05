@@ -34,7 +34,6 @@ export default defineConfig({
     maxWorkers: 4,
     include: [
       "src/features/identity/telegram-linking/telegram-linking-ssr.test.tsx",
-      "src/features/profiles/own-profile-settings-ssr.test.tsx",
       "src/features/communities/community-page/community-page-ssr.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status-ssr.test.tsx",
       "src/features/communities/handle-storefront/handle-storefront-preflight.test.ts",
@@ -45,6 +44,7 @@ export default defineConfig({
       "src/features/wallet/wallet-route-ssr.test.tsx",
       "src/features/posts/public-post/public-post-activities-ssr.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime-ssr.test.tsx",
+      "src/features/profiles/own-profile-settings-ssr.test.tsx",
     ],
   },
 });
