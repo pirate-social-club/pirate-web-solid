@@ -36,7 +36,7 @@ export function CommunityFeedSort(props: { value: string; onChange: (value: stri
           </DropdownMenuTrigger>
           <DropdownMenuContent class="w-40" aria-label="Sort community feed">
             <DropdownMenuRadioGroup value={props.value} onChange={value => { props.onChange(value); setMenuOpen(false); }}>
-              <For each={sorts}>{sort => <DropdownMenuRadioItem value={sort}>{sort}</DropdownMenuRadioItem>}</For>
+              <For each={sorts}>{sort => <DropdownMenuRadioItem value={sort} closeOnSelect>{sort}</DropdownMenuRadioItem>}</For>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>

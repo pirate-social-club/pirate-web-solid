@@ -1,8 +1,10 @@
 /** @jsxImportSource @solidjs/web */
 import { render as solidRender, type JSX } from "@solidjs/web";
+import { screen, waitFor, within } from "storybook/test";
+import { CommunityFeedSort } from "./community-feed-sort.tsx";
 import { userEvent } from "@testing-library/user-event";
-import { createRoot } from "solid-js";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { createRoot, createSignal } from "solid-js";
+import { beforeAll, afterAll, afterEach, describe, expect, test, vi } from "vitest";
 
 import type { CommunityData } from "./page-shell-model.ts";
 import { CommunityPageShell } from "./page-shell.tsx";
@@ -113,5 +115,52 @@ describe("community page shell header actions", () => {
 
     await userEvent.setup().click(songActions!);
     await vi.waitFor(() => expect([...document.querySelectorAll('[role="menuitem"]')].some(item => item.textContent?.trim() === "Boost")).toBe(true));
+  });
+});
+
+
+describe("community desktop sort dismissal", () => {
+  const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+  beforeAll(() => Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() }));
+  afterAll(() => {
+    if (scrollDescriptor) Object.defineProperty(Element.prototype, "scrollIntoView", scrollDescriptor);
+    else Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+  test("selecting the current sort closes the menu and returns focus", async () => {
+    const changed = vi.fn();
+    const container = render(() => <CommunityFeedSort value="Best" onChange={changed} />);
+    const user = userEvent.setup();
+    const trigger = within(container).getAllByRole("button", { name: "Sort community feed" })[0]!;
+    await user.click(trigger);
+    const current = await screen.findByRole("menuitemradio", { name: "Best" });
+    expect(current.getAttribute("aria-checked")).toBe("true");
+    await user.click(current);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  test("keyboard selection changes the sort and closes on repeated selection", async () => {
+    const changed = vi.fn();
+    const container = render(() => {
+      const [value, setValue] = createSignal("Best");
+      return <CommunityFeedSort value={value()} onChange={next => { setValue(next); changed(next); }} />;
+    });
+    const user = userEvent.setup();
+    const trigger = within(container).getAllByRole("button", { name: "Sort community feed" })[0]!;
+    await user.click(trigger);
+    const next = await screen.findByRole("menuitemradio", { name: "New" });
+    next.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(changed).toHaveBeenCalledExactlyOnceWith("New");
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    await user.click(trigger);
+    const current = await screen.findByRole("menuitemradio", { name: "New" });
+    expect(current.getAttribute("aria-checked")).toBe("true");
+    await user.click(current);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(changed).toHaveBeenCalledTimes(1);
   });
 });

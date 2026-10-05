@@ -137,8 +137,10 @@ export const SortAndManagement: Story = {
     await expect(body.queryByRole("menu")).not.toBeInTheDocument();
     await expect(trigger).toHaveFocus();
     await userEvent.click(trigger);
-    await expect(await body.findByRole("menuitemradio", { name: "New" })).toHaveAttribute("aria-checked", "true");
-    await userEvent.keyboard("{Escape}");
+    const current = await body.findByRole("menuitemradio", { name: "New" });
+    await expect(current).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(current);
+    await expect(body.queryByRole("menu")).not.toBeInTheDocument();
     await expect(trigger).toHaveFocus();
     await userEvent.click(canvas.getByRole("button", { name: "More community options" }));
     await expect(await body.findByRole("menuitem", { name: "Manage community" })).toBeInTheDocument();
