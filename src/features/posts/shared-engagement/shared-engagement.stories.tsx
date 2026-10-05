@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>;
 function PostFixture() {
   const [score, setScore] = createSignal(3);
   const [vote, setVote] = createSignal<"up" | "down" | null>(null);
-  const [reported, setReported] = createSignal(false);
+  const [reported, setReported] = createSignal(0);
   const [comments, setComments] = createSignal(false);
   return <div class="mx-auto max-w-3xl"><CommunityPostCard
     post={{ id: "shared-story-post", title: "Harbor Lights", body: "A new song for our next listening session.", kind: "text", score: score(), commentCount: 2, authorHandle: "owned.pirate", publishedAt: "2026-10-05T08:00:00Z" }}
@@ -24,18 +24,18 @@ function PostFixture() {
       const value = (direction: "up" | "down" | null) => direction === "up" ? 1 : direction === "down" ? -1 : 0;
       setScore(score() - value(vote()) + value(next)); setVote(next);
     }} />}
-    menuActions={[{ label: "Report", run: () => setReported(true) }]} />
-    {reported() && <Type role="status">Report callback received</Type>}
+    menuActions={[{ label: "Report", run: () => setReported(count => count + 1) }]} />
+    {reported() > 0 && <><Type role="status">Report callback received</Type><output aria-label="Report calls">{reported()}</output></>}
     {comments() && <Type role="status">Comments callback received</Type>}
   </div>;
 }
 function CommentFixture(props: { actions?: boolean; locked?: boolean } = {}) {
-  const [reported, setReported] = createSignal(false);
+  const [reported, setReported] = createSignal(0);
   return <div class="mx-auto max-w-3xl"><CommentCard item={{ id: "shared-comment", submissionId: null, parentId: null, body: "The chorus is a good place to start practising.", authorLabel: props.locked ? undefined : "owned.pirate", authorAvatarRef: "/storybook/karaoke-artwork.svg", createdAt: "2026-10-05T08:00:00Z", depth: 0, replyCount: 0, state: props.locked ? "age_locked" : "published", caseRef: null, href: null }}
     communityLabel={props.locked ? undefined : "Night Shift"}
     postContext={props.locked ? undefined : { title: "On Open Water", href: "/posts/on-open-water" }}
-    menuActions={props.actions ? [{ label: "Report", run: () => setReported(true) }] : undefined} />
-    {reported() && <Type role="status">Report callback received</Type>}
+    menuActions={props.actions ? [{ label: "Report", run: () => setReported(count => count + 1) }] : undefined} />
+    {reported() > 0 && <><Type role="status">Report callback received</Type><output aria-label="Report calls">{reported()}</output></>}
   </div>;
 }
 export const InteractivePost: Story = {
@@ -53,6 +53,11 @@ export const InteractivePost: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Post options" }));
     await userEvent.click(within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" }));
     await expect(canvas.getByText("Report callback received")).toBeVisible();
+    await expect(canvas.getByLabelText("Report calls")).toHaveTextContent("1");
+    await userEvent.click(canvas.getByRole("button", { name: "Post options" }));
+    within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" }).focus();
+    await userEvent.keyboard("{Enter}");
+    await expect(canvas.getByLabelText("Report calls")).toHaveTextContent("2");
   },
 };
 export const ReadOnlyPost: Story = {

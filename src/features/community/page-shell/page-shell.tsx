@@ -110,7 +110,7 @@ function postTimestamp(value: string): string {
 
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
-    <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
+    <div class="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Post actions">
       {/* No engagement controls yet: either no posting session was resolved,
           or the viewer's own state for this post is still being read. These
           were three buttons with no handlers behind them, which offered
