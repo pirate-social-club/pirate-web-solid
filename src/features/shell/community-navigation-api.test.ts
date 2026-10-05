@@ -41,3 +41,38 @@ test("a community app retains only its own server-confirmed moderation entry", a
   expect(read).toHaveBeenCalledOnce(); expect(data.joined).toEqual([]); expect(data.popular).toEqual([]);
   expect(data.moderated.map(item => item.communityId)).toEqual(["current"]);
 });
+
+const moderationPage = (ids: readonly string[], next_cursor: string | null) => ({
+  object: "moderation_community_page" as const, capability: "moderation.view" as const, next_cursor,
+  items: ids.map(community_id => ({ community_id, display_name: community_id, resource_href: `/c/${community_id}`, member_count: 1 })),
+});
+
+test("a community app finds its permission on page two and stops at its own entry", async () => {
+  const read = vi.fn().mockResolvedValueOnce(moderationPage(["external"], "page-two"))
+    .mockResolvedValueOnce(moderationPage(["current"], "page-three"));
+  const data = await loadCommunityAppNavigation("current", { get_usersMeModerationCommunities: read });
+  expect(read.mock.calls).toEqual([[{}], [{ query: { cursor: "page-two" } }]]);
+  expect(data.moderated.map(item => item.communityId)).toEqual(["current"]);
+});
+
+test("platform navigation includes permission entries from every page", async () => {
+  const read = vi.fn().mockResolvedValueOnce(moderationPage(["first"], "page-two"))
+    .mockResolvedValueOnce(moderationPage(["second"], null));
+  const data = await loadCommunityNavigation(true, {
+    publicClient: { get_publicCommunitiesPopular: async () => popular }, joined: async () => [],
+    accountClient: { get_usersMeModerationCommunities: read },
+  });
+  expect(data.moderated.map(item => item.communityId)).toEqual(["first", "second"]);
+});
+
+test.each(["community", "platform"])("%s navigation rejects a repeating permission cursor", async scope => {
+  const read = vi.fn(async () => moderationPage(["external"], "repeated"));
+  const request = scope === "community"
+    ? loadCommunityAppNavigation("current", { get_usersMeModerationCommunities: read })
+    : loadCommunityNavigation(true, {
+      publicClient: { get_publicCommunitiesPopular: async () => popular }, joined: async () => [],
+      accountClient: { get_usersMeModerationCommunities: read },
+    });
+  await expect(request).rejects.toThrow("non_advancing_moderation_cursor");
+  expect(read).toHaveBeenCalledTimes(2);
+});
