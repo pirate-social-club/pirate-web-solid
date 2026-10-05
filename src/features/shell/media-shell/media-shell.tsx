@@ -145,6 +145,35 @@ export function ApplicationChrome(props: MediaShellProps) {
     const target = switchTarget();
     return target === undefined ? "" : personaStore?.activePersonaId(target.communityId) ?? "";
   };
+  // Community identity belongs to the operation target, not the account's
+  // navigation profile. Never fall back to an unrelated account persona.
+  const footerPersona = () => {
+    if (!signedIn()) return undefined;
+    const target = switchTarget();
+    return target === undefined ? selected() : target.personas.find(persona => persona.personaId === selectedSwitchPersonaId());
+  };
+  const footerProfileLabel = () => {
+    const persona = footerPersona();
+    if (persona !== undefined) return `Profile, ${persona.displayName}`;
+    if (switchTarget()?.unavailable) return "Retry profiles";
+    if (switchTarget() !== undefined && switchable()) return "Choose a posting profile";
+    return signedIn() || accountPending() ? "Your profiles" : "Sign in";
+  };
+  const desktopProfileLabel = () => {
+    const persona = footerPersona();
+    if (switchTarget()?.unavailable) return "Retry profiles";
+    if (persona === undefined) return "Choose a posting profile";
+    return switchable() ? `Switch posting profile, ${persona.displayName}` : `Open posting profile, ${persona.displayName}`;
+  };
+  const openFooterProfile = () => {
+    if (!signedIn()) { openOwnProfile(); return; }
+    const persona = footerPersona();
+    if (switchTarget() !== undefined) {
+      if (persona !== undefined) go(profilePath(persona));
+      else if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher();
+      else openProfilePicker();
+    } else openOwnProfile();
+  };
   const [switchAnnouncement, setSwitchAnnouncement] = createSignal("");
   /**
    * A double tap on Profile switches profile. On a community page it acts on
@@ -272,7 +301,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           class="md:hidden"
           forceMobile
           activeItem={props.mobileActiveItem ?? "home"}
-          avatarFallback={selected()?.displayName ?? "Profile"}
+          avatarFallback={footerPersona()?.displayName ?? "Profile"}
           labels={{
             home: "Home",
             songs: "Your songs",
@@ -280,16 +309,29 @@ export function ApplicationChrome(props: MediaShellProps) {
             profile: "Profile",
             // Matches what a tap does: the selected profile's page, the profile
             // sheet while the account check is pending or failed, or sign-in.
-            profileAriaLabel: selected() ? `Profile, ${selected()!.displayName}` : signedIn() || accountPending() ? "Your profiles" : "Sign in",
+            profileAriaLabel: footerProfileLabel(),
           }}
           onHomeClick={() => go("/")}
           onSongsClick={() => go("/songs")}
           onWalletClick={() => go("/wallet")}
-          onProfileClick={openOwnProfile}
+          onProfileClick={openFooterProfile}
           onProfileDoubleTap={canSwitchProfile() ? doubleTapSwitch : undefined}
-          userAvatarSeed={selected()?.avatarSeed ?? selected()?.publicHandle ?? undefined}
-          userAvatarSrc={selected()?.avatarSrc ?? undefined}
+          userAvatarSeed={footerPersona()?.avatarSeed ?? footerPersona()?.publicHandle ?? undefined}
+          userAvatarSrc={footerPersona()?.avatarSrc ?? undefined}
         />
+        <Show when={signedIn() && ((switchTarget()?.personas.length ?? 0) > 0 || switchTarget()?.unavailable)}>
+          <IconButton
+            aria-label={desktopProfileLabel()}
+            aria-haspopup={switchable() || switchTarget()?.unavailable ? "dialog" : undefined}
+            class="fixed bottom-5 end-5 z-40 hidden size-12 rounded-full border border-border-soft bg-background shadow-md md:flex"
+            data-community-profile-control
+            title={footerPersona() ? `Posting as ${footerPersona()!.displayName}` : desktopProfileLabel()}
+            onClick={() => { if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher(); else openFooterProfile(); }}
+            variant="ghost"
+          >
+            <Avatar class="size-8" fallback={footerPersona()?.displayName ?? "Profile"} size="sm" src={footerPersona()?.avatarSrc ?? undefined} />
+          </IconButton>
+        </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
           {(target) => (
             <PersonaSwitcherSheet
@@ -298,6 +340,9 @@ export function ApplicationChrome(props: MediaShellProps) {
                 personaStore!.selectPersona(target().communityId, personaId);
                 personaStore!.closeSwitcher();
               }}
+              loading={target().loading}
+              unavailable={target().unavailable}
+              onRetry={target().onRetry}
               open={personaStore!.open()}
               personas={target().personas}
               selectedPersonaId={selectedSwitchPersonaId()}

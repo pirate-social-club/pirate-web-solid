@@ -1,3 +1,5 @@
+import { ActivePersonaProvider } from "../../identity/active-persona-store.tsx";
+import { ApplicationChrome } from "../../shell/media-shell/media-shell.tsx";
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
@@ -156,13 +158,13 @@ function engagementApi(overrides: Partial<CommunityEngagementApi> = {}): Communi
   };
 }
 
-function render(ui: () => JSX.Element): HTMLElement {
+function render(ui: () => JSX.Element, withChrome = false): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   let dispose = () => {};
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(ui, container);
+    solidRender(withChrome ? () => <ActivePersonaProvider><ApplicationChrome signedIn>{ui()}</ApplicationChrome></ActivePersonaProvider> : ui, container);
   });
   disposers.push(() => { dispose(); container.remove(); });
   return container;
@@ -199,7 +201,7 @@ function renderPersonaEngagement(): HTMLElement {
         ],
       })}
     />
-  ));
+  ), true);
 }
 
 /** Kobalte opens on pointerdown, which a bare click() does not produce. */
@@ -351,7 +353,7 @@ describe("CommunityPage", () => {
     // No persona is selected yet. Voting is account-scoped, so the real
     // controls mount now rather than leaving the handlerless placeholders up.
     await vi.waitFor(() => {
-      expect(container.querySelector("[data-active-persona]")).not.toBeNull();
+      expect(container.querySelector("[data-community-profile-control]")).not.toBeNull();
       expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull();
     });
     expect(container.querySelector("button[aria-label='Open 4 comments']")).toBeNull();
@@ -369,7 +371,7 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
     container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
     await vi.waitFor(() => expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")?.disabled).toBe(true));
-    container.querySelector<HTMLButtonElement>("[data-active-persona]")!.click();
+    container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
     const personaTwo = document.body.querySelector<HTMLInputElement>("input[value='persona-two']");
     expect(personaTwo).not.toBeNull();
@@ -555,8 +557,7 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
     await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
-    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post")!;
+    const postHere = container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!;
     postHere.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
@@ -573,8 +574,9 @@ describe("CommunityPage", () => {
     expect(contextualComposerOpen()).toBe(true);
   });
 
-  test("visible profile retry restores community controls without opening a composer", async () => {
+  test("profile retry rechecks membership and refuses a viewer who is no longer a member", async () => {
     let unavailable = true;
+    let member = true;
     const resolveSession = vi.fn(async () => ({
       status: "authenticated" as const,
       userId: "account-one",
@@ -588,7 +590,7 @@ describe("CommunityPage", () => {
           get_communitiesCommunityIdPreview: async () => preview,
         }}
         engagementApi={engagementApi({
-          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+          readViewerState: vi.fn(async () => ({ membership: member ? "member" as const : "not_member" as const, following: false, followerCount: 20 })),
         })}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
@@ -598,9 +600,6 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
     await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
-    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post")!;
-
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
@@ -609,19 +608,11 @@ describe("CommunityPage", () => {
     // unavailable. What matters on the page is that the retry is offered.
     expect([...container.querySelectorAll("button")].some(button => button.textContent?.trim() === "Retry profiles")).toBe(true);
     unavailable = false;
-    [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry profiles")!.click();
-    await vi.waitFor(() => expect([...container.querySelectorAll("button")]
-      .some(button => button.textContent?.trim() === "Retry profiles")).toBe(false));
+    member = false;
+    container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Join this Community before posting."));
     expect(contextualComposerOpen()).toBe(false);
-    postHere.click();
-    // Recovery is complete when the composer opens and the control that
-    // governed the failure is gone. Whether an earlier announcement is still
-    // on screen is the toast region's business, not this page's state.
-    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
-    expect([...container.querySelectorAll("button")]
-      .some(button => button.textContent?.trim() === "Retry profiles")).toBe(false);
-    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-    expect(contextualComposerOpen()).toBe(true);
+    expect(container.querySelector("[data-community-post-slot]")).toBeNull();
   });
 
   test("fails closed when routed membership disappears before posting", async () => {
@@ -667,6 +658,39 @@ describe("CommunityPage", () => {
     expect(contextualComposerOpen()).toBe(false);
   });
 
+  test("a nonmember can recover profiles from the shell without gaining Post or joining", async () => {
+    let unavailable = true;
+    const api = engagementApi();
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personasUnavailable: unavailable ? true as const : undefined,
+      personas: unavailable ? [] : [{ personaId: "persona-one", displayName: "Recovered community profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" as const } }],
+    }));
+    const container = render(() => <CommunityPage
+      client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+      engagementApi={api}
+      handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+      pathSegment="xn--pokmon-dva"
+      resolveSession={resolveSession}
+    />, true);
+    const control = await vi.waitFor(() => {
+      const button = container.querySelector<HTMLButtonElement>("[data-community-profile-control]");
+      expect(button?.getAttribute("aria-label")).toBe("Retry profiles");
+      return button!;
+    });
+    expect(container.querySelector("[data-community-post-slot]")).toBeNull();
+    control.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Profiles could not be loaded"));
+    unavailable = false;
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === "Try again")!.click();
+    await vi.waitFor(() => expect(control.title).toBe("Posting as Recovered community profile"));
+    expect(resolveSession.mock.calls.length).toBeGreaterThan(1);
+    expect(container.querySelector("[data-community-post-slot]")).toBeNull();
+    expect(api.resolveJoinAction).not.toHaveBeenCalled();
+    expect(contextualComposerOpen()).toBe(false);
+  });
+
   test("joins an open Community only after the server confirms membership", async () => {
     const api = engagementApi();
     const container = render(() => (
@@ -689,13 +713,10 @@ describe("CommunityPage", () => {
     join.click();
     await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
-    // The member keeps the Post action and both header slots as settled
-    // states: Joined is disabled rather than gone.
-    await vi.waitFor(() => expect([...container.querySelectorAll("button")]
-      .some(button => button.textContent?.trim() === "Post")).toBe(true));
-    const joined = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Joined");
-    expect(joined?.disabled).toBe(true);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-post-slot]")).not.toBeNull());
+    expect(container.querySelector("[data-community-follow-slot]")).toBeNull();
+    expect(container.querySelector("[data-community-membership-slot]")).toBeNull();
+    expect(container.querySelector("[data-community-membership-status]")?.textContent).toContain("Member");
   });
 
   test("shows a requested membership as pending instead of joined", async () => {
@@ -717,8 +738,9 @@ describe("CommunityPage", () => {
       .find(button => button.textContent?.trim() === "Request to join")!;
     request.click();
     await vi.waitFor(() => expect(container.textContent).toContain("Membership request sent."));
-    expect(request.textContent).toBe("Request pending");
-    expect(request.disabled).toBe(true);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-membership-slot]")?.textContent).toBe("Request pending"));
+    expect(container.querySelector("[data-community-membership-slot]")?.getAttribute("role")).toBe("status");
+    expect(container.querySelector("[data-community-membership-slot] button")).toBeNull();
   });
 
   test("initializes an existing member from the authenticated preview", async () => {
@@ -735,14 +757,9 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("21 followers"));
-    // An existing member keeps both slots as states: Following is locked and
-    // Joined is disabled; the server would answer a member's unfollow with a
-    // conflict.
-    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Following")?.disabled).toBe(true);
-    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Joined")?.disabled).toBe(true);
-    expect(container.textContent).toContain("Post");
+    expect(container.querySelector("[data-community-follow-slot]")).toBeNull();
+    expect(container.querySelector("[data-community-membership-slot]")).toBeNull();
+    expect(container.querySelector("[data-community-post-slot]")).not.toBeNull();
     expect(api.resolveJoinAction).not.toHaveBeenCalled();
   });
 

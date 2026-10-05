@@ -178,8 +178,8 @@ function sizing(element: Element | null): string | null {
 
 /**
  * The row's own size, which is what holds the page still. Its contents change
- * legitimately: a settled member shows the idempotent follow control and the
- * disabled Joined state rather than a visitor's two live actions.
+ * legitimately: a settled member shows one Post command spanning the two
+ * visitor action slots.
  */
 function headerSlots(container: HTMLElement) {
   const row = actionRow(container);
@@ -329,6 +329,7 @@ describe("private controls while authority settles", () => {
     // The header carries the two slots and nothing else, so nothing appears
     // there when authority settles.
     expect(actionRow(container).children.length).toBe(2);
+    expect(actionRow(container).querySelector("[data-community-post-slot]")).toBeNull();
     expect(manageAuthority(container)).toBe("pending");
     // Outcomes are announced through the shared toast region, which is fixed
     // and owns its own lifetime, so nothing they say occupies page space.
@@ -337,12 +338,12 @@ describe("private controls while authority settles", () => {
       .not.toContain("static");
   });
 
-  test("reserves the controls row on first paint when the session cookie is present", async () => {
+  test("does not reserve a feed persona row even when the session cookie is present", async () => {
     document.documentElement.dataset.viewerSession = "present";
     try {
       const container = mount(() => "resolving", { member: true, canManage: true, personas: [boundPersona] });
       await vi.waitFor(() =>
-        expect(container.querySelector("[data-community-persona-reserved]")).not.toBeNull());
+        expect(container.querySelector("[data-community-persona-reserved]")).toBeNull());
     } finally {
       delete document.documentElement.dataset.viewerSession;
     }
@@ -366,10 +367,10 @@ describe("private controls while authority settles", () => {
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     expect(buttonNamed(container, "Post")).toBeDefined();
-    // Both slots stay filled with settled states: the idempotent follow
-    // control and the disabled Joined state, so the row holds its size.
-    expect(buttonNamed(container, "Follow")).toBeDefined();
-    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
+    // Post replaces both visitor controls without resizing their group.
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    expect(buttonNamed(container, "Joined")).toBeUndefined();
+    expect(container.querySelector("[data-community-post-slot]")).not.toBeNull();
     expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 
@@ -441,13 +442,15 @@ describe("management authority settles on its own schedule", () => {
     // Membership and personas are known, so their controls are done waiting.
     // A member's row stays filled with the idempotent follow control and the
     // disabled Joined state rather than the action the server would reject.
-    expect(buttonNamed(container, "Follow")).toBeDefined();
-    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
-    expect(container.querySelector("[data-active-persona]")).not.toBeNull();
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    expect(buttonNamed(container, "Joined")).toBeUndefined();
+    expect(container.querySelector("[data-community-post-slot]")).not.toBeNull();
+    expect(container.querySelector("[data-active-persona]")).toBeNull();
     // Only management is still unknown, and it is reported on an overlay
     // trigger that is always present, so nothing on the page is waiting.
     expect(manageAuthority(container)).toBe("pending");
-    expect(actionRow(container).children.length).toBe(2);
+    expect(actionRow(container).children.length).toBe(1);
+    expect(actionRow(container).querySelector("[data-community-post-slot]")).not.toBeNull();
   });
 });
 
@@ -484,6 +487,7 @@ describe("a membership read that fails", () => {
     expect(buttonNamed(container, "Following")).toBeUndefined();
     expect(buttonNamed(container, "Post")).toBeUndefined();
     expect(actionRow(container).children.length).toBe(2);
+    expect(actionRow(container).querySelector("[data-community-post-slot]")).toBeNull();
   });
 });
 
@@ -569,7 +573,7 @@ describe("the overflow menu and the outcome announcements", () => {
 });
 
 describe("what a community offers each viewer", () => {
-  test("an active member keeps both action slots as settled states", async () => {
+  test("an active member gets one Post action in the reserved group", async () => {
     const container = render(() => (
       <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
         <CommunityPage
@@ -586,12 +590,11 @@ describe("what a community offers each viewer", () => {
     ));
 
     // Spec 016 §4.6: a member may invoke follow idempotently but may not
-    // unfollow, and has nothing to join. Both slots stay filled so the header
-    // holds: the follow control and the disabled Joined state.
+    // unfollow, and has nothing to join. Post spans both visitor slots.
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
-    expect(buttonNamed(container, "Follow")).toBeDefined();
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
     expect(buttonNamed(container, "Following")).toBeUndefined();
-    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
+    expect(buttonNamed(container, "Joined")).toBeUndefined();
     expect(buttonNamed(container, "Join")).toBeUndefined();
   });
 

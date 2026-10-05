@@ -76,8 +76,9 @@ function ShellStory(props: Partial<MediaShellProps> & { readonly initialPath?: s
         <CommunityPageShell
           community={{ id: "community_harbor", name: "Harbor Collective", handle: "c/harbor", description: "A place for songs and their stories.", members: 124, followers: 87, posts: [] }}
           feed={() => ({ kind: "ready", posts: [] })}
-          following={false}
-          joined={true}
+          following
+          joined
+          onCreatePost={() => undefined}
           onBack={() => setPath("/communities")}
         />
       ) : <PagePreview path={path()} title={policy().mobileTitle} />}
@@ -181,9 +182,10 @@ function CommunityTarget(props: { readonly personaIds: readonly string[] }) {
   const store = useActivePersonaStore();
   createEffect(() => true, () => store.setTarget({
     communityId: "community_harbor",
-    personas: personas.filter(persona => props.personaIds.includes(persona.personaId)),
+    personas: personas.filter(persona => props.personaIds.includes(persona.personaId)).map(persona => ({ ...persona, communityId: "community_harbor" })),
     title: "Profile in this community",
   }));
+  createEffect(() => props.personaIds[0], first => store.selectPersona("community_harbor", first));
   return null;
 }
 
@@ -201,5 +203,27 @@ export const CommunityPageOneEligibleProfile: Story = {
     await userEvent.dblClick(tabs.getByRole("button", { name: "Profile, Harbor" }));
     await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).not.toBeInTheDocument();
     await expect(tabs.getByRole("button", { name: "Profile, Harbor" })).toBeInTheDocument();
+  },
+};
+
+export const CommunityPostingProfilesDesktop: Story = {
+  render: () => <ActivePersonaProvider><CommunityTarget personaIds={["persona_harbor", "persona_night"]} /><ShellStory initialPath="/c/harbor" /></ActivePersonaProvider>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Switch posting profile, Harbor" }));
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Profile in this community" });
+    await userEvent.click(within(dialog).getByRole("radio", { name: /Night Shift/ }));
+    await expect(await canvas.findByRole("button", { name: "Switch posting profile, Night Shift" })).toHaveAttribute("title", "Posting as Night Shift");
+  },
+};
+export const CommunityPostingProfilesMobile: Story = {
+  globals: phone,
+  render: () => <ActivePersonaProvider><CommunityTarget personaIds={["persona_harbor", "persona_night"]} /><ShellStory initialPath="/c/harbor" /></ActivePersonaProvider>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.dblClick(tabs.getByRole("button", { name: "Profile, Harbor" }));
+    await expect(await tabs.findByRole("button", { name: "Profile, Night Shift" })).toBeInTheDocument();
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).not.toBeInTheDocument();
   },
 };
