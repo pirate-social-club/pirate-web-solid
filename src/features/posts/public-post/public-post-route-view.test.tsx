@@ -243,7 +243,8 @@ it("waits for the private vote and never treats a failed read as an unvoted acco
   expect(readViewerVote).toHaveBeenCalledTimes(2);
 });
 
-it.each(["text", "video"] as const)("wires %s votes and comments and only supported post reports", async postType => {
+it("wires text votes, comments and supported post reports", async () => {
+  const postType = "text";
   window.scrollTo = vi.fn();
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("Expected content");
@@ -261,4 +262,15 @@ it.each(["text", "video"] as const)("wires %s votes and comments and only suppor
   await vi.waitFor(() => expect(castVote).toHaveBeenCalledOnce());
   await userEvent.click(container.querySelector("button[aria-label='Comments (0)']")!);
   await vi.waitFor(() => expect(readComments).toHaveBeenCalledOnce());
+});
+
+it("leaves video details without engagement or private session reads", async () => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const resolveSession = vi.fn(async () => "anonymous" as const);
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: "video" } } } }, undefined, { resolveSession });
+  await vi.waitFor(() => expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull());
+  expect(container.querySelector("button[aria-label='Upvote'], button[aria-label^='Comments'], button[aria-label='Post options']")).toBeNull();
+  expect(resolveSession).not.toHaveBeenCalled();
 });
