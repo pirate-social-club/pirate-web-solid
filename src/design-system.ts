@@ -100,7 +100,6 @@ export {
   RadioIndicator,
   Select,
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
   Textarea,
