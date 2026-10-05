@@ -103,7 +103,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
   );
 }
 
-function SongPost(props: { post: CommunityPost }) {
+function SongPost(props: { post: CommunityPost; titleHref?: string }) {
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
@@ -112,7 +112,7 @@ function SongPost(props: { post: CommunityPost }) {
         </Show>
       </div>
       <div class="min-w-0 flex-1">
-        <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
+        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} class="hover:underline">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
@@ -124,7 +124,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -147,7 +147,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3">{props.post.title}</Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
@@ -156,7 +156,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
           <Type variant="body">{props.post.body}</Type>
         </Show>
-        <SongPost post={props.post} />
+        <SongPost post={props.post} titleHref={props.titleHref} />
       </Show>
       <PostActions engagementControls={props.actions} post={props.post} />
     </article>

@@ -28,13 +28,10 @@ function ActivityItem(props: { readonly item: Item; readonly dependencies?: Publ
   const comment = () => props.item.kind === "comment" ? props.item : undefined;
   return <>
     <Show when={post()}>{value => <PublicPostEngagement post={{ id: value().id, upvoteCount: value().upvoteCount ?? 0, downvoteCount: value().downvoteCount ?? 0, commentCount: value().commentCount ?? 0 }} communityId={props.item.community_id} canReportPost={value().supportsPostReports} showSignInPrompt={false} dependencies={props.dependencies}>
-      {(controls, actions) => <>
-        <Show when={props.item.href}><a href={props.item.href!} class="inline-block pt-3 text-sm text-muted-foreground hover:underline">Open post</a></Show>
-        <CommunityPostCard post={value()} communityId={props.item.community_id} actions={controls} menuActions={actions} />
-      </>}
+      {(controls, actions) => <CommunityPostCard post={value()} communityId={props.item.community_id} titleHref={props.item.href ?? undefined} actions={controls} menuActions={actions} />}
     </PublicPostEngagement>}</Show>
     <Show when={comment()}>{value => <CommentCard item={projectPublishedComment(value().comment)} nested={false} communityLabel={value().community_name}
-      postContext={value().href ? { title: value().post_title ?? "Open post", href: value().href! } : undefined} />}</Show>
+      postContext={value().href ? { title: value().post_title ?? "this post", href: value().href! } : undefined} />}</Show>
   </>;
 }
 

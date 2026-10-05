@@ -48,14 +48,14 @@ export function CommentCard(props: CommentCardProps) {
         <Show when={item().authorLabel && item().state !== "age_locked"}><CommunityAvatar avatarSrc={item().authorAvatarRef} communityId={item().id} displayName={item().authorLabel ?? "Public creator"} size="xs" /></Show>
         <div class="min-w-0 flex-1"><Type variant="label">{item().state === "age_locked" ? commentStateLabel(item()) : item().authorLabel ?? commentStateLabel(item())}</Type>
           <Show when={item().state !== "age_locked" && relativeTime(item().createdAt)}>{timestamp => <Type as="span" variant="caption" class="ml-2">{timestamp()}</Type>}</Show>
-          <Show when={item().state !== "age_locked" && props.communityLabel}><Type as="p" variant="caption">{props.communityLabel}</Type></Show>
+          <Show when={item().state !== "age_locked" && (props.communityLabel || props.nested === false)}><Type as="p" variant="caption">{props.nested === false ? (props.communityLabel ? `Commented in ${props.communityLabel}` : "Comment") : props.communityLabel}</Type></Show>
         </div>
         <ContentOverflowMenu label="Comment options" actions={item().state === "age_locked" ? undefined : props.menuActions} />
       </div>
       <Show when={item().state === "age_locked"} fallback={<Type as="p" variant="body">{visibleCommentBody(item())}</Type>}><Show when={props.onAgeVerified} fallback={<Type variant="body">Verify your age to view this comment.</Type>}>{refresh => <AgeAccessPrompt onVerified={refresh()} />}</Show></Show>
       <Show when={item().reportState}>{state => <Type role="status" variant="caption">Report {state()}</Type>}</Show>
       {props.children}
-      <Show when={item().state !== "age_locked" && props.postContext ? props.postContext : undefined}>{post => <a href={post().href} class="hover:underline"><Type variant="h4">{post().title}</Type></a>}</Show>
+      <Show when={item().state !== "age_locked" && props.postContext ? props.postContext : undefined}>{post => <Type as="p" variant="caption">On <a href={post().href} class="text-foreground hover:underline">{post().title}</a></Type>}</Show>
     </CardContent>
   </Card>;
 }
