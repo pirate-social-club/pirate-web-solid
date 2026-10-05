@@ -9,7 +9,7 @@ export const OwnProfileSettings: Story = {
   render: () => <ProfileSettingsReview />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("tab")).not.toBeInTheDocument();
     await userEvent.click(await canvas.findByRole("link", { name: "Settings" }));
     await expect(await canvas.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
@@ -22,10 +22,8 @@ export const ProfileHeader: Story = {
   render: () => <ProfileSettingsReview />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
-    await expect(canvas.getByRole("heading", { name: "On Open Water" })).toBeVisible();
-    await expect(canvas.queryByText("Harbor Lights")).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("tab", { name: "Posts" }));
-    await expect(canvas.getByText("Harbor Lights")).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Owned profile" })).toBeVisible();
+    await expect(canvas.getByText("Songs, community sessions and late-night listening.")).toBeVisible();
+    await expect(canvas.queryByRole("tab")).not.toBeInTheDocument();
   },
 };
