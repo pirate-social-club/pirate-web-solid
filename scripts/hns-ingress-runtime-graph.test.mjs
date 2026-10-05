@@ -5,6 +5,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ingressRuntimePaths, readIngressRuntimeSources, runtimeEdges } from "./hns-ingress-runtime-graph.mjs";
 
+test("the Worker refuses Telegram privacy imports outside its unchanged adapter classification", async () => {
+  const root = await mkdtemp(join(tmpdir(), "hns-unclassified-privacy-"));
+  try {
+    await mkdir(join(root, "src"));
+    await writeFile(join(root, "src/worker.ts"),
+      'import "./features/identity/telegram-linking/telegram-linking-privacy.ts";');
+    await assert.rejects(readIngressRuntimeSources(root), /unclassified_adapter_edge/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("the parser distinguishes mixed value imports, empty imports and type-only reexports", () => {
   assert.deepEqual(runtimeEdges("module.ts", Buffer.from(`
     import type { A } from "types";

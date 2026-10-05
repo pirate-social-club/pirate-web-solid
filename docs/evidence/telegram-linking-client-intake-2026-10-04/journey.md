@@ -1,0 +1,199 @@
+# Telegram linking website journey
+
+The community keeps its own study bot. The website starts the reviewed
+Pirate-controlled Telegram login, verifies its callback through the state-based
+API endpoint and requires an explicit eligible persona choice for that exact
+community. An unbound persona requires a separate community preparation and
+readback before final confirmation. No first-persona fallback is used.
+
+The three routes are /telegram/link, /telegram/link/callback and
+/telegram/link/account. The last route offers per-bot revocation and explicitly
+reviewed account unlinking. Start copy discloses voice answers, absent reference
+audio and community-owner access before login. Completion returns by ordinary
+navigation to the community bot and says this pilot earns no rewards.
+
+The Worker strips query and fragment values before SSR and adds private,
+no-store, no-referrer and noindex headers. In the browser, the callback is
+captured only in memory and removed from the address before asynchronous work.
+No tab storage supplies the attempt. A verified transaction id supports a
+browser-bound confirmation reload through the existing read endpoint. Provider
+display data appears only on initial confirmation and is discarded on completion
+or failure. Account changes and sign-out abort pending work and require a fresh bot journey.
+A routine frontend cache refresh rechecks the account and preserves the journey
+when it is unchanged. API requests continue to enforce the original session
+and private browser binding; matching account ids cannot override a real
+sign-in session change.
+Generic conflicts never claim an identity conflict; only the API's specific
+reason supplies that recovery copy. Raw errors are never rendered.
+
+The privacy helper is an explicitly classified application callback in the HNS
+runtime graph. The Worker adapter remains fingerprinted, unknown imports remain
+refused, and no gateway reference, ingress binding or manifest changes here.
+Any staging release still needs the ordinary guarded deployment workflow.
+
+Focused evidence includes 21 transport and component tests, the eight Worker
+adapter tests and one SSR test covering all three views. Built-Worker Playwright
+fixtures passed at 1280 and 375 pixels: actual HTML excludes callback values,
+hydration succeeds, no persona starts selected, writes use CSRF, confirmation
+occurs once, profile display clears, bot return is navigation only, browser
+storage remains empty and the narrow layout has no horizontal overflow.
+The isolated agent-browser session inspected the local pending layout with all
+API calls blocked and was closed. These are synthetic local evidence, not
+real Telegram identity, phone-browser, user approval or operator acceptance.
+
+Intermediate checks found and corrected the pinned Solid 2 effect API and its
+owned-write rule, an asynchronous DOM assertion, explicit type-boundary lint
+requirements and the unclassified application import. The runtime-table guard
+also caught the reviewed client drift described in README.md. Full repository
+verification and Storybook results are recorded separately when completed.
+
+Staging remains unactivated. Login-client creation, allowed callback registration,
+secret provisioning and effective HTTP/jobs database-role readbacks require
+operator setup. Permission changes remain separately authorized. Real iOS and
+Android testing must cover email codes, Google, X and browser wallets in both
+Telegram's in-app browser and the system browser, account/session changes,
+new-tab return, proof-to-sender id equality and nonce behavior. No deployment,
+credential, permission, flag or production money changes are part of this source.
+
+The full application run passed 316 API, 1422 app and 36 SSR tests, plus the
+production configuration, HNS identity, type, helper, discovery, lint, provenance,
+runtime-table and icon checks before entering shared UI. Several shared UI
+cases exceeded their unchanged five-second limits under concurrent host load;
+that run was stopped and the complete shared UI suite passed serially with
+420 tests in 73 files. Solid Doctor passed with its existing warnings.
+The dependency audit returned six high, ten moderate and six low advisory
+entries for braces and undici. A separate audit of the exact base lockfile
+returned identical JSON; only the API artifact differs in the lockfile.
+
+Broad browser regression remains incomplete. The first text-post harness missed
+its 60-second cold-start deadline during dependency optimization; the retry hit
+its 3 GiB cgroup limit. The first Storybook build hit its 2 GiB limit. Two later
+attempts were stopped when host memory was scarce, including one requiring a
+kill after polite termination did not release it. These are failed or unfinished
+checks, not a successful full verify or Storybook result. No other lane's
+processes or resources were stopped.
+
+Final review changed the no-eligible-persona recovery from Settings to the
+existing selected-song Study route, which supports explicit persona preparation
+and wallet confirmation. Pending-wallet recovery uses that route too, clears
+the Telegram display projection and requires a fresh bot link. The focused
+transport/component suite now passes 22 tests. Final type/build verification
+and remaining broad checks must be recorded separately before integration.
+
+
+The October 4 review repair allows header sign-in before an attempt starts and
+preserves explicit persona choice across same-account cache refreshes. Actions
+pause while the refreshed account is unknown. In-flight API results wait for
+that recheck, and older session reads cannot overwrite newer results. Sign-out,
+account changes and failed revalidation clear confirmation and abort pending
+work. Persona preparation keeps its existing explicit readback.
+
+Focused verification passes 32 transport and component tests, including header
+sign-in, initial-read and verification races, changed account, sign-out, failed
+revalidation and an API refusal after a same-account refresh. Type checking,
+lint with warnings and the SSR test covering all three views pass. The first
+SSR command used an incorrect filename and found no tests; the corrected command
+passed. The first new component run had two assertion timing failures; deferred
+session fixtures now wait for the disabled state before checking continuation.
+The resource-bounded Worker build passes with chunk-size warnings. The full
+prior verification is not claimed to have been rerun for this repair.
+
+Application query stripping does not hide the original callback URL from
+Cloudflare request logging. Dashboard logging settings have not been inspected.
+The operator acceptance must verify that callback code and state are excluded
+from platform request logs before activation. Neither a code alone nor this UI
+allows bypassing the server's verifier and browser/session binding.
+
+
+Final source review added a stale initial-read failure case. It failed against
+bd87cda because an older rejected account read overwrote a newer successful
+header sign-in. Initial read failures now use the same revision guard as
+successful reads; errors from the actual linking operation remain handled.
+The focused suite passes 33 tests after this correction. Final type checking,
+focused changed-file lint with warnings, the SSR test covering all three views
+and the resource-bounded Worker build pass. No browser or operator acceptance is implied.
+
+
+The October 4 combined-source checkpoint is merge
+5096dd0e58bfa38dc68a7ac0330f1a1b42061ecc. It preserves reviewed Telegram
+4d50a37205fd4ab26ba672570e71502ad4b23768 and published staging gateway
+95794d2d2f0d7d562fe3e4b03a4a4676ae78c437 as ancestors. Against the reviewed
+Telegram tip, only wrangler.jsonc, worker-configuration.d.ts and the production
+configuration test differ; each is byte-identical to the published gateway base.
+The learner flow and immutable API client 0.108.0 artifact are unchanged.
+
+Fresh combined-source verification passes all 33 focused Telegram tests, the
+SSR test covering three views, generated Worker types without tracked drift,
+production configuration, 25 HNS graph and identity tests, application type
+checking, lint with warnings, client provenance and runtime-table checks, and
+the resource-bounded Worker build with chunk-size warnings. Frozen dependency
+installation leaves the lockfile unchanged. The prior broad application,
+Storybook and browser evidence above was not repeated for this configuration
+merge. Radicle CI remains unavailable while the shared broker is paused.
+No phone acceptance, staging activation or live login is implied.
+
+The video release executor retains shared main/publication and staging custody
+until explicit handback. This is an isolated branch checkpoint, not canonical
+integration or a runtime release. A later staging release consuming client
+0.108.0 must use matching API contracts; the Telegram practice release also
+requires its reviewed API/jobs/schema-through-0239 pair and permission guard.
+Gateway manifest and binding references remain those of the published base.
+
+
+The owner-settings mount repair follows combined candidate bd9e4ba. Before
+changing the controller, its new tests ran against the installed Solid
+2.0.0-rc.0 browser runtime in jsdom. The initial mount logged
+[REACTIVE_WRITE_IN_OWNED_SCOPE] at the synchronous reset on controller line 66
+and [REACTIVITY_HALTED]. Three of four initial tests failed; the disposal case
+passed. This is runtime reproduction, not an inference from the source alone.
+
+The repair defers the six existing resets into the queued microtask. The effect
+invalidates the previous request generation immediately, and the microtask
+checks disposal, generation and community identity before resetting or loading.
+Only this pattern was adapted from parked hardening source 22209dca; none of
+its activity pagination, command replay, assistant-edit or client changes were
+imported. The regression suite is explicitly registered in the app test runner.
+
+After repair, the combined controller, linking and owner-route run passes 41
+tests. A fifth controller case was then added for obsolete queued resets; all
+five controller cases pass, covering Telegram and assistant mounts, stale
+community responses, disposal and obsolete queued work. Type checking, lint
+with warnings, test-discovery ownership, the SSR test covering all three linking
+views and the resource-bounded Worker build with chunk-size warnings pass.
+The build also rechecks client provenance and runtime tables. Frozen dependency
+installation changes no lockfile. No broad app suite or phone acceptance was
+repeated for this bounded repair.
+
+The staging browser attempt used an isolated anonymous session. The provisional
+/c/music/settings/telegram route returned Community not found, and no managed
+owner test credentials were available in this session. The controller did not
+mount there, so no live rendering result is claimed. The browser session was
+closed. Acceptance still needs an actual staging community and owner session;
+this source repair has not been deployed or activated.
+
+## Notice-main intake, October 4
+
+Combined preserved Telegram c1465dd02ffcd4991093718f6ce04514a806953f with
+published notice main 3170a23031fa22a66365f5cf5b842459c924c37f in the owned
+Telegram worktree. The merge conflicts were only bun.lock, package.json and
+vendor/api-client-provenance.json. Retain the exact reviewed client 0.108
+artifact and package/lock bytes from c1465dd. The artifact already contains
+post_videoOutcomesClaim; extend its declared consumer scope with that operation.
+Both suites' discovery entries and provenance-check requirements merge together.
+No Telegram or notice runtime implementation is manually rewritten.
+
+Fresh combined-source verification passes 162 component tests covering linking,
+owner settings, notices and video composer behavior; 326 API/Worker tests;
+three SSR tests covering linking and Home; app type checking; test ownership;
+lint with warnings; immutable client provenance and runtime-table checks; and
+the memory-bounded Worker build with chunk warnings. Frozen installation keeps
+the retained lockfile unchanged. Changed-script checking reports zero findings.
+Broad app/Storybook and real phones are not repeated for this intake.
+
+The shared executor retains canonical publication and deployment custody on
+3170 until its release or recovery decision. This combined candidate is isolated
+review material, not an update to that pinned release. Publication as a patch
+preserves the successor; exact independent review, fresh live register and
+custody handback remain required before canonical integration. One staging song
+is separately proven ready in the authoritative task record; Telegram flags,
+credentials, permissions and learner phone acceptance are untouched here.

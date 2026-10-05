@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.105.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.105.0.tgz",
-  "sha256": "12fc7e193c6c373478a563106780220bfbafa7953e98d2eaf348107384c184f2",
-  "source": "api-next-contracts@212f8b003df21daaa5f56eeebb9a6dbd52f754dd6cabd46a4063c86f8a68bab3",
-  "openapiSha256": "212f8b003df21daaa5f56eeebb9a6dbd52f754dd6cabd46a4063c86f8a68bab3",
-  "clientSha256": "7edec98ae41f6647e886bc88adea3304274e0449ca0462bff45d2cb7fd45d49b",
+  "version": "0.108.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.108.0-1f2c7042.tgz",
+  "sha256": "1f2c7042c40f57a33343d2946fa543c40e20739c342578bdbba6d3a35a54d9c3",
+  "source": "api-next-contracts@9f3816b75603f325668ff2d7087cd692fb160065862ad5729d4a8810c87071dd",
+  "openapiSha256": "9f3816b75603f325668ff2d7087cd692fb160065862ad5729d4a8810c87071dd",
+  "clientSha256": "5d8690a83cbf68cb78b835fd88f987e5a67f3fd392f3ab2869242758abc3e32d",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -110,6 +110,14 @@
     "post_communitiesCommunityIdHnsTxtAttachments",
     "get_communitiesCommunityIdHnsTxtAttachments",
     "post_communitiesCommunityIdHnsTxtAttachmentsAttachmentIntentIdCheck",
+    "get_telegramLinkAccount",
+    "post_telegramLinkTransactions",
+    "get_telegramLinkTransactionsTransactionId",
+    "post_telegramLinkTransactionsTransactionIdVerify",
+    "post_telegramLinkCallbackVerify",
+    "post_telegramLinkTransactionsTransactionIdConfirm",
+    "post_telegramLinkGrantsRevoke",
+    "post_telegramLinkAssociationUnlink",
     "post_videoOutcomesClaim"
   ]
 }

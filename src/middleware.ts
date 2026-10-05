@@ -1,3 +1,4 @@
+import { isTelegramLinkPage, telegramPageResponse } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { getRequestEvent } from "@solidjs/web";
 
 import { WALLET_RPC_ORIGINS } from "./features/wallet/wallet-network-catalog";
@@ -33,10 +34,19 @@ function apiNextWebSocketOrigin(apiNextOrigin: string | undefined): string | nul
 
 async function standaloneMiddleware(request: Request, next: () => Promise<Response>) {
   const event = getRequestEvent();
-  if (!event) return next();
-  const nonce = makeNonce();
-  event.locals.cspNonce = nonce;
-  const response = await next();
+  const privateTelegram = isTelegramLinkPage(new URL(request.url).pathname);
+  const nonce = event === undefined ? undefined : makeNonce();
+  if (event !== undefined && nonce !== undefined) event.locals.cspNonce = nonce;
+  let response: Response;
+  try {
+    response = await next();
+  } catch (error) {
+    if (!privateTelegram) throw error;
+    // A framework-generated error outside middleware would miss private headers.
+    response = new Response("Unable to load Telegram linking.", { status: 500 });
+  }
+  if (privateTelegram) response = telegramPageResponse(response);
+  if (event === undefined || nonce === undefined) return response;
   const headers = new Headers(response.headers);
   // SAFETY: this request-local value comes directly from the typed Worker
   // render context and is read only as that same optional string.
