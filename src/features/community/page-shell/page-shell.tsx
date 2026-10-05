@@ -112,14 +112,14 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
         </Show>
       </div>
       <div class="min-w-0 flex-1">
-        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} class="hover:underline">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
+        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
           {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
         </Show>
       </div>
-      <SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
+      <div class="relative z-10"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} /></div>
     </div>
   );
 }
@@ -130,7 +130,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
   // rather than attributing the post to an invented account.
   const author = () => props.post.authorHandle ?? "Unknown author";
   return (
-    <article class="flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
+    <article class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
@@ -140,14 +140,14 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         />
         <Type as="span" variant="label">{author()}</Type>
         <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
-        <div class="ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
+        <div class="relative z-10 ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>
-          {communityId => <div class="ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
+          {communityId => <div class="relative z-10 ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
         </Show>
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline">{props.post.title}</a>}</Show></Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
@@ -158,7 +158,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         </Show>
         <SongPost post={props.post} titleHref={props.titleHref} />
       </Show>
-      <PostActions engagementControls={props.actions} post={props.post} />
+      <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
     </article>
   );
 }
