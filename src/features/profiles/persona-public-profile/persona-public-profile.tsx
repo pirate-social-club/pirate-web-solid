@@ -1,3 +1,4 @@
+import { ProfilePage } from "../profile-page/profile-page.tsx";
 import { OwnProfileSettings } from "../own-profile-settings.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { For, Loading, Show, createMemo } from "solid-js";
@@ -70,6 +71,7 @@ function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
             {bio => <p class="mt-5 max-w-2xl whitespace-pre-wrap break-words leading-relaxed">{bio()}</p>}
           </Show>
         </div>
+        <ProfilePage />
         <Show when={props.state.response.handle_grants.length > 0}>
           <section class="mt-8 border-t border-border-soft pt-6" aria-labelledby="profile-names-heading">
             <h2 id="profile-names-heading" class="mb-3 text-sm font-semibold">Names</h2>

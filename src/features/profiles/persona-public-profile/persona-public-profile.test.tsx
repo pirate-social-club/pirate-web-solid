@@ -13,6 +13,9 @@ import {
   resolvePersonaPublicProfilePreflight,
 } from "./persona-public-profile-preflight.ts";
 
+// jsdom omits the browser method used by the shared tabs primitive.
+Element.prototype.scrollIntoView = vi.fn();
+
 const persona = {
   persona_id: "persona_public_01",
   object: "persona" as const,
@@ -106,7 +109,7 @@ describe("persona-native public profile", () => {
     }
     await vi.waitFor(() => expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
       .toBe("https://pirate.sc/p/persona_public_01"));
-    expect(container.querySelector("button, input, form")).toBeNull();
+    expect(container.querySelector("button:not([role=tab]), input, form")).toBeNull();
   });
 
   it("resolves media against the serving environment while links stay canonical", async () => {

@@ -8,6 +8,9 @@ import PublicProfileRoute, { route as publicProfileRoute } from "../../../routes
 import PublicProfilePage from "./public-profile-page";
 import type { PublicProfileSuccess, PublicProfileViewState } from "./public-profile-page.model";
 
+// jsdom omits the browser method used by the shared tabs primitive.
+Element.prototype.scrollIntoView = vi.fn();
+
 const disposers: Array<() => void> = [];
 const initialUrl = window.location.href;
 
@@ -87,7 +90,8 @@ describe("PublicProfilePage", () => {
     expect(container.querySelector("a[href^='/c/']")?.textContent).toBe("Dock");
     expect(container.textContent).not.toContain("avatar-ref-must-not-render");
     expect(container.textContent).not.toContain("cover-ref-must-not-render");
-    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("button:not([role=tab])")).toBeNull();
+    expect(container.querySelectorAll("[role=tab]")).toHaveLength(3);
   });
 
   test("keeps a minimal public profile free of empty sections and viewer controls", async () => {
@@ -95,7 +99,7 @@ describe("PublicProfilePage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.querySelector("#created-communities-heading")).toBeNull();
     expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-one.pirate");
-    expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
+    expect(container.querySelector("button:not([role=tab]), input, textarea, [data-viewer-control], a[href='/settings']")).toBeNull();
   });
 
   test("renders invalid, missing, and unavailable states without raw errors", async () => {

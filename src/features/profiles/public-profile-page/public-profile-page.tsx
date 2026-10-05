@@ -1,3 +1,4 @@
+import { ProfilePage, type ProfilePageActivity } from "../profile-page/profile-page.tsx";
 import { OwnProfileSettings } from "../own-profile-settings.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
 import type { Navigator } from "@solidjs/router";
@@ -15,6 +16,7 @@ import {
 
 export interface PublicProfilePageProps {
   readonly handle: string;
+  readonly activity?: ProfilePageActivity;
   readonly client?: PublicProfileClient;
   readonly data?: PublicProfileViewState | PromiseLike<PublicProfileViewState>;
   readonly navigate?: Navigator;
@@ -83,7 +85,7 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
   );
 }
 
-function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
+function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator; readonly activity?: ProfilePageActivity }) {
   const copy = profileCopy();
   // A retained success component can be handed a different successful profile
   // when only the route handle changes. Every derived value must stay reactive
@@ -138,6 +140,7 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
             </ul>
           </section>
         </Show>
+        <ProfilePage activity={props.activity} />
         <Show when={!state().isCanonical}>
           <AliasRedirect state={state()} navigate={props.navigate} />
         </Show>
@@ -146,7 +149,7 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
   );
 }
 
-function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
+function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator; readonly activity?: ProfilePageActivity }) {
   createEffect(
     () => props.state.canonicalPath,
     canonicalPath => {
@@ -159,14 +162,14 @@ function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly n
   return <p role="status">{`Redirecting to ${props.state.canonicalHandle}`}</p>;
 }
 
-function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator }) {
+function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator; readonly activity?: ProfilePageActivity }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show
       when={success()}
       fallback={<MessageState state={props.state} />}
     >
-      {state => <SuccessState state={state()} navigate={props.navigate} />}
+      {state => <SuccessState state={state()} navigate={props.navigate} activity={props.activity} />}
     </Show>
   );
 }
@@ -182,7 +185,7 @@ function ProfileData(props: PublicProfilePageProps) {
     { deferStream: true },
   );
 
-  return <ProfileState state={state()} navigate={props.navigate} />;
+  return <ProfileState state={state()} navigate={props.navigate} activity={props.activity} />;
 }
 
 export function PublicProfilePage(props: PublicProfilePageProps) {
