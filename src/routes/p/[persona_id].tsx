@@ -28,6 +28,10 @@ function commit(state: PersonaPublicProfileState): void {
 }
 
 const queryPersonaProfile = query(async (personaId: string) => {
+  // Adoption belongs inside query so hydration reuses the server response.
+  // SAFETY: entry-server alone writes this validated request-local result.
+  const settled = getRequestEvent()?.locals.personaPublicProfilePreflight as PersonaPublicProfilePreflight | undefined;
+  if (settled?.personaId === personaId) return settled.state;
   const state = await loadPersonaPublicProfile(
     createPublicHandleSalesClient({ origin: requestOrigin() }),
     personaId,
@@ -40,12 +44,6 @@ const queryPersonaProfile = query(async (personaId: string) => {
 export const route = defineFileRoute("/p/:persona_id", {
   preload: ({ params }) => {
     const decoded = decodePersonaRouteParam(params.persona_id) ?? "";
-    // SAFETY: entry-server is the sole writer for this request-local key and
-    // stores only a validated PersonaPublicProfilePreflight.
-    const settled = getRequestEvent()?.locals.personaPublicProfilePreflight as
-      | PersonaPublicProfilePreflight
-      | undefined;
-    if (settled?.personaId === decoded) return settled.state;
     return queryPersonaProfile(decoded);
   },
 });

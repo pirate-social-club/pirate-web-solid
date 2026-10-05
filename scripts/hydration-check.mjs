@@ -31,6 +31,11 @@ try {
       contentType: "application/json",
       body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
     }));
+    await page.route("**/api/users/me/community-memberships**", route => route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+    }));
     await page.route("**/api/users/me", async route => {
       if (retryAccountResponse) {
         accountRetryRequests += 1;

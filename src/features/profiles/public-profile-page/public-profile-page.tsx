@@ -1,8 +1,8 @@
-import { OwnProfileSettings } from "../own-profile-settings.tsx";
+import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
 import type { Navigator } from "@solidjs/router";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, For, createEffect, createMemo } from "solid-js";
+import { Loading, Show, createEffect, createMemo } from "solid-js";
 import { createPublicApiClient } from "../../../api/client.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
@@ -100,48 +100,18 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
   const title = () => interpolateMessage(copy.title, { handle: state().profile.handle });
 
   return (
-    <main class="mx-auto w-full max-w-4xl pb-24 md:pb-12" data-profile-state={state().isCanonical ? "success" : "alias"}>
+    <main class="mx-auto w-full max-w-[65.5rem] pb-24 md:pb-12" data-profile-state={state().isCanonical ? "success" : "alias"}>
       <Title>{title()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={title()} />
       <Meta property="og:description" content={description()} />
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
-      <div class="h-36 w-full bg-gradient-to-br from-primary/30 via-secondary to-background md:h-52" />
-      <div class="px-4 md:px-8">
-        <div class="-mt-10 grid size-20 place-items-center rounded-full border-4 border-background bg-muted text-2xl font-semibold md:-mt-12 md:size-24" aria-hidden="true">
-          {displayName().slice(0, 1).toUpperCase()}
-        </div>
-        <div class="mt-4 min-w-0">
-          <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{displayName()}</h1>
-          <p class="mt-1 break-all text-sm text-muted-foreground" data-profile-handle={state().profile.handle}>@{state().profile.handle}</p>
-          <OwnProfileSettings handle={state().canonicalHandle} />
-          <Show when={state().profile.bio}>
-            {bio => <p class="mt-5 max-w-2xl whitespace-pre-wrap break-words leading-relaxed">{bio()}</p>}
-          </Show>
-        </div>
-        <Show when={state().communities.length > 0}>
-          <section class="mt-8 border-t border-border-soft pt-6" aria-labelledby="created-communities-heading">
-            <h2 id="created-communities-heading" class="mb-3 text-sm font-semibold">{copy.createdCommunities}</h2>
-            <ul class="flex flex-wrap gap-2">
-              <For each={state().communities}>
-                {community => (
-                  <li>
-                    <Show when={community.href} fallback={<span class="inline-block rounded-full border border-border-soft px-3 py-1 text-sm">{community.name}</span>}>
-                      <a class="inline-block rounded-full border border-border-soft px-3 py-1 text-sm hover:bg-muted" href={community.href} aria-label={interpolateMessage(copy.openCommunity, { name: community.name })}>
-                        {community.name}
-                      </a>
-                    </Show>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </section>
-        </Show>
-        <Show when={!state().isCanonical}>
-          <AliasRedirect state={state()} navigate={props.navigate} />
-        </Show>
-      </div>
+      <ProfileLayout name={displayName()} handle={state().canonicalHandle}
+        avatarRef={state().profile.avatarRef} coverRef={state().profile.coverRef}
+        servingOrigin={requestOrigin()} bio={state().profile.bio}
+        communities={state().communities} communityHeading={copy.createdCommunities} />
+      <Show when={!state().isCanonical}><AliasRedirect state={state()} navigate={props.navigate} /></Show>
     </main>
   );
 }

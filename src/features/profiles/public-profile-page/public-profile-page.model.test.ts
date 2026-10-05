@@ -105,7 +105,7 @@ describe("public profile model", () => {
     expect(buildCommunityPath("  ")).toBeUndefined();
   });
 
-  test("projects only display identity, bio, and creator communities", () => {
+  test("projects public identity, media, bio, and creator communities", () => {
     const result = projectPublicProfile(response(), normalizePirateHandle("captain-one")!);
     expect(result).toMatchObject({
       kind: "success",
@@ -115,7 +115,8 @@ describe("public profile model", () => {
         { name: "Dock", href: "/c/dock" },
       ],
     });
-    expect(JSON.stringify(result)).not.toContain("opaque-avatar-ref");
+    expect(result.kind === "success" && result.profile.avatarRef).toBe("opaque-avatar-ref");
+    expect(result.kind === "success" && result.profile.coverRef).toBe("opaque-cover-ref");
     expect(JSON.stringify(result)).not.toContain("profile-secret-id");
     expect(JSON.stringify(result)).not.toContain("community-secret-id");
     expect(result).toMatchObject({ canonicalPath: "/u/captain-one.pirate" });

@@ -18,5 +18,5 @@ export function OwnProfileSettings(props: { personaId?: string; handle?: string 
       ? profile.personaId === props.personaId
       : profile.publicHandle?.toLowerCase() === props.handle?.toLowerCase()) ?? false;
   };
-  return <Show when={ownsProfile()}><a class="mt-4 inline-flex min-h-11 items-center rounded-lg border border-border px-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/settings">Settings</a></Show>;
+  return <Show when={ownsProfile()}><a class="inline-flex min-h-11 w-full items-center justify-center md:w-auto rounded-lg border border-border px-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href="/settings">Settings</a></Show>;
 }
