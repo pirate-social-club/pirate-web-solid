@@ -10,7 +10,6 @@ import { documentClientEntry } from "./asset-target.ts";
 export default function Document(props: {
   children: JSX.Element;
   clientEntry?: string;
-  communityAppId?: string;
   canonicalAssetOrigin?: string;
   communityCreationAvatarAuthoring?: boolean;
   publicAppCanonicalOrigin?: string;
@@ -41,7 +40,6 @@ export default function Document(props: {
     <html
       lang={resolveLocaleLanguageTag(locale)}
       dir={resolveLocaleDirection(locale)}
-      data-community-app-id={props.communityAppId}
       data-public-app-canonical-origin={props.publicAppCanonicalOrigin}
       data-community-creation-avatar-authoring={
         props.communityCreationAvatarAuthoring === true ? "enabled" : "disabled"

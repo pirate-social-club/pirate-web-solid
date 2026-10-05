@@ -7,9 +7,9 @@ test("a host name and browser-supplied scope header do not establish a community
   const event = createRequestEvent(new Request("https://app.example/", { headers: { "x-community-app-id": "forged" } }));
   expect(provideRequestEvent(event, currentApplicationNavigationScope)).toEqual({ kind: "platform" });
 });
-test("verified request context selects the community's own home and survives route changes", () => {
+test("inactive request fields do not enable deferred community scope", () => {
   const event = createRequestEvent(new Request("https://pirate.sc/songs"));
-  // SAFETY: entry-server supplies this field only from the verified Worker dispatch.
+  // SAFETY: this fixture injects the retired field to prove it cannot activate scope.
   (event.locals as typeof event.locals & { verifiedCommunityAppId?: string }).verifiedCommunityAppId = "community-1";
-  expect(provideRequestEvent(event, currentApplicationNavigationScope)).toEqual({ kind: "community", community: { communityId: "community-1", displayName: "Community", href: "/c/community-1" } });
+  expect(provideRequestEvent(event, currentApplicationNavigationScope)).toEqual({ kind: "platform" });
 });

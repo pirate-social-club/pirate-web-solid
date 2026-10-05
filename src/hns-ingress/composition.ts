@@ -26,7 +26,7 @@ import {
 
 export interface HnsApplicationDispatchV1 {
   readonly assets: (request: Request) => Promise<Response>;
-  readonly ssr: (request: Request, community: { readonly communityId: string }) => Promise<Response>;
+  readonly ssr: (request: Request) => Promise<Response>;
 }
 
 export interface EnabledHnsCommunityAppIngressCompositionV2 {
@@ -180,7 +180,7 @@ export async function makeHnsCommunityAppIngressCompositionV2(options: {
         const cleanRequest = makeCleanHnsApplicationRequest(request, bodyBytes, canonicalOrigin);
         return new URL(cleanRequest.url).pathname.startsWith("/assets/")
           ? await options.dispatch.assets(cleanRequest)
-          : await options.dispatch.ssr(cleanRequest, { communityId: resolution.communityId });
+          : await options.dispatch.ssr(cleanRequest);
       } catch (error) {
         if (request.signal.aborted) throw error;
         return redactedFailure(error);

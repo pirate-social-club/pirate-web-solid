@@ -86,7 +86,7 @@ async function signedRequest(options: {
 async function composition(overrides: {
   apiFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   authority?: HnsAuthorityResolutionV2;
-  onSsr?: (request: Request, community: { readonly communityId: string }) => Promise<Response>;
+  onSsr?: (request: Request) => Promise<Response>;
   onAsset?: (request: Request) => Promise<Response>;
   replay?: () => Promise<boolean>;
 } = {}) {
@@ -117,11 +117,9 @@ async function composition(overrides: {
 describe("interactive community application ingress composition", () => {
   it("validates before SSR and strips every private header", async () => {
     let seen: Request | undefined;
-    let scope: { readonly communityId: string } | undefined;
     const ingress = await composition({
-      onSsr: async (request, community) => {
+      onSsr: async (request) => {
         seen = request;
-        scope = community;
         return new Response("rendered");
       },
     });
@@ -132,7 +130,6 @@ describe("interactive community application ingress composition", () => {
     const response = await ingress.fetch(request);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("rendered");
-    expect(scope).toEqual({ communityId: resolution.communityId });
     expect(seen?.url).toBe("https://pirate.sc/c/xn--pokmon-dva?tab=feed");
     expect(seen?.headers.get("cookie")).toBe("theme=dark");
     expect(seen?.headers.get(CF_ACCESS_ASSERTION_HEADER)).toBeNull();
