@@ -1,5 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import { createSignal } from "solid-js";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { type CommunityData } from "./page-shell-model";
@@ -25,9 +26,9 @@ const tameImpala: CommunityData = {
 type StoryCommunityPageShellProps = Omit<CommunityPageShellProps, "following" | "joined" | "onFollowToggle" | "onJoin"> & { initialFollowing?: boolean; initialJoined?: boolean };
 
 function StoryCommunityPageShell(props: StoryCommunityPageShellProps) {
-  const [following, setFollowing] = createSignal(props.initialFollowing ?? false);
+  const [following, setFollowing] = createSignal(props.initialFollowing ?? props.initialJoined ?? false);
   const [joined, setJoined] = createSignal(props.initialJoined ?? false);
-  return <CommunityPageShell {...props} following={following()} joined={joined()} onFollowToggle={() => setFollowing((value) => !value)} onJoin={() => { setJoined(true); setFollowing(true); }} />;
+  return <CommunityPageShell {...props} following={following()} joined={joined()} onFollowToggle={() => setFollowing((value) => !value)} onJoin={() => { setJoined(true); setFollowing(true); }} onCreatePost={() => undefined} />;
 }
 
 const meta = {
@@ -42,8 +43,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Overview: Story = { render: () => <StoryCommunityPageShell community={tameImpala} /> };
 export const EmptyCommunity: Story = { render: () => <StoryCommunityPageShell community={infinity} /> };
-export const CommunityWithPosts: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialJoined viewerSignedIn /> };
-export const FollowingNotMember: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing viewerSignedIn /> };
+export const CommunityWithPosts: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialJoined /> };
+export const FollowingNotMember: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing /> };
 
 // Geometry states. The page must not move as the viewer's authority settles,
 // so these four are measured against one another at mobile and desktop widths
@@ -59,7 +60,6 @@ export const AuthorityPending: Story = {
       following={false}
       joined={false}
       managePending
-      viewerSignedIn
     />
   ),
 };
@@ -93,8 +93,6 @@ export const SettledMember: Story = {
       following
       joined
       onCreatePost={() => undefined}
-      personaControl={<span data-operation-persona>Commenting as harbour</span>}
-      viewerSignedIn
     />
   ),
 };
@@ -108,8 +106,6 @@ export const SettledModerator: Story = {
       joined
       onCreatePost={() => undefined}
       onManage={() => undefined}
-      personaControl={<span data-operation-persona>Commenting as harbour</span>}
-      viewerSignedIn
     />
   ),
 };
@@ -117,6 +113,53 @@ export const SettledModerator: Story = {
 export const ViewerUnknown: Story = {
   name: "Geometry / Membership read failed",
   render: () => (
-    <CommunityPageShell community={geometryCommunity} following={false} joined={false} viewerUnknown viewerSignedIn />
+    <CommunityPageShell community={geometryCommunity} following={false} joined={false} viewerUnknown />
   ),
+};
+
+export const RequestPending: Story = {
+  render: () => <CommunityPageShell community={geometryCommunity} following joined={false} joinDisabled joinLabel="Request pending" />,
+};
+export const MembershipUnavailable: Story = {
+  render: () => <CommunityPageShell community={geometryCommunity} following={false} joined={false} joinDisabled joinLabel="Unavailable" />,
+};
+export const PostingProfilesUnavailable: Story = {
+  render: () => <CommunityPageShell community={geometryCommunity} following joined createPostLabel="Retry and open Post" onCreatePost={() => undefined} />,
+};
+export const SortAndManagement: Story = {
+  render: () => <CommunityPageShell community={geometryCommunity} following joined onCreatePost={() => undefined} onManage={() => undefined} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const trigger = canvas.getAllByRole("button", { name: "Sort community feed" }).find(button => button.getBoundingClientRect().width > 0)!;
+    await userEvent.click(trigger);
+    await userEvent.click(await body.findByRole("menuitemradio", { name: "New" }));
+    await expect(body.queryByRole("menu")).not.toBeInTheDocument();
+    await expect(trigger).toHaveFocus();
+    await userEvent.click(trigger);
+    await expect(await body.findByRole("menuitemradio", { name: "New" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.keyboard("{Escape}");
+    await expect(trigger).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "More community options" }));
+    await expect(await body.findByRole("menuitem", { name: "Manage community" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+  },
+};
+export const MobileSort: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <CommunityPageShell community={geometryCommunity} following joined onCreatePost={() => undefined} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    // The manager applies the phone viewport after the initial iframe render.
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView?.matchMedia("(max-width: 767px)").matches).toBe(true));
+    const trigger = canvas.getAllByRole("button", { name: "Sort community feed" }).find(button => button.getBoundingClientRect().width > 0)!;
+    await userEvent.click(trigger);
+    await userEvent.click(await body.findByRole("button", { name: "New" }));
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await userEvent.click(trigger);
+    await expect(await body.findByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.keyboard("{Escape}");
+  },
 };

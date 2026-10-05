@@ -182,6 +182,7 @@ describe("Application navigation", () => {
         personas: [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }, { personaId: "three", displayName: "Studio" }].slice(0, personaCount),
         title: "Profile in this community",
       }));
+      createEffect(() => true, () => store.selectPersona("community-1", "one"));
       return null;
     };
   }
@@ -221,11 +222,54 @@ describe("Application navigation", () => {
     const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
     // Without a double-tap action the single tap is immediate.
     profileTab.click();
-    expect(navigate).toHaveBeenCalledWith("/u/harbor.pirate");
+    expect(navigate).toHaveBeenCalledWith("/p/one");
     profileTab.click();
     await new Promise(resolve => setTimeout(resolve, 350));
     expect(onPersonaSelect).not.toHaveBeenCalled();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("desktop and phone show the selected community identity without changing the account profile", async () => {
+    let store: ReturnType<typeof useActivePersonaStore> | undefined;
+    const Register = communityTarget(2, captured => { store = captured; });
+    const onPersonaSelect = vi.fn();
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn onPersonaSelect={onPersonaSelect} personas={[{ personaId: "account-profile", displayName: "Account profile" }]} selectedPersonaId="account-profile">Route</ApplicationChrome></ActivePersonaProvider>);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")?.getAttribute("title")).toBe("Posting as Harbor"));
+    const desktopControl = container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!;
+    desktopControl.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Profile in this community"));
+    document.querySelector<HTMLInputElement>('input[value="two"]')!.click();
+    await vi.waitFor(() => expect(store!.activePersonaId("community-1")).toBe("two"));
+    expect(desktopControl.getAttribute("title")).toBe("Posting as Night Shift");
+    expect(container.querySelector('nav[aria-label="Primary navigation"] button[aria-label="Profile, Night Shift"]')).not.toBeNull();
+    expect(onPersonaSelect).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    store!.setTarget(undefined);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")).toBeNull());
+    expect(container.querySelector('nav[aria-label="Primary navigation"] button[aria-label="Profile, Account profile"]')).not.toBeNull();
+  });
+
+  test("an unselected community target asks for a choice rather than claiming an account or first persona", async () => {
+    function Register() {
+      const store = useActivePersonaStore();
+      createEffect(() => true, () => store.setTarget({ communityId: "community-1", personas: [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }] }));
+      return null;
+    }
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn personas={[{ personaId: "account", displayName: "Account profile" }]} selectedPersonaId="account">Route</ApplicationChrome></ActivePersonaProvider>);
+    const control = container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!;
+    expect(control.title).toBe("Choose a posting profile");
+    expect(container.querySelector('nav[aria-label="Primary navigation"] button[aria-label="Choose a posting profile"]')).not.toBeNull();
+    control.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(document.querySelector('[role="dialog"] input:checked')).toBeNull();
+  });
+
+  test("a community with no eligible posting profile still opens account profiles", async () => {
+    const Register = communityTarget(0, () => {});
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn personas={[{ personaId: "account", displayName: "Account profile" }]} selectedPersonaId="account">Route</ApplicationChrome></ActivePersonaProvider>);
+    container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Your profiles"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Your profiles"));
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain("Profile in this community");
   });
 
   test("bare routes omit chrome", () => {

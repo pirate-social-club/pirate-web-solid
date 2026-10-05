@@ -1,3 +1,5 @@
+import { ActivePersonaProvider } from "../../identity/active-persona-store.tsx";
+import { ApplicationChrome } from "../../shell/media-shell/media-shell.tsx";
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
@@ -30,7 +32,7 @@ function render(ui: () => JSX.Element): HTMLElement {
   let dispose = () => {};
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(ui, container);
+    solidRender(() => <ActivePersonaProvider><ApplicationChrome signedIn>{ui()}</ApplicationChrome></ActivePersonaProvider>, container);
   });
   disposers.push(() => { dispose(); container.remove(); });
   return container;
@@ -170,7 +172,7 @@ const sessionFor = (userId: string, ...communityIds: readonly string[]): Authent
 });
 
 function personaControlText(container: HTMLElement): string {
-  return container.querySelector("[data-active-persona]")?.textContent ?? "";
+  return container.querySelector("[data-community-profile-control]")?.getAttribute("title") ?? "";
 }
 
 function joinLabelButton(container: HTMLElement): HTMLButtonElement | undefined {
@@ -281,7 +283,7 @@ describe("account identity transitions on one community", () => {
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post")).toBe(false);
     expect(manageAuthority(container)).not.toBe("available");
-    expect(container.querySelector("[data-active-persona]")).toBeNull();
+    expect(container.querySelector("[data-community-profile-control]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     // The public feed is not account-scoped and must survive the transition.
     expect(container.textContent).toContain(harbor.threadTitle);
@@ -594,7 +596,7 @@ describe("an account check that fails", () => {
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post")).toBe(false);
     await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
-    expect(container.querySelector("[data-active-persona]")).toBeNull();
+    expect(container.querySelector("[data-community-profile-control]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     expect(container.textContent).toContain("Retry account check");
 

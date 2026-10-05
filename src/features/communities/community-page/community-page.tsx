@@ -12,14 +12,11 @@ import {
 } from "../../../api/handle-sales-client.ts";
 import type { SessionResolution } from "../../../api/session.ts";
 import {
-  Avatar,
   Button,
-  IconCaretDown,
   toast,
   Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
-import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
   loadCommunityPage,
@@ -41,6 +38,7 @@ import {
 } from "../../posts/post-engagement/post-engagement.tsx";
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
 import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
 import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
@@ -384,18 +382,6 @@ function SuccessState(props: {
 
   const manageAuthorityPending = () => !manageResolved();
 
-  /**
-   * Reserve the controls row before the account identity resolves. The Worker
-   * sees the session cookie, so the first HTML already knows whether to hold
-   * the row; a resolved identity is always authoritative afterwards. Without
-   * the hint the row would arrive late and push the server-rendered posts down
-   * for every signed-in viewer.
-   */
-  const viewerSignedIn = () => {
-    const identity = engagement.accountIdentity();
-    return identity === undefined ? viewerSessionHint() : typeof identity === "string";
-  };
-
   // Announcements this page raised. They expire on their own and can be
   // dismissed, and they are cleared when the page goes away so a stale outcome
   // never outlives the community it belonged to.
@@ -455,24 +441,20 @@ function SuccessState(props: {
   const personaOptions = () => toOperationPersonas(communityOperationPersonas(
     engagement.postingSession()?.personas ?? [], communityId,
   ));
-  const activePersonaOption = () => personaOptions()
-    .find(persona => persona.personaId === selectedPersonaId());
-  const canSwitchPersona = () => personaOptions().length > 1;
-  const openPersonaSwitcher = () => {
-    if (personaStore !== undefined) personaStore.openSwitcher();
-    else if (canSwitchPersona()) setLocalSwitcherOpen(true);
-  };
   // The shell's bottom-right profile control reads this target. It exists only
   // while the page owns an active persona, so no other surface can open a
   // switcher for a community the viewer is not looking at.
   createEffect(
-    () => [communityId, personaStore, personaOptions()] as const,
-    ([targetCommunityId, store, personas]) => {
+    () => [communityId, personaStore, personaOptions(), engagement.personaRetryAvailable(), engagement.personaRetryBusy()] as const,
+    ([targetCommunityId, store, personas, unavailable, loading]) => {
       if (store === undefined) return;
       store.setTarget({
         communityId: targetCommunityId,
         personas,
         title: "Profile in this community",
+        unavailable,
+        loading,
+        onRetry: () => void engagement.retryPersonas(),
       });
     },
   );
@@ -508,6 +490,7 @@ function SuccessState(props: {
             canJoin
             community={community()}
             createPostBusy={postingBusy()}
+            createPostLabel={engagement.personaRetryAvailable() ? "Retry and open Post" : "Post"}
             followBusy={engagement.followBusy()}
             following={engagement.following()}
             joinBusy={engagement.joinBusy()}
@@ -517,40 +500,8 @@ function SuccessState(props: {
             authorityPending={engagement.authorityPending()}
             managePending={manageAuthorityPending()}
             viewerUnknown={engagement.viewerUnknown()}
-            viewerSignedIn={viewerSignedIn()}
             feed={feed}
             onVerifyAge={refreshAgeFeed}
-            personaControl={personaOptions().length > 0 ? (
-              <button
-                aria-haspopup={canSwitchPersona() ? "dialog" : undefined}
-                class="flex min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card py-1 pe-3 ps-1 text-start transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:bg-card"
-                data-active-persona
-                disabled={!canSwitchPersona()}
-                onClick={openPersonaSwitcher}
-                type="button"
-              >
-                <Avatar
-                  class="size-7 border-0 bg-background"
-                  fallback={activePersonaOption()?.displayName ?? "Profile"}
-                  size="sm"
-                  src={activePersonaOption()?.avatarSrc ?? undefined}
-                />
-                <span class="min-w-0 truncate text-base font-medium">
-                  {activePersonaOption()?.displayName ?? "Choose a profile"}
-                </span>
-                <Show when={canSwitchPersona()}>
-                  <IconCaretDown aria-hidden="true" class="size-4 shrink-0 text-muted-foreground" />
-                </Show>
-              </button>
-            ) : engagement.personaRetryAvailable() ? (
-              <Button
-                class="h-9"
-                disabled={engagement.personaRetryBusy()}
-                onClick={() => void engagement.retryPersonas()}
-                size="sm"
-                type="button"
-              >{engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}</Button>
-            ) : undefined}
             renderPost={(post, render) => (
               // Both gates are reactive on purpose. This callback body runs
               // once per post, so a plain branch on a signal would freeze
@@ -601,8 +552,8 @@ function SuccessState(props: {
               overlay had none of those: it covered the page until something
               else replaced it, and it nested an alert inside a polite region.
               The retry control is not an outcome, so it stays on the page, in
-              the reserved persona row where the missing control would be. */}
-          <Toaster />
+              the Post action, which retries the required profile read. */}
+          <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
             createNewUnavailable
@@ -615,12 +566,24 @@ function SuccessState(props: {
             personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
           />
           <Show when={personaStore === undefined}>
+            <Show when={personaOptions().length > 1 || engagement.personaRetryAvailable()}>
+              <CommunityPersonaControl
+                label={engagement.personaRetryAvailable() ? "Retry profiles" : "Switch posting profile"}
+                opensPicker
+                persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
+                onClick={() => setLocalSwitcherOpen(true)}
+              />
+            </Show>
             <PersonaSwitcherSheet
-              onOpenChange={setLocalSwitcherOpen}
-              onSelect={(personaId) => { selectPersonaId(personaId); setLocalSwitcherOpen(false); }}
+              title="Profile in this community"
               open={localSwitcherOpen()}
+              onOpenChange={setLocalSwitcherOpen}
               personas={personaOptions()}
               selectedPersonaId={selectedPersonaId() ?? ""}
+              onSelect={personaId => { selectPersonaId(personaId); setLocalSwitcherOpen(false); }}
+              loading={engagement.personaRetryBusy()}
+              unavailable={engagement.personaRetryAvailable()}
+              onRetry={() => void engagement.retryPersonas()}
             />
           </Show>
       </div>

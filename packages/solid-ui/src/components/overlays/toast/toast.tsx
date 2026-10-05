@@ -80,9 +80,9 @@ function ToastBody(props: ToastComponentProps & ShowToastOptions) {
   );
 }
 
-export function Toaster() {
+export function Toaster(props: { class?: string } = {}) {
   return (
-    <KToast.Region class="fixed inset-x-4 bottom-4 z-[60] flex flex-col gap-2 sm:inset-x-auto sm:end-4 sm:w-96">
+    <KToast.Region class={cn("fixed inset-x-4 bottom-4 z-[60] flex flex-col gap-2 sm:inset-x-auto sm:end-4 sm:w-96", props.class)}>
       <KToast.List as="div" class="flex flex-col gap-2" />
     </KToast.Region>
   );

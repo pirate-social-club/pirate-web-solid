@@ -17,7 +17,6 @@ import {
   FlatTabButton,
   IconArrowLeft,
   IconDotsThree,
-  IconFadersHorizontal,
   IconMusicNote,
   IconPlus,
   IconShield,
@@ -26,9 +25,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  ResponsiveOptionSelect,
   Type,
 } from "@pirate/web-solid-ui";
+import { CommunityFeedSort } from "./community-feed-sort.tsx";
 import {
   membershipLine,
   orderedCommunityRules,
@@ -54,6 +53,7 @@ export interface CommunityPageShellProps {
   onManage?: () => void;
   onCreatePost?: () => void;
   createPostBusy?: boolean;
+  createPostLabel?: string;
   onBack?: () => void;
   canJoin?: boolean;
   /**
@@ -80,13 +80,6 @@ export interface CommunityPageShellProps {
    * join, post or persona controls that no longer depend on anything.
    */
   managePending?: boolean;
-  /**
-   * True once the account session resolved to an established account. The feed
-   * controls row reserves its space for a signed-in viewer before the profile
-   * and membership reads arrive, so the posts never move under them.
-   */
-  viewerSignedIn?: boolean;
-  personaControl?: JSX.Element;
   renderPost?: (
     post: CommunityPost,
     render: (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element,
@@ -261,7 +254,7 @@ function CommunityBanner(props: {
             <DropdownMenu placement="bottom-end" gutter={4}>
               <DropdownMenuTrigger
                 aria-label="More community options"
-                class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+                class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-community-manage="available"
               >
                 <IconDotsThree class="size-5" />
@@ -289,13 +282,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   // Both header slots are this size in every state, so a label change cannot
   // resize them and a viewport change cannot make them wrap.
   const slotClass = "h-11 w-full min-w-0 md:w-32";
-  /**
-   * Spec 016 §4.6: an active member may invoke follow idempotently but may not
-   * unfollow, and has nothing left to join. Both slots stay filled so the
-   * header does not move, with Joined and Following as disabled states rather
-   * than offering a typed conflict.
-   */
-  const memberFollowLocked = () => props.joined === true && props.viewerUnknown !== true && props.following;
+  const confirmedMember = () => props.joined && !props.authorityPending && !props.viewerUnknown;
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   const hasAgeLocks = () => { const current = feed(); return current.kind === "ready" && (current.ageLockedCount ?? 0) > 0; };
@@ -310,7 +297,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     if (props.authorityPending) return { text: "Checking…", description: "Checking your follow state" };
     if (props.viewerUnknown) return { text: "Check follow", description: "Check your follow state again" };
     return props.following
-      ? { text: "Following", description: memberFollowLocked() ? "Following this community" : "Unfollow this community" }
+      ? { text: "Following", description: "Unfollow this community" }
       : { text: "Follow", description: "Follow this community" };
   };
   const joinLabel = () => {
@@ -336,31 +323,8 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
-  /**
-   * The feed sort lives in the banner beside the overflow menu, the way a
-   * community's feed controls read on a phone. The icon opens the existing
-   * responsive picker: a sheet on small viewports and a select above them.
-   */
-  // Own this JSX subtree once. Evaluating an ordinary render helper from a
-  // forwarded prop allocates picker hydration keys in a different order on
-  // the server and client when the initial page data is already settled.
-  const sortControl = createMemo(() => (
-    <ResponsiveOptionSelect
-      ariaLabel="Sort community feed"
-      class="w-auto shrink-0"
-      drawerTitle="Sort feed"
-      mobileTriggerContent={<IconFadersHorizontal class="size-5" />}
-      onValueChange={value => setSort(value)}
-      options={[
-        { label: "Best", value: "Best" },
-        { label: "New", value: "New" },
-        { label: "Top", value: "Top" },
-      ]}
-      triggerClass="h-10 w-10 min-w-0 justify-center rounded-full p-0 bg-background/75 text-foreground shadow-sm backdrop-blur-sm [&>span:last-child]:hidden"
-      triggerContent={<IconFadersHorizontal class="size-5" />}
-      value={sort()}
-    />
-  ));
+  // Keep this owned subtree stable for SSR hydration key allocation.
+  const sortControl = createMemo(() => <CommunityFeedSort value={sort()} onChange={setSort} />);
 
   return (
     <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>
@@ -393,6 +357,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
                 <Type class="mt-1 block truncate" variant="caption">
                   {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
+                  <span class={confirmedMember() ? "" : "invisible"} data-community-membership-status aria-hidden={confirmedMember() ? undefined : "true"}> · Member</span>
                 </Type>
               </div>
             </div>
@@ -402,40 +367,51 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <Type variant="body">{community().description}</Type>
             </div>
           </div>
-          {/* Two fixed-size slots, both filled even for a member: Joined and
-              Following are states, and Following is disabled because a
-              member may not unfollow. Controls whose existence depends on
-              authority live outside the header. */}
+          {/* The reserved group keeps its size while authority settles. A
+              member gets one useful command spanning the two visitor slots. */}
           <div
             aria-label="Community actions"
-            class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:min-w-[16.75rem] md:shrink-0 md:gap-3"
+            class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:w-[16.75rem] md:shrink-0"
             data-community-actions-reserved
             role="group"
           >
-            {/* Follow and Following both state a direction that has not been
-                read yet, so neither is offered until it has been. While the
-                read is pending the control shows a spinner, not a label it
-                cannot stand behind, and keeps Checking… for screen readers. */}
-            <Button
-              aria-label={followLabel().description}
-              class={slotClass}
-              data-community-follow-slot
-              disabled={props.followBusy || props.authorityPending || memberFollowLocked()}
-              loading={props.followBusy || props.authorityPending}
-              onClick={() => props.onFollowToggle?.()}
-              variant={props.following ? "secondary" : "outline"}
-            ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
-            <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
+            <Show when={confirmedMember()} fallback={
+              <>
+                <Button
+                  aria-label={followLabel().description}
+                  class={slotClass}
+                  data-community-follow-slot
+                  disabled={props.followBusy || props.authorityPending}
+                  loading={props.followBusy || props.authorityPending}
+                  onClick={() => props.onFollowToggle?.()}
+                  variant={props.following ? "secondary" : "outline"}
+                ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
+                <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
+                  <Show when={props.joinDisabled && !props.authorityPending && !props.viewerUnknown && !props.joinBusy} fallback={
+                    <Button
+                      aria-label={joinLabel().description}
+                      class={slotClass}
+                      data-community-membership-slot
+                      disabled={props.authorityPending || props.joinBusy}
+                      loading={props.authorityPending || props.joinBusy}
+                      onClick={() => props.onJoin?.()}
+                    ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
+                  }>
+                    <div class={`${slotClass} flex items-center justify-center`} data-community-membership-slot role="status">
+                      <Type variant="caption" class="truncate">{props.joinLabel ?? "Unavailable"}</Type>
+                    </div>
+                  </Show>
+                </Show>
+              </>
+            }>
               <Button
-                aria-label={joinLabel().description}
-                class={slotClass}
-                data-community-membership-slot
-                disabled={props.authorityPending || props.joinBusy
-                  || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
-                loading={props.authorityPending || props.joinBusy}
-                onClick={() => props.onJoin?.()}
-                variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
-              ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
+                class="col-span-2 h-11 w-full min-w-0"
+                data-community-post-slot
+                disabled={props.createPostBusy}
+                loading={props.createPostBusy}
+                leadingIcon={<IconPlus class="size-4" />}
+                onClick={() => props.onCreatePost?.()}
+              >{props.createPostBusy ? "Opening…" : props.createPostLabel ?? "Post"}</Button>
             </Show>
           </div>
         </div>
@@ -456,29 +432,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             with a blank column beside an aside that was already there. */}
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
-            {/* One controls row: the persona picker on the left and Post on
-                the right. A viewer whose session is resolved signed-in keeps
-                the row's space from the first paint, so the profile and
-                membership reads fill it in without moving the first post; the
-                content check is a fallback for hosts that render a control
-                without declaring the session. An anonymous viewer has nothing
-                to reserve and stays tight. */}
-            <Show when={props.viewerSignedIn === true || props.personaControl || props.joined || props.onCreatePost !== undefined}>
-              <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
-                <div class="min-w-0 flex-1">{props.personaControl}</div>
-                <Show when={props.joined || props.onCreatePost !== undefined}>
-                  <Button
-                    class="h-9 shrink-0 rounded-full px-4"
-                    disabled={props.createPostBusy}
-                    leadingIcon={<IconPlus class="size-4" />}
-                    onClick={() => props.onCreatePost?.()}
-                    size="sm"
-                  >
-                    {props.createPostBusy ? "Opening…" : "Post"}
-                  </Button>
-                </Show>
-              </div>
-            </Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 {agePrompt()}

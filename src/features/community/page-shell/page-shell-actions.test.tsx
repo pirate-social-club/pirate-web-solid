@@ -50,6 +50,48 @@ describe("community page shell header actions", () => {
     expect(row?.getAttribute("aria-label")).toBe("Community actions");
   });
 
+  test("a member gets Post in the header with passive membership and no feed control row", () => {
+    const post = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined onCreatePost={post} />);
+    const group = container.querySelector("[data-community-actions-reserved]")!;
+    expect(group.querySelectorAll("button")).toHaveLength(1);
+    group.querySelector<HTMLButtonElement>("button")!.click();
+    expect(post).toHaveBeenCalledOnce();
+    expect(group.textContent).toBe("Post");
+    expect(container.querySelector("[data-community-persona-reserved]")).toBeNull();
+    expect(container.querySelector("main button")).toBeNull();
+    expect(container.querySelector("[data-community-membership-status]")?.className).not.toContain("invisible");
+  });
+
+  test.each(["pending", "failed"])("a %s authority read never exposes a stale member's Post", (state) => {
+    const post = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined onCreatePost={post} authorityPending={state === "pending"} viewerUnknown={state === "failed"} />);
+    expect(container.querySelector("[data-community-post-slot]")).toBeNull();
+    expect(container.querySelectorAll("[data-community-actions-reserved] button")).toHaveLength(2);
+    expect(container.querySelector("[data-community-membership-status]")?.className).toContain("invisible");
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  test("a follower can unfollow but cannot post even when a host supplies a callback", () => {
+    const unfollow = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined={false} onFollowToggle={unfollow} onCreatePost={() => undefined} />);
+    const follow = container.querySelector<HTMLButtonElement>("[data-community-follow-slot]")!;
+    expect(follow.getAttribute("aria-label")).toBe("Unfollow this community");
+    expect(follow.disabled).toBe(false);
+    follow.click();
+    expect(unfollow).toHaveBeenCalledOnce();
+    expect(container.querySelector("[data-community-post-slot]")).toBeNull();
+  });
+
+  test.each(["Request pending", "Unavailable"])("%s is passive while follow remains actionable", (label) => {
+    const container = render(() => <CommunityPageShell community={community} following={false} joined={false} joinDisabled joinLabel={label} />);
+    const membership = container.querySelector("[data-community-membership-slot]")!;
+    expect(membership.getAttribute("role")).toBe("status");
+    expect(membership.textContent).toBe(label);
+    expect(membership.tagName).not.toBe("BUTTON");
+    expect(container.querySelector<HTMLButtonElement>("[data-community-follow-slot]")?.disabled).toBe(false);
+  });
+
   test("exposes the existing Boost entry point on community songs only", async () => {
     const container = render(() => (
       <CommunityPageShell

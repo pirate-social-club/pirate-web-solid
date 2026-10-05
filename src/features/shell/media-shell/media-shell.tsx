@@ -19,6 +19,7 @@ import {
   requestGlobalSignIn,
 } from "../../auth/global-sign-in-host.tsx";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
 import { PersonaSwitcherSheet, type SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
@@ -151,6 +152,35 @@ export function ApplicationChrome(props: MediaShellProps) {
     const target = switchTarget();
     return target === undefined ? "" : personaStore?.activePersonaId(target.communityId) ?? "";
   };
+  // Community identity belongs to the operation target, not the account's
+  // navigation profile. Never fall back to an unrelated account persona.
+  const footerPersona = () => {
+    if (!signedIn()) return undefined;
+    const target = switchTarget();
+    return target === undefined ? selected() : target.personas.find(persona => persona.personaId === selectedSwitchPersonaId());
+  };
+  const footerProfileLabel = () => {
+    const persona = footerPersona();
+    if (persona !== undefined) return `Profile, ${persona.displayName}`;
+    if (switchTarget()?.unavailable) return "Retry profiles";
+    if (switchTarget() !== undefined && switchable()) return "Choose a posting profile";
+    return signedIn() || accountPending() ? "Your profiles" : "Sign in";
+  };
+  const desktopProfileLabel = () => {
+    const persona = footerPersona();
+    if (switchTarget()?.unavailable) return "Retry profiles";
+    if (persona === undefined) return "Choose a posting profile";
+    return switchable() ? `Switch posting profile, ${persona.displayName}` : `Open posting profile, ${persona.displayName}`;
+  };
+  const openFooterProfile = () => {
+    if (!signedIn()) { openOwnProfile(); return; }
+    const persona = footerPersona();
+    if (switchTarget() !== undefined) {
+      if (persona !== undefined) go(profilePath(persona));
+      else if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher();
+      else openProfilePicker();
+    } else openOwnProfile();
+  };
   const [switchAnnouncement, setSwitchAnnouncement] = createSignal("");
   /**
    * A double tap on Profile switches profile. On a community page it acts on
@@ -267,7 +297,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           class="md:hidden"
           forceMobile
           activeItem={props.mobileActiveItem ?? "home"}
-          avatarFallback={selected()?.displayName ?? "Profile"}
+          avatarFallback={footerPersona()?.displayName ?? "Profile"}
           labels={{
             home: scope().kind === "community" ? "Home" : primaryNavigationLabel("home"),
             songs: primaryNavigationLabel("songs"),
@@ -275,16 +305,25 @@ export function ApplicationChrome(props: MediaShellProps) {
             profile: primaryNavigationLabel("profile"),
             // Matches what a tap does: the selected profile's page, the profile
             // sheet while the account check is pending or failed, or sign-in.
-            profileAriaLabel: selected() ? `Profile, ${selected()!.displayName}` : signedIn() || accountPending() ? "Your profiles" : "Sign in",
+            profileAriaLabel: footerProfileLabel(),
           }}
           onHomeClick={() => go(homePath())}
           onSongsClick={() => go("/songs")}
           onWalletClick={() => go("/wallet")}
-          onProfileClick={openOwnProfile}
+          onProfileClick={openFooterProfile}
           onProfileDoubleTap={canSwitchProfile() ? doubleTapSwitch : undefined}
-          userAvatarSeed={selected()?.avatarSeed ?? selected()?.publicHandle ?? undefined}
-          userAvatarSrc={selected()?.avatarSrc ?? undefined}
+          userAvatarSeed={footerPersona()?.avatarSeed ?? footerPersona()?.publicHandle ?? undefined}
+          userAvatarSrc={footerPersona()?.avatarSrc ?? undefined}
         />
+        <Show when={signedIn() && ((switchTarget()?.personas.length ?? 0) > 0 || switchTarget()?.unavailable)}>
+          <CommunityPersonaControl
+            desktopOnly
+            label={desktopProfileLabel()}
+            opensPicker={switchable() || switchTarget()?.unavailable === true}
+            persona={footerPersona()}
+            onClick={() => { if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher(); else openFooterProfile(); }}
+          />
+        </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
           {(target) => (
             <PersonaSwitcherSheet
@@ -293,6 +332,9 @@ export function ApplicationChrome(props: MediaShellProps) {
                 personaStore!.selectPersona(target().communityId, personaId);
                 personaStore!.closeSwitcher();
               }}
+              loading={target().loading}
+              unavailable={target().unavailable}
+              onRetry={target().onRetry}
               open={personaStore!.open()}
               personas={target().personas}
               selectedPersonaId={selectedSwitchPersonaId()}

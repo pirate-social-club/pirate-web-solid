@@ -19,6 +19,9 @@ export interface PersonaSwitchTarget {
   readonly communityId: string;
   readonly personas: readonly SwitchablePersona[];
   readonly title?: string;
+  readonly loading?: boolean;
+  readonly unavailable?: boolean;
+  readonly onRetry?: () => void;
 }
 
 export interface ActivePersonaStore {
@@ -67,7 +70,7 @@ function createActivePersonaStore(): ActivePersonaStore {
     open,
     openSwitcher: () => {
       const current = target();
-      if (current === undefined || current.personas.length < 2) return;
+      if (current === undefined || (current.personas.length < 2 && !current.unavailable)) return;
       setOpen(true);
     },
     closeSwitcher: () => setOpen(false),

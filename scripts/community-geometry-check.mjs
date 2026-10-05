@@ -1,8 +1,7 @@
-// Measures the community page shell in a real browser: the header, the tab bar,
-// the reserved persona row and the first post must not move as a signed-in
-// viewer's authority settles, and asking for the community's details must
-// produce a real view rather than a blank column. An anonymous viewer has no
-// reserved row and keeps the tight layout; that is asserted separately.
+// Measures the community page shell in a real browser: the header, tabs and
+// first post must not move as authority settles. Community details must
+// produce a real view rather than a blank column. Every viewer keeps the same
+// tight layout without a separate persona row.
 //
 // Class-string assertions cannot establish equal geometry: they do not know
 // what wraps, what a label does to a width, or what a viewport does to a flex
@@ -39,20 +38,18 @@ const viewports = [
 
 /**
  * What must not move for a signed-in viewer. The action row is the header's
- * own geometry; the tab bar, the reserved persona row and the first post are
- * what the reader is looking at, so their position is the real subject. The
- * feed's height is excluded because the persona row's content can grow it.
+ * own geometry; the tabs and first post are what the reader is looking at. The
+ * feed's height is excluded because the post content can grow it.
  */
 const signedInProbes = [
   { key: "actions", selector: "[data-community-actions-reserved]", sides: ["x", "y", "width", "height"] },
   { key: "tabs", selector: "[data-community-tabs]", sides: ["x", "y", "width", "height"] },
   { key: "feed", selector: "[aria-label='Community feed']", sides: ["x", "y", "width"] },
-  { key: "persona", selector: personaSelector, sides: ["x", "y", "width", "height"] },
   { key: "firstPost", selector: firstPostSelector, sides: ["y"] },
 ];
-/** An anonymous viewer has no reserved row and no persona probe to compare. */
+/** Across viewer states compare the page chrome; feed content can differ. */
 const anonymousProbes = signedInProbes.filter(
-  probe => probe.key !== "persona" && probe.key !== "firstPost",
+  probe => probe.key !== "firstPost",
 );
 /** The anonymous first paint and its settled state share the tight layout. */
 const anonymousFirstPaintProbes = anonymousProbes.concat(
@@ -77,6 +74,14 @@ async function measure(page, storyId, viewport, probes) {
     const box = await page.locator(probe.selector).first().boundingBox().catch(() => null);
     if (box === null) throw new Error(`${storyId} at ${viewport.name}: nothing matched ${probe.selector}`);
     measured[probe.key] = { x: box.x, y: box.y, width: box.width, height: box.height };
+  }
+  const post = page.locator("[data-community-post-slot]");
+  if (await post.count() > 0) {
+    const postBox = await post.boundingBox();
+    const actions = measured.actions;
+    if (postBox === null || Math.abs(postBox.width - actions.width) > tolerancePx) {
+      throw new Error(`${storyId} at ${viewport.name}: Post does not span its reserved action group`);
+    }
   }
   return measured;
 }
@@ -149,8 +154,10 @@ async function main() {
   try {
     for (const viewport of viewports) {
       const pending = await measure(page, pendingStory, viewport, signedInProbes);
+      if (await page.locator(personaSelector).count() > 0) failures.push(`${viewport.name}: pending viewer has a feed persona row`);
       for (const storyId of signedInSettledStories) {
         const settled = await measure(page, storyId, viewport, signedInProbes);
+        if (await page.locator(personaSelector).count() > 0) failures.push(`${viewport.name}: ${storyId} has a feed persona row`);
         failures.push(...compare(storyId, viewport, pending, settled, signedInProbes));
       }
       const pendingAnonymous = await measure(page, pendingAnonymousStory, viewport, anonymousFirstPaintProbes);
