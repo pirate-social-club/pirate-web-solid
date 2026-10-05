@@ -1,5 +1,4 @@
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
-import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
@@ -105,7 +104,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Post actions">
       <Show when={props.engagementControls} fallback={
-        <EngagementControls score={props.post.score} commentCount={props.post.commentCount ?? 0} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />
+        <EngagementControls score={props.post.score} commentCount={props.post.commentCount ?? 0} />
       }>{controls => controls()}</Show>
     </div>
   );

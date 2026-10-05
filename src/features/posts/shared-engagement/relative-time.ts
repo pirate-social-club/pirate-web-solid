@@ -3,6 +3,9 @@ export function relativeTime(value: string | undefined, now = Date.now()): strin
   if (!value) return undefined;
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return undefined;
-  const hours = Math.floor(Math.max(0, now - timestamp) / 3_600_000);
-  return hours < 24 ? `${Math.max(1, hours)}h ago` : `${Math.floor(hours / 24)}d ago`;
+  const minutes = Math.floor(Math.max(0, now - timestamp) / 60_000);
+  if (minutes === 0) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }

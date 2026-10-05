@@ -1,3 +1,4 @@
+import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createSignal } from "solid-js";
 import { expect, userEvent, within } from "storybook/test";
@@ -61,7 +62,7 @@ export const InteractivePost: Story = {
   },
 };
 export const ReadOnlyPost: Story = {
-  render: () => <div class="mx-auto max-w-3xl"><CommunityPostCard post={{ id: "readonly", title: "Harbor Lights", body: "Public post", score: 3, commentCount: 2, publishedAt: "2026-10-05T08:00:00Z" }} /></div>,
+  render: () => <div class="mx-auto max-w-3xl"><CommunityPostCard post={{ id: "readonly", title: "Harbor Lights", body: "Public post", score: 3, commentCount: 2, publishedAt: "2026-10-05T08:00:00Z" }} actions={<EngagementControls score={3} commentCount={2} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />} /></div>,
   name: "Signed-out post",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -90,3 +91,13 @@ export const ReportableComment: Story = {
 };
 export const AgeLocked: Story = { render: () => <CommentFixture locked />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(canvas.queryByText("The chorus is a good place to start practising.")).not.toBeInTheDocument(); await expect(canvas.queryByRole("link")).not.toBeInTheDocument(); } };
 export const Mobile: Story = { ...InteractivePost, globals: { viewport: { value: "mobile1", isRotated: false } } };
+
+export const CountsWithoutViewer: Story = {
+  render: () => <CommunityPostCard post={{ id: "no-viewer", title: "Public post", body: "The caller has not supplied viewer actions.", score: 3, commentCount: 2, publishedAt: new Date().toISOString() }} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "Upvote" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
+    await expect(canvas.getByText("Just now")).toBeVisible();
+  },
+};

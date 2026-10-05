@@ -58,6 +58,7 @@ function threadPost(item: ThreadItem): CommunityPost | null {
     authorHandle,
     authorAvatarSrc: persona?.avatar_ref ?? null,
     kind: post.post_type === "song" ? "song" : "text",
+    supportsPostReports: post.post_type === "text",
     ...(post.post_type === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),
     commentCount: finiteCount(item.comment_count),
     // Being a song is not a Learn or Karaoke capability. These were derived

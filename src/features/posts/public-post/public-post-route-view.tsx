@@ -116,7 +116,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           </Show>
         </Show>
         <Show when={props.response.content.post.post_type !== "song"}>
-          <div class="mt-5"><PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
+          <div class="mt-5"><PublicPostEngagement canReportPost={props.response.content.post.post_type === "text"} dependencies={props.engagement} communityId={props.response.content.post.community}
             post={{ id: props.response.post_id, upvoteCount: count(props.response.content.upvote_count), downvoteCount: count(props.response.content.downvote_count), commentCount: count(props.response.content.comment_count) }}>
             {(controls, menuActions) => <div class="flex items-start justify-between gap-3">{controls}<ContentOverflowMenu label="Post options" actions={menuActions} /></div>}
           </PublicPostEngagement></div>

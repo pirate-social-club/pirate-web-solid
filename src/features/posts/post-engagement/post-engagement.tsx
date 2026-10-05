@@ -73,6 +73,8 @@ export interface PostEngagementProps {
   readonly readComments?: CommentThreadReader;
   readonly initialComments?: readonly CommentThreadItem[];
   readonly canModerate?: boolean;
+  /** The current report contract accepts text submissions, not media posts. */
+  readonly canReportPost?: boolean;
   readonly generateIdempotencyKey?: () => string;
   readonly pendingStorage?: PendingEngagementStorage;
   readonly children?: (controls: JSX.Element, menuActions: readonly ContentAction[]) => JSX.Element;
@@ -461,7 +463,9 @@ export function PostEngagement(props: PostEngagementProps) {
       setPostReportBusy(false);
     }
   };
-  const postMenuActions = (): readonly ContentAction[] => [{ label: "Report", disabled: postReportBusy(), run: () => setPostReportOpen(true) }];
+  const postMenuActions = (): readonly ContentAction[] => props.canReportPost
+    ? [{ label: "Report", disabled: postReportBusy(), run: () => setPostReportOpen(true) }]
+    : [];
 
   const report = async (item: CommentThreadItem) => {
     if (actionBusyId() || !commentCountsAsPublished(item) || !isCommentAddressable(item)) return;

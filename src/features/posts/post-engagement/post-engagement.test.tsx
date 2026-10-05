@@ -89,7 +89,7 @@ describe("PostEngagement", () => {
     const reportPost = vi.fn<PostEngagementTransport["reportPost"]>()
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce({ report_id: "report-post", case_ref: "case-post", status: "open" });
-    render(() => <PostEngagement principalId="account" post={{ id: "post-1", upvoteCount: 3, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+    render(() => <PostEngagement canReportPost principalId="account" post={{ id: "post-1", upvoteCount: 3, downvoteCount: 0, commentCount: 0, viewerVote: null }}
       pendingStorage={storage} transport={{ ...transport, reportPost }} generateIdempotencyKey={() => "retained-post-report-key"} />);
     expect(document.querySelector('[role="menuitem"]')).toBeNull();
     await userEvent.click(button("Post options"));

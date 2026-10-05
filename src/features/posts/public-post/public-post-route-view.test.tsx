@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -240,4 +241,24 @@ it("waits for the private vote and never treats a failed read as an unvoted acco
   [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry")!.click();
   await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(false));
   expect(readViewerVote).toHaveBeenCalledTimes(2);
+});
+
+it.each(["text", "video"] as const)("wires %s votes and comments and only supported post reports", async postType => {
+  window.scrollTo = vi.fn();
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const castVote = vi.fn<PostEngagementTransport["castVote"]>(async () => ({ post_id: "post-1", value: 1 }));
+  const readComments = vi.fn(async () => ({ items: [], next_cursor: null }));
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, community: "community", post_type: postType }, upvote_count: 0, downvote_count: 0, comment_count: 0 } } }, undefined, {
+    resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }),
+    readViewerVote: async () => null, readComments, pendingStorage: createMemoryPendingEngagementStorage(),
+    transport: { castVote, reportPost: vi.fn(), createComment: vi.fn(), createReply: vi.fn(), clearVote: vi.fn(), reportComment: vi.fn(), readModerationCase: vi.fn(), moderateCase: vi.fn(), readSubmission: vi.fn() },
+  });
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Upvote']")?.disabled).toBe(false));
+  expect(container.querySelector("button[aria-label='Post options']") !== null).toBe(postType === "text");
+  await userEvent.click(container.querySelector("button[aria-label='Upvote']")!);
+  await vi.waitFor(() => expect(castVote).toHaveBeenCalledOnce());
+  await userEvent.click(container.querySelector("button[aria-label='Comments (0)']")!);
+  await vi.waitFor(() => expect(readComments).toHaveBeenCalledOnce());
 });

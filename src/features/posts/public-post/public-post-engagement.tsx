@@ -25,6 +25,7 @@ export interface PublicPostEngagementDependencies {
 export function PublicPostEngagement(props: {
   post: Omit<PostEngagementPost, "viewerVote">;
   communityId: string;
+  canReportPost?: boolean;
   dependencies?: PublicPostEngagementDependencies;
   children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
 }) {
@@ -60,7 +61,7 @@ export function PublicPostEngagement(props: {
     <>
       <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
         <Show when={session()}>{viewer => (
-          <PostEngagement post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
+          <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
             readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}>
             {(controls, menuActions) => props.children(controls, menuActions)}

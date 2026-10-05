@@ -577,6 +577,7 @@ function SuccessState(props: {
                     </>
                   }>
                     <PostEngagement
+                      canReportPost={post.supportsPostReports === true}
                       communityId={communityId}
                       personaId={selectedPersonaId()}
                       post={engagementPost(post, (() => {

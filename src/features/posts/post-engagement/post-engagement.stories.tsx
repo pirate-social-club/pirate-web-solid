@@ -82,6 +82,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
   return (
     <div class="mx-auto max-w-3xl p-6">
       <PostEngagement
+        canReportPost
         canModerate
         communityId="community-story"
         principalId="storybook-viewer"
