@@ -1,3 +1,5 @@
+import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
+import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
@@ -13,8 +15,6 @@ import {
   FlatTabBar,
   FlatTabButton,
   IconArrowLeft,
-  IconArrowUp,
-  IconChatCircle,
   IconDotsThree,
   IconFadersHorizontal,
   IconMusicNote,
@@ -118,18 +118,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
           instead, and the real controls take their place once there is a
           viewer who can act and enough known about them to act correctly. */}
       <Show when={props.engagementControls} fallback={
-        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
-          <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">
-            <IconArrowUp class="size-4" aria-hidden="true" />
-            <span>{props.post.score}</span>
-            <span class="sr-only">points</span>
-          </span>
-          <span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3">
-            <IconChatCircle class="size-4" aria-hidden="true" />
-            <span>{props.post.commentCount ?? 0}</span>
-            <span class="sr-only">comments</span>
-          </span>
-        </div>
+        <EngagementControls score={props.post.score} commentCount={props.post.commentCount ?? 0} />
       }>{controls => controls()}</Show>
     </div>
   );
@@ -156,7 +145,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -172,6 +161,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
+        <div class="ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>
           {communityId => <div class="ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
         </Show>

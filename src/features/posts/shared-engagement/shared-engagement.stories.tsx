@@ -1,0 +1,71 @@
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { createSignal } from "solid-js";
+import { expect, userEvent, within } from "storybook/test";
+import { Type } from "../../../design-system.ts";
+import { CommunityPostCard } from "../../community/page-shell/page-shell.tsx";
+import { CommentCard } from "./comment-card.tsx";
+import { EngagementControls } from "./engagement-controls.tsx";
+
+const meta = {
+  title: "Parts/Posts/Shared engagement",
+  parameters: { layout: "padded", a11y: { test: "error" }, docs: { description: { component: "Shared presentation with explicit callback fixtures. Live controllers retain requests, durable retries and permissions. No comment voting endpoint exists; no comment votes are fabricated." } } },
+} satisfies Meta;
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+function PostFixture() {
+  const [score, setScore] = createSignal(3);
+  const [vote, setVote] = createSignal<"up" | "down" | null>(null);
+  const [reported, setReported] = createSignal(false);
+  const [comments, setComments] = createSignal(false);
+  return <div class="mx-auto max-w-3xl"><CommunityPostCard
+    post={{ id: "shared-story-post", title: "Harbor Lights", body: "A new song for our next listening session.", kind: "text", score: score(), commentCount: 2, authorHandle: "owned.pirate", publishedAt: "2026-10-05T08:00:00Z" }}
+    actions={<EngagementControls score={score()} viewerVote={vote()} commentCount={2} onComment={() => setComments(true)} onVote={next => {
+      const value = (direction: "up" | "down" | null) => direction === "up" ? 1 : direction === "down" ? -1 : 0;
+      setScore(score() - value(vote()) + value(next)); setVote(next);
+    }} />}
+    menuActions={[{ label: "Report", run: () => setReported(true) }]} />
+    {reported() && <Type role="status">Report callback received</Type>}
+    {comments() && <Type role="status">Comments callback received</Type>}
+  </div>;
+}
+function CommentFixture(props: { actions?: boolean; locked?: boolean } = {}) {
+  const [reported, setReported] = createSignal(false);
+  return <div class="mx-auto max-w-3xl"><CommentCard item={{ id: "shared-comment", submissionId: null, parentId: null, body: "The chorus is a good place to start practising.", authorLabel: props.locked ? undefined : "owned.pirate", authorAvatarRef: "/storybook/karaoke-artwork.svg", createdAt: "2026-10-05T08:00:00Z", depth: 0, replyCount: 0, state: props.locked ? "age_locked" : "published", caseRef: null, href: null }}
+    communityLabel={props.locked ? undefined : "Night Shift"}
+    postContext={props.locked ? undefined : { title: "On Open Water", href: "/posts/on-open-water" }}
+    menuActions={props.actions ? [{ label: "Report", run: () => setReported(true) }] : undefined} />
+    {reported() && <Type role="status">Report callback received</Type>}
+  </div>;
+}
+export const InteractivePost: Story = {
+  render: PostFixture,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Upvote" }));
+    await expect(canvas.getByRole("button", { name: "Upvote" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(canvas.getByRole("button", { name: "Downvote" }));
+    await expect(canvas.getByRole("button", { name: "Downvote" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(canvas.getByRole("button", { name: "Downvote" }));
+    await expect(canvas.getByRole("button", { name: "Downvote" })).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(canvas.getByRole("button", { name: "Comments (2)" }));
+    await expect(canvas.getByText("Comments callback received")).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Post options" }));
+    await userEvent.click(within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" }));
+    await expect(canvas.getByText("Report callback received")).toBeVisible();
+  },
+};
+export const ReadOnlyPost: Story = {
+  render: () => <div class="mx-auto max-w-3xl"><CommunityPostCard post={{ id: "readonly", title: "Harbor Lights", body: "Public post", score: 3, commentCount: 2, publishedAt: "2026-10-05T08:00:00Z" }} /></div>,
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument(); await expect(canvas.queryByRole("button", { name: "Upvote" })).not.toBeInTheDocument(); },
+};
+export const PublicComment: Story = {
+  render: () => <CommentFixture />,
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(canvas.queryByRole("button", { name: "Comment options" })).not.toBeInTheDocument(); await expect(canvas.queryByRole("button", { name: "Upvote" })).not.toBeInTheDocument(); await expect(canvas.getByRole("link", { name: "On Open Water" })).toBeVisible(); },
+};
+export const ReportableComment: Story = {
+  render: () => <CommentFixture actions />,
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Comment options" })); await userEvent.click(within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" })); await expect(canvas.getByText("Report callback received")).toBeVisible(); },
+};
+export const AgeLocked: Story = { render: () => <CommentFixture locked />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(canvas.queryByText("The chorus is a good place to start practising.")).not.toBeInTheDocument(); await expect(canvas.queryByRole("link")).not.toBeInTheDocument(); } };
+export const Mobile: Story = { ...InteractivePost, globals: { viewport: { value: "mobile1", isRotated: false } } };

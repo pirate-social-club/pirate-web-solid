@@ -28,6 +28,8 @@ export interface CommentThreadItem {
   readonly parentId: string | null;
   readonly body: string;
   readonly authorLabel?: string;
+  readonly authorAvatarRef?: string | null;
+  readonly createdAt?: string;
   readonly depth: number;
   readonly replyCount: number;
   readonly state: CommentDisplayState;

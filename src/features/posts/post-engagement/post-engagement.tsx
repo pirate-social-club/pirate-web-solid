@@ -1,4 +1,6 @@
-import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
+import { CommentCard } from "../shared-engagement/comment-card.tsx";
+import { EngagementControls } from "../shared-engagement/engagement-controls.tsx";
+import type { ContentAction } from "../shared-engagement/content-overflow-menu.tsx";
 import type { CommentThreadReader } from "./comment-thread-api.ts";
 import { createCommentThreadController } from "./comment-thread-controller.ts";
 import type { JSX } from "@solidjs/web";
@@ -6,12 +8,8 @@ import { For, Show, createEffect, createMemo, createSignal, untrack } from "soli
 
 import {
   Button,
-  Card,
-  CardContent,
-  CommentPill,
   FormattedTextarea,
   Type,
-  VotePill,
 } from "../../../design-system.ts";
 import { FeedPanelLayout, FeedSidePanel } from "../feed-side-panel/feed-side-panel.tsx";
 import {
@@ -98,27 +96,6 @@ function defaultIdempotencyKey(): string {
 
 function reportReasonFromValue(value: string): CommentReportReason {
   return REPORT_REASONS.find(reason => reason.value === value)?.value ?? "other";
-}
-
-function commentStateLabel(item: CommentThreadItem): string {
-  switch (item.state) {
-    case "age_locked": return "Age verification required";
-    case "submitting": return "Submitting";
-    case "published": return "Published";
-    case "manual_review": return "Held for review";
-    case "blocked": return "Blocked by policy";
-    case "hidden": return "Hidden";
-    case "removed": return "Removed";
-    case "restored": return "Restored";
-  }
-}
-
-function visibleCommentBody(item: CommentThreadItem): string {
-  if (item.state === "age_locked") return "Verify your age to view this comment.";
-  if (item.state === "hidden") return "This comment is hidden.";
-  if (item.state === "removed") return "This comment was removed.";
-  if (item.state === "blocked") return "This comment was not published.";
-  return item.body;
 }
 
 function unavailablePendingStorage(): PendingEngagementStorage {
@@ -660,16 +637,29 @@ export function PostEngagement(props: PostEngagementProps) {
     }
   };
 
+  const commentMenuActions = (item: CommentThreadItem): readonly ContentAction[] => {
+    const actions: ContentAction[] = [];
+    const add = (label: string, run: () => void) => actions.push({ label, run, disabled: actionBusyId() === item.id });
+    if (commentCountsAsPublished(item) && isCommentAddressable(item)) add("Report", () => void report(item));
+    if (props.canModerate && props.communityId && item.caseRef) {
+      if (item.state === "manual_review") {
+        add("Approve", () => void moderate(item, "approve_as_general"));
+        add("Reject", () => void moderate(item, "reject"));
+      } else if (item.state === "published" || item.state === "restored") {
+        add("Dismiss report", () => void moderate(item, "dismiss_report"));
+        add("Hide", () => void moderate(item, "hide"));
+      } else if (item.state === "hidden" || item.state === "blocked") {
+        add("Restore", () => void moderate(item, "restore"));
+      }
+    }
+    return actions;
+  };
+
   const controls = () => (
     <div class="flex flex-wrap items-center gap-3" data-post-engagement-controls data-viewer-control>
-      <VotePill
-        allowClear
-        busy={voteBusy()}
-        onVote={vote}
-        score={score()}
+      <EngagementControls busy={voteBusy()} onVote={vote} score={score()}
         viewerVote={viewerVote() === 1 ? "up" : viewerVote() === -1 ? "down" : null}
-      />
-      <CommentPill count={commentCount()} onComment={openComments} />
+        commentCount={commentCount()} onComment={openComments} />
       <Show when={issue()}>
         {(currentIssue) => <Type role="alert" variant="caption">{engagementIssueMessage(currentIssue())}</Type>}
       </Show>
@@ -698,22 +688,7 @@ export function PostEngagement(props: PostEngagementProps) {
           >
             <div class="flex flex-col gap-3">
               <For each={thread.ordered()}>{item => (
-                <Card
-                  class="border-border-soft"
-                  data-comment-depth={item.depth}
-                  data-comment-id={item.id}
-                  data-comment-state={item.state}
-                  style={{ "margin-inline-start": `${Math.min(item.depth, 8) * 0.75}rem` }}
-                >
-                  <CardContent class="flex flex-col gap-2 p-4">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                      <Type variant="label">{item.authorLabel ?? commentStateLabel(item)}</Type>
-                      <Show when={item.state !== "age_locked"}><Type variant="caption">Depth {item.depth} · {item.replyCount} replies</Type></Show>
-                    </div>
-                    <Show when={item.state === "age_locked"} fallback={<Type variant="body">{visibleCommentBody(item)}</Type>}><AgeAccessPrompt onVerified={thread.refresh} /></Show>
-                    <Show when={item.reportState}>
-                      {(reportState) => <Type role="status" variant="caption">Report {reportState()}</Type>}
-                    </Show>
+                <CommentCard item={item} onAgeVerified={thread.refresh} menuActions={commentMenuActions(item)}>
                     <div class="flex flex-wrap gap-2">
                       <Show when={item.replyCount > 0 && (thread.pages()[`parent:${item.id}`]?.state !== "ready" || thread.pages()[`parent:${item.id}`]?.cursor !== null)}>
                         <Button disabled={thread.pages()[`parent:${item.id}`]?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
@@ -723,28 +698,11 @@ export function PostEngagement(props: PostEngagementProps) {
                       <Show when={canReplyToComment(item)}>
                         <Button onClick={() => selectReply(item)} size="sm" type="button" variant="outline">Reply</Button>
                       </Show>
-                      <Show when={commentCountsAsPublished(item) && isCommentAddressable(item)}>
-                        <Button disabled={actionBusyId() === item.id} onClick={() => void report(item)} size="sm" type="button" variant="ghost">Report</Button>
-                      </Show>
                       <Show when={commentCountsAsPublished(item) && !isCommentAddressable(item) && item.submissionId !== null}>
                         <Button disabled={actionBusyId() === item.id} onClick={() => void refreshComment(item)} size="sm" type="button" variant="outline">Refresh comment</Button>
                       </Show>
-                      <Show when={props.canModerate && props.communityId && item.caseRef}>
-                        <Show when={item.state === "manual_review"}>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "approve_as_general")} size="sm" type="button">Approve</Button>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "reject")} size="sm" type="button" variant="outline">Reject</Button>
-                        </Show>
-                        <Show when={item.state === "published" || item.state === "restored"}>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "dismiss_report")} size="sm" type="button" variant="ghost">Dismiss report</Button>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "hide")} size="sm" type="button" variant="outline">Hide</Button>
-                        </Show>
-                        <Show when={item.state === "hidden" || item.state === "blocked"}>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "restore")} size="sm" type="button">Restore</Button>
-                        </Show>
-                      </Show>
                     </div>
-                  </CardContent>
-                </Card>
+                </CommentCard>
               )}</For>
             </div>
           </Show>
