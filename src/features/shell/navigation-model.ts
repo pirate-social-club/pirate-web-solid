@@ -36,7 +36,6 @@ export function profileSwitch(personaIds: readonly string[], selectedPersonaId: 
 
 export const primaryNavigation = [
   { id: "home", label: "For You", href: navigationPaths.home },
-  { id: "explore", label: "Explore", href: navigationPaths.explore },
   { id: "songs", label: "Your Songs", href: navigationPaths.songs },
   { id: "wallet", label: "Wallet", href: navigationPaths.wallet },
   { id: "profile", label: "Profile", href: navigationPaths.profile },
@@ -111,6 +110,5 @@ export function navigationHomePath(scope: ApplicationNavigationScope): string {
 
 export function scopedPrimaryNavigation(scope: ApplicationNavigationScope) {
   return primaryNavigation
-    .filter(item => scope.kind === "platform" || item.id !== "explore")
     .map(item => ({ ...item, label: item.id === "home" && scope.kind === "community" ? "Home" : item.label, href: item.id === "home" ? navigationHomePath(scope) : item.href }));
 }

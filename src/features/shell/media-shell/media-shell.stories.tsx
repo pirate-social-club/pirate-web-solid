@@ -167,9 +167,9 @@ export const DesktopNavigation: Story = {
     await expect(navigation.queryByRole("link", { name: "Post" })).not.toBeInTheDocument();
     await expect(navigation.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
     await expect(navigation.queryByText("Resources")).not.toBeInTheDocument();
-    await userEvent.click(navigation.getByRole("link", { name: "Explore" }));
-    await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /explore");
-    await expect(navigation.getByRole("link", { name: "Explore" })).toHaveAttribute("aria-current", "page");
+    await userEvent.click(navigation.getByRole("link", { name: "Your Songs" }));
+    await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /songs");
+    await expect(navigation.getByRole("link", { name: "Your Songs" })).toHaveAttribute("aria-current", "page");
     await userEvent.click(navigation.getByRole("link", { name: "Harbor Collective" }));
     await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /c/harbor");
     await expect(navigation.getByRole("link", { name: "Harbor Collective" })).toHaveAttribute("aria-current", "page");
@@ -255,6 +255,6 @@ export const Explore: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Explore" })).toBeInTheDocument();
-    await expect(canvas.getByText("Community discovery is not available yet.")).toBeInTheDocument();
+    await expect(canvas.getByText("Find songs to learn on Your Songs.")).toBeInTheDocument();
   },
 };

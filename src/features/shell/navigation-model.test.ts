@@ -52,6 +52,6 @@ describe("community application scope", () => {
     expect(scopedPrimaryNavigation(scope).map(item => item.id)).toEqual(["home", "songs", "wallet", "profile"]);
     expect(scopedPrimaryNavigation(scope)[0]?.href).toBe("/c/harbor");
     expect(scopedPrimaryNavigation(scope)[0]?.label).toBe("Home");
-    expect(scopedPrimaryNavigation({ kind: "platform" }).some(item => item.id === "explore")).toBe(true);
+    expect(scopedPrimaryNavigation({ kind: "platform" }).some(item => String(item.id) === "explore")).toBe(false);
   });
 });

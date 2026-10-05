@@ -14,11 +14,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 /** What production renders today: the song-history read has not been released. */
 export const NotYetAvailable: Story = {
-  render: () => <YourSongsPage songs={[]} state="not-yet-available" navigate={() => {}} />,
+  render: () => <YourSongsPage songs={[]} state="not-yet-available" trendingState="not-yet-available" navigate={() => {}} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Song history is coming soon" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("heading", { name: "Trending songs" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Songs to learn" })).toBeInTheDocument();
   },
 };
 export const NotYetAvailableMobile: Story = { ...NotYetAvailable, globals: { viewport: { value: "mobile1", isRotated: false } } };
@@ -42,6 +42,6 @@ export const SongActions: Story = {
   },
 };
 
-export const WithTrending: Story = { render: () => <YourSongsPage songs={songs} trending={[{ id: "new-tide", title: "New Tide", artist: "Harbor", studyPath: "/p/new-tide/study", karaokePath: "/p/new-tide/karaoke" }]} navigate={() => {}} /> };
-export const MobileWithTrending: Story = { ...WithTrending, globals: { viewport: { value: "mobile1", isRotated: false } } };
-export const TrendingUnavailable: Story = { render: () => <YourSongsPage songs={songs} trendingState="unavailable" onTrendingRetry={() => {}} navigate={() => {}} /> };
+export const SongsToLearn: Story = { render: () => <YourSongsPage songs={songs} trending={[{ id: "new-tide", title: "New Tide", artist: "Harbor", studyPath: "/p/new-tide/study", karaokePath: "/p/new-tide/karaoke" }]} navigate={() => {}} /> };
+export const MobileSongsToLearn: Story = { ...SongsToLearn, globals: { viewport: { value: "mobile1", isRotated: false } } };
+export const SongsToLearnUnavailable: Story = { render: () => <YourSongsPage songs={songs} trendingState="unavailable" onTrendingRetry={() => {}} navigate={() => {}} /> };

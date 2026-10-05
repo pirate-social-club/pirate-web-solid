@@ -48,7 +48,7 @@ describe("Application navigation", () => {
   test("connects desktop destinations and keeps native link targets", () => {
     const navigate = vi.fn();
     const container = render(() => <ApplicationChrome signedIn communityNavigation={{ kind: "ready", data: { joined: [], popular: [], created: [] } }} navigate={navigate}>Route</ApplicationChrome>);
-    for (const path of ["/", "/explore", "/songs", "/wallet"]) {
+    for (const path of ["/", "/songs", "/wallet"]) {
       const link = container.querySelector<HTMLAnchorElement>(`aside a[href="${path}"]`)!;
       expect(link).not.toBeNull();
       link.click();

@@ -23,7 +23,7 @@ export interface YourSongsPageProps {
   loadingMore?: boolean;
   loadMoreFailed?: boolean;
   trending?: readonly LibrarySong[];
-  trendingState?: "ready" | "loading" | "unavailable";
+  trendingState?: "ready" | "loading" | "unavailable" | "not-yet-available";
   onTrendingRetry?: () => void;
 }
 
@@ -45,10 +45,10 @@ export function YourSongsPage(props: YourSongsPageProps) {
     <section aria-label="Recent activity" class="space-y-4"><Type as="h2" variant="h3">Recent activity</Type>
     <Show when={props.state === "loading"}><Type role="status">Loading your songs…</Type></Show>
     <Show when={props.state === "signed-out"}><Card><CardContent class="space-y-4 p-6"><Type>Sign in to see your songs.</Type><Button onClick={props.onSignIn}>Sign in</Button></CardContent></Card></Show>
-    <Show when={props.state === "not-yet-available"}><Card><CardContent class="space-y-4 p-6"><Type as="h2" variant="h3">Song history is coming soon</Type><Type>For now, open a song post and choose Study or Karaoke to practise it.</Type><Button onClick={() => props.navigate("/")}>Explore Home</Button></CardContent></Card></Show>
+    <Show when={props.state === "not-yet-available"}><Card><CardContent class="space-y-4 p-6"><Type as="h2" variant="h3">Song history is coming soon</Type><Type>For now, open a song post and choose Study or Karaoke to practise it.</Type><Button onClick={() => props.navigate("/")}>Browse For You</Button></CardContent></Card></Show>
     <Show when={props.state === "unavailable"}><Card><CardContent class="space-y-4 p-6"><Type>Your songs could not be loaded.</Type><Button variant="outline" onClick={props.onRetry}>Try again</Button></CardContent></Card></Show>
     <Show when={ready()}>
-      <Show when={props.songs.length > 0} fallback={<Card><CardContent class="space-y-4 p-6"><Type as="h2" variant="h3">No songs yet</Type><Type>Start studying, singing, or dancing to a song and it will appear here.</Type><Button onClick={() => props.navigate("/")}>Explore Home</Button></CardContent></Card>}>
+      <Show when={props.songs.length > 0} fallback={<Card><CardContent class="space-y-4 p-6"><Type as="h2" variant="h3">No songs yet</Type><Type>Start studying, singing, or dancing to a song and it will appear here.</Type><Button onClick={() => props.navigate("/")}>Browse For You</Button></CardContent></Card>}>
         <Input aria-label="Find a song" placeholder="Find a song" value={query()} onInput={event => setQuery(event.currentTarget.value)} />
         <SongCollection label="Your songs" songs={songs()} navigate={props.navigate} />
         <Show when={songs().length === 0}><Type>No matching songs.</Type></Show>
@@ -56,15 +56,16 @@ export function YourSongsPage(props: YourSongsPageProps) {
       <Show when={props.loadMoreFailed}><Type role="alert">More songs could not be loaded. Try Load more again.</Type></Show>
       <Show when={props.onLoadMore}><Button variant="outline" onClick={props.onLoadMore} disabled={props.loadingMore}>{props.loadingMore ? "Loading…" : "Load more"}</Button></Show>
     </Show></section>
-    <Show when={props.state !== "not-yet-available"}><section aria-labelledby="trending-songs-heading" class="space-y-4">
-      <div><Type as="h2" variant="h3" id="trending-songs-heading">Trending songs</Type><Type class="text-muted-foreground">Songs people have been practising this week.</Type></div>
-      <Show when={props.trendingState === "loading"}><Type role="status">Loading trending songs…</Type></Show>
-      <Show when={props.trendingState === "unavailable"}><Type>Trending songs could not be loaded.</Type><Button variant="outline" onClick={props.onTrendingRetry}>Try again</Button></Show>
+    <section aria-labelledby="songs-to-learn-heading" class="space-y-4">
+      <div><Type as="h2" variant="h3" id="songs-to-learn-heading">Songs to learn</Type><Type class="text-muted-foreground">Find something new to study or sing.</Type></div>
+      <Show when={props.trendingState === "not-yet-available"}><Type>For now, find a song post in For You and choose Study or Karaoke.</Type><Button variant="outline" onClick={() => props.navigate("/")}>Browse For You</Button></Show>
+      <Show when={props.trendingState === "loading"}><Type role="status">Loading songs…</Type></Show>
+      <Show when={props.trendingState === "unavailable"}><Type>Songs to learn could not be loaded.</Type><Button variant="outline" onClick={props.onTrendingRetry}>Try again</Button></Show>
       <Show when={(props.trendingState ?? "ready") === "ready"}>
-        <Show when={props.trending?.length} fallback={<Type class="text-muted-foreground">No trending songs yet.</Type>}>
-          <SongCollection label="Trending songs" songs={props.trending ?? []} navigate={props.navigate} />
+        <Show when={props.trending?.length} fallback={<Type class="text-muted-foreground">No songs to learn yet.</Type>}>
+          <SongCollection label="Songs to learn" songs={props.trending ?? []} navigate={props.navigate} />
         </Show>
       </Show>
-    </section></Show>
+    </section>
   </main>;
 }
