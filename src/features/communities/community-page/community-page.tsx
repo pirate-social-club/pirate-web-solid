@@ -574,6 +574,7 @@ function SuccessState(props: {
               />
             </Show>
             <PersonaSwitcherSheet
+              title="Profile in this community"
               open={localSwitcherOpen()}
               onOpenChange={setLocalSwitcherOpen}
               personas={personaOptions()}

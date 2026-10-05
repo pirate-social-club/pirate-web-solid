@@ -118,9 +118,11 @@ type Story = StoryObj<typeof meta>;
 
 export const StandalonePostingProfiles: Story = {
   args: {
-    surfaceData,
+    surfaceData: { ...surfaceData, posts: [] },
     engagementApi: settledEngagement({ kind: "join" }),
     loadThreads: settledLoad,
+    resolveOwnerSettingsAccess: async () => false,
+    handleSalesClient: { get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) },
     resolveSession: async () => ({
       status: "authenticated",
       userId: "storybook-account",
@@ -143,7 +145,7 @@ export const StandalonePostingProfiles: Story = {
     await expect(control).toHaveAttribute("title", "Posting as Night Shift");
     const id = toast.info("Posting profile selected", { duration: 60000 });
     try {
-      const status = await body.findByRole("status");
+      const status = await body.findByRole("status", { name: "Posting profile selected" });
       await waitFor(() => {
         const feedback = status.getBoundingClientRect();
         const profile = control.getBoundingClientRect();

@@ -389,6 +389,7 @@ describe("CommunityPage", () => {
     expect(container.querySelector("[data-community-persona-reserved]")).toBeNull();
     container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!.click();
     await vi.waitFor(() => expect(document.body.querySelector("input[value='persona-two']")).not.toBeNull());
+    expect(document.body.querySelector('[role="dialog"]')?.getAttribute("aria-label") ?? document.body.querySelector('[role="dialog"]')?.textContent).toContain("Profile in this community");
     document.body.querySelector<HTMLInputElement>("input[value='persona-two']")!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")?.getAttribute("title")).toBe("Posting as Persona Two"));
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
