@@ -4,6 +4,7 @@ import {
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
   type ReportCommentResponse,
+  type ReportPostResponse,
   type CastPostVoteResponse,
   type GetTextContentSubmissionResponse,
   createPirateApiClient,
@@ -49,6 +50,7 @@ export function isPostEngagementApiClientError(error: unknown): error is PostEng
 export interface PostEngagementTransport {
   createComment(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentResponse>;
   createReply(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentReplyResponse>;
+  reportPost(envelope: PendingSubmissionEnvelopeV1): Promise<ReportPostResponse>;
   reportComment(envelope: PendingSubmissionEnvelopeV1): Promise<ReportCommentResponse>;
   readModerationCase(communityId: string, caseRef: string): Promise<CommentModerationCaseDetail>;
   moderateCase(envelope: PendingSubmissionEnvelopeV1): Promise<CommentModerationResponse>;
@@ -153,6 +155,13 @@ export function createPostEngagementTransport(
       return clientForEnvelope(options, envelope).post_commentsCommentIdReplies({
         path: { commentId: action.commentId },
         body: { persona_id: action.personaId, idempotency_key: action.idempotencyKey, body: action.body },
+      }, requestOptions(options));
+    },
+    async reportPost(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "post_report");
+      return clientForEnvelope(options, envelope).post_postsPostIdReports({
+        path: { postId: action.postId },
+        body: { idempotency_key: action.idempotencyKey, reason_code: action.reasonCode },
       }, requestOptions(options));
     },
     async reportComment(envelope) {

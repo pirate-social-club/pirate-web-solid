@@ -1,8 +1,7 @@
 /** One destination map for desktop, the mobile drawer and the four mobile tabs. */
 export const navigationPaths = {
-  home: "/", post: "/communities", songs: "/songs",
-  wallet: "/wallet", profile: "/me", settings: "/settings",
-  "your-communities": "/communities", "create-community": "/communities/new",
+  home: "/", songs: "/songs",
+  wallet: "/wallet", profile: "/me",
 } as const;
 
 const paths = new Map<string, string>(Object.entries(navigationPaths));
@@ -33,4 +32,83 @@ export function profileSwitch(personaIds: readonly string[], selectedPersonaId: 
   const current = selectedPersonaId !== undefined && personaIds.includes(selectedPersonaId) ? selectedPersonaId : personaIds[0];
   const other = personaIds.find(personaId => personaId !== current) ?? personaIds[0]!;
   return { kind: "toggle", personaId: other };
+}
+
+export const primaryNavigation = [
+  { id: "home", label: "For You", href: navigationPaths.home },
+  { id: "songs", label: "Your Songs", href: navigationPaths.songs },
+  { id: "wallet", label: "Wallet", href: navigationPaths.wallet },
+  { id: "profile", label: "Profile", href: navigationPaths.profile },
+] as const;
+
+export function primaryNavigationLabel(id: typeof primaryNavigation[number]["id"]) {
+  return primaryNavigation.find(item => item.id === id)!.label;
+}
+
+export interface NavigationCommunity {
+  readonly communityId: string;
+  readonly displayName: string;
+  readonly href: string | null;
+}
+
+/** Supply popular entries in descending member-count order. */
+export interface CommunityNavigationData {
+  readonly joined: readonly NavigationCommunity[];
+  readonly popular: readonly NavigationCommunity[];
+  /** Communities where the viewer has server-confirmed moderation access. */
+  readonly moderated: readonly NavigationCommunity[];
+}
+
+export type CommunityNavigationState =
+  | { readonly kind: "hidden" }
+  | { readonly kind: "loading" }
+  | { readonly kind: "error" }
+  | { readonly kind: "ready"; readonly data: CommunityNavigationData };
+
+export const sidebarCommunityLimit = 5;
+
+function uniqueCommunities(communities: readonly NavigationCommunity[], excluded = new Set<string>()) {
+  const seen = new Set(excluded);
+  return communities.filter(community => {
+    if (seen.has(community.communityId)) return false;
+    seen.add(community.communityId);
+    return true;
+  });
+}
+
+/** One projection for the desktop sidebar and phone drawer, with no recents. */
+export function communityNavigationSections(data: CommunityNavigationData, limit = sidebarCommunityLimit) {
+  const moderated = uniqueCommunities(data.moderated);
+  const moderatedIds = new Set(moderated.map(community => community.communityId));
+  const joined = uniqueCommunities(data.joined, moderatedIds);
+  const popular = uniqueCommunities(data.popular, new Set([...moderatedIds, ...joined.map(community => community.communityId)]));
+  const communities = [...joined, ...popular];
+  return {
+    communities: communities.slice(0, limit),
+    moderated,
+    // Keep overflow reachable without adding a redundant link to short lists.
+    seeAllJoined: joined.length > limit,
+  };
+}
+
+
+/** Host scope is supplied by verified application context, never a route guess. */
+export type ApplicationNavigationScope =
+  | { readonly kind: "platform" }
+  | {
+      readonly kind: "community";
+      readonly community: NavigationCommunity;
+      /** Present only after current-community moderation access resolves. */
+      readonly moderationHref?: string;
+    };
+
+export const platformNavigationScope: ApplicationNavigationScope = { kind: "platform" };
+
+export function navigationHomePath(scope: ApplicationNavigationScope): string {
+  return scope.kind === "community" ? scope.community.href ?? "/" : navigationPaths.home;
+}
+
+export function scopedPrimaryNavigation(scope: ApplicationNavigationScope) {
+  return primaryNavigation
+    .map(item => ({ ...item, label: item.id === "home" && scope.kind === "community" ? "Home" : item.label, href: item.id === "home" ? navigationHomePath(scope) : item.href }));
 }

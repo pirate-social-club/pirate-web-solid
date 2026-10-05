@@ -11,7 +11,7 @@ export function YourSongsRouteView() {
   const personas = useApplicationPersonas();
   const navigate = useNavigate();
   if (songLibrarySource === undefined) {
-    return <YourSongsPage songs={[]} navigate={navigate} onSignIn={requestGlobalSignIn} state={account() === "anonymous" ? "signed-out" : "not-yet-available"} />;
+    return <YourSongsPage songs={[]} trendingState="not-yet-available" navigate={navigate} onSignIn={requestGlobalSignIn} state={account() === "anonymous" ? "signed-out" : "not-yet-available"} />;
   }
   const library = createYourSongs(() => account() ?? "resolving", () => personas?.selected()?.personaId, songLibrarySource);
   const state = () => {

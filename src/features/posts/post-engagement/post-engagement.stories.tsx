@@ -1,3 +1,4 @@
+import { ContentOverflowMenu } from "../shared-engagement/content-overflow-menu.tsx";
 /** @jsxImportSource @solidjs/web */
 import { ApiClientError } from "@pirate/api-client";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -11,6 +12,7 @@ import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } f
 import { PostEngagement } from "./post-engagement.tsx";
 
 const noopTransport: PostEngagementTransport = {
+  reportPost: async () => ({ report_id: "post-report", case_ref: "post-case", status: "open" }),
   createComment: async () => { throw new Error("Story does not submit comments"); },
   createReply: async () => { throw new Error("Story does not submit replies"); },
   reportComment: async envelope => {
@@ -80,6 +82,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
   return (
     <div class="mx-auto max-w-3xl p-6">
       <PostEngagement
+        canReportPost
         canModerate
         communityId="community-story"
         principalId="storybook-viewer"
@@ -90,7 +93,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
         post={{ id: "story-post", upvoteCount: 18, downvoteCount: 1, commentCount: 7, viewerVote }}
         transport={transport}
       >
-        {(controls) => <Card><CardContent class="flex flex-col gap-4 p-6"><Type variant="h2">Harbor discussion</Type>{controls}</CardContent></Card>}
+        {(controls, menuActions) => <Card><CardContent class="flex flex-col gap-4 p-6"><div class="flex items-center justify-between gap-3"><Type variant="h2">Harbor discussion</Type><ContentOverflowMenu label="Post options" actions={menuActions} /></div>{controls}</CardContent></Card>}
       </PostEngagement>
     </div>
   );
@@ -112,7 +115,7 @@ export const CommentStateMatrix: Story = {
     for (const state of states) {
       await expect(canvasElement.ownerDocument.querySelector(`[data-comment-state='${state}']`)).toBeInTheDocument();
     }
-    await expect(body.getByText("Depth 8 · 6 replies")).toBeInTheDocument();
+    await expect(body.queryByText("Depth 8 · 6 replies")).not.toBeInTheDocument();
   },
 };
 
@@ -143,5 +146,19 @@ export const VoteConflict: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Upvote" }));
     await expect(canvas.getByRole("alert")).toHaveTextContent("action key was already used");
+  },
+};
+
+export const PostReporting: Story = {
+  render: () => frame(null, noopTransport, []),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(body.queryByRole("menuitem", { name: "Report" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Post options" }));
+    await userEvent.click(body.getByRole("menuitem", { name: "Report" }));
+    await userEvent.selectOptions(body.getByLabelText("Post report reason"), "harassment");
+    await userEvent.click(body.getByRole("button", { name: "Submit report" }));
+    await expect(canvas.getByText("Post reported")).toBeVisible();
   },
 };

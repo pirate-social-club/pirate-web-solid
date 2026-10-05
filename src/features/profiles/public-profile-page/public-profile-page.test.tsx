@@ -8,6 +8,9 @@ import PublicProfileRoute, { route as publicProfileRoute } from "../../../routes
 import PublicProfilePage from "./public-profile-page";
 import type { PublicProfileSuccess, PublicProfileViewState } from "./public-profile-page.model";
 
+// jsdom omits the browser method used by the shared tabs primitive.
+Element.prototype.scrollIntoView = vi.fn();
+
 const disposers: Array<() => void> = [];
 const initialUrl = window.location.href;
 
@@ -39,9 +42,9 @@ const profileResponse = (communities: GetPublicProfilesHandleResponse["created_c
     id: "profile-1",
     object: "profile",
     display_name: "Captain One",
-    avatar_ref: "avatar-ref-must-not-render",
+    avatar_ref: "/media/avatar-public",
     avatar_source: "upload",
-    cover_ref: "cover-ref-must-not-render",
+    cover_ref: "/media/cover-public",
     cover_source: "upload",
     bio: "A public bio.",
     bio_source: "manual",
@@ -82,12 +85,13 @@ describe("PublicProfilePage", () => {
     ]));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.textContent).toContain("A public bio.");
-    expect(container.textContent).toContain("Harbor");
-    expect(container.querySelector("a[href='/c/dock']")).toBeTruthy();
-    expect(container.querySelector("a[href^='/c/']")?.textContent).toBe("Dock");
-    expect(container.textContent).not.toContain("avatar-ref-must-not-render");
-    expect(container.textContent).not.toContain("cover-ref-must-not-render");
+    expect(container.textContent).not.toContain("Harbor");
+    expect(container.querySelector("a[href='/c/dock']")).toBeNull();
+    expect(container.querySelector("a[href^='/c/']")).toBeNull();
+    expect(container.querySelectorAll("img")[1]?.getAttribute("src")).toBe(new URL("/media/avatar-public", window.location.origin).toString());
+    expect(container.querySelectorAll("img")[0]?.getAttribute("src")).toBe(new URL("/media/cover-public", window.location.origin).toString());
     expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelectorAll("[role=tab]")).toHaveLength(0);
   });
 
   test("keeps a minimal public profile free of empty sections and viewer controls", async () => {
@@ -95,7 +99,15 @@ describe("PublicProfilePage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.querySelector("#created-communities-heading")).toBeNull();
     expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-one.pirate");
-    expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
+    expect(container.querySelector("button, input, textarea, [data-viewer-control], a[href='/settings']")).toBeNull();
+  });
+
+  test("rejects foreign and non-HTTP profile media", async () => {
+    const result = profileResponse();
+    const container = render(() => <PublicProfilePage handle="captain-one" client={client({ ...result, profile: { ...result.profile, avatar_ref: "https://foreign.example/avatar.png", cover_ref: "javascript:alert(1)" } })} />);
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelectorAll("[role=tab]")).toHaveLength(0);
   });
 
   test("renders invalid, missing, and unavailable states without raw errors", async () => {
@@ -152,7 +164,7 @@ describe("PublicProfilePage", () => {
     setState(successState("captain-two"));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
     expect(container.textContent).toContain("Bio for captain-two");
-    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")).toBeNull();
     expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-two.pirate");
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
@@ -221,7 +233,7 @@ describe("PublicProfilePage", () => {
     const secondPath = new URL(secondInput instanceof Request ? secondInput.url : String(secondInput)).pathname;
     expect(secondPath).toContain("captain-two");
     expect(container.textContent).toContain("Bio for captain-two");
-    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")).toBeNull();
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
     expect(document.title).toContain("captain-two.pirate");

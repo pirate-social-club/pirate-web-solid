@@ -45,17 +45,19 @@ export async function preloadPublicProfile(
 }
 
 const queryPublicProfile = query(
-  async (handle: string): Promise<PublicProfileViewState> => loadPublicProfile(createPublicApiClient({ origin: requestOrigin() }), handle),
+  async (handle: string): Promise<PublicProfileViewState> => {
+    // Adopt inside query so the settled public response is serialized for hydration.
+    // SAFETY: entry-server alone writes this validated request-local result.
+    const settled = getRequestEvent()?.locals.publicProfilePreflight as PublicProfilePreflight | undefined;
+    if (settled?.requestedHandle === handle) return settled.state;
+    return loadPublicProfile(createPublicApiClient({ origin: requestOrigin() }), handle);
+  },
   "public-profile",
 );
 
 export const route = defineFileRoute("/u/:handle", {
   preload: ({ params }) => {
     const decodedHandle = decodePublicProfileRouteParam(params.handle);
-    // SAFETY: entry-server is the sole writer for this request-local key and
-    // stores only a validated PublicProfilePreflight.
-    const settled = getRequestEvent()?.locals.publicProfilePreflight as PublicProfilePreflight | undefined;
-    if (settled?.requestedHandle === decodedHandle) return settled.state;
     return queryPublicProfile(decodedHandle).then(state => {
       commitPublicProfileResponse(state);
       return state;

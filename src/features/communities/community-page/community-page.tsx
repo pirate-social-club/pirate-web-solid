@@ -1,3 +1,5 @@
+import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
+import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
@@ -511,14 +513,12 @@ function SuccessState(props: {
               // persona, so gating them on one withheld an action the account
               // was always entitled to take. The comment composer inside asks
               // for a profile, because authorship is the part that needs one.
-              <Show when={engagement.postingSession()} fallback={render()}>
+              <Show when={engagement.postingSession()} fallback={render(<EngagementControls score={post.score} commentCount={post.commentCount ?? 0} busy={engagement.accountIdentity() !== null} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
                 {session => (
-                  // Until this post's vote is read, the counts stand in rather
-                  // than a control claiming the viewer has not voted before
-                  // anything has looked.
+                  // Keep the same pills disabled until the account vote is known.
                   <Show when={viewerVoteFor(post.id) !== undefined && viewerVoteFor(post.id) !== "unavailable"} fallback={
                     <>
-                      {render()}
+                      {render(<EngagementControls score={post.score} commentCount={post.commentCount ?? 0} busy onVote={() => {}} onComment={() => {}} />)}
                       <Show when={viewerVoteFor(post.id) === "unavailable"}>
                         <div role="status">
                           Your vote could not be checked.
@@ -528,6 +528,7 @@ function SuccessState(props: {
                     </>
                   }>
                     <PostEngagement
+                      canReportPost={post.supportsPostReports === true}
                       communityId={communityId}
                       personaId={selectedPersonaId()}
                       post={engagementPost(post, (() => {
@@ -536,7 +537,7 @@ function SuccessState(props: {
                       })())}
                       principalId={session().userId}
                       transport={props.postEngagementTransport}
-                    >{controls => render(controls)}</PostEngagement>
+                    >{(controls, menuActions) => render(controls, menuActions)}</PostEngagement>
                   </Show>
                 )}
               </Show>

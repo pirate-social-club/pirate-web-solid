@@ -84,6 +84,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
       <ApplicationSessionProvider state={session} pending={accountPending}>
         <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
+          currentPath={location.pathname}
           activeItemId={policy().activeItemId}
           mobileActiveItem={policy().mobileActiveItem}
           mobileTitle={policy().mobileTitle}

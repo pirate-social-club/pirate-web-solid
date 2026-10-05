@@ -47,6 +47,8 @@ export function createCommentThreadController(options: {
               submissionId: null,
               caseRef: null,
               href: null,
+              authorAvatarRef: item.author_persona?.avatar_ref,
+              createdAt: item.created_at,
               authorLabel:
                 item.author_persona?.primary_public_handle ??
                 item.author_persona?.display_name ??

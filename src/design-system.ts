@@ -100,6 +100,7 @@ export {
   RadioIndicator,
   Select,
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
   Textarea,
@@ -207,3 +208,5 @@ export {
   type MobilePageHeaderProps,
 } from "@pirate/web-solid-ui";
 export { ConfirmDialog, type ConfirmDialogProps } from "@pirate/web-solid-ui";
+
+export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@pirate/web-solid-ui";

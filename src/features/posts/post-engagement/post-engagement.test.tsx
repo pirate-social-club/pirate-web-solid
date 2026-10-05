@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
@@ -17,6 +18,8 @@ import {
   PostEngagement as PostEngagementComponent,
   type PostEngagementProps,
 } from "./post-engagement.tsx";
+
+HTMLElement.prototype.scrollIntoView = vi.fn();
 
 const disposers: Array<() => void> = [];
 
@@ -56,6 +59,7 @@ function transportFixture(createComment: PostEngagementTransport["createComment"
   return {
     createComment,
     createReply: vi.fn(),
+    reportPost: vi.fn(),
     reportComment: vi.fn(),
     readModerationCase: vi.fn(async () => { throw new Error("moderation case read not configured"); }),
     moderateCase: vi.fn(),
@@ -79,6 +83,33 @@ afterEach(() => {
 });
 
 describe("PostEngagement", () => {
+  test("opens the post menu and retries a report with the retained reason and key", async () => {
+    const storage = createMemoryPendingEngagementStorage();
+    const transport = transportFixture(vi.fn());
+    const reportPost = vi.fn<PostEngagementTransport["reportPost"]>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ report_id: "report-post", case_ref: "case-post", status: "open" });
+    render(() => <PostEngagement canReportPost principalId="account" post={{ id: "post-1", upvoteCount: 3, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+      pendingStorage={storage} transport={{ ...transport, reportPost }} generateIdempotencyKey={() => "retained-post-report-key"} />);
+    expect(document.querySelector('[role="menuitem"]')).toBeNull();
+    await userEvent.click(button("Post options"));
+    await userEvent.click(button("Report"));
+    const reason = document.querySelector('select[aria-label="Post report reason"]')!;
+    await userEvent.selectOptions(reason, "harassment");
+    await userEvent.click(button("Submit report"));
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    await userEvent.selectOptions(reason, "spam");
+    const retry = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent?.trim() === "Retry retained request")!;
+    await userEvent.click(retry);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Post reported"));
+    expect(reportPost).toHaveBeenCalledTimes(2);
+    expect(reportPost.mock.calls[0][0]).toEqual(reportPost.mock.calls[1][0]);
+    await expect(decodePendingEngagementAction(reportPost.mock.calls[1][0])).resolves.toMatchObject({
+      kind: "post_report", postId: "post-1", reasonCode: "harassment", idempotencyKey: "retained-post-report-key",
+    });
+    expect(storage.records.size).toBe(0);
+  });
+
   test("reads persisted comments and replies on demand, including after remount", async () => {
     window.scrollTo=vi.fn();
     const row=(id:string,parent:string|null,depth:number)=>({comment_id:id,parent_comment_id:parent,body:`Persisted ${id}`,depth,reply_count:parent?0:1,status:"published" as const,content_rating:"general" as const,created_at:"2026-09-09T00:00:00Z",author_persona:null});
@@ -554,7 +585,7 @@ describe("PostEngagement", () => {
     expect(document.querySelector("[data-comment-id='submission:submission-held']")?.getAttribute("data-comment-state")).toBe("published");
     button("Refresh comment").click();
     await vi.waitFor(() => expect(document.querySelector("[data-comment-id='comment-approved']")).not.toBeNull());
-    expect(button("Report")).toBeTruthy();
+    expect(button("Comment options")).toBeTruthy();
     expect(button("Reply")).toBeTruthy();
     expect(transport.readSubmission).toHaveBeenCalledTimes(2);
     expect(transport.readSubmission).toHaveBeenCalledWith("submission-held");
@@ -611,7 +642,8 @@ describe("PostEngagement", () => {
     button("Comments (1)").click();
     await vi.waitFor(() => expect(document.querySelector("[data-comment-id='comment-1']")).not.toBeNull());
     expect([...document.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Hide")).toBe(false);
-    button("Report").click();
+    await userEvent.click(button("Comment options"));
+    await userEvent.click(button("Report"));
     await vi.waitFor(() => expect(button("Hide")).toBeTruthy());
     const reportEnvelope = vi.mocked(transport.reportComment).mock.calls[0]?.[0];
     if (reportEnvelope === undefined) throw new Error("report envelope missing");
@@ -739,12 +771,13 @@ describe("PostEngagement", () => {
     };
     render(() => <PostEngagement {...props} />);
     button("Comments (1)").click();
-    await vi.waitFor(() => expect(button("Report")).toBeTruthy());
+    await vi.waitFor(() => expect(button("Comment options")).toBeTruthy());
     const reason = document.querySelector("select[aria-label='Report reason']");
     if (!(reason instanceof HTMLSelectElement)) throw new Error("report reason missing");
     reason.value = "harassment";
     reason.dispatchEvent(new Event("change", { bubbles: true }));
-    button("Report").click();
+    await userEvent.click(button("Comment options"));
+    await userEvent.click(button("Report"));
     await vi.waitFor(() => expect(document.body.textContent).toContain("Retrying will reuse the same action key"));
 
     disposers.pop()?.();
@@ -757,7 +790,8 @@ describe("PostEngagement", () => {
       if (!(restoredReason instanceof HTMLSelectElement)) throw new Error("restored report reason missing");
       expect(restoredReason.value).toBe("harassment");
     });
-    button("Report").click();
+    await userEvent.click(button("Comment options"));
+    await userEvent.click(button("Report"));
     await vi.waitFor(() => expect(document.body.textContent).toContain("Report open"));
     expect(reportComment).toHaveBeenCalledTimes(2);
     expect(reportComment.mock.calls[1]?.[0]).toEqual(reportComment.mock.calls[0]?.[0]);

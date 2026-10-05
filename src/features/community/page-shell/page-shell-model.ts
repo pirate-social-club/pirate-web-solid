@@ -21,6 +21,8 @@ export interface CommunityPost {
   authorHandle?: string;
   authorAvatarSrc?: string | null;
   kind?: CommunityPostKind;
+  /** The report endpoint currently accepts published text submissions only. */
+  supportsPostReports?: boolean;
   mediaSrc?: string | null;
   mediaTitle?: string;
   mediaArtist?: string;

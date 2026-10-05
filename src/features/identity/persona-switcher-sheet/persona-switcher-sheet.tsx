@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import {
@@ -35,6 +36,7 @@ export interface PersonaSwitcherSheetProps {
   unavailable?: boolean;
   onRetry?: () => void;
   onAfterClose?: () => void;
+  footer?: JSX.Element;
 }
 
 /** Shared profile picker: bottom sheet on mobile, centered dialog on desktop. */
@@ -89,6 +91,7 @@ export function PersonaSwitcherSheet(props: PersonaSwitcherSheetProps) {
             }}
           </For>
         </RadioGroup>
+        {props.footer}
       </ModalContent>
     </Modal>
   );

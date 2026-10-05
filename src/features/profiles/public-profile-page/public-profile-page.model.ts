@@ -20,6 +20,8 @@ export type PublicProfileSuccess = Readonly<{
     readonly displayName: string | null;
     readonly handle: string;
     readonly bio: string | null;
+    readonly avatarRef?: string | null;
+    readonly coverRef?: string | null;
   }>;
   readonly communities: readonly PublicProfileCommunity[];
 }>;
@@ -144,6 +146,8 @@ export function projectPublicProfile(
       displayName: profile.display_name?.trim() || null,
       handle: resolved.labelDisplay,
       bio: profile.bio?.trim() || null,
+      avatarRef: profile.avatar_ref,
+      coverRef: profile.cover_ref,
     },
     communities,
   };

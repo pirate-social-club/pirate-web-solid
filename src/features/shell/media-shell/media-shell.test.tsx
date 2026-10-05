@@ -29,9 +29,20 @@ afterEach(() => {
 });
 
 describe("Application navigation", () => {
+  test("keeps route updates working after a pending viewer resolves anonymous", async () => {
+    const [resolving, setResolving] = createSignal(true);
+    const [route, setRoute] = createSignal("Initial route");
+    const container = render(() => <ApplicationChrome sessionResolving={resolving()} signedIn={false}>{route()}</ApplicationChrome>);
+    setResolving(false);
+    await vi.waitFor(() => expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("anonymous"));
+    setRoute("Recovered route");
+    await vi.waitFor(() => expect(container.textContent).toContain("Recovered route"));
+    expect(container.querySelector("aside")?.textContent).toContain("Sign in");
+  });
+
   test("lets a community banner reach the top without the generic phone header", () => {
     const container = render(() => <ApplicationChrome hideMobileHeader mobileTitle="Community">Banner</ApplicationChrome>);
-    expect(container.querySelector('button[aria-label="Open communities and settings"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Open navigation"]')).toBeNull();
     expect(container.querySelector('nav[aria-label="Primary navigation"]')).not.toBeNull();
     expect(container.textContent).toContain("Banner");
   });
@@ -47,15 +58,15 @@ describe("Application navigation", () => {
 
   test("connects desktop destinations and keeps native link targets", () => {
     const navigate = vi.fn();
-    const container = render(() => <ApplicationChrome navigate={navigate}>Route</ApplicationChrome>);
-    for (const path of ["/", "/songs", "/wallet", "/communities", "/settings"]) {
+    const container = render(() => <ApplicationChrome signedIn communityNavigation={{ kind: "ready", data: { joined: [], popular: [], moderated: [] } }} navigate={navigate}>Route</ApplicationChrome>);
+    for (const path of ["/", "/songs", "/wallet"]) {
       const link = container.querySelector<HTMLAnchorElement>(`aside a[href="${path}"]`)!;
       expect(link).not.toBeNull();
       link.click();
       expect(navigate).toHaveBeenLastCalledWith(path);
     }
-    for (const path of ["/search", "/live", "/study", "/karaoke", "/terms", "/privacy", "/activity"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
-    [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create community")!.click();
+    for (const path of ["/search", "/live", "/study", "/karaoke", "/settings", "/activity"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
+    container.querySelector<HTMLButtonElement>('aside button[aria-label="Create community"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/communities/new");
     expect([...container.querySelectorAll<HTMLButtonElement>("aside button")].some(button => button.textContent === "Create")).toBe(false);
     expect(container.textContent).not.toContain("Notifications");
@@ -68,11 +79,11 @@ describe("Application navigation", () => {
     expect(footer.querySelectorAll("button")).toHaveLength(4);
     // An unsigned profile tab reads Sign in, matching what a tap there does.
     const labels = [...footer.querySelectorAll("button")].map(control => control.getAttribute("aria-label"));
-    expect(labels).toEqual(["Home", "Your songs", "Wallet", "Sign in"]);
+    expect(labels).toEqual(["For You", "Your Songs", "Wallet", "Sign in"]);
     footer.querySelector<HTMLButtonElement>('button[aria-label="Wallet"]')!.click();
     expect(navigate).toHaveBeenCalledWith("/wallet");
     expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
-    footer.querySelector<HTMLButtonElement>('button[aria-label="Your songs"]')!.click();
+    footer.querySelector<HTMLButtonElement>('button[aria-label="Your Songs"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/songs");
     const post = container.querySelector<HTMLButtonElement>('button[aria-label="Choose a community to post in"]');
     expect(post?.textContent).toBe("Post");
@@ -88,14 +99,14 @@ describe("Application navigation", () => {
       { communityId: "community-2", displayName: "Night Radio", href: "/c/night" },
     ];
     const container = render(() => <ApplicationChrome signedIn navigate={navigate} personas={personas} selectedPersonaId="one" loadCommunities={async () => communities}>Route</ApplicationChrome>);
-    container.querySelector<HTMLButtonElement>('button[aria-label="Open communities and settings"]')!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Open navigation"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     const dialog = document.querySelector('[role="dialog"]')!;
     await vi.waitFor(() => expect(dialog.textContent).toContain("Night Radio"));
     expect(dialog.textContent).not.toContain("Night Shift");
     expect([...dialog.querySelectorAll("button")].some(button => button.textContent?.trim() === "Harbor")).toBe(false);
     expect(dialog.querySelector('a[href="/wallet"], a[href="/songs"]')).toBeNull();
-    [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.includes("Harbor Collective"))!.click();
+    dialog.querySelector<HTMLAnchorElement>('a[href="/c/harbor"]')!.click();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/harbor"));
     expect(document.body.style.pointerEvents).not.toBe("none");
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
@@ -265,4 +276,45 @@ describe("Application navigation", () => {
     const container = render(() => <ApplicationChrome mode="bare"><main>Verify</main></ApplicationChrome>);
     expect(container.querySelector("[data-application-chrome]")).toBeNull();
   });
+});
+
+describe("community application navigation", () => {
+  test("suppresses global discovery reads and anonymous moderation", async () => {
+    const loadCommunityNavigation = vi.fn();
+    const container = render(() => <ApplicationChrome signedIn={false} navigationScope={{ kind: "community", community: { communityId: "harbor", displayName: "Harbor", href: "/c/harbor" }, moderationHref: "/c/harbor/settings/moderation_queue" }} loadCommunityNavigation={loadCommunityNavigation}>Feed</ApplicationChrome>);
+    await Promise.resolve();
+    expect(loadCommunityNavigation).not.toHaveBeenCalled();
+    const navigation = container.querySelector('nav[aria-label="Main navigation"]')!;
+    expect(navigation.querySelector('a[href="/explore"]')).toBeNull();
+    expect(navigation.querySelector('a[href="/c/harbor/settings/moderation_queue"]')).toBeNull();
+    expect(navigation.querySelector('a[href="/c/harbor"]')?.textContent).toContain("Home");
+  });
+});
+
+test("anonymous production defaults hide community discovery without an error or retry", async () => {
+  const memberships = vi.fn();
+  const container = render(() => <ApplicationChrome signedIn={false} loadCommunities={memberships}>Feed</ApplicationChrome>);
+  await vi.waitFor(() => expect(container.querySelector('[aria-label="Create community"]')).toBeNull());
+  expect(memberships).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("Communities couldn’t be loaded");
+  expect(container.querySelector('[aria-label="Create community"]')).toBeNull();
+});
+
+test("route navigation updates the current community without reloading memberships", async () => {
+  const load = vi.fn(async () => [{ communityId: "harbor", displayName: "Harbor", href: "/c/harbor" }]);
+  const [path, setPath] = createSignal("/");
+  const container = render(() => <ApplicationChrome signedIn currentPath={path()} loadCommunities={load}>Feed</ApplicationChrome>);
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+  setPath("/c/harbor");
+  await vi.waitFor(() => expect(container.querySelector('a[href="/c/harbor"]')?.getAttribute("aria-current")).toBe("page"));
+  expect(load).toHaveBeenCalledTimes(1);
+});
+
+test("an authenticated account without profiles can reach Settings through the profile picker", async () => {
+  const navigate = vi.fn();
+  const container = render(() => <ApplicationChrome signedIn personas={[]} navigate={navigate}>Feed</ApplicationChrome>);
+  container.querySelector<HTMLAnchorElement>('aside a[href="/me"]')!.click();
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"] a[href="/settings"]')).not.toBeNull());
+  document.querySelector<HTMLAnchorElement>('[role="dialog"] a[href="/settings"]')!.click();
+  await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/settings"));
 });

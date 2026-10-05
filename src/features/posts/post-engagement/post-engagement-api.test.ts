@@ -58,7 +58,7 @@ describe("createPostEngagementTransport", () => {
       seen.push({ url, body: new TextDecoder().decode(bytes) });
       const response = url.endsWith("/comments/comment-1/replies")
         ? { ...commentResponse, surface: "reply" as const }
-        : url.endsWith("/comments/comment-1/reports")
+        : url.endsWith("/comments/comment-1/reports") || url.endsWith("/posts/post-1/reports")
           ? { report_id: "report-1", case_ref: "case-1", status: "open" as const }
           : url.endsWith("/moderation/cases/case-1/actions")
             ? { version: "moderation-case-action-result-v2" as const, action_id: "action-1", case_ref: "case-1", action: "hide" as const, target_status: "hidden" as const }
@@ -68,7 +68,7 @@ describe("createPostEngagementTransport", () => {
                 ? { post_id: "post-1", value: 0 as const }
                 : commentResponse;
       return new Response(JSON.stringify(response), {
-        status: url.includes("/comments") && !url.includes("/moderation/") ? 201 : 200,
+        status: url.endsWith("/reports") || (url.includes("/comments") && !url.includes("/moderation/")) ? 201 : 200,
         headers: { "content-type": "application/json" },
       });
     });
@@ -96,6 +96,7 @@ describe("createPostEngagementTransport", () => {
     };
     const reply = await createPendingEngagementRecord({ kind: "reply", commentId: "comment-1", personaId: "persona-1", body: "Exact reply", idempotencyKey: "key-reply" }, context);
     const report = await createPendingEngagementRecord({ kind: "report", commentId: "comment-1", reasonCode: "spam", idempotencyKey: "key-report" }, context);
+    const postReport = await createPendingEngagementRecord({ kind: "post_report", postId: "post-1", reasonCode: "harassment", idempotencyKey: "key-post-report" }, context);
     const moderate = await createPendingEngagementRecord({ kind: "moderate", caseRef: "case-1", action: "hide", expectedCaseRevision: 7, idempotencyKey: "key-action" }, context);
     const vote = await createPendingEngagementRecord({ kind: "vote", postId: "post-1", value: -1, idempotencyKey: "key-vote" }, context);
     const clearVote = await createPendingEngagementRecord({ kind: "clear_vote", postId: "post-1", idempotencyKey: "key-clear" }, context);
@@ -103,6 +104,7 @@ describe("createPostEngagementTransport", () => {
     await expect(transport.createComment(exactCommentEnvelope)).resolves.toEqual(commentResponse);
     await transport.createReply(reply.envelope);
     await transport.reportComment(report.envelope);
+    await transport.reportPost(postReport.envelope);
     await transport.moderateCase(moderate.envelope);
     await transport.castVote(vote.envelope);
     await transport.clearVote(clearVote.envelope);
@@ -110,6 +112,7 @@ describe("createPostEngagementTransport", () => {
       { url: "https://solid.example/api/posts/post-1/comments", body: rawComment },
       { url: "https://solid.example/api/comments/comment-1/replies", body: "{\"persona_id\":\"persona-1\",\"idempotency_key\":\"key-reply\",\"body\":\"Exact reply\"}" },
       { url: "https://solid.example/api/comments/comment-1/reports", body: "{\"idempotency_key\":\"key-report\",\"reason_code\":\"spam\"}" },
+      { url: "https://solid.example/api/posts/post-1/reports", body: JSON.stringify({ idempotency_key: "key-post-report", reason_code: "harassment" }) },
       { url: "https://solid.example/api/moderation/cases/case-1/actions", body: "{\"version\":\"moderation-case-action-v2\",\"idempotency_key\":\"key-action\",\"expected_case_revision\":7,\"action\":\"hide\"}" },
       { url: "https://solid.example/api/posts/post-1/vote", body: "{\"idempotency_key\":\"key-vote\",\"value\":-1}" },
       { url: "https://solid.example/api/posts/post-1/clear_vote", body: "{\"idempotency_key\":\"key-clear\"}" },

@@ -1,3 +1,6 @@
+import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
+import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
+import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
@@ -13,8 +16,6 @@ import {
   FlatTabBar,
   FlatTabButton,
   IconArrowLeft,
-  IconArrowUp,
-  IconChatCircle,
   IconDotsThree,
   IconMusicNote,
   IconPlus,
@@ -81,7 +82,7 @@ export interface CommunityPageShellProps {
   managePending?: boolean;
   renderPost?: (
     post: CommunityPost,
-    render: (actions?: JSX.Element) => JSX.Element,
+    render: (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element,
   ) => JSX.Element;
 }
 
@@ -91,38 +92,12 @@ function formatCount(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-function postTimestamp(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const age = Math.max(0, Date.now() - date.getTime());
-  const hours = Math.floor(age / 3_600_000);
-  if (hours < 24) return `${Math.max(1, hours)}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${Math.max(1, days)}d ago`;
-}
 
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
-    <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
-      {/* No engagement controls yet: either no posting session was resolved,
-          or the viewer's own state for this post is still being read. These
-          were three buttons with no handlers behind them, which offered
-          actions that could never happen. They are the standing counts
-          instead, and the real controls take their place once there is a
-          viewer who can act and enough known about them to act correctly. */}
+    <div class="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Post actions">
       <Show when={props.engagementControls} fallback={
-        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
-          <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">
-            <IconArrowUp class="size-4" aria-hidden="true" />
-            <span>{props.post.score}</span>
-            <span class="sr-only">points</span>
-          </span>
-          <span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3">
-            <IconChatCircle class="size-4" aria-hidden="true" />
-            <span>{props.post.commentCount ?? 0}</span>
-            <span class="sr-only">comments</span>
-          </span>
-        </div>
+        <EngagementControls score={props.post.score} commentCount={props.post.commentCount ?? 0} />
       }>{controls => controls()}</Show>
     </div>
   );
@@ -149,7 +124,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -164,7 +139,8 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
           size="xs"
         />
         <Type as="span" variant="label">{author()}</Type>
-        <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
+        <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
+        <div class="ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>
           {communityId => <div class="ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
         </Show>
@@ -344,7 +320,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element) => <CommunityPostCard actions={actions} communityId={props.community.id} post={post} />;
+    const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
   // Keep this owned subtree stable for SSR hydration key allocation.

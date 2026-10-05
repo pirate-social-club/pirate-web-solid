@@ -31,6 +31,11 @@ try {
       contentType: "application/json",
       body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
     }));
+    await page.route("**/api/users/me/community-memberships**", route => route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+    }));
     await page.route("**/api/users/me", async route => {
       if (retryAccountResponse) {
         accountRetryRequests += 1;
@@ -82,7 +87,8 @@ try {
   if (apiDown) {
     let releaseRetry;
     retryAccountResponse = new Promise(resolve => { releaseRetry = resolve; });
-    await page.getByRole("button", { name: "Profile", exact: true }).first().click();
+    await page.locator("[data-shell-auth='unavailable']").waitFor();
+    await page.getByRole("complementary", { name: "Navigation", exact: true }).getByRole("button", { name: "Profile", exact: true }).click();
     const retry = page.getByRole("dialog", { name: "Your profiles" }).getByRole("button", { name: "Try again" });
     await retry.waitFor();
     const accountRequest = page.waitForRequest("**/api/users/me");
@@ -175,7 +181,7 @@ try {
     await page.locator("form input").first().fill("Retained browser draft");
     releaseAccount();
     await page.locator("[data-shell-auth='authenticated']").waitFor();
-    const profileRetry = page.getByRole("button", { name: "Try again", exact: true });
+    const profileRetry = page.locator("main[data-route-path='/communities/new']").getByRole("button", { name: "Try again", exact: true });
     await profileRetry.waitFor();
     accountGate = new Promise(resolve => { releaseAccount = resolve; });
     const retryRequest = page.waitForRequest("**/api/users/me");
@@ -184,15 +190,15 @@ try {
     if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "authenticated") {
       throw new Error("Background refresh discarded authenticated chrome");
     }
-    const sidebar = page.locator("aside");
+    const sidebar = page.getByRole("complementary", { name: "Navigation", exact: true });
     if (/Session active|Checking your account|Your Pirate/u.test(await sidebar.innerText())) {
       throw new Error("Background refresh exposed session diagnostics in navigation");
     }
     if (!await sidebar.getByRole("button", { name: "Profile", exact: true }).isVisible()) {
       throw new Error("Background refresh removed the profile picker");
     }
-    if (!await sidebar.getByRole("link", { name: "Settings", exact: true }).isVisible()) {
-      throw new Error("Background refresh removed account settings access");
+    if (await sidebar.getByRole("link", { name: "Settings", exact: true }).count()) {
+      throw new Error("Settings must be reached through profile controls, not the sidebar");
     }
     releaseAccount();
     await profileRetry.waitFor();

@@ -44,6 +44,8 @@ export default defineConfig({
       "src/features/wallet/wallet-route-ssr.test.tsx",
       "src/features/posts/public-post/public-post-activities-ssr.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime-ssr.test.tsx",
+      "src/features/profiles/own-profile-settings-ssr.test.tsx",
+      "src/features/posts/shared-engagement/comment-card-ssr.test.tsx",
     ],
   },
 });

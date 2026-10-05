@@ -54,10 +54,21 @@ describe("public Community thread feed", () => {
         authorHandle: "captain-one.pirate",
         authorAvatarSrc: "/media/captain.webp",
         kind: "text",
+        supportsPostReports: true,
         commentCount: 3,
       }],
       nextCursor: "next-page",
     });
+  });
+
+  test.each(["song", "video"])("does not expose text-submission reports for %s posts", (postType) => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const media: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({
+      ...response,
+      items: [{ ...item, post: { ...item.post, post_type: postType } }],
+    }));
+    expect(normalizeCommunityThreadPage(media).posts[0]?.supportsPostReports).toBe(false);
   });
 
   test("keeps both vote sides when the net score cannot express them", () => {

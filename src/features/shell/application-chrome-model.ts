@@ -37,8 +37,8 @@ export function isCommunityManagementRoute(pathname: string): boolean {
 }
 
 /**
- * The four mobile tabs are Home, Your songs, Wallet and Profile; the sidebar
- * adds Your communities, Create community and Settings. Search, Live and
+ * The four mobile tabs are For You, Your Songs, Wallet and Profile; desktop
+ * adds the shared community sections. Search, Live and
  * Activity keep their routes so old links resolve, but they are unlisted and
  * highlight no item. A viewer's own public profile highlights Profile; anyone
  * else's profile highlights nothing, which is what `viewerProfilePath`
@@ -82,6 +82,7 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
       mode: "standard",
     };
   }
+
   if (first === "songs") {
     return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Your songs", mode: "standard" };
   }

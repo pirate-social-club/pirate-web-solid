@@ -27,6 +27,7 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API, and
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
+      "src/features/profiles/own-profile-settings.test.tsx",
       "src/features/posts/song-player/song-player.test.tsx",
       "src/features/rewards/*.test.ts",
       "src/features/rewards/*.test.tsx",
