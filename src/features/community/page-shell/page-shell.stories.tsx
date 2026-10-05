@@ -157,7 +157,7 @@ export const MobileSort: Story = {
     await userEvent.click(trigger);
     await userEvent.click(await body.findByRole("button", { name: "New" }));
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
-    await expect(trigger).toHaveFocus();
+    await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(trigger);
     await expect(await body.findByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
