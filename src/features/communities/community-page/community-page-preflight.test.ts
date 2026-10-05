@@ -80,6 +80,39 @@ describe("community page preflight", () => {
     expect(JSON.stringify(result)).not.toContain("secret");
   });
 
+  test("sends a literal root to the direct API and preserves an unbound 404", async () => {
+    const request = new Request("https://pirate.test/c/@csca");
+    const fetchImpl = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new URL(input instanceof Request ? input.url : input.toString()).toString()).toBe("https://api-next.test/c/@csca");
+      expect(init?.credentials).toBe("omit");
+      expect(init?.signal).toBe(request.signal);
+      return new Response(JSON.stringify({ error: { code: "not_found", message: "Community not found", retryable: false } }), {
+        status: 404, headers: { "content-type": "application/json" },
+      });
+    });
+    const result = await resolveCommunityPagePreflight(request, "https://api-next.test", fetchImpl);
+    expect(result?.state).toEqual({ kind: "not-found", status: 404 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  test("projects a bound Spaces community and serializes its settled SSR feed", async () => {
+    const rootRoute = { community_id: communityId, canonical_route: {
+      family: "spaces", root_label: "csca", root_label_display: "csca",
+      path_segment: "@csca", href: "/c/@csca", app_host: null,
+    } };
+    const seen: string[] = [];
+    const fetchImpl = mock(async (input: RequestInfo | URL) => {
+      seen.push(new URL(input instanceof Request ? input.url : input.toString()).pathname);
+      return new Response(JSON.stringify(seen.length === 1 ? rootRoute : seen.length === 2 ? preview : { community: preview, items: [], next_cursor: null }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    });
+    const result = await resolveCommunityPagePreflight(new Request("https://pirate.test/c/@csca"), "https://api-next.test", fetchImpl);
+    expect(seen[0]).toBe("/c/@csca");
+    expect(result?.state).toMatchObject({ kind: "success", status: 200, communityId, routeFamily: "spaces", canonicalUrl: "https://pirate.test/c/@csca", initialFeed: { kind: "ready", posts: [] } });
+    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+  });
+
   test("maps settled states to non-cacheable SSR policies", () => {
     expect(communityPageResponsePolicy({ kind: "invalid", status: 400 })).toMatchObject({ status: 400, statusText: "Bad Request" });
     expect(communityPageResponsePolicy({ kind: "not-found", status: 404 })).toMatchObject({ status: 404, statusText: "Not Found" });

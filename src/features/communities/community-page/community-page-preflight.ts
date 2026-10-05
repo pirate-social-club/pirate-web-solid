@@ -1,4 +1,5 @@
-import { createPirateApiClient, type PirateApiClientOptions } from "@pirate/api-client";
+import { createCanonicalCommunityRouteClient } from "../../../api/community-route-client.ts";
+import type { PirateApiClientOptions } from "@pirate/api-client";
 import { validateApiNextOrigin } from "../../../api/origin.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
 import { loadCommunityThreadPage } from "./community-thread-feed-api.ts";
@@ -60,7 +61,7 @@ export async function resolveCommunityPagePreflight(
     // SAFETY: ApiFetch has the generated client's standard fetch call shape.
     fetchImpl: fetchImpl as typeof fetch,
   };
-  const client = createPirateApiClient(`${origin.origin}/`, options);
+  const client = createCanonicalCommunityRouteClient(`${origin.origin}/`, options);
   const state = await loadCommunityPage(client, requestedPathSegment, new URL(request.url).origin);
   if (state.kind !== "success") return { requestedPathSegment, state };
   try {
