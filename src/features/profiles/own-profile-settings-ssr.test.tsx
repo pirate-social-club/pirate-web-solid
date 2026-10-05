@@ -20,12 +20,12 @@ test("cached public HTML contains no private Settings link even with an owned pr
 test("the complete cached hero renders public media and details without account controls or activity tabs", () => {
   const html = renderToString(() => <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "viewer" })}><ApplicationPersonasContext value={profiles}>
     <ProfileLayout name="Owned" handle="owned.pirate" personaId="owned" servingOrigin="https://web-next-staging.pirate.sc"
-      avatarRef="/media/avatar" coverRef="/media/cover" bio="Public bio" communities={[{ name: "Harbor", href: "/c/harbor" }]} />
+      avatarRef="/media/avatar" coverRef="/media/cover" bio="Public bio" />
   </ApplicationPersonasContext></ApplicationSessionProvider>);
   expect(html).toContain("https://web-next-staging.pirate.sc/media/avatar");
   expect(html).toContain("https://web-next-staging.pirate.sc/media/cover");
   expect(html).toContain("Public bio");
-  expect(html).toContain("/c/harbor");
+  expect(html).not.toContain("created-communities-heading");
   expect(html).not.toContain("/settings");
   expect(html).not.toContain('role="tab"');
   expect(html).not.toContain("xl:grid-cols-");

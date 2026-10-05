@@ -110,7 +110,7 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
       <ProfileLayout name={displayName()} handle={state().canonicalHandle}
         avatarRef={state().profile.avatarRef} coverRef={state().profile.coverRef}
         servingOrigin={requestOrigin()} bio={state().profile.bio}
-        communities={state().communities} communityHeading={copy.createdCommunities} />
+        />
       <Show when={!state().isCanonical}><AliasRedirect state={state()} navigate={props.navigate} /></Show>
     </main>
   );

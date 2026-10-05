@@ -32,8 +32,7 @@ export function ProfileSettingsReview(props: { visitor?: boolean; live?: boolean
     }}>
       <Show when={settings()} fallback={<Show when={props.live} fallback={<main class="pb-12"><ProfileLayout name="Owned profile" handle="owned.pirate"
         coverRef="/storybook/karaoke-artwork.svg" avatarRef="/storybook/karaoke-artwork.svg"
-        bio="Songs, community sessions and late-night listening."
-        communities={[{ name: "Harbor Collective", href: "/c/harbor" }, { name: "Night Shift", href: "/c/night-shift" }]}>
+        bio="Songs, community sessions and late-night listening.">
         <ProfilePage renderOverview={() => <><FixturePost /><FixtureComment /></>} renderPosts={FixturePost} renderComments={FixtureComment} />
       </ProfileLayout></main>}><PublicProfilePage handle="owned.pirate" data={{ kind: "success", status: 200, requestedHandle: "owned.pirate", canonicalHandle: "owned.pirate", canonicalPath: "/u/owned.pirate", isCanonical: true, profile: { displayName: "Owned profile", handle: "owned.pirate", bio: "Songs, community sessions and late-night listening.", avatarRef: "/storybook/karaoke-artwork.svg", coverRef: "/storybook/karaoke-artwork.svg" }, communities: [{ name: "Harbor Collective", href: "/c/harbor" }, { name: "Night Shift", href: "/c/night-shift" }] }} /></Show>}><AccountPage navigate={() => setSettings(false)} /></Show>
     </div>

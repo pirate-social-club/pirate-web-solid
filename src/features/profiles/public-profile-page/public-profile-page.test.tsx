@@ -85,9 +85,9 @@ describe("PublicProfilePage", () => {
     ]));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
     expect(container.textContent).toContain("A public bio.");
-    expect(container.textContent).toContain("Harbor");
-    expect(container.querySelector("a[href='/c/dock']")).toBeTruthy();
-    expect(container.querySelector("a[href^='/c/']")?.textContent).toBe("Dock");
+    expect(container.textContent).not.toContain("Harbor");
+    expect(container.querySelector("a[href='/c/dock']")).toBeNull();
+    expect(container.querySelector("a[href^='/c/']")).toBeNull();
     expect(container.querySelectorAll("img")[1]?.getAttribute("src")).toBe(new URL("/media/avatar-public", window.location.origin).toString());
     expect(container.querySelectorAll("img")[0]?.getAttribute("src")).toBe(new URL("/media/cover-public", window.location.origin).toString());
     expect(container.querySelector("button")).toBeNull();
@@ -164,7 +164,7 @@ describe("PublicProfilePage", () => {
     setState(successState("captain-two"));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
     expect(container.textContent).toContain("Bio for captain-two");
-    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")).toBeNull();
     expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-two.pirate");
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
@@ -233,7 +233,7 @@ describe("PublicProfilePage", () => {
     const secondPath = new URL(secondInput instanceof Request ? secondInput.url : String(secondInput)).pathname;
     expect(secondPath).toContain("captain-two");
     expect(container.textContent).toContain("Bio for captain-two");
-    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")).toBeNull();
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
     expect(document.title).toContain("captain-two.pirate");

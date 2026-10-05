@@ -11,8 +11,6 @@ export interface ProfileLayoutProps {
   readonly coverRef?: string | null;
   readonly servingOrigin?: string;
   readonly bio?: string | null;
-  readonly communities?: readonly { readonly name: string; readonly href?: string }[];
-  readonly communityHeading?: string;
   readonly names?: readonly string[];
   readonly children?: JSX.Element;
 }
@@ -37,7 +35,7 @@ export function ProfileLayout(props: ProfileLayoutProps) {
   };
   const avatar = () => profileMediaUrl(props.avatarRef, servingOrigin());
   const cover = () => profileMediaUrl(props.coverRef, servingOrigin());
-  return <section class="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 px-3 py-3 md:px-6 md:py-6" data-profile-layout>
+  return <section class="mx-auto flex w-full min-w-0 max-w-[65.5rem] flex-col gap-5 px-3 py-3 md:px-6 md:py-6" data-profile-layout>
     <section aria-label="Profile" class="overflow-hidden md:rounded-3xl md:border md:border-border-soft md:bg-card">
       <div class="relative h-36 overflow-hidden bg-muted md:h-48" data-profile-cover>
         <Show when={cover()}>{source => <img src={source()} alt="" class="size-full object-cover" />}</Show>
@@ -56,10 +54,6 @@ export function ProfileLayout(props: ProfileLayoutProps) {
         </div>
       </div>
     </section>
-    <Show when={props.communities?.length}><section aria-labelledby="created-communities-heading" class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
-      <Type as="h2" variant="label" id="created-communities-heading">{props.communityHeading ?? "Created communities"}</Type>
-      <ul class="flex min-w-0 flex-wrap gap-x-4 gap-y-2"><For each={props.communities}>{community => <li><Show when={community.href} fallback={<Type variant="body">{community.name}</Type>}>{href => <a class="break-words hover:underline" href={href()}><Type variant="body">{community.name}</Type></a>}</Show></li>}</For></ul>
-    </section></Show>
     <Show when={props.names?.length}><section aria-labelledby="profile-names-heading" class="flex min-w-0 flex-wrap items-center gap-3"><Type as="h2" variant="label" id="profile-names-heading">Names</Type><ul aria-label="Names" class="flex flex-wrap gap-3"><For each={props.names}>{name => <li><Type variant="caption" class="break-all">{name}</Type></li>}</For></ul></section></Show>
     {props.children}
   </section>;
