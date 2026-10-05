@@ -29,6 +29,17 @@ afterEach(() => {
 });
 
 describe("Application navigation", () => {
+  test("keeps route updates working after a pending viewer resolves anonymous", async () => {
+    const [resolving, setResolving] = createSignal(true);
+    const [route, setRoute] = createSignal("Initial route");
+    const container = render(() => <ApplicationChrome sessionResolving={resolving()} signedIn={false}>{route()}</ApplicationChrome>);
+    setResolving(false);
+    await vi.waitFor(() => expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("anonymous"));
+    setRoute("Recovered route");
+    await vi.waitFor(() => expect(container.textContent).toContain("Recovered route"));
+    expect(container.querySelector("aside")?.textContent).toContain("Sign in");
+  });
+
   test("lets a community banner reach the top without the generic phone header", () => {
     const container = render(() => <ApplicationChrome hideMobileHeader mobileTitle="Community">Banner</ApplicationChrome>);
     expect(container.querySelector('button[aria-label="Open navigation"]')).toBeNull();

@@ -70,10 +70,10 @@ export function AppSidebar(props: AppSidebarProps) {
     </nav>
     <Show when={!props.collapsed && (props.accountControl || props.signInAction)}>
       <div class="mt-4 border-t border-sidebar-border pt-4">
-        <Show when={props.accountControl} fallback={<Button class="w-full" onClick={() => props.signInAction?.onClick()} onFocus={() => props.signInAction?.prepare()} onPointerDown={() => props.signInAction?.prepare()} onPointerEnter={() => props.signInAction?.preload()}>Sign in</Button>}>
-          {account => <button aria-label={account().label} aria-haspopup="dialog" onClick={() => account().onClick()} type="button" class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Avatar fallback={account().displayName} fallbackSeed={account().avatarSeed ?? account().displayName} src={account().avatarSrc ?? undefined} size="sm" />
-            <span class="min-w-0 flex-1"><span class="block truncate text-base font-semibold leading-6">{account().displayName}</span><Show when={account().handle}><span class="block truncate text-base leading-5 text-muted-foreground">{account().handle}</span></Show></span>
+        <Show keyed when={props.accountControl} fallback={<Button class="w-full" onClick={() => props.signInAction?.onClick()} onFocus={() => props.signInAction?.prepare()} onPointerDown={() => props.signInAction?.prepare()} onPointerEnter={() => props.signInAction?.preload()}>Sign in</Button>}>
+          {account => <button aria-label={account.label} aria-haspopup="dialog" onClick={account.onClick} type="button" class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar fallback={account.displayName} fallbackSeed={account.avatarSeed ?? account.displayName} src={account.avatarSrc ?? undefined} size="sm" />
+            <span class="min-w-0 flex-1"><span class="block truncate text-base font-semibold leading-6">{account.displayName}</span><Show when={account.handle}><span class="block truncate text-base leading-5 text-muted-foreground">{account.handle}</span></Show></span>
           </button>}
         </Show>
       </div>
