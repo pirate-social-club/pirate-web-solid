@@ -30,7 +30,7 @@ export function ProfileSettingsReview(props: { visitor?: boolean; live?: boolean
       const target = event.target;
       if (target instanceof Element && target.closest('a[href="/settings"]')) { event.preventDefault(); setSettings(true); }
     }}>
-      <Show when={settings()} fallback={<Show when={props.live} fallback={<main class="pb-12"><ProfileLayout hasActivity name="Owned profile" handle="owned.pirate"
+      <Show when={settings()} fallback={<Show when={props.live} fallback={<main class="pb-12"><ProfileLayout name="Owned profile" handle="owned.pirate"
         coverRef="/storybook/karaoke-artwork.svg" avatarRef="/storybook/karaoke-artwork.svg"
         bio="Songs, community sessions and late-night listening."
         communities={[{ name: "Harbor Collective", href: "/c/harbor" }, { name: "Night Shift", href: "/c/night-shift" }]}>
