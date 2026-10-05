@@ -1,3 +1,4 @@
+import { ContentOverflowMenu } from "../shared-engagement/content-overflow-menu.tsx";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
@@ -114,12 +115,18 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
             {attribution => <div class="mt-2"><SongAttributionChip attribution={attribution()} /></div>}
           </Show>
         </Show>
+        <Show when={props.response.content.post.post_type !== "song"}>
+          <div class="mt-5"><PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
+            post={{ id: props.response.post_id, upvoteCount: count(props.response.content.upvote_count), downvoteCount: count(props.response.content.downvote_count), commentCount: count(props.response.content.comment_count) }}>
+            {(controls, menuActions) => <div class="flex items-start justify-between gap-3">{controls}<ContentOverflowMenu label="Post options" actions={menuActions} /></div>}
+          </PublicPostEngagement></div>
+        </Show>
         <Show when={props.response.content.post.post_type === "song"}>
           <div class="mt-6 grid min-w-0 gap-5">
             <h1 class="sr-only">{title()}</h1>
             <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
-              {controls => <CommunityPostCard post={songPost()} actions={controls} />}
+              {(controls, menuActions) => <CommunityPostCard post={songPost()} actions={controls} menuActions={menuActions} />}
             </PublicPostEngagement>
             <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
             <Show when={route()}>

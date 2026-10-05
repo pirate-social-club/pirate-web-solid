@@ -245,6 +245,7 @@ describe("CommunityPage", () => {
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         loadThreads={loadThreads}
         navigate={navigate}
+        resolveSession={async () => "anonymous"}
         pathSegment="xn--pokmon-dva"
       />
     ));
@@ -256,14 +257,13 @@ describe("CommunityPage", () => {
     container.querySelector<HTMLButtonElement>('button[aria-label="Go back"]')!.click();
     expect(navigate).toHaveBeenCalledWith("/communities");
 
-    // No session was resolved, so nothing here can act. The counts are shown,
-    // and no control is offered that has no handler behind it.
-    const counts = container.querySelector("[data-post-counts]");
-    expect(counts).not.toBeNull();
-    expect(counts?.textContent).toContain("7");
-    expect(counts?.textContent).toContain("4");
-    expect(counts?.querySelector("button")).toBeNull();
-    expect(container.querySelector("[aria-label='Post actions'] button")).toBeNull();
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Upvote']")?.disabled).toBe(false));
+    const signIn = vi.fn();
+    window.addEventListener("pirate:connect", signIn, { once: true });
+    container.querySelector<HTMLButtonElement>("button[aria-label='Upvote']")!.click();
+    expect(signIn).toHaveBeenCalledOnce();
+    expect(container.querySelector("button[aria-label='Downvote']")).not.toBeNull();
+
   });
 
   test("shows the viewer's existing vote as selected rather than as no vote", async () => {
@@ -339,7 +339,7 @@ describe("CommunityPage", () => {
     ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Your vote could not be checked"));
-    expect(container.querySelector("button[aria-label='Upvote']")).toBeNull();
+    expect(container.querySelector<HTMLButtonElement>("button[aria-label='Upvote']")?.disabled).toBe(true);
     const retry = Array.from(container.querySelectorAll("button")).find(button => button.textContent === "Retry vote");
     expect(retry).toBeDefined();
     retry?.click();

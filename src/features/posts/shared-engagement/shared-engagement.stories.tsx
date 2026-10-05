@@ -62,7 +62,23 @@ export const InteractivePost: Story = {
 };
 export const ReadOnlyPost: Story = {
   render: () => <div class="mx-auto max-w-3xl"><CommunityPostCard post={{ id: "readonly", title: "Harbor Lights", body: "Public post", score: 3, commentCount: 2, publishedAt: "2026-10-05T08:00:00Z" }} /></div>,
-  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument(); await expect(canvas.queryByRole("button", { name: "Upvote" })).not.toBeInTheDocument(); },
+  name: "Signed-out post",
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    let prompts = 0;
+    const prompted = () => { prompts += 1; };
+    const window = canvasElement.ownerDocument.defaultView!;
+    window.addEventListener("pirate:connect", prompted);
+    try {
+      await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
+      await userEvent.click(canvas.getByRole("button", { name: "Upvote" }));
+      await userEvent.click(canvas.getByRole("button", { name: "Downvote" }));
+      await userEvent.click(canvas.getByRole("button", { name: "Comments (2)" }));
+      await expect(prompts).toBe(3);
+    } finally {
+      window.removeEventListener("pirate:connect", prompted);
+    }
+  },
 };
 export const PublicComment: Story = {
   render: () => <CommentFixture />,

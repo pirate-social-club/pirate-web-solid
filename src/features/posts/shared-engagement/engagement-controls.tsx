@@ -19,7 +19,7 @@ export function EngagementControls(props: EngagementControlsProps) {
       <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3"><IconArrowUp class="size-4" aria-hidden="true" /><span>{props.score}</span><span class="sr-only">points</span></span>
       <Show when={props.commentCount !== undefined}><span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3"><IconChatCircle class="size-4" aria-hidden="true" /><span>{props.commentCount}</span><span class="sr-only">comments</span></span></Show>
     </div>}><VotePill allowClear busy={props.busy} onVote={props.onVote} score={props.score} viewerVote={props.viewerVote} /></Show>
-    <Show when={props.onComment}><CommentPill count={props.commentCount ?? 0} onComment={props.onComment} /></Show>
+    <Show when={props.onComment}><CommentPill disabled={props.busy} count={props.commentCount ?? 0} onComment={props.onComment} /></Show>
     {props.children}
   </div>;
 }

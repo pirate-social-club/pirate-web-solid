@@ -13,3 +13,11 @@ test("age-locked comments redact retained content and identity in SSR", () => {
   expect(html).toContain("Verify your age to view this comment.");
   expect(html).not.toContain("restricted-");
 });
+
+test("public comments omit debug metadata when no timestamp exists", () => {
+  const html = renderToString(() => <CommentCard item={{ id: "public", submissionId: null, parentId: null,
+    body: "Public comment", authorLabel: "Public profile", depth: 2, replyCount: 3, state: "published", caseRef: null, href: null }} />);
+  expect(html).toContain("Public profile");
+  expect(html).not.toContain("Depth");
+  expect(html).not.toContain("replies");
+});

@@ -22,6 +22,7 @@ const PENDING_ENGAGEMENT_STORE_NAME = "pending-actions";
 export type PendingEngagementAction =
   | { readonly kind: "comment"; readonly postId: string; readonly personaId: string; readonly body: string; readonly idempotencyKey: string }
   | { readonly kind: "reply"; readonly commentId: string; readonly personaId: string; readonly body: string; readonly idempotencyKey: string }
+  | { readonly kind: "post_report"; readonly postId: string; readonly reasonCode: CommentReportReason; readonly idempotencyKey: string }
   | { readonly kind: "report"; readonly commentId: string; readonly reasonCode: CommentReportReason; readonly idempotencyKey: string }
   | { readonly kind: "moderate"; readonly caseRef: string; readonly action: CommentModerationAction; readonly expectedCaseRevision: number; readonly idempotencyKey: string }
   | { readonly kind: "vote"; readonly postId: string; readonly value: -1 | 1; readonly idempotencyKey: string }
@@ -178,6 +179,12 @@ export async function decodePendingEngagementAction(
       idempotencyKey,
     };
   }
+  const reportPostId = matchPath(envelope.same_origin_path, /^\/api\/posts\/([^/]+)\/reports$/u, "postId");
+  if (reportPostId !== null && exactObject(body, ["idempotency_key", "reason_code"])) {
+    const reasonCode = REPORT_REASONS.find(reason => reason === body.reason_code);
+    if (reasonCode === undefined) throw new PendingEngagementError("Invalid pending engagement field: reason_code");
+    return { kind: "post_report", postId: reportPostId, reasonCode, idempotencyKey };
+  }
   const reportCommentId = matchPath(envelope.same_origin_path, /^\/api\/comments\/([^/]+)\/reports$/u, "commentId");
   if (reportCommentId !== null && exactObject(body, ["idempotency_key", "reason_code"])) {
     const reasonCode = REPORT_REASONS.find(reason => reason === body.reason_code);
@@ -220,6 +227,10 @@ export function postVoteSlot(principalId: string, postId: string): string {
   return `${scopedPostSlot(principalId, postId)}:vote`;
 }
 
+export function postReportSlot(principalId: string, postId: string): string {
+  return `${scopedPostSlot(principalId, postId)}:report`;
+}
+
 export function commentReportSlot(principalId: string, postId: string, commentId: string): string {
   return `${scopedPostSlot(principalId, postId)}:comment:${encodeURIComponent(requiredString(commentId, "commentId"))}:report`;
 }
@@ -243,6 +254,14 @@ function actionRequest(action: PendingEngagementAction, context: PendingEngageme
       path: `/api/comments/${encodeURIComponent(action.commentId)}/replies`,
       body: { persona_id: action.personaId, idempotency_key: action.idempotencyKey, body: action.body },
     };
+    case "post_report": {
+      if (action.postId !== context.postId) throw new PendingEngagementError("Pending report post does not match its storage scope");
+      return {
+        slot: postReportSlot(context.principalId, context.postId),
+        path: `/api/posts/${encodeURIComponent(action.postId)}/reports`,
+        body: { idempotency_key: action.idempotencyKey, reason_code: action.reasonCode },
+      };
+    }
     case "report": return {
       slot: commentReportSlot(context.principalId, context.postId, action.commentId),
       path: `/api/comments/${encodeURIComponent(action.commentId)}/reports`,

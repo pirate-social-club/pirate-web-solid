@@ -1,3 +1,4 @@
+import { ContentOverflowMenu } from "../shared-engagement/content-overflow-menu.tsx";
 import { CommentCard } from "../shared-engagement/comment-card.tsx";
 import { EngagementControls } from "../shared-engagement/engagement-controls.tsx";
 import type { ContentAction } from "../shared-engagement/content-overflow-menu.tsx";
@@ -41,6 +42,7 @@ import {
   decodePendingEngagementAction,
   moderationCaseSlot,
   postVoteSlot,
+  postReportSlot,
   type PendingEngagementAction,
   type PendingEngagementIssue,
   type PendingEngagementRecord,
@@ -73,7 +75,7 @@ export interface PostEngagementProps {
   readonly canModerate?: boolean;
   readonly generateIdempotencyKey?: () => string;
   readonly pendingStorage?: PendingEngagementStorage;
-  readonly children?: (controls: JSX.Element) => JSX.Element;
+  readonly children?: (controls: JSX.Element, menuActions: readonly ContentAction[]) => JSX.Element;
 }
 
 type ComposeTarget =
@@ -107,6 +109,7 @@ function sameIntent(left: PendingEngagementAction, right: PendingEngagementActio
   switch (left.kind) {
     case "comment": return right.kind === "comment" && left.postId === right.postId && left.personaId === right.personaId && left.body === right.body;
     case "reply": return right.kind === "reply" && left.commentId === right.commentId && left.personaId === right.personaId && left.body === right.body;
+    case "post_report": return right.kind === "post_report" && left.postId === right.postId && left.reasonCode === right.reasonCode;
     case "report": return right.kind === "report" && left.commentId === right.commentId && left.reasonCode === right.reasonCode;
     case "moderate": return right.kind === "moderate"
       && left.caseRef === right.caseRef
@@ -436,6 +439,30 @@ export function PostEngagement(props: PostEngagementProps) {
     }
   };
 
+  const [postReportOpen, setPostReportOpen] = createSignal(false);
+  const [postReportBusy, setPostReportBusy] = createSignal(false);
+  const [postReported, setPostReported] = createSignal(false);
+  const reportPost = async () => {
+    if (postReportBusy()) return;
+    setPostReportBusy(true);
+    setIssue(undefined);
+    const record = await prepareRecord(postReportSlot(props.principalId, props.post.id), key => ({
+      kind: "post_report", postId: props.post.id, reasonCode: reportReason(), idempotencyKey: key,
+    }));
+    try {
+      if (record === null) return;
+      await transport.reportPost(record.envelope);
+      setPostReported(true);
+      setPostReportOpen(false);
+      await resolveRecord(record);
+    } catch (error) {
+      if (record) await retainFailure(record, error);
+    } finally {
+      setPostReportBusy(false);
+    }
+  };
+  const postMenuActions = (): readonly ContentAction[] => [{ label: "Report", disabled: postReportBusy(), run: () => setPostReportOpen(true) }];
+
   const report = async (item: CommentThreadItem) => {
     if (actionBusyId() || !commentCountsAsPublished(item) || !isCommentAddressable(item)) return;
     setActionBusyId(item.id);
@@ -589,6 +616,12 @@ export function PostEngagement(props: PostEngagementProps) {
           if (settled.state === "published") setCommentCount(value => value + 1);
           break;
         }
+        case "post_report": {
+          await transport.reportPost(record.envelope);
+          setPostReported(true);
+          setPostReportOpen(false);
+          break;
+        }
         case "report": {
           const response = await transport.reportComment(record.envelope);
           setComments(items => items.map(item => item.id === action.commentId
@@ -641,6 +674,12 @@ export function PostEngagement(props: PostEngagementProps) {
     const actions: ContentAction[] = [];
     const add = (label: string, run: () => void) => actions.push({ label, run, disabled: actionBusyId() === item.id });
     if (commentCountsAsPublished(item) && isCommentAddressable(item)) add("Report", () => void report(item));
+    return actions;
+  };
+
+  const commentModerationActions = (item: CommentThreadItem): readonly ContentAction[] => {
+    const actions: ContentAction[] = [];
+    const add = (label: string, run: () => void) => actions.push({ label, run, disabled: actionBusyId() === item.id });
     if (props.canModerate && props.communityId && item.caseRef) {
       if (item.state === "manual_review") {
         add("Approve", () => void moderate(item, "approve_as_general"));
@@ -660,6 +699,8 @@ export function PostEngagement(props: PostEngagementProps) {
       <EngagementControls busy={voteBusy()} onVote={vote} score={score()}
         viewerVote={viewerVote() === 1 ? "up" : viewerVote() === -1 ? "down" : null}
         commentCount={commentCount()} onComment={openComments} />
+      <Show when={!props.children}><ContentOverflowMenu label="Post options" actions={postMenuActions()} /></Show>
+      <Show when={postReported()}><Type role="status" variant="caption">Post reported</Type></Show>
       <Show when={issue()}>
         {(currentIssue) => <Type role="alert" variant="caption">{engagementIssueMessage(currentIssue())}</Type>}
       </Show>
@@ -690,6 +731,7 @@ export function PostEngagement(props: PostEngagementProps) {
               <For each={thread.ordered()}>{item => (
                 <CommentCard item={item} onAgeVerified={thread.refresh} menuActions={commentMenuActions(item)}>
                     <div class="flex flex-wrap gap-2">
+                      <For each={commentModerationActions(item)}>{action => <Button disabled={action.disabled} onClick={action.run} size="sm" type="button" variant="outline">{action.label}</Button>}</For>
                       <Show when={item.replyCount > 0 && (thread.pages()[`parent:${item.id}`]?.state !== "ready" || thread.pages()[`parent:${item.id}`]?.cursor !== null)}>
                         <Button disabled={thread.pages()[`parent:${item.id}`]?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
                           {thread.pages()[`parent:${item.id}`]?.state === "loading" ? "Loading replies…" : thread.pages()[`parent:${item.id}`]?.state === "error" ? "Retry replies" : thread.pages()[`parent:${item.id}`] ? "More replies" : "View replies"}
@@ -760,9 +802,27 @@ export function PostEngagement(props: PostEngagementProps) {
     </FeedSidePanel>
   );
 
+  const postReportPanel = () => (
+    <FeedSidePanel closeLabel="Close report" title="Report post" description="Choose a reason for reporting this post" open onOpenChange={setPostReportOpen}>
+      <div class="flex flex-col gap-4 p-5">
+        <label class="flex flex-col gap-2 text-sm font-medium">
+          Report reason
+          <select aria-label="Post report reason" class="rounded-md border border-border bg-background px-3 py-2" value={reportReason()}
+            onChange={event => setReportReason(reportReasonFromValue(event.currentTarget.value))}>
+            <For each={REPORT_REASONS}>{reason => <option value={reason.value}>{reason.label}</option>}</For>
+          </select>
+        </label>
+        <Button disabled={postReportBusy()} onClick={() => void reportPost()}>Submit report</Button>
+        <Show when={issue()}>{current => <Type role="alert">{engagementIssueMessage(current())}</Type>}</Show>
+        <Show when={retainedRecord()}><Button disabled={retainedBusy()} onClick={() => void retryRetained()} variant="outline">Retry retained request</Button></Show>
+        <Show when={discardableRecord()?.issue}><Button onClick={() => void discardRejected()} variant="outline">Discard rejected action</Button></Show>
+      </div>
+    </FeedSidePanel>
+  );
+
   return (
-    <FeedPanelLayout panel={panelOpen() ? panel() : undefined}>
-      {props.children ? props.children(controls()) : controls()}
+    <FeedPanelLayout panel={postReportOpen() ? postReportPanel() : panelOpen() ? panel() : undefined}>
+      {props.children ? props.children(controls(), postMenuActions()) : controls()}
     </FeedPanelLayout>
   );
 }

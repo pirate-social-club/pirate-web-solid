@@ -1,3 +1,5 @@
+import { EngagementControls } from "../shared-engagement/engagement-controls.tsx";
+import type { ContentAction } from "../shared-engagement/content-overflow-menu.tsx";
 import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../../api/session";
@@ -24,7 +26,7 @@ export function PublicPostEngagement(props: {
   post: Omit<PostEngagementPost, "viewerVote">;
   communityId: string;
   dependencies?: PublicPostEngagementDependencies;
-  children: (controls?: JSX.Element) => JSX.Element;
+  children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
 }) {
   const [session, setSession] = createSignal<AuthenticatedSession>();
   const [anonymous, setAnonymous] = createSignal(false);
@@ -56,12 +58,12 @@ export function PublicPostEngagement(props: {
   });
   return (
     <>
-      <Show when={session() && vote()} fallback={props.children()}>
+      <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
         <Show when={session()}>{viewer => (
           <PostEngagement post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
             readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}>
-            {controls => props.children(controls)}
+            {(controls, menuActions) => props.children(controls, menuActions)}
           </PostEngagement>
         )}</Show>
         <Show when={personas().length > 1}>

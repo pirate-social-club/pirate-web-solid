@@ -1,3 +1,4 @@
+import { relativeTime } from "./relative-time.ts";
 import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { Card, CardContent, CommunityAvatar, Type } from "../../../design-system.ts";
@@ -44,7 +45,7 @@ export function CommentCard(props: CommentCardProps) {
       <div class="flex min-w-0 items-center gap-2">
         <Show when={item().authorLabel && item().state !== "age_locked"}><CommunityAvatar avatarSrc={item().authorAvatarRef} communityId={item().id} displayName={item().authorLabel ?? "Public creator"} size="xs" /></Show>
         <div class="min-w-0 flex-1"><Type variant="label">{item().state === "age_locked" ? commentStateLabel(item()) : item().authorLabel ?? commentStateLabel(item())}</Type>
-          <Show when={item().state !== "age_locked"}><Type as="span" variant="caption" class="ml-2">{item().createdAt ? item().createdAt!.slice(0, 10) : `Depth ${item().depth} · ${item().replyCount} replies`}</Type></Show>
+          <Show when={item().state !== "age_locked" && relativeTime(item().createdAt)}>{timestamp => <Type as="span" variant="caption" class="ml-2">{timestamp()}</Type>}</Show>
           <Show when={item().state !== "age_locked" && props.communityLabel}><Type as="p" variant="caption">{props.communityLabel}</Type></Show>
         </div>
         <ContentOverflowMenu label="Comment options" actions={item().state === "age_locked" ? undefined : props.menuActions} />

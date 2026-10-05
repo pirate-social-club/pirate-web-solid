@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 
 export interface CommentPillProps {
   count: number;
+  disabled?: boolean;
   onComment?: () => void;
   class?: string;
 }
@@ -21,6 +22,7 @@ export function CommentPill(props: CommentPillProps) {
     <button
       aria-label={`Comments (${props.count})`}
       class={className()}
+      disabled={props.disabled}
       onClick={props.onComment}
       type="button"
     >

@@ -212,10 +212,10 @@ it("uses the standard song post card and opens its persisted comment thread", as
   const container = render({ ...state, response: { ...state.response, content: { ...state.response.content, post: { ...state.response.content.post, community: "community", post_type: "song", created: 1_790_720_000 }, upvote_count: 3, downvote_count: 1, comment_count: 1 } } }, undefined, {
     resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [{ personaId: "profile", displayName: "Profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "community", bindingSource: "first_membership" } }] }),
     readViewerVote: async () => 1, readComments, pendingStorage: createMemoryPendingEngagementStorage(),
-    transport: { createComment, createReply: vi.fn(), castVote: vi.fn(), clearVote: vi.fn(), reportComment: vi.fn(), readModerationCase: vi.fn(), moderateCase: vi.fn(), readSubmission: vi.fn() },
+    transport: { reportPost: vi.fn(), createComment, createReply: vi.fn(), castVote: vi.fn(), clearVote: vi.fn(), reportComment: vi.fn(), readModerationCase: vi.fn(), moderateCase: vi.fn(), readSubmission: vi.fn() },
   });
   expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
-  await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (1)']")).not.toBeNull());
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Comments (1)']")?.disabled).toBe(false));
   container.querySelector<HTMLButtonElement>("button[aria-label='Comments (1)']")!.click();
   await vi.waitFor(() => expect(document.body.textContent).toContain("A real thread"));
   const input = document.querySelector<HTMLTextAreaElement>("textarea")!;
@@ -234,10 +234,10 @@ it("waits for the private vote and never treats a failed read as an unvoted acco
     resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }),
     readViewerVote, pendingStorage: createMemoryPendingEngagementStorage(),
   });
-  expect(container.querySelector("button[aria-label^='Comments']")).toBeNull();
+  expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(true);
   await vi.waitFor(() => expect(container.textContent).toContain("Your post actions could not be checked"));
-  expect(container.querySelector("button[aria-label^='Comments']")).toBeNull();
+  expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(true);
   [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry")!.click();
-  await vi.waitFor(() => expect(container.querySelector("button[aria-label^='Comments']")).not.toBeNull());
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(false));
   expect(readViewerVote).toHaveBeenCalledTimes(2);
 });
