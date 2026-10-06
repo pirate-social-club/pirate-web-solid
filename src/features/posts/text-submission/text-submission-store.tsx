@@ -9,6 +9,7 @@ import {
   createSameOriginTextSubmissionTransport,
   type TextSubmissionTransport,
 } from "../post-composer/text-submission-transport";
+import { onSessionCleared } from "../../../api/session.ts";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../../shell/application-session.tsx";
 import {
@@ -59,10 +60,22 @@ export interface TextSubmissionStore {
    * publish. Surfaces offer it only for a published or refused post.
    */
   readonly dismiss: (id: string) => void;
-  /** Forgets every item that belongs to a different account. */
+  /**
+   * Forgets every item that belongs to a different account. The retained
+   * request is dropped without being replayed; an earlier attempt may already
+   * have published.
+   */
   readonly retainAccount: (accountId: string) => void;
-  /** Nobody is signed in: hold every request without sending or forgetting it. */
+  /**
+   * The session ended without the author signing out: hold every request,
+   * including one still being prepared, without sending or forgetting it.
+   */
   readonly pause: () => void;
+  /**
+   * The author signed out: stop every retry and forget every request. A
+   * request already sent may still have published; nothing is replayed.
+   */
+  readonly clear: () => void;
   /** This account is signed in: send the requests that were held for it. */
   readonly resume: (accountId: string) => void;
   readonly dispose: () => void;
@@ -114,7 +127,12 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
   const [items, setItems] = createSignal<readonly TextSubmissionItem[]>([], { ownedWrite: true });
   const actors = new Map<string, ActorRefFrom<TextSubmissionMachine>>();
   let disposed = false;
-  let pausedForSignOut = false;
+  // True from the moment the session is known to have ended until an account
+  // is signed in again. Read after every await in `start`.
+  let paused = false;
+  // Ids that still exist, kept apart from the signal so a removal is visible
+  // to `start` immediately, before the signal's own write has flushed.
+  const live = new Set<string>();
 
   const patch = (id: string, change: Partial<TextSubmissionItem>) => {
     if (disposed) return;
@@ -138,10 +156,12 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
       patch(id, { status: "rejected", rejection: "invalid" });
       return;
     }
-    if (disposed || !items().some(item => item.id === id)) return;
+    // Preparation is asynchronous. The post may have been cleared, or the
+    // session may have ended, while it ran; neither may be overridden here.
+    if (disposed || !live.has(id)) return;
     transport ??= createSameOriginTextSubmissionTransport();
     machine ??= createTextSubmissionMachine(transport);
-    const actor = createActor(machine, { input: { envelope } });
+    const actor = createActor(machine, { input: { envelope, held: paused } });
     actors.set(id, actor);
     actor.subscribe(snapshot => {
       if (snapshot.matches("published")) {
@@ -151,7 +171,7 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
       } else if (snapshot.matches("signInRequired")) {
         const already = items().find(item => item.id === id)?.status === "sign_in_required";
         patch(id, { status: "sign_in_required" });
-        if (!already && !pausedForSignOut) options.onSignInRequired?.();
+        if (!already && !paused) options.onSignInRequired?.();
       } else {
         patch(id, { status: snapshot.context.attempts >= DELAYED_AFTER_ATTEMPTS ? "delayed" : "sending" });
       }
@@ -163,6 +183,7 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
     items,
     submit(draft) {
       const id = createId();
+      live.add(id);
       setItems(current => [
         { ...draft, id, createdAt: now(), status: "sending", postHref: null, postId: null, rejection: null },
         ...current,
@@ -175,27 +196,43 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
     },
     dismiss(id) {
       stop(id);
+      live.delete(id);
       setItems(current => current.filter(item => item.id !== id));
     },
     retainAccount(accountId) {
-      for (const item of items()) if (item.accountId !== accountId) stop(item.id);
+      for (const item of items()) {
+        if (item.accountId === accountId) continue;
+        stop(item.id);
+        live.delete(item.id);
+      }
       setItems(current => current.some(item => item.accountId !== accountId)
         ? current.filter(item => item.accountId === accountId)
         : current);
     },
     pause() {
-      // Signing out holds the requests; that is not a reason to prompt.
-      pausedForSignOut = true;
+      // The shell already knows the session ended, so this does not prompt.
+      paused = true;
       for (const actor of actors.values()) actor.send({ type: "PAUSE" });
+      // A post still being prepared has no actor yet; it shows as held now
+      // and `start` begins it held.
+      setItems(current => current.map(item => item.status === "sending" || item.status === "delayed"
+        ? { ...item, status: "sign_in_required" }
+        : item));
+    },
+    clear() {
+      for (const id of [...actors.keys()]) stop(id);
+      live.clear();
+      setItems(current => current.length === 0 ? current : []);
     },
     resume(accountId) {
-      pausedForSignOut = false;
+      paused = false;
       for (const item of items()) {
         if (item.accountId === accountId) actors.get(item.id)?.send({ type: "RESUME" });
       }
     },
     dispose() {
       disposed = true;
+      live.clear();
       for (const id of [...actors.keys()]) stop(id);
     },
   };
@@ -205,9 +242,10 @@ const TextSubmissionContext = createContext<TextSubmissionStore | null>(null);
 
 /**
  * Mounted once inside the application session. Pending posts belong to the
- * account that sent them. With nobody signed in they are held and shown to no
- * one; they resume when the same account signs in again and are dropped when
- * a different one does. An unresolved or failed session check changes nothing:
+ * account that sent them. A deliberate sign-out clears them. A session that
+ * ends any other way holds them, shown to no one; they resume when the same
+ * account signs in again and are dropped without being replayed when a
+ * different one does. An unresolved or failed session check changes nothing:
  * that is not a change of account.
  */
 export function TextSubmissionProvider(props: {
@@ -234,6 +272,7 @@ export function TextSubmissionProvider(props: {
       store.resume(state.userId);
     },
   );
+  onCleanup(onSessionCleared(() => store.clear()));
   onCleanup(() => store.dispose());
   return <TextSubmissionContext value={store}>{props.children}</TextSubmissionContext>;
 }

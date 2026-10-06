@@ -100,4 +100,59 @@ describe("text submission store", () => {
     expect(onSignInRequired).not.toHaveBeenCalled();
     store.dispose();
   });
+
+  it("holds a post that is still being prepared when the session ends", async () => {
+    const server = expiredSession();
+    server.state.signedIn = true;
+    const onSignInRequired = vi.fn();
+    const store = createTextSubmissionStore({ transport: server.transport, onSignInRequired });
+    // Preparation hashes the request asynchronously, so no actor exists yet.
+    const id = store.submit(draft("account-one"));
+    store.pause();
+    await vi.waitFor(() => expect(statusOf(store, id)).toBe("sign_in_required"));
+    // Long enough for preparation to finish and for a retry timer to fire.
+    await new Promise(resolve => setTimeout(resolve, 1_500));
+    expect(server.dispatched).toHaveLength(0);
+    expect(statusOf(store, id)).toBe("sign_in_required");
+    expect(onSignInRequired).not.toHaveBeenCalled();
+
+    store.resume("account-one");
+    await vi.waitFor(() => expect(statusOf(store, id)).toBe("published"));
+    expect(server.dispatched).toHaveLength(1);
+    store.dispose();
+  });
+
+  it("clears a post that is still being prepared when the author signs out", async () => {
+    const server = expiredSession();
+    server.state.signedIn = true;
+    const store = createTextSubmissionStore({ transport: server.transport });
+    store.submit(draft("account-one"));
+    store.clear();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    expect(store.items()).toHaveLength(0);
+    expect(server.dispatched).toHaveLength(0);
+    store.dispose();
+  });
+
+  it("stops retries on sign-out and does not resume them when the same account returns", async () => {
+    const dispatched: PendingSubmissionEnvelopeV1[] = [];
+    const store = createTextSubmissionStore({
+      transport: {
+        read: async () => null,
+        dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("no answer"); },
+      },
+    });
+    const id = store.submit(draft("account-one"));
+    await vi.waitFor(() => expect(dispatched.length).toBeGreaterThanOrEqual(1));
+    store.clear();
+    const sent = dispatched.length;
+    await vi.waitFor(() => expect(statusOf(store, id)).toBeUndefined());
+    // What the shell does when the same account signs in again.
+    store.retainAccount("account-one");
+    store.resume("account-one");
+    await new Promise(resolve => setTimeout(resolve, 2_500));
+    expect(dispatched).toHaveLength(sent);
+    expect(store.items()).toHaveLength(0);
+    store.dispose();
+  });
 });

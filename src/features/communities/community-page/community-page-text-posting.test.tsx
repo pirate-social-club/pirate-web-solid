@@ -3,7 +3,7 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { Show, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import type { SessionResolution } from "../../../api/session.ts";
+import { clearSession, type AuthenticatedSession, type SessionResolution } from "../../../api/session.ts";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
 import type { PendingSubmissionEnvelopeV1 } from "../../posts/post-composer/pending-submission.ts";
 import type { TextContentSubmissionV1 } from "../../posts/post-composer/text-submission-contract.ts";
@@ -31,7 +31,7 @@ const data: CommunityPageSuccess = {
   routeDisplay: "night-shift",
   community: { displayName: "Night Shift", description: "After dark.", membershipMode: "open", memberCount: 1, followerCount: 1, rules: [] },
 };
-const session: SessionResolution = {
+const session: AuthenticatedSession = {
   status: "authenticated",
   userId: "account-one",
   personas: [{ personaId: "persona-one", displayName: "Harbor", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" } }],
@@ -300,7 +300,7 @@ describe("community page text posting", () => {
   });
 
 
-  test("keeps sending after the author leaves the community, and clears on sign-out", async () => {
+  test("keeps sending after the author leaves the community, holds on expiry, and clears on sign-out", async () => {
     let release: (value: "ok") => void = () => {};
     const fake = server(() => new Promise<"ok">(resolve => { release = resolve; }));
     const [state, setState] = createSignal<ApplicationSessionState>(session);
@@ -328,9 +328,9 @@ describe("community page text posting", () => {
     await vi.waitFor(() => expect(pending(container)).toBeNull());
     expect(fake.accepted.size).toBe(1);
 
-    // A second post is left unanswered, then the account signs out.
+    // A second post is left unanswered, then the session ends without a sign-out.
     await post(container, "Only mine to see");
-    await vi.waitFor(() => expect(pending(container)).not.toBeNull());
+    await vi.waitFor(() => expect(fake.dispatched).toHaveLength(2));
     setState("anonymous");
     await vi.waitFor(() => expect(pending(container)).toBeNull());
     setOnCommunity(false);
@@ -347,5 +347,20 @@ describe("community page text posting", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-community-post-slot]")).not.toBeNull());
     expect(container.textContent).not.toContain("Only mine to see");
     expect(fake.accepted.size).toBe(1);
-  });
+
+    // A third post is left unanswered and the author deliberately signs out.
+    await post(container, "Left behind on purpose");
+    await vi.waitFor(() => expect(fake.dispatched).toHaveLength(3));
+    clearSession();
+    setState("anonymous");
+    await vi.waitFor(() => expect(pending(container)).toBeNull());
+    // The same account signing back in does not bring it back or resend it.
+    setState({ ...session });
+    setOnCommunity(false);
+    setOnCommunity(true);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-post-slot]")).not.toBeNull());
+    await new Promise(resolve => setTimeout(resolve, 1_500));
+    expect(container.textContent).not.toContain("Left behind on purpose");
+    expect(fake.dispatched).toHaveLength(3);
+  }, 15_000);
 });

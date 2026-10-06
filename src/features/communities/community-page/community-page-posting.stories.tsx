@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Show, createSignal, untrack } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
-import type { AuthenticatedSession } from "../../../api/session.ts";
+import { clearSession, type AuthenticatedSession } from "../../../api/session.ts";
 import { Button } from "../../../design-system";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
 import type { PendingSubmissionEnvelopeV1 } from "../../posts/post-composer/pending-submission.ts";
@@ -378,7 +378,8 @@ function ShellFrame(props: {
         <nav aria-label="Story controls" class="flex gap-2 p-2">
           <Button onClick={() => setOnCommunity(false)} size="sm" variant="outline">Go elsewhere</Button>
           <Button onClick={() => setOnCommunity(true)} size="sm" variant="outline">Back to community</Button>
-          <Button onClick={() => setSession("anonymous")} size="sm" variant="outline">Sign out</Button>
+          <Button onClick={() => { clearSession(); setSession("anonymous"); }} size="sm" variant="outline">Sign out</Button>
+          <Button onClick={() => setSession("anonymous")} size="sm" variant="outline">Let session expire</Button>
           <Button onClick={() => { props.onSignedInAgain?.(); setSession({ ...memberSession }); }} size="sm" variant="outline">Complete sign-in</Button>
         </nav>
         <Show when={onCommunity()} fallback={<main aria-label="Another page" class="p-8">Another page</main>}>
@@ -412,7 +413,10 @@ export const LeftThePageWhileSending: Story = {
 
 let signedOutConnectionDown = true;
 
-/** Pending posts belong to the account: signing out clears them. */
+/**
+ * Pending posts belong to the account. Signing out clears them for good: the
+ * same account signing back in does not bring the post back or send it again.
+ */
 export const SignedOutWhilePending: Story = {
   name: "Signed out with a post pending",
   render: () => <ShellFrame behaviour={{ offline: () => signedOutConnectionDown }} />,
@@ -427,6 +431,44 @@ export const SignedOutWhilePending: Story = {
     await canvas.findByRole("heading", { name: "Night Shift" });
     await expect(canvas.queryByText("Only mine to see")).toBeNull();
     await expect(pending(canvasElement)).toBeNull();
+    // The same account returns, and the connection with it.
+    signedOutConnectionDown = false;
+    await userEvent.click(canvas.getByRole("button", { name: "Complete sign-in" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Go elsewhere" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community" }));
+    await canvas.findByRole("button", { name: "Post" });
+    await new Promise(resolve => setTimeout(resolve, 2_000));
+    await expect(canvas.queryByText("Only mine to see")).toBeNull();
+    await expect(pending(canvasElement)).toBeNull();
+  },
+};
+
+let expiredConnectionDown = true;
+
+/**
+ * The session ended without a sign-out. The post is held and shown to no one,
+ * and it is sent once the same account is signed in again.
+ */
+export const SessionLostWhilePending: Story = {
+  name: "Session lost with a post pending, same account returns",
+  render: () => <ShellFrame behaviour={{ offline: () => expiredConnectionDown }} onSignedInAgain={() => { expiredConnectionDown = false; }} />,
+  play: async ({ canvasElement }) => {
+    expiredConnectionDown = true;
+    const canvas = within(canvasElement);
+    await writeAndPost(canvasElement, "Held until I am back");
+    await waitFor(() => expect(pending(canvasElement)).not.toBeNull());
+    await userEvent.click(canvas.getByRole("button", { name: "Let session expire" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Go elsewhere" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community" }));
+    await canvas.findByRole("heading", { name: "Night Shift" });
+    await expect(canvas.queryByText("Held until I am back")).toBeNull();
+    // Away from the community when the same account signs in again: the held
+    // post is sent with no page mounted, and is there on return.
+    await userEvent.click(canvas.getByRole("button", { name: "Go elsewhere" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Complete sign-in" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community" }));
+    await waitFor(() => expect(canvas.getAllByText("Held until I am back")).toHaveLength(1), { timeout: 8_000 });
+    await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 8_000 });
   },
 };
 

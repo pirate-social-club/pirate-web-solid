@@ -17,6 +17,7 @@ export interface TextSubmissionContext {
   /** The exact request, kept for the life of the operation. Every attempt
    * sends these bytes under this idempotency key. */
   readonly envelope: PendingSubmissionEnvelopeV1;
+  readonly startHeld: boolean;
   readonly attempts: number;
   readonly submissionId: string | null;
   readonly postHref: string | null;
@@ -34,6 +35,8 @@ export type TextSubmissionEvent =
 
 export interface TextSubmissionInput {
   readonly envelope: PendingSubmissionEnvelopeV1;
+  /** Nobody is signed in: start held instead of sending. */
+  readonly held?: boolean;
 }
 
 /** Attempts before the author is told the post is taking longer than usual. */
@@ -133,14 +136,23 @@ export function createTextSubmissionMachine(transport: TextSubmissionTransport) 
     id: "textSubmission",
     context: ({ input }) => ({
       envelope: input.envelope,
+      startHeld: input.held === true,
       attempts: 0,
       submissionId: input.envelope.submission_id,
       postHref: null,
       postId: null,
       rejection: null,
     }),
-    initial: "sending",
+    initial: "starting",
     states: {
+      // Decides once whether the first request may go out at all. A post
+      // prepared while nobody is signed in begins held and sends nothing.
+      starting: {
+        always: [
+          { guard: ({ context }) => context.startHeld, target: "signInRequired" },
+          { target: "sending" },
+        ],
+      },
       sending: {
         entry: assign({ attempts: ({ context }) => context.attempts + 1 }),
         invoke: {
