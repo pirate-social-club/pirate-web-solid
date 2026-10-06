@@ -9,7 +9,11 @@ import type {
   SpacesRouteAttachmentResult,
   SpacesRouteAttachmentState,
 } from "./spaces-route-attachment-api";
+import { CommunityAddressSettings } from "./community-address-settings";
+import { createFakeNamespaceSettingsPort } from "./fake-owner-settings-port";
 import { SpacesRouteAttachmentPanel } from "./spaces-route-attachment-panel";
+
+const unexpected = async (): Promise<never> => { throw new Error("Not reached"); };
 
 const nodes: HTMLElement[] = [];
 afterEach(() => {
@@ -330,6 +334,24 @@ describe("Spaces community address", () => {
     expect(calls.filter((call) => call.method === "current").map((call) => call.input.communityId)).toEqual([
       "community-1", "community-2", "community-3", "community-3", "community-4",
     ]);
+  });
+
+  test("appears under the Spaces choice of the shared address settings", async () => {
+    const { api } = fakeApi({ current: [state("yahoo", { replayed: true })] });
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    const untouched = { start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
+    render(() => <CommunityAddressSettings communityId="community-1" communityPath="/c/community-1"
+      namespaceApi={createFakeNamespaceSettingsPort()} spacesApi={untouched} spacesRouteApi={api} />, node);
+    await settle();
+    expect(node.querySelector("[data-spaces-route-attachment]")).toBeNull();
+    const user = userEvent.setup();
+    await user.click([...node.querySelectorAll("button")].find((candidate) => candidate.textContent === "Spaces")!);
+    await settle();
+    expect(node.querySelector("[data-spaces-route-message]")).not.toBeNull();
+    // The sale-ownership ceremony stays a separate panel beneath it.
+    expect(node.querySelector("[data-spaces-owner-proof]")).not.toBeNull();
   });
 
   test("rejects malformed input before calling the server", async () => {

@@ -1,7 +1,10 @@
-import { Button, Card, Type } from "@pirate/web-solid-ui";
+import { Button, Card, FormFieldLabel, PrefixInput, Textarea, Type } from "@pirate/web-solid-ui";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
+import { resolveAccountSession } from "../../../api/session";
+import { ensureApplicationSession } from "../../auth/session-recovery";
+import { useApplicationSession } from "../../shell/application-session";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 import type {
   SpacesRouteAttachmentApi,
@@ -37,10 +40,31 @@ const isPending = (result: SpacesRouteAttachmentResult): result is Extract<Space
 export function SpacesRouteAttachmentPanel(props: {
   api: SpacesRouteAttachmentApi;
   communityId: string;
-  /** Keeps one signed-in account's unfinished attempt apart from another's. */
+  /** Keeps one signed-in account's unfinished attempt apart from another's. Defaults to the signed-in account. */
   accountId?: string;
+  /** Repairs the owner's application session before each request, as the other address ceremonies do. */
+  repairSession?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
+  const applicationSession = useApplicationSession();
+  const accountId = (): string | undefined => {
+    if (props.accountId !== undefined) return props.accountId;
+    const account = applicationSession();
+    return account !== undefined && typeof account === "object" ? account.userId : undefined;
+  };
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  let resolvedAccountId: string | undefined;
+  const ensureSession = async (): Promise<boolean> => {
+    if (props.repairSession !== true) return true;
+    let owner = accountId() ?? resolvedAccountId;
+    if (owner === undefined) {
+      const account = await resolveAccountSession({ timeoutMs: 15_000 });
+      if (account === "anonymous" || controller.signal.aborted) return false;
+      owner = resolvedAccountId = account.userId;
+    }
+    return ensureApplicationSession(owner, controller.signal);
+  };
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
   const [attempt, setAttempt] = createSignal<SpacesRouteAttachmentState>();
@@ -61,7 +85,7 @@ export function SpacesRouteAttachmentPanel(props: {
   const enter = (): Scope => {
     const mine = scope;
     const communityId = props.communityId;
-    const prefix = `spaces-route-attachment:${props.accountId ?? "session"}:${communityId}:`;
+    const prefix = `spaces-route-attachment:${accountId() ?? "session"}:${communityId}:`;
     return { live: () => mine === scope, communityId, storageKey: (canonicalRoot) => prefix + canonicalRoot };
   };
   const savedKey = (at: Scope, canonicalRoot: string) =>
@@ -113,6 +137,10 @@ export function SpacesRouteAttachmentPanel(props: {
 
   const load = async (at: Scope) => {
     try {
+      if (!await ensureSession()) {
+        if (at.live()) setAuthRequired(true);
+        return;
+      }
       const current = await props.api.current({ communityId: at.communityId });
       if (!at.live()) return;
       // An attempt that ended earlier needs no announcement on a fresh visit.
@@ -126,7 +154,7 @@ export function SpacesRouteAttachmentPanel(props: {
       if (at.live()) setBusy(false);
     }
   };
-  createEffect(() => [props.communityId, props.accountId], () => {
+  createEffect(() => [props.communityId, accountId()], () => {
     scope += 1;
     const at = enter();
     queueMicrotask(() => {
@@ -164,6 +192,10 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
+      if (!await ensureSession()) {
+        if (at.live()) setAuthRequired(true);
+        return;
+      }
       let idempotencyKey = savedKey(at, canonicalRoot);
       const reused = idempotencyKey !== null;
       if (idempotencyKey === null) {
@@ -219,6 +251,10 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
+      if (!await ensureSession()) {
+        if (at.live()) setAuthRequired(true);
+        return;
+      }
       const result = await props.api.prove({ communityId: at.communityId,
         attachmentIntentId: state.attachment_intent_id, signatureHex });
       await apply(at, result);
@@ -237,6 +273,10 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
+      if (!await ensureSession()) {
+        if (at.live()) setAuthRequired(true);
+        return;
+      }
       await finish(at, state);
     } catch (reason) {
       reportFailure(at, reason, "We couldn't finish. Select Continue to try again.");
@@ -256,11 +296,18 @@ export function SpacesRouteAttachmentPanel(props: {
     if (at.live()) setCopied(ok);
   };
 
+  /** After signing in again, read this account's state rather than assume it. */
+  const signedIn = () => {
+    setAuthRequired(false);
+    setBusy(true);
+    void load(enter());
+  };
+
   const signBy = (expiresAt: string) => new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const restoring = () => attempt()?.purpose === "revalidation" || connected()?.working === false;
 
   return (
-    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard />}>
+    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard onAuthenticated={signedIn} />}>
       <Card class="space-y-4 p-5 md:p-6" data-spaces-route-attachment>
         <Type as="h2" variant="h3">Community address</Type>
         <Show when={connected()?.working === true}>
@@ -278,11 +325,11 @@ export function SpacesRouteAttachmentPanel(props: {
             <p class="text-sm text-muted-foreground">Use a Spaces name you own as this community's address. You sign one message with the wallet that owns it. Nothing is sent or spent.</p>
           </Show>
           <Show when={attempt() === undefined}>
-            <label class="block space-y-1 text-sm" for="spaces-route-root">
-              <span>Address</span>
-              <input id="spaces-route-root" class="w-full rounded-md border bg-background px-3 py-2" value={root()}
-                disabled={busy() || connected() !== undefined} onInput={(event) => setRoot(event.currentTarget.value)} placeholder="@yahoo" />
-            </label>
+            <div class="space-y-2">
+              <FormFieldLabel htmlFor="spaces-route-root" label="Address" />
+              <PrefixInput id="spaces-route-root" class="h-16" prefix="@" value={root().replace(/^@/u, "")}
+                disabled={busy() || connected() !== undefined} onInput={(event) => setRoot(event.currentTarget.value)} placeholder="name" />
+            </div>
             <Button type="button" disabled={busy()} onClick={() => void start()}>
               {restoring() ? "Restore address" : "Connect address"}
             </Button>
@@ -300,11 +347,11 @@ export function SpacesRouteAttachmentPanel(props: {
                   <Show when={copied()}><span role="status" class="text-sm">Copied</span></Show>
                 </div>
                 <p class="text-xs text-muted-foreground" data-spaces-route-deadline>Sign before {signBy(state().expires_at)}. To use a different address, wait until then and start again.</p>
-                <label class="block space-y-1 text-sm" for="spaces-route-signature">
-                  <span>Signature</span>
-                  <textarea id="spaces-route-signature" class="min-h-24 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
+                <div class="space-y-2">
+                  <FormFieldLabel htmlFor="spaces-route-signature" label="Signature" />
+                  <Textarea id="spaces-route-signature" class="min-h-24 font-mono"
                     value={signature()} disabled={busy()} onInput={(event) => setSignature(event.currentTarget.value)} />
-                </label>
+                </div>
                 <Button type="button" disabled={busy()} onClick={() => void submitSignature()}>
                   {restoring() ? "Restore address" : "Connect address"}
                 </Button>

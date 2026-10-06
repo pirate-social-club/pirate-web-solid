@@ -6,16 +6,14 @@ import { getRequestEvent } from "@solidjs/web";
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { CommunityTelegramSettingsController } from "./community-telegram-settings-controller";
-import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import { CommunityAddressSettings } from "./community-address-settings";
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
-import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
 import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
 import type { SpacesRouteAttachmentApi } from "./spaces-route-attachment-api";
-import { SpacesRouteAttachmentPanel } from "./spaces-route-attachment-panel";
 import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
@@ -35,7 +33,7 @@ export interface OwnerSettingsRouteViewProps {
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
-  /** Shown only when supplied; the generated-client wrapper arrives with client 0.111.0. */
+  /** Shown under the Spaces choice only when supplied; the generated-client wrapper arrives with client 0.111.0. */
   spacesRouteAttachmentApi?: SpacesRouteAttachmentApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   /** `null` renders the management index instead of a section. */
@@ -233,18 +231,17 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 <CommunityNamesSettingsController
                   api={props.namesApi}
                   communityId={state().communityId}
+                  onReviewAddress={() => props.navigate(ownerSettingsSectionHref(state().communityPath, "namespace", currentSearch()))}
                 />
               </Show>
               <Show when={section() === "telegram" || section() === "assistant"}>
                 <CommunityTelegramSettingsController api={props.telegramApi} communityId={state().communityId} section={section() === "assistant" ? "assistant" : "telegram"} />
               </Show>
               <Show when={section() === "namespace"}>
-                <Show when={props.spacesRouteAttachmentApi}>{(api) => (
-                  <SpacesRouteAttachmentPanel api={api()} communityId={state().communityId} />
-                )}</Show>
-                <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
-                <CommunityNamespaceSettingsController
-                  api={props.namespaceApi}
+                <CommunityAddressSettings
+                  namespaceApi={props.namespaceApi}
+                  spacesApi={props.spacesOwnerProofApi}
+                  spacesRouteApi={props.spacesRouteAttachmentApi}
                   communityId={state().communityId}
                   communityPath={state().communityPath}
                 />

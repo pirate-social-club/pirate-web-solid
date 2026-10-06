@@ -12,7 +12,7 @@ import {
   OPEN_MODERATION_CASES,
 } from "./community-moderation-settings-fixtures";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
-import { NAMES_READY } from "./community-names-settings-fixtures";
+import { NAMES_READY, NAMES_EMPTY } from "./community-names-settings-fixtures";
 import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
 import type {
@@ -133,6 +133,27 @@ describe("OwnerSettingsRouteView", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
     expect(container.querySelector("main h1")?.textContent).toBe("Community address");
+    expect(container.querySelector("[data-spaces-owner-proof]")).toBeNull();
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Spaces")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Spaces root"));
+    expect(container.querySelector("[data-community-namespace-settings]")).toBeNull();
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Handshake")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+  });
+
+  test("offers Address from Names when no namespace is available, retaining import context", async () => {
+    const navigate = vi.fn();
+    const original = window.location.href;
+    window.history.replaceState(null, "", "/c/midnight/settings/names?hns_import_session=retained");
+    try {
+      const container = render(() => <OwnerSettingsRouteView
+        namesApi={{ ...namesApi(), getSnapshot: async () => NAMES_EMPTY }} navigate={navigate}
+        requestedSection="names" state={success} />);
+      await vi.waitFor(() => expect(container.textContent).toContain("Review address"));
+      [...container.querySelectorAll("button")].find(button => button.textContent === "Review address")!.click();
+      expect(navigate).toHaveBeenCalledWith("/c/midnight/settings/namespace?hns_import_session=retained");
+      expect(container.textContent).not.toContain("Connecting a new community address is not available yet.");
+    } finally { window.history.replaceState(null, "", original); }
   });
 
   test("replaces unsupported direct links with the first authorized section", async () => {

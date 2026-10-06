@@ -13,6 +13,7 @@ import {
 } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 import { clearWalletAuthorization, privyAccessTokenSubject, rememberWalletAuthorization } from "./privy-wallet-authorization.ts";
+import { browserIdentitySession, type BrowserIdentitySession } from "./browser-identity-session.ts";
 
 export class MemoryOnlyStorage implements Storage {
   readonly #values = new Map<string, unknown>();
@@ -423,6 +424,7 @@ export async function createPrivySessionExchange(
     readonly exchange?: (
       accessToken: string,
       identityToken?: string,
+      signal?: AbortSignal,
     ) => Promise<void>;
     readonly listPersonas?: () => Promise<GetPersonasResponse>;
     readonly listPendingWallets?: () => Promise<{ wallets: readonly { persona_id: string }[] }>;
@@ -436,6 +438,7 @@ export async function createPrivySessionExchange(
       readonly hd_wallet_index: number;
     }>;
     readonly csrf?: () => string | undefined;
+    readonly retainSession?: (session: BrowserIdentitySession) => void;
     readonly idempotencyKey?: () => string;
     readonly reportWalletResumeError?: (error: unknown, personaId?: string) => void;
     readonly reportWalletLoginStage?: (stage: WalletLoginStage, error: unknown) => void;
@@ -454,7 +457,7 @@ export async function createPrivySessionExchange(
     const csrf = (dependencies.csrf ?? readCsrfCookie)();
     return csrf === undefined ? undefined : sessionRequestOptions(csrf);
   };
-  const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
+  const exchange = dependencies.exchange ?? (async (accessToken, identityToken, signal) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
         privy_access_token: accessToken,
@@ -462,7 +465,7 @@ export async function createPrivySessionExchange(
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
     await createSessionApiClient().post_authSessionExchange(
       { body: { proof } },
-      csrfRequestOptions(),
+      { ...csrfRequestOptions(), ...(signal === undefined ? {} : { signal }) },
     );
   });
   const listPersonas = dependencies.listPersonas ?? (async () => {
@@ -595,10 +598,25 @@ export async function createPrivySessionExchange(
     pendingRegistrationToken = undefined;
     walletPreparationKeys.clear();
     terminal = true;
-    storage.clear();
+    const subject = privyAccessTokenSubject(accessToken);
+    if ((dependencies.retainSession !== undefined || (typeof window !== "undefined" && dependencies.createPrivy === undefined)) && subject !== undefined) {
+      const retain = dependencies.retainSession ?? (session => browserIdentitySession.retain(session));
+      retain({
+        renew: async signal => {
+          const proof = await client.getAccessToken();
+          if (signal.aborted || proof === null || privyAccessTokenSubject(proof) !== subject) return false;
+          await exchange(proof, undefined, signal);
+          return !signal.aborted && (dependencies.csrf ?? readCsrfCookie)() !== undefined;
+        },
+        clear: () => storage.clear(),
+      });
+    } else storage.clear();
     client.dispose?.();
   };
   const establishSession = async () => {
+    // An explicit login supersedes the previous identity. Its pending read
+    // recovery must not replace the new account's cookie during sign-in.
+    browserIdentitySession.clear();
     const accessToken = await client.getAccessToken();
     if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
     const sourceUserId = privyAccessTokenSubject(accessToken);
@@ -694,6 +712,7 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
+      browserIdentitySession.clear();
       const body = {
         privy_access_token: accessToken,
         minimum_age_attestation: affirmation,
@@ -706,6 +725,9 @@ export async function createPrivySessionExchange(
       finishSession(accessToken);
     },
     clear() {
+      // A successful sign-in transfers its memory-only client to the shared
+      // recovery store. Closing the sign-in sheet must not destroy it.
+      if (terminal) return;
       terminal = true;
       pendingRegistrationToken = undefined;
       walletPreparationKeys.clear();

@@ -52,6 +52,7 @@ export default defineConfig({
       "src/features/auth/sign-in-preparation.test.ts",
       "src/features/auth/sign-in-return.test.ts",
       "src/features/auth/sign-in-session.test.ts",
+      "src/features/auth/session-recovery.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",
       "src/features/community/community-creation-avatar-authoring.test.ts",
