@@ -58,14 +58,33 @@ describe("Spaces route attachment API", () => {
       .toThrow("Refresh the page");
   });
 
-  test("asks whether the address works through the public lookup with the literal @", async () => {
-    const working = recording(() => json({ authority_version: "optional_route_v2", community_id: "community_1",
-      href: "/c/community_1", canonical_route: null }));
-    await working.api.resolves({ canonicalRoot: "yahoo" }).catch(() => undefined);
-    expect(working.requests[0]?.url).toBe("https://web.test/api/c/@yahoo");
-    expect(working.requests[0]?.headers.get("x-csrf-token")).toBeNull();
+  test("asks whether the address works through the public lookup, with no credentials", async () => {
+    // The complete response the lookup returns for a bound Spaces address.
+    const bound = (root: string) => ({
+      community_id: "community_00000000-0000-4000-8000-00000000d001",
+      canonical_route: { family: "spaces", root_label: root, root_label_display: root,
+        path_segment: `@${root}`, href: `/c/@${root}`, app_host: null },
+    });
+    const working = recording(() => json(bound("yahoo")));
+    await expect(working.api.resolves({ canonicalRoot: "yahoo" })).resolves.toBe(true);
+    expect(working.requests).toHaveLength(1);
+    const lookup = working.requests[0]!;
+    expect(`${lookup.method} ${lookup.url}`).toBe("GET https://web.test/api/c/@yahoo");
+    // A visitor's request: no session cookie use, no CSRF token, no authorization.
+    expect(lookup.credentials).toBe("omit");
+    expect(lookup.headers.get("x-csrf-token")).toBeNull();
+    expect(lookup.headers.get("authorization")).toBeNull();
+    expect(lookup.headers.get("cookie")).toBeNull();
+
     const stopped = recording(notFound);
     await expect(stopped.api.resolves({ canonicalRoot: "csca" })).resolves.toBe(false);
     expect(stopped.requests[0]?.url).toBe("https://web.test/api/c/@csca");
+    expect(stopped.requests[0]?.credentials).toBe("omit");
+
+    // An outage or a malformed reply is not an answer either way.
+    const failing = recording(() => json({ error: { code: "provider_unavailable", message: "Unavailable", retryable: true } }, 503));
+    await expect(failing.api.resolves({ canonicalRoot: "yahoo" })).rejects.toThrow();
+    const malformed = recording(() => json({ community_id: "community_1" }));
+    await expect(malformed.api.resolves({ canonicalRoot: "yahoo" })).rejects.toThrow();
   });
 });
