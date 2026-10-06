@@ -412,14 +412,16 @@ async function publishSong(page, community, { lyrics }) {
   assert(html.includes('data-community-state="success"'), "Community page did not render on the server");
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
 
+  // Post opens the text composer beside the feed. Its song action takes the
+  // audio file, and the song steps then replace it under the same form name.
   const form = page.getByRole("form", { name: "Create a post" });
   await form.waitFor({ state: "visible" });
   assert(await page.getByRole("dialog").count() === 0, "the composer opened as a dialog around the form");
 
   // Choosing a song is choosing the audio. The wizard follows the file.
-  const audioInput = form.locator('input[aria-label="Upload audio"]').first();
+  const audioInput = form.locator('input[aria-label="Choose a song file"]').first();
   try {
     await audioInput.waitFor({ state: "attached", timeout: 15_000 });
   } catch (error) {

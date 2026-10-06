@@ -2,23 +2,15 @@ import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../..
 import { ApiClientError } from "@pirate/api-client";
 import {
   decodeTextContentSubmission,
-  TextSubmissionContractError,
   type TextContentSubmissionV1,
 } from "./text-submission-contract";
 import {
   assertSafeSameOriginPath,
-  createPendingSubmissionEnvelope,
   pendingBodyBytes,
   PENDING_SUBMISSION_CONTENT_TYPE,
   PendingSubmissionError,
   type PendingSubmissionEnvelopeV1,
 } from "./pending-submission";
-import {
-  initialPostComposerState,
-  projectTextSubmission,
-  type PostComposerState,
-} from "./post-composer-state";
-import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
 
 export interface TextSubmissionTransport {
   readonly dispatch: (envelope: PendingSubmissionEnvelopeV1) => Promise<TextContentSubmissionV1>;
@@ -254,129 +246,4 @@ export function createSameOriginTextSubmissionTransport(
       }
     },
   };
-}
-
-export interface TextSubmissionCoordinatorOptions {
-  readonly transport?: TextSubmissionTransport;
-  readonly origin?: string | URL;
-  readonly fetchImpl?: TextSubmissionFetch;
-  readonly createPendingRequestId?: () => string;
-  readonly now?: () => string;
-  readonly onStateChange?: (state: PostComposerState) => void;
-}
-
-function createId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-/**
- * Coordinates one text publication for the life of the composer operation.
- *
- * A request is retained in memory from the moment it is built until its
- * outcome is authoritative, so an ambiguous network result can be retried as
- * the exact same bytes and idempotency key instead of producing a second post.
- * Nothing survives the dialog; the product has no saved drafts.
- */
-export class TextSubmissionCoordinator {
-  readonly transport: TextSubmissionTransport;
-  private currentState: PostComposerState = initialPostComposerState;
-  private pending: PendingSubmissionEnvelopeV1 | null = null;
-  private readonly createPendingRequestId: () => string;
-  private readonly now: () => string;
-  private readonly onStateChange?: (state: PostComposerState) => void;
-
-  constructor(options: TextSubmissionCoordinatorOptions = {}) {
-    this.transport = options.transport ?? createSameOriginTextSubmissionTransport({ origin: options.origin, fetchImpl: options.fetchImpl });
-    this.createPendingRequestId = options.createPendingRequestId ?? createId;
-    this.now = options.now ?? (() => new Date().toISOString());
-    this.onStateChange = options.onStateChange;
-  }
-
-  get state(): PostComposerState {
-    return this.currentState;
-  }
-
-  private setState(next: PostComposerState): PostComposerState {
-    this.currentState = next;
-    this.onStateChange?.(next);
-    return next;
-  }
-
-  async submit(request: TextContentSubmissionRequestEnvelopeV1): Promise<TextContentSubmissionV1> {
-    if (this.pending !== null) {
-      throw new PendingSubmissionError("An unresolved submission must be reconciled before another can start");
-    }
-    let envelope: PendingSubmissionEnvelopeV1;
-    try {
-      envelope = await createPendingSubmissionEnvelope({
-        request,
-        pendingRequestId: this.createPendingRequestId(),
-        createdAt: this.now(),
-      });
-    } catch (error) {
-      const reason = error instanceof TextSubmissionContractError
-        ? "local_validation_failed"
-        : "serialization_failed";
-      this.setState({ status: "transport_failure", reason });
-      throw error;
-    }
-    this.pending = envelope;
-    this.setState({ status: "submitting", pending_request_id: envelope.pending_request_id });
-    return this.dispatchPending(envelope);
-  }
-
-  private async dispatchPending(envelope: PendingSubmissionEnvelopeV1): Promise<TextContentSubmissionV1> {
-    let snapshot: TextContentSubmissionV1;
-    try {
-      snapshot = await this.transport.dispatch(envelope);
-    } catch (error) {
-      if (error instanceof IdempotencyConflictError) {
-        // The key is already bound to a submission. Keep the request so the
-        // read below can learn the authoritative outcome; never rebuild it.
-        this.pending = { ...envelope, submission_id: error.submission_id };
-        this.setState({
-          status: "reconciling",
-          pending_request_id: envelope.pending_request_id,
-          submission_id: error.submission_id,
-        });
-        throw error;
-      }
-      if (error instanceof TextSubmissionServerRejectionError && error.definitive) {
-        // A definitive rejection cannot become a post; release the request and
-        // let the author correct the still-open form.
-        this.pending = null;
-        this.setState({ status: "editing" });
-        throw error;
-      }
-      this.setState({ status: "reconciling", pending_request_id: envelope.pending_request_id });
-      throw error;
-    }
-    this.pending = null;
-    this.setState(projectTextSubmission(snapshot));
-    return snapshot;
-  }
-
-  /** Read the known submission, or replay the exact retained request. */
-  async reconcile(): Promise<TextContentSubmissionV1> {
-    const envelope = this.pending;
-    if (envelope === null) throw new PendingSubmissionError("No unresolved text submission to reconcile");
-    if (envelope.submission_id !== null) {
-      const knownSnapshot = await this.transport.read(envelope.submission_id);
-      if (knownSnapshot !== null) {
-        this.pending = null;
-        this.setState(projectTextSubmission(knownSnapshot));
-        return knownSnapshot;
-      }
-    }
-    return this.dispatchPending(envelope);
-  }
-}
-
-export function createTextSubmissionCoordinator(options: TextSubmissionCoordinatorOptions = {}): TextSubmissionCoordinator {
-  return new TextSubmissionCoordinator(options);
-}
-
-export function projectAuthoritativeTextSubmission(snapshot: TextContentSubmissionV1): PostComposerState {
-  return projectTextSubmission(snapshot);
 }

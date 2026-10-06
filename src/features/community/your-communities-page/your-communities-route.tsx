@@ -320,6 +320,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 freshVideo={props.freshVideo}
                 videoSongReader={props.videoSongReader}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
+                // The post is shown in its community's feed while it is
+                // delivered, so the author is taken there to see it.
+                onTextSubmitted={() => navigate(community().resourceHref ?? `/c/${community().communityId}`)}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}

@@ -80,6 +80,18 @@ export interface CommunityPageShellProps {
    * join, post or persona controls that no longer depend on anything.
    */
   managePending?: boolean;
+  /**
+   * The open text composer. It sits at the top of the right column on desktop
+   * and presents itself as a bottom sheet on a phone, so the shell only gives
+   * it a place that exists at every width.
+   */
+  composer?: () => JSX.Element;
+  /** The viewer's own posts still being delivered, shown above the feed. */
+  feedLead?: () => JSX.Element;
+  /** How many entries the lead holds, so an empty feed is not called empty. */
+  feedLeadCount?: number;
+  /** Feed posts kept first whatever the sort, newest pin first. */
+  pinnedPostIds?: readonly string[];
   renderPost?: (
     post: CommunityPost,
     render: (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element,
@@ -316,7 +328,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     const requestedSort = sort().toLowerCase();
     // SAFETY: only the three controlled select values reach this branch; unknown values use the stable best default.
     const communitySort: CommunitySort = requestedSort === "new" ? "new" : requestedSort === "top" ? "top" : "best";
-    return sortCommunityPosts(feedPosts(), communitySort);
+    const sorted = sortCommunityPosts(feedPosts(), communitySort);
+    const pinned = props.pinnedPostIds ?? [];
+    if (pinned.length === 0) return sorted;
+    const first = pinned.flatMap(id => sorted.filter(post => post.id === id));
+    return [...first, ...sorted.filter(post => !pinned.includes(post.id))];
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
@@ -432,11 +448,12 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             with a blank column beside an aside that was already there. */}
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
+            <Show when={props.feedLead}>{lead => <div class="flex flex-col" data-community-feed-lead>{lead()()}</div>}</Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 {agePrompt()}
-                <Show when={sortedPosts().length > 0 || hasAgeLocks()} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
-                  <div class="flex flex-col">
+                <Show when={sortedPosts().length > 0 || hasAgeLocks() || (props.feedLeadCount ?? 0) > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
+                  <div class={(props.feedLeadCount ?? 0) > 0 ? "flex flex-col pt-5" : "flex flex-col"}>
                     <For each={sortedPosts()}>{post => renderPost(post)}</For>
                   </div>
                 </Show>
@@ -453,13 +470,19 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </Show>
         </main>
 
+        {/* The right column. Below desktop width it contributes no box of its
+            own outside the About tab: the composer positions itself as a
+            sheet, so nothing here may add a grid row. */}
         <aside
           aria-label="Community information"
           class={tab() === "about"
             ? "flex flex-col gap-4 md:col-span-2 md:max-w-3xl"
-            : "hidden md:block"}
+            : "max-md:contents md:flex md:min-w-0 md:flex-col md:gap-4"}
         >
-          <CommunityAbout community={community()} />
+          <Show when={props.composer}>{composer => composer()()}</Show>
+          <div class={tab() === "about" ? "contents" : "hidden md:block"} data-community-about>
+            <CommunityAbout community={community()} />
+          </div>
         </aside>
       </div>
     </div>
