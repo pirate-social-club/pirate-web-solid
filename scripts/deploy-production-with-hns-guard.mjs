@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
@@ -12,6 +12,7 @@ import {
   checkLiveProductionGateway,
   checkProductionGatewayCandidate,
 } from "./hns-production-gateway-preflight.mjs";
+import { assertPublishedProductionSource } from "./hns-production-source-preflight.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 // The repository pins its Playwright browsers in .playwright-browsers. Export
@@ -24,18 +25,10 @@ const root = fileURLToPath(new URL("../", import.meta.url));
   }
 }
 
-const expectedRemote = "https://github.com/pirate-social-club/pirate-web-solid.git";
 const preparedPath = fileURLToPath(new URL("../dist/hns-production-prepared.json", import.meta.url));
 
 function refuse(reason) {
   throw new Error("hns_production_deploy_refused:" + reason);
-}
-
-function output(command, args) {
-  return execFileSync(command, args, {
-    cwd: root, encoding: "utf8", timeout: 30_000,
-    maxBuffer: 65_536, stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
 }
 
 function run(command, args, env = process.env) {
@@ -43,16 +36,6 @@ function run(command, args, env = process.env) {
     cwd: root, env, stdio: "inherit", timeout: 600_000,
   });
   if (result.error || result.status !== 0) refuse(command + "_failed");
-}
-
-function assertPublishedMain() {
-  if (output("git", ["branch", "--show-current"]) !== "main") refuse("source_is_not_main");
-  if (output("git", ["status", "--porcelain=v1"])) refuse("source_is_dirty");
-  if (output("git", ["remote", "get-url", "origin"]) !== expectedRemote) refuse("unexpected_origin");
-  const sha = output("git", ["rev-parse", "HEAD"]);
-  const remote = output("git", ["ls-remote", "origin", "refs/heads/main"]).split("\t")[0];
-  if (!/^[0-9a-f]{40}$/u.test(remote) || remote !== sha) refuse("source_is_not_published_main");
-  return sha;
 }
 
 async function buildDigest() {
@@ -83,7 +66,7 @@ async function buildDigest() {
 
 async function prepare(manifestPath) {
   if (!isAbsolute(manifestPath)) refuse("candidate_manifest_must_be_absolute");
-  const sha = assertPublishedMain();
+  const sha = assertPublishedProductionSource(root);
   run("bun", ["run", "build"], { ...process.env, CLOUDFLARE_ENV: "production" });
   const manifestBytes = await readFile(manifestPath);
   const { config, sources, packageJson } = await readIngressCompositionInputs(root);
@@ -105,7 +88,7 @@ async function prepare(manifestPath) {
 }
 
 async function deploy() {
-  const sha = assertPublishedMain();
+  const sha = assertPublishedProductionSource(root);
   const prepared = JSON.parse(await readFile(preparedPath, "utf8"));
   if (prepared.version !== 1 || prepared.sourceSha !== sha
     || prepared.buildSha256 !== await buildDigest()) {
