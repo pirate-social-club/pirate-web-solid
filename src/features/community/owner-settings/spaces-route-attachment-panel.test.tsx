@@ -1,5 +1,6 @@
 import { render } from "@solidjs/web";
 import userEvent from "@testing-library/user-event";
+import { createSignal } from "solid-js";
 import { afterEach, describe, expect, test } from "vitest";
 import { ApiClientError } from "@pirate/api-client";
 
@@ -27,7 +28,7 @@ const state = (root: string, change: Partial<SpacesRouteAttachmentState> = {}): 
 });
 const pending: SpacesRouteAttachmentResult = { status: "verification_pending", retry_after_seconds: 30 };
 
-type Reply<T> = T | Error;
+type Reply<T> = T | Error | Promise<T>;
 interface Script {
   start?: readonly Reply<SpacesRouteAttachmentResult>[];
   current?: readonly Reply<SpacesRouteAttachmentResult | null>[];
@@ -249,6 +250,86 @@ describe("Spaces community address", () => {
     const signedOut = fakeApi({ current: [unauthorized] });
     const other = await mount(signedOut.api);
     expect(other.node.querySelector("[data-owner-settings-sign-in]")).not.toBeNull();
+  });
+
+  test("continues the server's open request when this browser no longer holds its key", async () => {
+    const conflict = new ApiClientError(
+      { code: "conflict", name: "Conflict", retryable: false, status: 409 },
+      { error: { code: "conflict", message: "Conflict", retryable: false } },
+    );
+    // The server keeps one open request per community until it runs out and
+    // refuses a second start with a new key, exactly as the API does.
+    const { api, calls } = fakeApi({ current: [null, state("yahoo", { replayed: true })], start: [conflict] });
+    const view = await mount(api);
+    await view.typeRoot("yahoo");
+    await view.press("Connect address");
+    expect(calls.map((call) => call.method)).toEqual(["current", "start", "current"]);
+    expect(view.node.querySelector("[data-spaces-route-message]")).not.toBeNull();
+    expect(view.node.textContent).toContain("Continuing the request you already started.");
+    // There is no local way to abandon an open request; it ends on the server.
+    expect(view.button("Start over")).toBeUndefined();
+    expect(view.node.querySelector("[data-spaces-route-deadline]")?.textContent).toContain("To use a different address");
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  test("drops late replies when the account or community changes in place", async () => {
+    const deferred = <T,>() => {
+      let settle!: (value: T) => void;
+      const promise = new Promise<T>((resolve) => { settle = resolve; });
+      return { promise, settle };
+    };
+    const lateStart = deferred<SpacesRouteAttachmentResult>();
+    const lateProve = deferred<SpacesRouteAttachmentResult>();
+    const lateWorking = deferred<boolean>();
+    const { api, calls } = fakeApi({
+      current: [null, null, state("csca", { replayed: true }), state("yahoo", { status: "committed", route_binding_id: "srbind_1" }), null],
+      start: [lateStart.promise], prove: [lateProve.promise], resolves: [lateWorking.promise],
+    });
+    const [communityId, setCommunityId] = createSignal("community-1");
+    const [accountId, setAccountId] = createSignal("account-1");
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <SpacesRouteAttachmentPanel api={api} communityId={communityId()} accountId={accountId()} />, node);
+    await settle();
+    const user = userEvent.setup();
+    const button = (label: string) => [...node.querySelectorAll("button")].find((candidate) => candidate.textContent === label);
+
+    // A start for community 1 is still in flight when the view moves to community 2.
+    await user.type(node.querySelector<HTMLInputElement>("#spaces-route-root")!, "yahoo");
+    await user.click(button("Connect address")!);
+    setCommunityId("community-2");
+    await settle();
+    lateStart.settle(state("yahoo"));
+    await settle();
+    expect(node.querySelector("[data-spaces-route-message]")).toBeNull();
+    expect(node.querySelector<HTMLInputElement>("#spaces-route-root")?.value).toBe("");
+    expect(button("Connect address")?.disabled).toBe(false);
+
+    // A prove for account 1 is in flight when another account signs in.
+    setCommunityId("community-3");
+    await settle();
+    expect(node.querySelector("[data-spaces-route-href]")?.textContent).toContain("@csca");
+    await user.type(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")!, SIGNATURE);
+    await user.click(button("Connect address")!);
+    setAccountId("account-2");
+    await settle();
+    // Account 2's own state loads: a connected address whose check is pending.
+    lateProve.settle(state("csca", { status: "signature_rejected" }));
+    await settle();
+    expect(node.textContent).not.toContain("doesn't match the wallet");
+    expect(node.textContent).not.toContain("@csca");
+
+    // The address check for account 2 resolves after the view moved again.
+    setCommunityId("community-4");
+    await settle();
+    lateWorking.settle(true);
+    await settle();
+    expect(node.querySelector("[data-spaces-route-connected]")).toBeNull();
+    expect(node.querySelector<HTMLInputElement>("#spaces-route-root")?.value).toBe("");
+    expect(calls.filter((call) => call.method === "current").map((call) => call.input.communityId)).toEqual([
+      "community-1", "community-2", "community-3", "community-3", "community-4",
+    ]);
   });
 
   test("rejects malformed input before calling the server", async () => {

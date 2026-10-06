@@ -39,90 +39,122 @@ export function SpacesRouteAttachmentPanel(props: {
   communityId: string;
   /** Keeps one signed-in account's unfinished attempt apart from another's. */
   accountId?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
   const [attempt, setAttempt] = createSignal<SpacesRouteAttachmentState>();
   const [connected, setConnected] = createSignal<{ root: string; href: string; working: boolean }>();
-  const [busy, setBusy] = createSignal(true);
+  const [busy, setBusyState] = createSignal(true);
   const [message, setMessage] = createSignal("");
   const [copied, setCopied] = createSignal(false);
   const [authRequired, setAuthRequired] = createSignal(false);
+  const setBusy = (next: boolean) => {
+    setBusyState(next);
+    props.onBusyChange?.(next);
+  };
 
-  const storageKey = (canonicalRoot: string) =>
-    `spaces-route-attachment:${props.accountId ?? "session"}:${props.communityId}:${canonicalRoot}`;
-  const savedKey = (canonicalRoot: string) =>
-    typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(storageKey(canonicalRoot));
-  const saveKey = (canonicalRoot: string, key: string) => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(storageKey(canonicalRoot), key);
+  // Every request belongs to the account and community that started it. When
+  // either changes, `scope` advances and late replies for the old one are dropped.
+  let scope = 0;
+  type Scope = Readonly<{ live: () => boolean; communityId: string; storageKey: (root: string) => string }>;
+  const enter = (): Scope => {
+    const mine = scope;
+    const communityId = props.communityId;
+    const prefix = `spaces-route-attachment:${props.accountId ?? "session"}:${communityId}:`;
+    return { live: () => mine === scope, communityId, storageKey: (canonicalRoot) => prefix + canonicalRoot };
   };
-  const clearKey = (canonicalRoot: string) => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(storageKey(canonicalRoot));
+  const savedKey = (at: Scope, canonicalRoot: string) =>
+    typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(at.storageKey(canonicalRoot));
+  const saveKey = (at: Scope, canonicalRoot: string, key: string) => {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(at.storageKey(canonicalRoot), key);
   };
-  const reportFailure = (reason: unknown, fallback: string) => {
-    if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
-    else if (reason instanceof ApiClientError && reason.status === 409) {
-      setMessage("This address can't be connected here. It may already belong to a community, or another attempt is still open. Try again in a few minutes.");
-    } else setMessage(fallback);
+  const clearKey = (at: Scope, canonicalRoot: string) => {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(at.storageKey(canonicalRoot));
   };
 
   /** A finished attempt is history; whether the address works now is read separately. */
-  const showConnected = async (state: SpacesRouteAttachmentState) => {
-    clearKey(state.canonical_root);
-    setAttempt(undefined);
-    setSignature("");
+  const showConnected = async (at: Scope, state: SpacesRouteAttachmentState) => {
+    clearKey(at, state.canonical_root);
     let working = false;
     try {
       working = await props.api.resolves({ canonicalRoot: state.canonical_root });
     } catch {
       working = false;
     }
+    if (!at.live()) return;
+    setAttempt(undefined);
+    setSignature("");
     setRoot(`@${state.canonical_root}`);
     setConnected({ root: state.canonical_root, href: state.canonical_href, working });
   };
 
-  const apply = async (result: SpacesRouteAttachmentResult): Promise<void> => {
+  const apply = async (at: Scope, result: SpacesRouteAttachmentResult): Promise<void> => {
+    if (!at.live()) return;
     if (isPending(result)) {
       setMessage(CHECK_LATER);
       return;
     }
     setRoot(`@${result.canonical_root}`);
-    if (result.status === "committed") return showConnected(result);
+    if (result.status === "committed") return showConnected(at, result);
     if (result.status === "awaiting_signature" || result.status === "proved") {
       setConnected(undefined);
       setAttempt(result);
       return;
     }
-    clearKey(result.canonical_root);
+    clearKey(at, result.canonical_root);
     setAttempt(undefined);
     setSignature("");
     setMessage(endedReason(result.status) ?? "Start again to get a new message.");
   };
 
-  const load = async (isCurrent: () => boolean) => {
+  const isOpen = (state: SpacesRouteAttachmentState): boolean =>
+    state.status === "awaiting_signature" || state.status === "proved";
+
+  const load = async (at: Scope) => {
     try {
-      const current = await props.api.current({ communityId: props.communityId });
-      if (!isCurrent()) return;
+      const current = await props.api.current({ communityId: at.communityId });
+      if (!at.live()) return;
       // An attempt that ended earlier needs no announcement on a fresh visit.
       if (current !== null && !isPending(current)) {
-        if (current.status === "awaiting_signature" || current.status === "proved" || current.status === "committed") {
-          await apply(current);
-        } else setRoot(`@${current.canonical_root}`);
+        if (isOpen(current) || current.status === "committed") await apply(at, current);
+        else setRoot(`@${current.canonical_root}`);
       }
     } catch (reason) {
-      if (isCurrent() && reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+      if (at.live() && reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
     } finally {
-      if (isCurrent()) setBusy(false);
+      if (at.live()) setBusy(false);
     }
   };
-  createEffect(() => props.communityId, () => {
-    let active = true;
-    queueMicrotask(() => { if (active) void load(() => active); });
-    onCleanup(() => { active = false; });
+  createEffect(() => [props.communityId, props.accountId], () => {
+    scope += 1;
+    const at = enter();
+    queueMicrotask(() => {
+      if (!at.live()) return;
+      setRoot("");
+      setSignature("");
+      setAttempt(undefined);
+      setConnected(undefined);
+      setMessage("");
+      setCopied(false);
+      setAuthRequired(false);
+      setBusy(true);
+      void load(at);
+    });
   });
+  onCleanup(() => { scope += 1; });
+
+  const reportFailure = (at: Scope, reason: unknown, fallback: string) => {
+    if (!at.live()) return;
+    if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+    else if (reason instanceof ApiClientError && reason.status === 409) {
+      setMessage("This address can't be connected here. It may already belong to a community, or another request is still open. Try again in a few minutes.");
+    } else setMessage(fallback);
+  };
 
   const start = async () => {
     if (busy()) return;
+    const at = enter();
     const typed = root().trim().toLowerCase();
     const canonicalRoot = typed.startsWith("@") ? typed.slice(1) : typed;
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(canonicalRoot) || canonicalRoot.length > 62) {
@@ -132,37 +164,53 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
-      let idempotencyKey = savedKey(canonicalRoot);
+      let idempotencyKey = savedKey(at, canonicalRoot);
       const reused = idempotencyKey !== null;
       if (idempotencyKey === null) {
         idempotencyKey = newKey();
-        saveKey(canonicalRoot, idempotencyKey);
+        saveKey(at, canonicalRoot, idempotencyKey);
       }
-      let result = await props.api.start({ communityId: props.communityId, canonicalRoot, idempotencyKey });
+      let result = await props.api.start({ communityId: at.communityId, canonicalRoot, idempotencyKey });
       // A saved key can name an attempt that has since ended. Pressing the
       // button asks for a new one, so it gets a new key and a new message.
-      if (reused && !isPending(result) && endedReason(result.status) !== undefined) {
+      if (at.live() && reused && !isPending(result) && endedReason(result.status) !== undefined) {
         idempotencyKey = newKey();
-        saveKey(canonicalRoot, idempotencyKey);
-        result = await props.api.start({ communityId: props.communityId, canonicalRoot, idempotencyKey });
+        saveKey(at, canonicalRoot, idempotencyKey);
+        result = await props.api.start({ communityId: at.communityId, canonicalRoot, idempotencyKey });
       }
-      await apply(result);
+      await apply(at, result);
     } catch (reason) {
-      reportFailure(reason, "We couldn't start. Check the address and try again.");
+      // The server keeps an open request until it runs out. If this browser
+      // lost its key for it, continue that request rather than fail.
+      if (at.live() && reason instanceof ApiClientError && reason.status === 409) {
+        clearKey(at, canonicalRoot);
+        try {
+          const open = await props.api.current({ communityId: at.communityId });
+          if (open !== null && !isPending(open) && isOpen(open)) {
+            await apply(at, open);
+            if (at.live()) setMessage("Continuing the request you already started.");
+            return;
+          }
+        } catch {
+          /* Fall through to the plain refusal. */
+        }
+      }
+      reportFailure(at, reason, "We couldn't start. Check the address and try again.");
     } finally {
-      setBusy(false);
+      if (at.live()) setBusy(false);
     }
   };
 
-  const finish = async (state: SpacesRouteAttachmentState) => {
-    const result = await props.api.commit({ communityId: props.communityId,
+  const finish = async (at: Scope, state: SpacesRouteAttachmentState) => {
+    const result = await props.api.commit({ communityId: at.communityId,
       attachmentIntentId: state.attachment_intent_id, generation: state.generation });
-    await apply(result);
+    await apply(at, result);
   };
 
   const submitSignature = async () => {
     const state = attempt();
     if (state === undefined || busy()) return;
+    const at = enter();
     const signatureHex = signature().trim().toLowerCase();
     if (!/^[0-9a-f]{128}$/.test(signatureHex)) {
       setMessage("Paste the 128-character signature from your wallet.");
@@ -171,46 +219,41 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
-      const result = await props.api.prove({ communityId: props.communityId,
+      const result = await props.api.prove({ communityId: at.communityId,
         attachmentIntentId: state.attachment_intent_id, signatureHex });
-      await apply(result);
-      if (!isPending(result) && result.status === "proved") await finish(result);
+      await apply(at, result);
+      if (at.live() && !isPending(result) && result.status === "proved") await finish(at, result);
     } catch (reason) {
-      reportFailure(reason, "We couldn't check the signature. You can try the same signature again.");
+      reportFailure(at, reason, "We couldn't check the signature. You can try the same signature again.");
     } finally {
-      setBusy(false);
+      if (at.live()) setBusy(false);
     }
   };
 
   const resume = async () => {
     const state = attempt();
     if (state === undefined || busy()) return;
+    const at = enter();
     setBusy(true);
     setMessage("");
     try {
-      await finish(state);
+      await finish(at, state);
     } catch (reason) {
-      reportFailure(reason, "We couldn't finish. Select Continue to try again.");
+      reportFailure(at, reason, "We couldn't finish. Select Continue to try again.");
     } finally {
-      setBusy(false);
+      if (at.live()) setBusy(false);
     }
   };
 
   const copyMessage = async (text: string) => {
+    const at = enter();
+    let ok = true;
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
     } catch {
-      setCopied(false);
+      ok = false;
     }
-  };
-
-  const startOver = () => {
-    const state = attempt();
-    if (state !== undefined) clearKey(state.canonical_root);
-    setAttempt(undefined);
-    setSignature("");
-    setMessage("");
+    if (at.live()) setCopied(ok);
   };
 
   const signBy = (expiresAt: string) => new Date(expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -256,18 +299,15 @@ export function SpacesRouteAttachmentPanel(props: {
                   <Button type="button" variant="secondary" disabled={busy()} onClick={() => void copyMessage(state().challenge_message)}>Copy message</Button>
                   <Show when={copied()}><span role="status" class="text-sm">Copied</span></Show>
                 </div>
-                <p class="text-xs text-muted-foreground">Sign before {signBy(state().expires_at)}.</p>
+                <p class="text-xs text-muted-foreground" data-spaces-route-deadline>Sign before {signBy(state().expires_at)}. To use a different address, wait until then and start again.</p>
                 <label class="block space-y-1 text-sm" for="spaces-route-signature">
                   <span>Signature</span>
                   <textarea id="spaces-route-signature" class="min-h-24 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
                     value={signature()} disabled={busy()} onInput={(event) => setSignature(event.currentTarget.value)} />
                 </label>
-                <div class="flex gap-2">
-                  <Button type="button" disabled={busy()} onClick={() => void submitSignature()}>
-                    {restoring() ? "Restore address" : "Connect address"}
-                  </Button>
-                  <Button type="button" variant="secondary" disabled={busy()} onClick={startOver}>Start over</Button>
-                </div>
+                <Button type="button" disabled={busy()} onClick={() => void submitSignature()}>
+                  {restoring() ? "Restore address" : "Connect address"}
+                </Button>
               </Show>
               <Show when={state().status === "proved"}>
                 <p class="text-sm">Your signature was accepted. Continue to finish before {signBy(state().expires_at)}.</p>
