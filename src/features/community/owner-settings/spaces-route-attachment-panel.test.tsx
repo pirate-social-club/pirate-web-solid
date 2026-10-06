@@ -336,6 +336,99 @@ describe("Spaces community address", () => {
     ]);
   });
 
+  for (const change of ["community", "account"] as const) {
+    test(`sends and stores nothing for the old ${change} when it changes during session repair`, async () => {
+      // Each repair is held open by the test, then released after the switch.
+      const repairs: { accountId: string | undefined; signal: AbortSignal; release: (ready: boolean) => void }[] = [];
+      const sessionRepair = (accountId: string | undefined, signal: AbortSignal) =>
+        new Promise<boolean>((resolve) => { repairs.push({ accountId, signal, release: resolve }); });
+      const open = state("yahoo", { replayed: true });
+      const proved = state("yahoo", { status: "proved", replayed: true });
+      const { api, calls } = fakeApi({
+        // Scope 1 idle, scope 2 awaiting a signature, scope 3 accepted, scope 4 idle.
+        current: [null, open, proved, null], start: [state("yahoo")], prove: [proved],
+        commit: [state("yahoo", { status: "committed", route_binding_id: "srbind_1" })], resolves: [true],
+      });
+      const [communityId, setCommunityId] = createSignal("community-1");
+      const [accountId, setAccountId] = createSignal("account-1");
+      const node = document.createElement("div");
+      document.body.appendChild(node);
+      nodes.push(node);
+      render(() => <SpacesRouteAttachmentPanel api={api} communityId={communityId()} accountId={accountId()}
+        sessionRepair={sessionRepair} />, node);
+      const user = userEvent.setup();
+      const button = (label: string) => [...node.querySelectorAll("button")].find((candidate) => candidate.textContent === label);
+      let step = 1;
+      const move = async () => {
+        step += 1;
+        if (change === "community") setCommunityId(`community-${step}`);
+        else setAccountId(`account-${step}`);
+        await settle();
+      };
+      const releaseLatest = async () => { repairs.at(-1)!.release(true); await settle(); };
+      const sent = (method: string) => calls.filter((call) => call.method === method);
+
+      // Start: repair for the first scope is pending when the scope changes.
+      await settle();
+      await releaseLatest();
+      await user.type(node.querySelector<HTMLInputElement>("#spaces-route-root")!, "yahoo");
+      await user.click(button("Connect address")!);
+      await settle();
+      const startRepair = repairs.at(-1)!;
+      await move();
+      expect(startRepair.signal.aborted).toBe(true);
+      startRepair.release(true);
+      await settle();
+      expect(sent("start")).toHaveLength(0);
+      expect(sessionStorage.length).toBe(0);
+
+      // Prove: the new scope shows an open request; its repair is pending at the next change.
+      await releaseLatest();
+      await user.type(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")!, SIGNATURE);
+      await user.click(button("Connect address")!);
+      await settle();
+      const proveRepair = repairs.at(-1)!;
+      await move();
+      proveRepair.release(true);
+      await settle();
+      expect(sent("prove")).toHaveLength(0);
+
+      // Commit: the next scope shows an accepted signature waiting to finish.
+      await releaseLatest();
+      await user.click(button("Continue")!);
+      await settle();
+      const commitRepair = repairs.at(-1)!;
+      await move();
+      commitRepair.release(true);
+      await settle();
+      expect(sent("commit")).toHaveLength(0);
+      expect(sent("resolves")).toHaveLength(0);
+      expect(sessionStorage.length).toBe(0);
+
+      // Every repair ran for the account that asked, and the final scope is clean.
+      await releaseLatest();
+      expect(node.querySelector("[data-spaces-route-message]")).toBeNull();
+      expect(node.querySelector("[data-owner-settings-sign-in]")).toBeNull();
+      const expectedAccounts = change === "account"
+        ? ["account-1", "account-1", "account-2", "account-2", "account-3", "account-3", "account-4"]
+        : Array.from({ length: 7 }, () => "account-1");
+      expect(repairs.map((repair) => repair.accountId)).toEqual(expectedAccounts);
+      expect(repairs.slice(0, -1).every((repair) => repair.signal.aborted)).toBe(true);
+    });
+  }
+
+  test("asks the owner to sign in when session repair cannot restore the session", async () => {
+    const { api, calls } = fakeApi({ current: [null] });
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <SpacesRouteAttachmentPanel api={api} communityId="community-1" accountId="account-1"
+      sessionRepair={async () => false} />, node);
+    await settle();
+    expect(node.querySelector("[data-owner-settings-sign-in]")).not.toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
   test("appears under the Spaces choice of the shared address settings", async () => {
     const { api } = fakeApi({ current: [state("yahoo", { replayed: true })] });
     const node = document.createElement("div");

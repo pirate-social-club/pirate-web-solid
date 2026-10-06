@@ -2,8 +2,6 @@ import { Button, Card, FormFieldLabel, PrefixInput, Textarea, Type } from "@pira
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveAccountSession } from "../../../api/session";
-import { ensureApplicationSession } from "../../auth/session-recovery";
 import { useApplicationSession } from "../../shell/application-session";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 import type {
@@ -42,8 +40,12 @@ export function SpacesRouteAttachmentPanel(props: {
   communityId: string;
   /** Keeps one signed-in account's unfinished attempt apart from another's. Defaults to the signed-in account. */
   accountId?: string;
-  /** Repairs the owner's application session before each request, as the other address ceremonies do. */
-  repairSession?: boolean;
+  /**
+   * Repairs the owner's application session before each request, as the other
+   * address ceremonies do. It receives the account and an abort signal for the
+   * scope that asked, and resolves false when the owner must sign in.
+   */
+  sessionRepair?: (accountId: string | undefined, signal: AbortSignal) => Promise<boolean>;
   onBusyChange?: (busy: boolean) => void;
 }) {
   const applicationSession = useApplicationSession();
@@ -51,19 +53,6 @@ export function SpacesRouteAttachmentPanel(props: {
     if (props.accountId !== undefined) return props.accountId;
     const account = applicationSession();
     return account !== undefined && typeof account === "object" ? account.userId : undefined;
-  };
-  const controller = new AbortController();
-  onCleanup(() => controller.abort());
-  let resolvedAccountId: string | undefined;
-  const ensureSession = async (): Promise<boolean> => {
-    if (props.repairSession !== true) return true;
-    let owner = accountId() ?? resolvedAccountId;
-    if (owner === undefined) {
-      const account = await resolveAccountSession({ timeoutMs: 15_000 });
-      if (account === "anonymous" || controller.signal.aborted) return false;
-      owner = resolvedAccountId = account.userId;
-    }
-    return ensureApplicationSession(owner, controller.signal);
   };
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
@@ -81,12 +70,33 @@ export function SpacesRouteAttachmentPanel(props: {
   // Every request belongs to the account and community that started it. When
   // either changes, `scope` advances and late replies for the old one are dropped.
   let scope = 0;
-  type Scope = Readonly<{ live: () => boolean; communityId: string; storageKey: (root: string) => string }>;
+  let scopeAbort = new AbortController();
+  type Scope = Readonly<{ live: () => boolean; communityId: string; accountId: string | undefined;
+    signal: AbortSignal; storageKey: (root: string) => string }>;
   const enter = (): Scope => {
     const mine = scope;
     const communityId = props.communityId;
-    const prefix = `spaces-route-attachment:${accountId() ?? "session"}:${communityId}:`;
-    return { live: () => mine === scope, communityId, storageKey: (canonicalRoot) => prefix + canonicalRoot };
+    const owner = accountId();
+    const prefix = `spaces-route-attachment:${owner ?? "session"}:${communityId}:`;
+    return { live: () => mine === scope, communityId, accountId: owner, signal: scopeAbort.signal,
+      storageKey: (canonicalRoot) => prefix + canonicalRoot };
+  };
+  /** Ends the current scope: its repair is aborted and nothing it awaited may act. */
+  const leave = () => {
+    scope += 1;
+    scopeAbort.abort();
+    scopeAbort = new AbortController();
+  };
+  /**
+   * Session repair is itself a wait. It runs for the scope and owner that
+   * asked, and a scope that ended meanwhile must send nothing and store nothing.
+   */
+  const sessionReady = async (at: Scope): Promise<boolean> => {
+    if (props.sessionRepair === undefined) return at.live();
+    const ready = await props.sessionRepair(at.accountId, at.signal);
+    if (!at.live()) return false;
+    if (!ready) setAuthRequired(true);
+    return ready;
   };
   const savedKey = (at: Scope, canonicalRoot: string) =>
     typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(at.storageKey(canonicalRoot));
@@ -137,10 +147,7 @@ export function SpacesRouteAttachmentPanel(props: {
 
   const load = async (at: Scope) => {
     try {
-      if (!await ensureSession()) {
-        if (at.live()) setAuthRequired(true);
-        return;
-      }
+      if (!await sessionReady(at)) return;
       const current = await props.api.current({ communityId: at.communityId });
       if (!at.live()) return;
       // An attempt that ended earlier needs no announcement on a fresh visit.
@@ -155,7 +162,7 @@ export function SpacesRouteAttachmentPanel(props: {
     }
   };
   createEffect(() => [props.communityId, accountId()], () => {
-    scope += 1;
+    leave();
     const at = enter();
     queueMicrotask(() => {
       if (!at.live()) return;
@@ -170,7 +177,7 @@ export function SpacesRouteAttachmentPanel(props: {
       void load(at);
     });
   });
-  onCleanup(() => { scope += 1; });
+  onCleanup(leave);
 
   const reportFailure = (at: Scope, reason: unknown, fallback: string) => {
     if (!at.live()) return;
@@ -192,10 +199,7 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
-      if (!await ensureSession()) {
-        if (at.live()) setAuthRequired(true);
-        return;
-      }
+      if (!await sessionReady(at)) return;
       let idempotencyKey = savedKey(at, canonicalRoot);
       const reused = idempotencyKey !== null;
       if (idempotencyKey === null) {
@@ -251,10 +255,7 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
-      if (!await ensureSession()) {
-        if (at.live()) setAuthRequired(true);
-        return;
-      }
+      if (!await sessionReady(at)) return;
       const result = await props.api.prove({ communityId: at.communityId,
         attachmentIntentId: state.attachment_intent_id, signatureHex });
       await apply(at, result);
@@ -273,10 +274,7 @@ export function SpacesRouteAttachmentPanel(props: {
     setBusy(true);
     setMessage("");
     try {
-      if (!await ensureSession()) {
-        if (at.live()) setAuthRequired(true);
-        return;
-      }
+      if (!await sessionReady(at)) return;
       await finish(at, state);
     } catch (reason) {
       reportFailure(at, reason, "We couldn't finish. Select Continue to try again.");

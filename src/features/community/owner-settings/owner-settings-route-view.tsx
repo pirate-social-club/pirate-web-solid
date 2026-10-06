@@ -33,7 +33,7 @@ export interface OwnerSettingsRouteViewProps {
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
-  /** Shown under the Spaces choice only when supplied; the generated-client wrapper arrives with client 0.111.0. */
+  /** Test fixture for the Spaces address screen; production uses the session API. */
   spacesRouteAttachmentApi?: SpacesRouteAttachmentApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   /** `null` renders the management index instead of a section. */

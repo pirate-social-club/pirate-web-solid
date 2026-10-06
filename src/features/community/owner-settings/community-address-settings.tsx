@@ -4,18 +4,21 @@ import { CommunityNamespaceSettingsController } from "./community-namespace-sett
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
 import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
-import type { SpacesRouteAttachmentApi } from "./spaces-route-attachment-api";
+import { createSpacesRouteAttachmentApi, type SpacesRouteAttachmentApi } from "./spaces-route-attachment-api";
 import { SpacesRouteAttachmentPanel } from "./spaces-route-attachment-panel";
+import { repairOwnerSession } from "./spaces-route-session-repair";
 
 export function CommunityAddressSettings(props: {
   communityId: string;
   communityPath: string;
   namespaceApi?: CommunityNamespaceSettingsPort;
   spacesApi?: SpacesOwnerProofApi;
-  /** Connecting a Spaces name as the community address. Shown only when supplied. */
+  /** Connecting a Spaces name as the community address. Tests supply a fake; production uses the session API. */
   spacesRouteApi?: SpacesRouteAttachmentApi;
-  repairSpacesRouteSession?: boolean;
 }) {
+  // A supplied API is a fixture with no session to repair, as in the other ceremonies.
+  const routeApi = props.spacesRouteApi ?? createSpacesRouteAttachmentApi();
+  const routeSessionRepair = props.spacesRouteApi === undefined ? repairOwnerSession : undefined;
   const [provider, setProvider] = createSignal<"hns" | "spaces">("hns");
   // Each ceremony reports its own work; the choice stays locked while either is busy.
   const [ceremonyBusy, setBusy] = createSignal(false);
@@ -30,10 +33,8 @@ export function CommunityAddressSettings(props: {
       </div>
     </div>
     <Show when={provider() === "hns"} fallback={<>
-      <Show when={props.spacesRouteApi}>{(api) => (
-        <SpacesRouteAttachmentPanel onBusyChange={setRouteBusy} api={api()} communityId={props.communityId}
-          repairSession={props.repairSpacesRouteSession} />
-      )}</Show>
+      <SpacesRouteAttachmentPanel onBusyChange={setRouteBusy} api={routeApi} communityId={props.communityId}
+        sessionRepair={routeSessionRepair} />
       <SpacesOwnerProofPanel onBusyChange={setBusy} api={props.spacesApi} communityId={props.communityId} />
     </>}>
       <CommunityNamespaceSettingsController onBusyChange={setBusy} api={props.namespaceApi} communityId={props.communityId} communityPath={props.communityPath} />
