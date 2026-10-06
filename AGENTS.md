@@ -39,7 +39,9 @@ source.
   direct Wrangler deploy. A planned gateway rotation must update the active
   manifest and Worker reference together before the command can pass.
 - Production HNS releases use `bun run prepare:production:hns-guarded
-  /absolute/candidate-manifest.json` from published `main` before the
+  /absolute/candidate-manifest.json` from published `main`, or a frozen
+  `release/production-*` ref published to the repository's coordinator Radicle
+  namespace whose exact commit is already accepted on published GitHub main, before the
   gateway rotation. This builds and pins the exact Worker bytes against the
   reviewed candidate manifest without sending traffic. After the coordinated
   gateway rotation and explicit deployment approval, use

@@ -214,6 +214,13 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         setActionError("We couldn't load your community profiles. Choose Post again to retry.");
         return;
       }
+      // A plain post is written on the community's own page, in the composer
+      // beside its feed. Only an entry that carries a video opens one here.
+      if (props.initialVideoSong === undefined && props.freshVideo === undefined) {
+        // The id route always resolves and is the one that reads the marker.
+        navigate(`/c/${encodeURIComponent(community.communityId)}?compose=text`);
+        return;
+      }
       setSelectedMembership(membership);
       setPostingSession(resolved);
       setComposerOpen(true);
@@ -320,6 +327,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 freshVideo={props.freshVideo}
                 videoSongReader={props.videoSongReader}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
+                textHostedElsewhere
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}

@@ -143,6 +143,8 @@ function submission(status, community) {
   };
 }
 
+let conflictReads = 0;
+
 const upstream = createServer(async (incoming, outgoing) => {
   try {
     const bodyText = await readBody(incoming);
@@ -209,6 +211,14 @@ const upstream = createServer(async (incoming, outgoing) => {
       const status = community === "manual-review" ? "manual_review" : community === "blocked" ? "blocked" : "published";
       outgoing.writeHead(201, { "content-type": "application/json", "x-request-id": "text-e2e" });
       outgoing.end(JSON.stringify(submission(status, community)));
+      return;
+    }
+    // The key of the conflict fixture is already bound to a published
+    // submission; the client learns that by reading it, not by sending again.
+    if (incoming.method === "GET" && pathname === "/text-content-submissions/submission-conflict") {
+      conflictReads += 1;
+      outgoing.writeHead(200, { "content-type": "application/json", "x-request-id": "text-e2e" });
+      outgoing.end(JSON.stringify(submission("published", "conflict")));
       return;
     }
     outgoing.writeHead(404, { "content-type": "application/json" });
@@ -305,9 +315,9 @@ async function openComposer(page, community, body) {
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.waitForLoadState("networkidle");
   assert(await page.getByRole("dialog").count() === 0, "Community persona chooser opened during hydration");
-  assert(await page.getByRole("button", { name: "Post" }).count() === 1,
-    `Hydrated Community has no posting action: ${await page.locator("main").allTextContents()}`);
-  await page.getByRole("button", { name: "Post" }).click();
+  assert(await page.getByRole("button", { name: "Post", exact: true }).count() === 1,
+    `Hydrated Community has no single posting action: ${JSON.stringify(await page.getByRole("button").allTextContents())}`);
+  await page.getByRole("button", { name: "Post", exact: true }).click();
   const form = page.getByRole("form", { name: "Create a post" });
   await form.waitFor({ state: "visible" });
   assert(await page.getByRole("dialog").count() === 0, "posting form introduced an outer modal");
@@ -318,13 +328,26 @@ async function openComposer(page, community, body) {
   return form;
 }
 
-async function runTerminalScenario(browser, community, expectedText) {
+/** The author's own post in the feed, in the state the server's answer put it in. */
+function ownPost(page, status) {
+  return page.locator(`[data-pending-text-post-status='${status}']`);
+}
+
+async function runTerminalScenario(browser, community, expected) {
   const { context, page } = await authenticatedPage(browser);
   try {
-    const form = await openComposer(page, community, `Browser body for ${community}`);
+    const body = `Browser body for ${community}`;
+    const form = await openComposer(page, community, body);
+    // Posting never waits in the form: it closes and the post is in the feed.
+    await form.waitFor({ state: "hidden" });
+    const post = ownPost(page, expected.status);
+    await post.waitFor({ state: "visible" });
+    assert((await post.textContent()).includes(body), `${community} did not show the author's post in the feed`);
+    if (expected.text !== undefined) await post.getByText(expected.text, { exact: false }).waitFor({ state: "visible" });
+    assert(await page.getByText("Check again").count() === 0, `${community} asked the author to check again`);
+    assert(await page.getByText("Checking whether your post was accepted").count() === 0, `${community} showed a checking state`);
     if (community === "published") {
-      await form.waitFor({ state: "hidden" });
-      await page.getByRole("button", { name: "Post" }).click();
+      await page.getByRole("button", { name: "Post", exact: true }).click();
       const freshForm = page.getByRole("form", { name: "Create a post" });
       const freshPublish = freshForm.getByRole("button", { name: "Post", exact: true });
       assert(await freshForm.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
@@ -332,9 +355,6 @@ async function runTerminalScenario(browser, community, expectedText) {
       await freshForm.getByLabel("Title").fill("Fresh contextual draft");
       await freshForm.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
       assert(await freshPublish.isEnabled(), "fresh contextual draft did not become publishable with content");
-      assert(await freshForm.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
-    } else {
-      await form.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     }
   } finally {
     await context.close();
@@ -365,22 +385,16 @@ try {
   await warmApplication();
   browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE });
 
-  await runTerminalScenario(browser, "published", "Post published.");
-  await runTerminalScenario(browser, "manual-review", "awaiting review");
-  await runTerminalScenario(browser, "blocked", "blocked by community policy");
-  // A typed conflict is an unresolved request, not a saved-draft recovery: the
-  // composer reports that the outcome is being checked and offers a retry.
-  await runTerminalScenario(browser, "conflict", "Checking whether your post was accepted");
-
-  const { context, page } = await authenticatedPage(browser);
-  try {
-    const form = await openComposer(page, "lost-response", "Exact lost response body");
-    await form.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
-    await form.getByRole("button", { name: "Check again" }).click();
-    await form.waitFor({ state: "hidden" });
-  } finally {
-    await context.close();
-  }
+  await runTerminalScenario(browser, "published", { status: "published" });
+  await runTerminalScenario(browser, "manual-review", { status: "rejected", text: "waiting for review" });
+  await runTerminalScenario(browser, "blocked", { status: "rejected", text: "isn't allowed in this community" });
+  // A typed conflict names the submission the key is bound to. The client
+  // reads that submission and shows its outcome; it does not send again.
+  await runTerminalScenario(browser, "conflict", { status: "published" });
+  assert(conflictReads >= 1, "conflict was not resolved by reading the bound submission");
+  // The first answer is lost. The same request is replayed underneath and the
+  // author is never asked to do anything.
+  await runTerminalScenario(browser, "lost-response", { status: "published" });
 
   assert(lostAttempts.length === 2, `expected two lost-response attempts, received ${lostAttempts.length}`);
   assert(lostAttempts[0] === lostAttempts[1], "lost-response retry did not resend byte-identical JSON");

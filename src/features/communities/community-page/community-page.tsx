@@ -1,4 +1,4 @@
-import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
+import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../../auth/global-sign-in-host.tsx";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
@@ -32,6 +32,15 @@ import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
+import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
+import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
+import { PendingTextPosts } from "../../posts/text-submission/pending-text-posts.tsx";
+import { TextPostPanel, emptyTextPostDraft, type TextPostDraft } from "../../posts/text-submission/text-post-panel.tsx";
+import {
+  createTextSubmissionStore,
+  useTextSubmissionStore,
+  type TextSubmissionItem,
+} from "../../posts/text-submission/text-submission-store.tsx";
 import {
   PostEngagement,
   type PostEngagementPost,
@@ -70,6 +79,9 @@ export interface CommunityPageProps {
   /** Clears the compose marker from the URL once the song-entry composer has
    * been opened and dismissed, so a reload browses instead of reopening it. */
   readonly clearVideoSongIntent?: () => void;
+  /** Entering from a "Post here" action elsewhere: open the text composer
+   * once the viewer's posting session is resolved. */
+  readonly composeText?: boolean;
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -81,6 +93,9 @@ export interface CommunityPageProps {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
+  /** Stands in for the text post endpoint when the page renders without the
+   * application shell, as in stories and tests. */
+  readonly textSubmissionTransport?: TextSubmissionTransport;
 }
 
 function communityCopy() {
@@ -137,6 +152,7 @@ function SuccessState(props: {
   readonly initialVideoSong?: { readonly postId: string };
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
+  readonly composeText?: boolean;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -146,6 +162,7 @@ function SuccessState(props: {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
+  readonly textSubmissionTransport?: TextSubmissionTransport;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
@@ -154,7 +171,19 @@ function SuccessState(props: {
   const communityId = props.communityId;
   const engagementApi = untrack(() => props.engagementApi);
   const resolveSession = untrack(() => props.resolveSession);
+  // The media composer: the song steps and the video capture flow. Text has
+  // its own panel beside the feed and never opens this.
   const [composerOpen, setComposerOpen] = createSignal(false);
+  const [mediaEntry, setMediaEntry] = createSignal<{ readonly kind: "video" } | { readonly kind: "song"; readonly file: File }>();
+  const [textOpen, setTextOpen] = createSignal(false);
+  const [textDraft, setTextDraft] = createSignal<TextPostDraft>(emptyTextPostDraft);
+  // Posts the feed already carries that this author just published, kept
+  // first so a confirmed post does not jump away from where it appeared.
+  const [pinnedPostIds, setPinnedPostIds] = createSignal<readonly string[]>([], { ownedWrite: true });
+  // The application shell owns text posts in flight. An isolated render has no
+  // shell, so it owns a store for as long as it is mounted.
+  const shellTextStore = useTextSubmissionStore();
+  const textStore = shellTextStore ?? createTextSubmissionStore({ transport: untrack(() => props.textSubmissionTransport) });
   const [postingBusy, setPostingBusy] = createSignal(false);
   const [canManage, setCanManage] = createSignal(false);
   const [manageResolved, setManageResolved] = createSignal(false);
@@ -259,10 +288,32 @@ function SuccessState(props: {
       else recover();
     },
   );
-  onCleanup(onSessionRefreshed(() => setAuthorizedFeed(undefined)));
+  const loadAuthorizedThreads = () => props.loadThreads
+    ? props.loadThreads(communityId)
+    : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() });
+  /**
+   * Every authorized feed read lands here, so a post this author just
+   * published is never shown twice: once the feed carries it, the optimistic
+   * entry is dropped and the real post is kept first.
+   */
+  const applyAuthorizedFeed = (page: CommunityThreadPage) => {
+    const present = new Set(page.posts.map(post => post.id));
+    const confirmed = untrack(pendingTextPosts).filter(item => item.status === "published" && item.postId !== null && present.has(item.postId));
+    setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
+    if (confirmed.length === 0) return;
+    // SAFETY: the filter above kept only items whose postId is a string.
+    setPinnedPostIds(current => [...confirmed.map(item => item.postId as string), ...current]);
+    for (const item of confirmed) textStore.dismiss(item.id);
+  };
+  onCleanup(onSessionRefreshed(() => {
+    setAuthorizedFeed(undefined);
+    // The server-rendered feed predates anything posted from this page, so a
+    // post already confirmed here is read back rather than left to vanish.
+    if (untrack(pinnedPostIds).length > 0) void reconcilePublished();
+  }));
   const refreshAgeFeed = async (signal: AbortSignal) => {
-    const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
-    if (!signal.aborted) setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
+    const page = await loadAuthorizedThreads();
+    if (!signal.aborted) applyAuthorizedFeed(page);
   };
   const feed = createMemo<CommunityFeed>(
     () => {
@@ -401,12 +452,15 @@ function SuccessState(props: {
   createEffect(() => engagement.message(), (message) => announce(toast.success, message));
   createEffect(() => engagement.error(), (message) => announce(toast.error, message));
 
-  const openPostComposer = async (): Promise<void> => {
-    if (postingBusy()) return;
+  /** Resolves true once the text composer is open. */
+  const openPostComposer = async (): Promise<boolean> => {
+    if (postingBusy()) return false;
     setPostingBusy(true);
     try {
       const resolved = await engagement.resolvePostingSession();
-      if (active && resolved !== undefined) setComposerOpen(true);
+      if (!active || resolved === undefined) return false;
+      setTextOpen(true);
+      return true;
     } finally {
       if (active) setPostingBusy(false);
     }
@@ -437,6 +491,133 @@ function SuccessState(props: {
       });
     },
   );
+
+  const pendingTextPosts = createMemo<readonly TextSubmissionItem[]>(() => {
+    const account = engagement.postingSession()?.userId;
+    if (account === undefined) return [];
+    return textStore.items().filter(item => item.communityId === communityId && item.accountId === account);
+  });
+  // A confirmed post is read back into the feed. Once the feed carries it the
+  // optimistic entry is dropped and the real post takes its place at the top;
+  // until then the entry stays, so the author never sees their post vanish.
+  let reconciling = false;
+  let reconcileAgain = false;
+  async function reconcilePublished(): Promise<void> {
+    if (reconciling) {
+      // A post confirmed while a read is in flight needs a read of its own.
+      reconcileAgain = true;
+      return;
+    }
+    reconciling = true;
+    try {
+      const page = await loadAuthorizedThreads();
+      if (active) applyAuthorizedFeed(page);
+    } catch {
+      // The post is published either way; its optimistic entry keeps showing it.
+    } finally {
+      reconciling = false;
+      if (reconcileAgain && active) {
+        reconcileAgain = false;
+        void reconcilePublished();
+      }
+    }
+  }
+  createEffect(
+    () => pendingTextPosts().filter(item => item.status === "published").map(item => item.id).join(","),
+    (publishedIds) => {
+      if (publishedIds === "") return;
+      queueMicrotask(() => { if (active) void reconcilePublished(); });
+    },
+  );
+  onCleanup(() => {
+    // Nothing is left to deliver for a confirmed post, so it does not follow
+    // the author to other pages. Posts still in flight stay with the shell.
+    for (const item of untrack(pendingTextPosts)) if (item.status === "published") textStore.dismiss(item.id);
+    if (shellTextStore === null) textStore.dispose();
+  });
+  // A held post is sent once its own account is signed in again. The shell
+  // does that from a freshly resolved session. An isolated render has no
+  // shell, so it resolves the session itself after the prompt and resumes only
+  // for the account that resolution names.
+  const signInAbort = new AbortController();
+  onCleanup(() => signInAbort.abort());
+  const signInToFinishPosting = () => {
+    if (shellTextStore !== null) {
+      requestGlobalSignIn();
+      return;
+    }
+    void requestGlobalSignInCompletion(signInAbort.signal)
+      .then(authenticated => authenticated ? engagement.resolvePostingSession() : undefined)
+      .then((resolved) => { if (active && resolved !== undefined) textStore.resume(resolved.userId); })
+      .catch(() => undefined);
+  };
+  // An entry that asks for the text composer opens it once, through the same
+  // session resolution as the Post action, and then drops its URL marker so a
+  // reload browses instead of reopening it.
+  let textEntrySettled = false;
+  let openingForText = false;
+  createEffect(
+    () => [props.composeText === true, engagement.joined(), engagement.accountIdentity(), engagement.authorityPending()] as const,
+    ([wanted, joined, identity, pending]) => {
+      if (textEntrySettled || openingForText || !wanted || identity === undefined || pending) return;
+      if (!joined) {
+        // Not a member: the entry is spent, so joining later does not open a
+        // composer nobody asked for.
+        textEntrySettled = true;
+        queueMicrotask(() => { if (active) props.clearVideoSongIntent?.(); });
+        return;
+      }
+      openingForText = true;
+      queueMicrotask(() => {
+        if (!active) return;
+        void openPostComposer().then(
+          (opened) => {
+            if (!active || !opened) return;
+            textEntrySettled = true;
+            props.clearVideoSongIntent?.();
+          },
+          () => undefined,
+        ).finally(() => { openingForText = false; });
+      });
+    },
+  );
+  const submitTextPost = () => {
+    const session = engagement.postingSession();
+    const personaId = selectedPersonaId();
+    const draft = textDraft();
+    if (session === undefined || personaId === undefined || draft.body.trim() === "") return;
+    const persona = communityOperationPersonas(session.personas, communityId).find(candidate => candidate.personaId === personaId);
+    if (persona === undefined) return;
+    textStore.submit({
+      accountId: session.userId,
+      communityId,
+      personaId,
+      title: draft.title,
+      body: draft.body,
+      ageGatePolicy: draft.ageGatePolicy,
+      authorHandle: persona.displayName ?? persona.primaryPublicHandle ?? undefined,
+      authorAvatarSrc: persona.avatarRef ?? null,
+    });
+    setTextDraft(emptyTextPostDraft);
+    setTextOpen(false);
+  };
+  const editTextPost = (item: TextSubmissionItem) => {
+    setTextOpen(true);
+    // Text already being written is not replaced; the refused post stays in
+    // the feed until the composer is free to take it.
+    if (textDraft().body.trim() !== "" || textDraft().title.trim() !== "") return;
+    textStore.dismiss(item.id);
+    setTextDraft({ title: item.title, body: item.body, ageGatePolicy: item.ageGatePolicy });
+  };
+  const openMediaComposer = (entry: { readonly kind: "video" } | { readonly kind: "song"; readonly file: File }) => {
+    if (entry.kind === "song" && !isPublicSongMp3(entry.file)) {
+      toast.error("Songs must be MP3 files.");
+      return;
+    }
+    setTextOpen(false);
+    setMediaEntry(entry);
+    setComposerOpen(true);
+  };
 
   const personaOptions = () => toOperationPersonas(communityOperationPersonas(
     engagement.postingSession()?.personas ?? [], communityId,
@@ -501,6 +682,32 @@ function SuccessState(props: {
             managePending={manageAuthorityPending()}
             viewerUnknown={engagement.viewerUnknown()}
             feed={feed}
+            pinnedPostIds={pinnedPostIds()}
+            feedLeadCount={pendingTextPosts().length}
+            feedLead={() => (
+              <PendingTextPosts
+                items={pendingTextPosts()}
+                onDismiss={textStore.dismiss}
+                onEdit={editTextPost}
+                onRetry={textStore.retry}
+                onSignIn={signInToFinishPosting}
+              />
+            )}
+            composer={textOpen() && engagement.postingSession() !== undefined ? () => (
+              <TextPostPanel
+                draft={textDraft()}
+                onClose={() => {
+                  setTextOpen(false);
+                  // Focus returns to the action that opened the composer.
+                  queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
+                }}
+                onDraftChange={setTextDraft}
+                onPost={submitTextPost}
+                onSong={file => openMediaComposer({ kind: "song", file })}
+                onVideo={() => openMediaComposer({ kind: "video" })}
+                unavailable={selectedPersonaId() === undefined ? "Choose a profile for this community before posting." : undefined}
+              />
+            ) : undefined}
             onVerifyAge={refreshAgeFeed}
             renderPost={(post, render) => (
               // Both gates are reactive on purpose. This callback body runs
@@ -597,9 +804,13 @@ function SuccessState(props: {
           <CreatePostDialog
             communityContext={{ id: communityId, name: community().name }}
             initialVideoSong={props.initialVideoSong}
+            initialMode={mediaEntry()?.kind}
+            initialSongFile={(() => { const entry = mediaEntry(); return entry?.kind === "song" ? entry.file : undefined; })()}
+            textHostedElsewhere
             onPublished={href => { if (href !== undefined) navigate(href); }}
             onOpenChange={(open) => {
               setComposerOpen(open);
+              if (!open) setMediaEntry(undefined);
               // Dismissing the composer the song entry opened also clears
               // the URL marker, so a reload cannot reopen it.
               if (!open && openedForSong) {
@@ -623,6 +834,7 @@ function CommunityState(props: {
   readonly initialVideoSong?: { readonly postId: string };
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
+  readonly composeText?: boolean;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -632,6 +844,7 @@ function CommunityState(props: {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
+  readonly textSubmissionTransport?: TextSubmissionTransport;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   // The inner Show is keyed by community identity: a same-route move to another
@@ -647,6 +860,7 @@ function CommunityState(props: {
               engagementApi={props.engagementApi}
               initialVideoSong={props.initialVideoSong}
               clearVideoSongIntent={props.clearVideoSongIntent}
+              composeText={props.composeText}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               resolveSession={props.resolveSession}
@@ -656,6 +870,7 @@ function CommunityState(props: {
               loadThreads={props.loadThreads}
               postEngagementTransport={props.postEngagementTransport}
               viewerVoteClient={props.viewerVoteClient}
+              textSubmissionTransport={props.textSubmissionTransport}
             />
           )}
         </Show>
@@ -680,7 +895,9 @@ function CommunityData(props: CommunityPageProps) {
       engagementApi={engagementApi}
       initialVideoSong={props.initialVideoSong}
       clearVideoSongIntent={props.clearVideoSongIntent}
+      composeText={props.composeText}
       viewerVoteClient={props.viewerVoteClient}
+      textSubmissionTransport={props.textSubmissionTransport}
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}

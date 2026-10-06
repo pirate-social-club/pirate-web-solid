@@ -258,6 +258,7 @@ describe("create post request", () => {
       <CreatePostDialog
         communityContext={{ id: "community-contextual", name: "Pirate Harbor" }}
         personas={[activePersona("persona-one", "Persona One")]}
+        principalId="account-one"
         onOpenChange={() => {}}
         open
         transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
@@ -293,6 +294,7 @@ describe("create post request", () => {
       open
       personaId="persona-two"
       personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
       transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -313,17 +315,17 @@ describe("create post request", () => {
     expect(envelopeBody(dispatched[0]!).persona_id).toBe("persona-two");
   });
 
-  test("retries an ambiguous text submission with the exact retained request", async () => {
+  test("hands a text post to the submission owner, closes at once, and replays the exact request", async () => {
     const dispatched: PendingSubmissionEnvelopeV1[] = [];
-    const onPublished = vi.fn();
+    const onOpenChange = vi.fn();
     let attempts = 0;
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Harbor" }}
-      onOpenChange={() => {}}
-      onPublished={onPublished}
+      onOpenChange={onOpenChange}
       open
       personaId="persona-one"
       personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
       transport={{
         read: async () => null,
         dispatch: async (envelope) => {
@@ -341,10 +343,14 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
 
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Checking whether your post was accepted"));
-    button("Check again").click();
-    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce());
-    expect(dispatched).toHaveLength(2);
+    // The form does not wait for the server and never asks the author to
+    // check anything: it closes as soon as the post is handed over.
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(document.body.textContent).not.toContain("Checking whether your post was accepted");
+    expect(document.body.textContent).not.toContain("Check again");
+
+    // The owner outlives the form and replays the same bytes under the same key.
+    await vi.waitFor(() => expect(dispatched).toHaveLength(2), { timeout: 4_000 });
     expect(dispatched[1]!.idempotency_key).toBe(dispatched[0]!.idempotency_key);
     expect(envelopeBody(dispatched[1]!)).toEqual(envelopeBody(dispatched[0]!));
   });
@@ -380,31 +386,6 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
     expect(document.body.textContent).not.toContain("abandoned.mp3");
     expect(document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!.value).toBe("");
-  });
-
-  test("refuses to close while a submission outcome is unknown", async () => {
-    const dispatched: PendingSubmissionEnvelopeV1[] = [];
-    render(() => <CreatePostDialog
-      communityContext={{ id: "community-one", name: "Harbor" }}
-      onOpenChange={() => {}}
-      open
-      personaId="persona-one"
-      personas={[activePersona("persona-one", "Persona One")]}
-      transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
-    />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
-    body.value = "A post with an unknown outcome";
-    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Post");
-    await vi.waitFor(() => expect(publish.disabled).toBe(false));
-    publish.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Checking whether your post was accepted"));
-
-    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve it before closing."));
-    expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
-    expect(dispatched).toHaveLength(1);
   });
 
   test("refuses to close while a song command is unresolved", async () => {

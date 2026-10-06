@@ -7,6 +7,7 @@ import { pageRoutes } from "virtual:file-routes";
 import { resolveSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { ActivePersonaProvider } from "./features/identity/active-persona-store.tsx";
+import { TextSubmissionProvider } from "./features/posts/text-submission/text-submission-store.tsx";
 import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import { ApplicationPersonasContext, createApplicationPersonas } from "./features/shell/application-personas.tsx";
@@ -84,6 +85,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   return (
     <ActivePersonaProvider>
       <ApplicationSessionProvider state={session} pending={accountPending}>
+        <TextSubmissionProvider>
         <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
           navigationScope={currentApplicationNavigationScope()}
@@ -114,6 +116,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
           </Errored>
         </ApplicationChrome>
         </ApplicationPersonasContext>
+        </TextSubmissionProvider>
       </ApplicationSessionProvider>
     </ActivePersonaProvider>
   );

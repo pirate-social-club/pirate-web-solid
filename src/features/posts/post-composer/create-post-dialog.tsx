@@ -31,14 +31,11 @@ import { VideoComposerRuntime } from "../video-submission/video-composer-runtime
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import type { SongSourceReader } from "./song-excerpt-source";
-import { PostComposerSubmission } from "./post-composer-submission";
-import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
-import {
-  createTextSubmissionCoordinator,
-  TextSubmissionServerRejectionError,
-  type TextSubmissionTransport,
-} from "./text-submission-transport";
+import type { TextSubmissionTransport } from "./text-submission-transport";
+import { createTextSubmissionStore, useTextSubmissionStore } from "../text-submission/text-submission-store.tsx";
+import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
+import { titleFromFilename } from "./write-step";
 import type {
   AssetLicenseState,
   AssetRoyaltySplitState,
@@ -79,11 +76,6 @@ export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmi
   return { path, body };
 }
 
-function createIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return `solid-post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 export function initialOperationPersonaId(
   personas: readonly ActivePersonaPublicProjection[],
   preferredPersonaId?: string,
@@ -120,9 +112,18 @@ export interface CreatePostDialogProps {
    * before capture. */
   readonly initialVideoSong?: { readonly postId: string };
   readonly freshVideo?: FreshVideoEntry;
+  /** Open straight on the song steps or the video capture flow. */
+  readonly initialMode?: "song" | "video";
+  /** The audio file chosen before the song steps opened. */
+  readonly initialSongFile?: File;
+  /** The host has its own text composer, so leaving the song or video flow
+   * closes this one instead of falling back to a text form. */
+  readonly textHostedElsewhere?: boolean;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
+  /** A text post was handed to the submission owner for this community. */
+  readonly onTextSubmitted?: (communityId: string) => void;
   readonly personaId?: string;
   readonly principalId?: string;
   readonly personas?: readonly ActivePersonaPublicProjection[];
@@ -168,13 +169,16 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const personas = () => props.personas ?? [];
   const initialPersonaId = untrack(() => initialOperationPersonaId(personas(), props.personaId));
   const contextualCommunityId = () => props.communityContext?.id.trim() ?? "";
+  let disposed = false;
   const [communityId, setCommunityId] = createSignal(contextualCommunityId());
-  const [title, setTitle] = createSignal("");
+  const [title, setTitle] = createSignal(untrack(() => props.initialMode === "song" && props.initialSongFile
+    ? titleFromFilename(props.initialSongFile.name)
+    : ""));
   const [body, setBody] = createSignal("");
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => ((props.initialVideoSong || props.freshVideo) ? "video" : "text")),
+    untrack(() => ((props.initialVideoSong || props.freshVideo) ? "video" : props.initialMode ?? "text")),
   );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
@@ -182,11 +186,35 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     else setTextAgeGatePolicy(next);
   };
   const [songMode, setSongMode] = createSignal<SongMode>("original");
-  const [song, setSong] = createSignal<SongComposerState>({
+  const initialSongFile = untrack(() => props.initialMode === "song" ? props.initialSongFile : undefined);
+  const [song, setSong] = createSignal<SongComposerState>(initialSongFile === undefined ? {
     title: "",
     primaryAudioUpload: null,
     lyricsEditorState: "hidden",
+  } : {
+    title: titleFromFilename(initialSongFile.name),
+    primaryAudioUpload: initialSongFile,
+    primaryAudioLabel: initialSongFile.name,
+    lyricsEditorState: "hidden",
   });
+  if (initialSongFile !== undefined) {
+    // The same reading the write step does for a picked file: the embedded
+    // title and cover replace the filename guess when the file carries them.
+    void Promise.all([extractEmbeddedAudioTitle(initialSongFile), extractEmbeddedAudioArtworkFile(initialSongFile)]).then(
+      ([embeddedTitle, embeddedArtwork]) => {
+        if (disposed) return;
+        setSong(current => current.primaryAudioUpload !== initialSongFile ? current : {
+          ...current,
+          title: embeddedTitle ?? current.title,
+          coverUpload: embeddedArtwork,
+          coverLabel: embeddedArtwork?.name,
+          coverSource: embeddedArtwork ? "embedded" : undefined,
+        });
+        if (embeddedTitle) setTitle(embeddedTitle);
+      },
+      () => undefined,
+    );
+  }
   const [lyrics, setLyrics] = createSignal("");
   let lyricsEdited = false;
   const [license, setLicense] = createSignal<AssetLicenseState>(DEFAULT_SONG_LICENSE);
@@ -215,7 +243,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
   const [uploadFailure, setUploadFailure] = createSignal<string | null>(null);
-  const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
   const [mediaBusy, setMediaBusy] = createSignal(false);
@@ -225,12 +252,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   let mediaUploadController: AbortController | undefined;
   let finishingPublishedSong = false;
 
-  const textCoordinator = createTextSubmissionCoordinator({
-    transport: props.transport,
-    origin: props.origin,
-    fetchImpl: props.fetchImpl,
-    onStateChange: setTextState,
-  });
+  // Text posts are delivered by the application's submission owner, which
+  // outlives this dialog. A render outside the shell gets a detached store.
+  const textStore = useTextSubmissionStore() ?? createTextSubmissionStore({ transport: untrack(() => props.transport) });
   const mediaCoordinator = !mediaEnabled ? undefined : createMediaSubmissionCoordinator({
     transport: props.mediaTransport,
     createId: props.createMediaId,
@@ -253,14 +277,28 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   // the author it was already sent under; a request is never re-keyed to a
   // different profile after dispatch.
   createEffect(
-    () => [props.open, props.personaId, props.personas, textState().status] as const,
+    () => [props.open, props.personaId, props.personas] as const,
     ([open]) => {
       if (!open) return;
       const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
-      const textUnresolved = textState().status === "submitting" || textState().status === "reconciling";
-      if (!textUnresolved) setTextPersonaId(nextPersonaId);
+      setTextPersonaId(nextPersonaId);
       if (mediaCoordinator?.currentRecord == null) selectSongPersona(nextPersonaId);
       if (untrack(mode) !== "video" || untrack(videoPersonaId) === undefined) setVideoPersonaId(props.personaId?.trim() || undefined);
+    },
+  );
+
+  // A host with its own text composer never shows this dialog's text form:
+  // backing out of the song or video flow closes the dialog.
+  createEffect(
+    () => props.textHostedElsewhere === true && mode() === "text",
+    (leftMedia) => {
+      if (!leftMedia) return;
+      queueMicrotask(() => {
+        if (disposed) return;
+        // Leaving goes through the same guard as the close button. A song
+        // with a command still outstanding stays open on its steps.
+        if (!close(false)) setMode("song");
+      });
     },
   );
 
@@ -321,28 +359,20 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     resetSongDraft();
   }
 
-  function close(open: boolean): void {
+  /** Returns false when an outstanding song command kept the composer open. */
+  function close(open: boolean): boolean {
     if (!open) {
-      const state = textState();
-      if (state.status === "submitting" || state.status === "reconciling") {
-        setError("Checking whether your post was accepted. Resolve it before closing.");
-        return;
-      }
       // Only an outstanding request keeps the composer open. A processing or
       // manual-review state is a known server response the author cannot act
       // on, so it must not trap them here.
       const view = mediaView();
       if (mediaBusy() || view.status === "uploading" || view.status === "reconciling") {
         setError("This song submission still has an unresolved command. Resolve it before closing.");
-        return;
+        return false;
       }
     }
     props.onOpenChange(open);
-  }
-
-  function finishPublished(): void {
-    close(false);
-    props.onPublished?.();
+    return true;
   }
 
   function finishSongPublished(): void {
@@ -360,7 +390,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
-  async function submitText(): Promise<void> {
+  function submitText(): void {
     const personaId = selectedActivePersonaId();
     if (personaId === undefined) {
       setError("Choose a profile before publishing.");
@@ -372,42 +402,25 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       setError("Choose a community and write something before publishing.");
       return;
     }
-    setError("");
-    try {
-      const snapshot = await textCoordinator.submit(buildCreatePostRequest({
-        personaId,
-        communityId: community,
-        title: title(),
-        body: content,
-        idempotencyKey: createIdempotencyKey(),
-        ageGatePolicy: ageGatePolicy(),
-      }));
-      if (snapshot.status === "published") finishPublished();
-    } catch (submissionError) {
-      if (textCoordinator.state.status === "transport_failure") {
-        setError("Your post could not be prepared for safe retry.");
-      } else if (textCoordinator.state.status === "reconciling") {
-        setError("The request result is uncertain; checking again is safe.");
-      } else if (submissionError instanceof TextSubmissionServerRejectionError) {
-        setError("This post couldn't be sent. Check the details and try again.");
-      } else if (submissionError instanceof Error) {
-        setError(submissionError.message);
-      }
+    if (props.principalId === undefined) {
+      setError("Sign in before posting.");
+      return;
     }
-  }
-
-  async function retryText(): Promise<void> {
     setError("");
-    try {
-      if (textState().status === "reconciling") {
-        const snapshot = await textCoordinator.reconcile();
-        if (snapshot.status === "published") finishPublished();
-      } else {
-        await submitText();
-      }
-    } catch {
-      if (textCoordinator.state.status === "reconciling") setError("The request result is still uncertain. Try checking again.");
-    }
+    const persona = personas().find(candidate => candidate.personaId === personaId);
+    textStore.submit({
+      accountId: props.principalId,
+      communityId: community,
+      personaId,
+      title: title(),
+      body: content,
+      ageGatePolicy: ageGatePolicy(),
+      authorHandle: persona?.displayName ?? persona?.primaryPublicHandle ?? undefined,
+      authorAvatarSrc: persona?.avatarRef ?? null,
+    });
+    // The post is now the submission owner's; this form has nothing to wait for.
+    props.onOpenChange(false);
+    props.onTextSubmitted?.(community);
   }
 
   function selectedActivePersonaId(): string | undefined {
@@ -561,7 +574,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
 
   function submit(): void {
     if (mode() === "text") {
-      void submitText();
+      submitText();
     } else if (mode() === "song") {
       void submitSong();
     } else {
@@ -578,7 +591,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   let observationCount = 0;
   let observationFailures = 0;
   let observationRetryAt = 0;
-  let disposed = false;
   const [observationPaused, setObservationPaused] = createSignal(false);
   const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
     if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
@@ -611,7 +623,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     || communityId().trim() === ""
     || royaltySplitIssue(royaltySplit(), selectedActivePersonaId()) !== "";
   const submitDisabled = () => mode() === "text"
-    ? selectedActivePersonaId() === undefined || textState().status !== "editing"
+    ? selectedActivePersonaId() === undefined
       || communityId().trim() === ""
       || body().trim() === ""
     : mode() === "song" ? songSubmitDisabled() : true;
@@ -694,16 +706,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
-  // Unfinished songs are listed on the Song tab; the text composer stays clean.
-  const textOutcomePanel = () => (
-    <Show when={mode() === "text" && textState().status !== "editing"}>
-      <PostComposerSubmission
-        onRetry={() => void retryText()}
-        state={textState()}
-      />
-    </Show>
-  );
-
   // The video flow is its own full-screen capture experience — close, sound
   // and record on one screen, posting details at review — not a tab inside
   // the scrolling post form. It replaces the form entirely while it runs.
@@ -749,7 +751,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
                   ? mediaSnapshot() !== null || mediaBusy()
-                  : textState().status !== "editing" && textState().status !== "transport_failure"}
+                  : false}
                 availableCapabilities={["text", "song", "video"]}
                 canCreateSongPost={personas().length > 0}
                 currentPersonaId={selectedPersonaId()}
@@ -791,11 +793,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   get disabled() { return submitDisabled(); },
                   get error() { return error() || null; },
                   get label() { return mode() === "song" ? "Post song" : "Post"; },
-                  get loading() { return mode() === "song" ? mediaBusy() : textState().status === "submitting"; },
+                  get loading() { return mode() === "song" ? mediaBusy() : false; },
                   onSubmit: submit,
                 }}
                 textBodyValue={body()}
-                textOutcome={textOutcomePanel}
                 titleValue={title()}
                 validateDraftBeforeSubmit={mode() !== "text"}
               />

@@ -455,6 +455,5 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   // Host-owned outcome panels rendered inside the single composer surface.
   // Accessors, not elements: an eagerly-evaluated JSX descriptor held in props
   // keeps live children getters that diagnostics tooling must not execute.
-  textOutcome?: () => JSX.Element;
   mediaStatus?: () => JSX.Element;
 }

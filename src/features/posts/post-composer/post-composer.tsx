@@ -41,7 +41,6 @@ export function PostComposer(props: PostComposerProps) {
               onClick={requestPost}
             />
           </PostComposerWriteStep>
-          <Show when={props.textOutcome}>{props.textOutcome!()}</Show>
         </>
       );
     }

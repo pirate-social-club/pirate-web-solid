@@ -76,11 +76,11 @@ function fileKind(file: File): AttachmentKind | null {
   return null;
 }
 
-function isPublicSongMp3(file: File): boolean {
+export function isPublicSongMp3(file: File): boolean {
   return file.type === "audio/mpeg" && fileExtension(file.name) === "mp3";
 }
 
-function titleFromFilename(name: string): string {
+export function titleFromFilename(name: string): string {
   const index = name.lastIndexOf(".");
   return (index > 0 ? name.slice(0, index) : name).trim();
 }

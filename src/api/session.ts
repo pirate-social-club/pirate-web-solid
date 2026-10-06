@@ -159,6 +159,7 @@ export interface SessionStore {
   /** Drop the cached resolutions and notify subscribers. */
   refreshSession(): void;
   clearSession(): void;
+  onSessionCleared(listener: () => void): () => void;
   /** Subscribe to `refreshSession` calls; returns the unsubscribe function. */
   onSessionRefreshed(listener: () => void): () => void;
 }
@@ -188,6 +189,7 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
     session: { promise: undefined },
   };
   const refreshListeners = new Set<() => void>();
+  const clearListeners = new Set<() => void>();
 
   function track<T>(slot: { promise: Promise<T> | undefined }, start: () => Promise<T>): Promise<T> {
     const existing = slot.promise;
@@ -243,7 +245,16 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
     clearSession() {
       slots.account.promise = Promise.resolve("anonymous");
       slots.session.promise = Promise.resolve("anonymous");
+      // Before the refresh listeners: account-owned work is dropped while the
+      // identity it belonged to is still the one in view.
+      for (const listener of [...clearListeners]) listener();
       for (const listener of [...refreshListeners]) listener();
+    },
+    onSessionCleared(listener: () => void) {
+      clearListeners.add(listener);
+      return () => {
+        clearListeners.delete(listener);
+      };
     },
     refreshSession() {
       slots.account.promise = undefined;
@@ -293,6 +304,15 @@ export function refreshSession(): void {
 /** Subscribe to shared `refreshSession` calls; returns the unsubscribe function. */
 export function onSessionRefreshed(listener: () => void): () => void {
   return browserStore.onSessionRefreshed(listener);
+}
+
+/**
+ * Subscribe to a deliberate sign-out. This is not raised when a session merely
+ * expires or resolves anonymous, which is what lets account-owned work tell
+ * "the author left" from "the author needs to sign in again".
+ */
+export function onSessionCleared(listener: () => void): () => void {
+  return browserStore.onSessionCleared(listener);
 }
 
 /** Clear account-private UI immediately after a successful host-session logout. */
