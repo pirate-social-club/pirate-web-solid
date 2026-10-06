@@ -9,12 +9,15 @@ import type { TextSubmissionItem } from "./text-submission-store";
 export interface PendingTextPostsProps {
   readonly items: readonly TextSubmissionItem[];
   readonly onRetry: (id: string) => void;
+  /** Ask the author to sign in again so a held post can be sent. */
+  readonly onSignIn: () => void;
   /**
    * Take a refused post's text back into the composer. Offered only after a
    * definite refusal: an unconfirmed post may already be published, and
    * sending its text again would be a second post.
    */
   readonly onEdit: (item: TextSubmissionItem) => void;
+  /** Forget a refused post. Never offered for a post the server has not answered. */
   readonly onDismiss: (id: string) => void;
 }
 
@@ -31,7 +34,8 @@ function rejectionMessage(rejection: TextSubmissionRejection | null): string {
  * The author's own posts that the server has not yet answered for, shown at
  * the top of the feed where the post will be. A post being sent looks like a
  * post; it says something only once it has been waiting long enough that
- * silence would mislead, and that message never calls the post failed.
+ * silence would mislead, and that message never calls the post failed or
+ * unsent, because the client does not know that.
  */
 export function PendingTextPosts(props: PendingTextPostsProps): JSX.Element {
   return (
@@ -68,9 +72,17 @@ export function PendingTextPosts(props: PendingTextPostsProps): JSX.Element {
             </div>
             <Show when={current().status === "delayed"}>
               <div class="flex flex-wrap items-center gap-2" role="status">
-                <Type variant="caption">Not sent yet. Still trying.</Type>
+                {/* The post may already be published; only the answer is
+                    missing. So this neither says it was not sent nor offers
+                    to throw it away: removing it here would cancel nothing. */}
+                <Type variant="caption">Taking longer than usual. Still trying.</Type>
                 <Button onClick={() => props.onRetry(current().id)} size="sm" type="button" variant="outline">Try now</Button>
-                <Button onClick={() => props.onDismiss(current().id)} size="sm" type="button" variant="ghost">Discard</Button>
+              </div>
+            </Show>
+            <Show when={current().status === "sign_in_required"}>
+              <div class="flex flex-wrap items-center gap-2" role="status">
+                <Type variant="caption">Sign in again to finish posting.</Type>
+                <Button onClick={() => props.onSignIn()} size="sm" type="button" variant="outline">Sign in</Button>
               </div>
             </Show>
             <Show when={current().status === "rejected"}>

@@ -9,6 +9,7 @@ import {
   createSameOriginTextSubmissionTransport,
   type TextSubmissionTransport,
 } from "../post-composer/text-submission-transport";
+import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../../shell/application-session.tsx";
 import {
   createTextSubmissionMachine,
@@ -33,8 +34,9 @@ export interface TextSubmissionDraft {
  * the author does not need to know about; `delayed` is the same work after
  * enough attempts that saying nothing would be misleading. Neither means the
  * post failed: only `rejected` is a server answer that it was refused.
+ * `sign_in_required` holds the request until its account is signed in again.
  */
-export type TextSubmissionStatus = "sending" | "delayed" | "published" | "rejected";
+export type TextSubmissionStatus = "sending" | "delayed" | "sign_in_required" | "published" | "rejected";
 
 export interface TextSubmissionItem extends TextSubmissionDraft {
   readonly id: string;
@@ -51,10 +53,18 @@ export interface TextSubmissionStore {
   readonly submit: (draft: TextSubmissionDraft) => string;
   /** Sends the retained request again now instead of waiting for the timer. */
   readonly retry: (id: string) => void;
-  /** Stops work on an item and forgets it. */
+  /**
+   * Stops work on an item and forgets it. For an item the server has not
+   * answered this does not cancel anything: a request already sent can still
+   * publish. Surfaces offer it only for a published or refused post.
+   */
   readonly dismiss: (id: string) => void;
-  /** Forgets every item that does not belong to this account. */
-  readonly retainAccount: (accountId: string | null) => void;
+  /** Forgets every item that belongs to a different account. */
+  readonly retainAccount: (accountId: string) => void;
+  /** Nobody is signed in: hold every request without sending or forgetting it. */
+  readonly pause: () => void;
+  /** This account is signed in: send the requests that were held for it. */
+  readonly resume: (accountId: string) => void;
   readonly dispose: () => void;
 }
 
@@ -62,6 +72,8 @@ export interface TextSubmissionStoreOptions {
   readonly transport?: TextSubmissionTransport;
   readonly createId?: () => string;
   readonly now?: () => string;
+  /** A post was just held for lack of a session. */
+  readonly onSignInRequired?: () => void;
 }
 
 function randomId(): string {
@@ -102,6 +114,7 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
   const [items, setItems] = createSignal<readonly TextSubmissionItem[]>([], { ownedWrite: true });
   const actors = new Map<string, ActorRefFrom<TextSubmissionMachine>>();
   let disposed = false;
+  let pausedForSignOut = false;
 
   const patch = (id: string, change: Partial<TextSubmissionItem>) => {
     if (disposed) return;
@@ -135,6 +148,10 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
         patch(id, { status: "published", postHref: snapshot.context.postHref, postId: snapshot.context.postId });
       } else if (snapshot.matches("rejected")) {
         patch(id, { status: "rejected", rejection: snapshot.context.rejection });
+      } else if (snapshot.matches("signInRequired")) {
+        const already = items().find(item => item.id === id)?.status === "sign_in_required";
+        patch(id, { status: "sign_in_required" });
+        if (!already && !pausedForSignOut) options.onSignInRequired?.();
       } else {
         patch(id, { status: snapshot.context.attempts >= DELAYED_AFTER_ATTEMPTS ? "delayed" : "sending" });
       }
@@ -166,6 +183,17 @@ export function createTextSubmissionStore(options: TextSubmissionStoreOptions = 
         ? current.filter(item => item.accountId === accountId)
         : current);
     },
+    pause() {
+      // Signing out holds the requests; that is not a reason to prompt.
+      pausedForSignOut = true;
+      for (const actor of actors.values()) actor.send({ type: "PAUSE" });
+    },
+    resume(accountId) {
+      pausedForSignOut = false;
+      for (const item of items()) {
+        if (item.accountId === accountId) actors.get(item.id)?.send({ type: "RESUME" });
+      }
+    },
     dispose() {
       disposed = true;
       for (const id of [...actors.keys()]) stop(id);
@@ -177,22 +205,33 @@ const TextSubmissionContext = createContext<TextSubmissionStore | null>(null);
 
 /**
  * Mounted once inside the application session. Pending posts belong to the
- * account that sent them, so they are dropped when the session becomes
- * anonymous or another account's. An unresolved or failed session check keeps
- * them: that is not a change of account.
+ * account that sent them. With nobody signed in they are held and shown to no
+ * one; they resume when the same account signs in again and are dropped when
+ * a different one does. An unresolved or failed session check changes nothing:
+ * that is not a change of account.
  */
 export function TextSubmissionProvider(props: {
   readonly children: JSX.Element;
   readonly transport?: TextSubmissionTransport;
   readonly store?: TextSubmissionStore;
 }): JSX.Element {
-  const store = props.store ?? createTextSubmissionStore({ transport: props.transport });
+  // The server can end a session the shell still believes in. The author may
+  // be on any page when that happens, so the prompt is raised from here and
+  // not only from the pending post in its community's feed.
+  const store = props.store ?? createTextSubmissionStore({ transport: props.transport, onSignInRequired: requestGlobalSignIn });
   const session = useApplicationSession();
   createEffect(
     () => session(),
     (state) => {
       if (state === undefined || state === "resolving" || state === "failed") return;
-      store.retainAccount(state === "anonymous" ? null : state.userId);
+      if (state === "anonymous") {
+        store.pause();
+        return;
+      }
+      // Only a freshly resolved session reaches here, so a held request is
+      // never sent on the strength of an identity that is being replaced.
+      store.retainAccount(state.userId);
+      store.resume(state.userId);
     },
   );
   onCleanup(() => store.dispose());

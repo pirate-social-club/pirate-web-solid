@@ -74,6 +74,7 @@ export default function CommunityRoute(props: RouteProps<typeof route>) {
     pathSegment={props.params.path_segment}
     data={props.data}
     initialVideoSong={initialVideoSongFromSearch(searchParams)}
+    composeText={searchParams.compose === "text"}
     clearVideoSongIntent={() => setSearchParams({ compose: undefined, song: undefined }, { replace: true, scroll: false })}
   />;
 }

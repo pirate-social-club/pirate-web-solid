@@ -121,7 +121,8 @@ describe("YourCommunitiesRouteView", () => {
     expect(container.textContent).toContain("Sign in to see your communities.");
   });
 
-  test("offers route-less members a contextual composer after a fresh membership read", async () => {
+  test("sends a route-less member to the community's own composer after a fresh membership read", async () => {
+    const navigate = vi.fn();
     const loadMemberships = vi.fn(async () => [routeLessMembership]);
     const resolvePostingSession = vi.fn(async () => ({
       status: "authenticated" as const,
@@ -132,6 +133,7 @@ describe("YourCommunitiesRouteView", () => {
       <YourCommunitiesRouteView
         applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
         loadMemberships={loadMemberships}
+        navigate={navigate}
         resolvePostingSession={resolvePostingSession}
       />
     ));
@@ -146,49 +148,34 @@ describe("YourCommunitiesRouteView", () => {
     container
       .querySelector<HTMLButtonElement>("[data-post-community-id='community-route-less']")
       ?.click();
-    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
+    // Text is written beside the community's feed, so this page opens no
+    // composer of its own: it goes there and asks for one.
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/community-route-less?compose=text"));
+    expect(contextualComposerOpen()).toBe(false);
+    expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull();
     expect(loadMemberships).toHaveBeenCalledTimes(2);
     expect(resolvePostingSession).toHaveBeenCalledOnce();
-    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
   });
 
   test("reports unavailable profiles and retries on the next Post click", async () => {
     let unavailable = true;
     const resolvePostingSession = vi.fn(async () => ({ status: "authenticated" as const,
       userId: "account-one", personas: [], personasUnavailable: unavailable ? true as const : undefined }));
+    const navigate = vi.fn();
     const container = render(() => <YourCommunitiesRouteView
       applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
-      loadMemberships={async () => [routeLessMembership]} resolvePostingSession={resolvePostingSession} />);
+      loadMemberships={async () => [routeLessMembership]} navigate={navigate} resolvePostingSession={resolvePostingSession} />);
     await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
     const post = () => container.querySelector<HTMLButtonElement>("[data-post-community-id]")!;
     post().click();
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your community profiles"));
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     expect(contextualComposerOpen()).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
     unavailable = false;
     post().click();
-    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/community-route-less?compose=text"));
     expect(resolvePostingSession).toHaveBeenCalledTimes(2);
-  });
-
-  test("does not offer unrelated or unbound personas in a route-less community", async () => {
-    const persona = (personaId: string, communityId: string | null) => ({
-      personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null,
-      communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
-    });
-    const container = render(() => <YourCommunitiesRouteView
-      applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
-      loadMemberships={async () => [routeLessMembership]}
-      resolvePostingSession={async () => ({ status: "authenticated", userId: "account-one", personas: [
-        persona("persona-elsewhere", "another-community"), persona("persona-unbound", null),
-      ] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
-    container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
-    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose a profile for this community before posting"));
-    expect(document.body.textContent).not.toContain("persona-elsewhere");
-    expect(document.body.textContent).not.toContain("persona-unbound");
   });
 
   test("fails closed when membership disappears before the composer opens", async () => {

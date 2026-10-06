@@ -24,6 +24,18 @@ export class AmbiguousTextSubmissionError extends Error {
   }
 }
 
+/**
+ * The server would not act without a signed-in account. Sending the same
+ * request again cannot succeed until the author authenticates, and it says
+ * nothing about an earlier attempt that went unanswered.
+ */
+export class TextSubmissionAuthenticationRequiredError extends Error {
+  constructor() {
+    super("The text submission needs an authenticated session");
+    this.name = "TextSubmissionAuthenticationRequiredError";
+  }
+}
+
 export class IdempotencyConflictError extends Error {
   readonly submission_id: string;
 
@@ -191,6 +203,7 @@ export function createSameOriginTextSubmissionTransport(
       } catch (error) {
         throw new AmbiguousTextSubmissionError(error instanceof Error ? error.message : "Network result is uncertain");
       }
+      if (response.status === 401) throw new TextSubmissionAuthenticationRequiredError();
       if (response.status === 409) {
         let payload = null;
         try { payload = await readJson(response); } catch { /* not a closed conflict response */ }
@@ -241,6 +254,7 @@ export function createSameOriginTextSubmissionTransport(
         return decodeTextContentSubmission(snapshot);
       } catch (error) {
         if (error instanceof ApiClientError && error.status === 404) return null;
+        if (error instanceof ApiClientError && error.status === 401) throw new TextSubmissionAuthenticationRequiredError();
         if (error instanceof AmbiguousTextSubmissionError) throw error;
         throw new AmbiguousTextSubmissionError(error instanceof Error ? error.message : "Network result is uncertain");
       }

@@ -9,6 +9,7 @@ import type { PendingSubmissionEnvelopeV1 } from "../../posts/post-composer/pend
 import type { TextContentSubmissionV1 } from "../../posts/post-composer/text-submission-contract.ts";
 import {
   AmbiguousTextSubmissionError,
+  TextSubmissionAuthenticationRequiredError,
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../../posts/post-composer/text-submission-transport.ts";
@@ -58,7 +59,7 @@ function snapshot(postId: string): TextContentSubmissionV1 {
 }
 
 /** A server that publishes once per key and lets a test decide what the client hears. */
-function server(reply: (attempt: number) => "ok" | "lost" | "offline" | "refuse" | Promise<"ok">) {
+function server(reply: (attempt: number) => "ok" | "lost" | "offline" | "refuse" | "signed_out" | Promise<"ok">) {
   const accepted = new Map<string, string>();
   const posts: CommunityPost[] = [];
   const dispatched: PendingSubmissionEnvelopeV1[] = [];
@@ -69,6 +70,7 @@ function server(reply: (attempt: number) => "ok" | "lost" | "offline" | "refuse"
       const answer = await reply(dispatched.length);
       if (answer === "offline") throw new AmbiguousTextSubmissionError("offline");
       if (answer === "refuse") throw new TextSubmissionServerRejectionError(403, "membership_required");
+      if (answer === "signed_out") throw new TextSubmissionAuthenticationRequiredError();
       let postId = accepted.get(envelope.idempotency_key);
       if (postId === undefined) {
         postId = `post-${accepted.size + 1}`;
@@ -94,9 +96,15 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function page(fake: ReturnType<typeof server>, resolveSession: () => Promise<SessionResolution> = async () => session) {
+function page(
+  fake: ReturnType<typeof server>,
+  resolveSession: () => Promise<SessionResolution> = async () => session,
+  entry: { readonly composeText?: boolean; readonly clear?: () => void } = {},
+) {
   return (
     <CommunityPage
+      clearVideoSongIntent={entry.clear}
+      composeText={entry.composeText}
       data={data}
       engagementApi={engagementApi}
       handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
@@ -144,6 +152,20 @@ describe("community page text posting", () => {
     expect(container.querySelector("[data-create-post-form]")).toBeNull();
   });
 
+  test("an entry that asks for the text composer opens it once and drops its marker", async () => {
+    const clear = vi.fn();
+    const container = render(() => page(server(() => "ok"), async () => session, { composeText: true, clear }));
+    await vi.waitFor(() => expect(form(container)).not.toBeNull());
+    expect(container.querySelector("[data-text-post-panel]")).not.toBeNull();
+    expect(container.querySelector("[data-create-post-form]")).toBeNull();
+    await vi.waitFor(() => expect(clear).toHaveBeenCalledOnce());
+    // Closing it is the author's decision; the entry does not reopen it.
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(form(container)).toBeNull());
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(form(container)).toBeNull();
+  });
+
   test("shows the post at once, then replaces it with the published post", async () => {
     let release: (value: "ok") => void = () => {};
     const fake = server(() => new Promise<"ok">(resolve => { release = resolve; }));
@@ -178,21 +200,78 @@ describe("community page text posting", () => {
     expect(fake.accepted.size).toBe(1);
   });
 
-  test("says a post is not sent yet without calling it failed, and recovers", async () => {
-    let online = false;
-    const fake = server(() => online ? "ok" : "offline");
+  test("a post the server published but never acknowledged is not called unsent and cannot be dismissed", async () => {
+    // Every answer is lost, but the very first request was accepted.
+    let answers: "lost" | "ok" = "lost";
+    const fake = server(() => answers);
     const container = render(() => page(fake));
     await post(container, "Hello world");
     await vi.waitFor(() => expect(pendingStatus(container)).toBe("delayed"), { timeout: 6_000 });
-    expect(pending(container)!.textContent).toContain("Not sent yet. Still trying.");
+    expect(fake.accepted.size).toBe(1);
+
+    // The message makes no claim about whether the post was sent.
+    const said = pending(container)!.textContent ?? "";
+    expect(said).toContain("Taking longer than usual. Still trying.");
+    expect(said).not.toMatch(/not sent|failed|couldn.t/iu);
     expect(pending(container)!.querySelector("[role='alert']")).toBeNull();
-    // The page is not held: the Post action is still there.
+
+    // Nothing offers to remove or resend it: either would leave the published
+    // post in place and invite a second one.
+    const actions = [...pending(container)!.querySelectorAll("button")].map(action => action.textContent?.trim());
+    expect(actions).toEqual(["Try now"]);
+
+    // Recovery does not depend on the composer. Opening and closing it changes nothing.
+    await openComposer(container);
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(form(container)).toBeNull());
+    expect(pendingStatus(container)).toBe("delayed");
+    // The page is not held either.
     expect(container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!.disabled).toBe(false);
-    online = true;
+
+    answers = "ok";
     button(pending(container)!, "Try now").click();
     await vi.waitFor(() => expect(pending(container)).toBeNull());
+    expect(container.querySelectorAll("[data-community-post]")).toHaveLength(1);
     expect(fake.accepted.size).toBe(1);
-  }, 10_000);
+    expect(new Set(fake.dispatched.map(envelope => envelope.idempotency_key)).size).toBe(1);
+  }, 12_000);
+
+  test("holds a post when the session has expired and sends the same request after signing in again", async () => {
+    let signedIn = false;
+    const fake = server(() => signedIn ? "ok" : "signed_out");
+    const container = render(() => page(fake));
+    const prompts: Array<(authenticated: boolean) => void> = [];
+    const onPrompt = (event: Event) => {
+      // SAFETY: requestGlobalSignInCompletion always dispatches this detail shape.
+      const detail = (event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail;
+      prompts.push(detail.complete);
+    };
+    window.addEventListener("pirate:connect", onPrompt);
+    try {
+      await post(container, "Hello world");
+      await vi.waitFor(() => expect(pendingStatus(container)).toBe("sign_in_required"));
+      expect(pending(container)!.textContent).toContain("Sign in again to finish posting.");
+      expect(pending(container)!.textContent).not.toContain("Still trying");
+
+      // Delivery is paused, not retried on a timer.
+      await new Promise(resolve => setTimeout(resolve, 2_500));
+      expect(fake.dispatched).toHaveLength(1);
+      expect(pendingStatus(container)).toBe("sign_in_required");
+
+      button(pending(container)!, "Sign in").click();
+      await vi.waitFor(() => expect(prompts).toHaveLength(1));
+      signedIn = true;
+      prompts[0]!(true);
+      await vi.waitFor(() => expect(pending(container)).toBeNull());
+      expect(container.querySelectorAll("[data-community-post]")).toHaveLength(1);
+      // The held request was sent again unchanged.
+      expect(fake.dispatched).toHaveLength(2);
+      expect(fake.dispatched[1]!.idempotency_key).toBe(fake.dispatched[0]!.idempotency_key);
+      expect(fake.dispatched[1]!.body_sha256).toBe(fake.dispatched[0]!.body_sha256);
+    } finally {
+      window.removeEventListener("pirate:connect", onPrompt);
+    }
+  }, 12_000);
 
   test("keeps the text when the server refuses the post", async () => {
     const container = render(() => page(server(() => "refuse")));
@@ -220,13 +299,6 @@ describe("community page text posting", () => {
     expect(pendingStatus(container)).toBe("rejected");
   });
 
-  test("offers no way to resend an unconfirmed post as a new one", async () => {
-    const container = render(() => page(server(() => "offline")));
-    await post(container, "Hello world");
-    await vi.waitFor(() => expect(pendingStatus(container)).toBe("delayed"), { timeout: 6_000 });
-    const actions = [...pending(container)!.querySelectorAll("button")].map(action => action.textContent?.trim());
-    expect(actions).toEqual(["Try now", "Discard"]);
-  }, 10_000);
 
   test("keeps sending after the author leaves the community, and clears on sign-out", async () => {
     let release: (value: "ok") => void = () => {};
@@ -265,5 +337,15 @@ describe("community page text posting", () => {
     setOnCommunity(true);
     await vi.waitFor(() => expect(container.querySelector("h1")).not.toBeNull());
     expect(container.textContent).not.toContain("Only mine to see");
+
+    // Another account signing in drops the held post for good.
+    setState({ status: "authenticated", userId: "account-two" });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    setState(session);
+    setOnCommunity(false);
+    setOnCommunity(true);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-post-slot]")).not.toBeNull());
+    expect(container.textContent).not.toContain("Only mine to see");
+    expect(fake.accepted.size).toBe(1);
   });
 });

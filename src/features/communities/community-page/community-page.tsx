@@ -1,4 +1,4 @@
-import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
+import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../../auth/global-sign-in-host.tsx";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
@@ -79,6 +79,9 @@ export interface CommunityPageProps {
   /** Clears the compose marker from the URL once the song-entry composer has
    * been opened and dismissed, so a reload browses instead of reopening it. */
   readonly clearVideoSongIntent?: () => void;
+  /** Entering from a "Post here" action elsewhere: open the text composer
+   * once the viewer's posting session is resolved. */
+  readonly composeText?: boolean;
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -149,6 +152,7 @@ function SuccessState(props: {
   readonly initialVideoSong?: { readonly postId: string };
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
+  readonly composeText?: boolean;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -448,12 +452,15 @@ function SuccessState(props: {
   createEffect(() => engagement.message(), (message) => announce(toast.success, message));
   createEffect(() => engagement.error(), (message) => announce(toast.error, message));
 
-  const openPostComposer = async (): Promise<void> => {
-    if (postingBusy()) return;
+  /** Resolves true once the text composer is open. */
+  const openPostComposer = async (): Promise<boolean> => {
+    if (postingBusy()) return false;
     setPostingBusy(true);
     try {
       const resolved = await engagement.resolvePostingSession();
-      if (active && resolved !== undefined) setTextOpen(true);
+      if (!active || resolved === undefined) return false;
+      setTextOpen(true);
+      return true;
     } finally {
       if (active) setPostingBusy(false);
     }
@@ -528,6 +535,52 @@ function SuccessState(props: {
     for (const item of untrack(pendingTextPosts)) if (item.status === "published") textStore.dismiss(item.id);
     if (shellTextStore === null) textStore.dispose();
   });
+  // A held post is sent once its own account is signed in again. The shell
+  // does that from a freshly resolved session. An isolated render has no
+  // shell, so it resolves the session itself after the prompt and resumes only
+  // for the account that resolution names.
+  const signInAbort = new AbortController();
+  onCleanup(() => signInAbort.abort());
+  const signInToFinishPosting = () => {
+    if (shellTextStore !== null) {
+      requestGlobalSignIn();
+      return;
+    }
+    void requestGlobalSignInCompletion(signInAbort.signal)
+      .then(authenticated => authenticated ? engagement.resolvePostingSession() : undefined)
+      .then((resolved) => { if (active && resolved !== undefined) textStore.resume(resolved.userId); })
+      .catch(() => undefined);
+  };
+  // An entry that asks for the text composer opens it once, through the same
+  // session resolution as the Post action, and then drops its URL marker so a
+  // reload browses instead of reopening it.
+  let textEntrySettled = false;
+  let openingForText = false;
+  createEffect(
+    () => [props.composeText === true, engagement.joined(), engagement.accountIdentity(), engagement.authorityPending()] as const,
+    ([wanted, joined, identity, pending]) => {
+      if (textEntrySettled || openingForText || !wanted || identity === undefined || pending) return;
+      if (!joined) {
+        // Not a member: the entry is spent, so joining later does not open a
+        // composer nobody asked for.
+        textEntrySettled = true;
+        queueMicrotask(() => { if (active) props.clearVideoSongIntent?.(); });
+        return;
+      }
+      openingForText = true;
+      queueMicrotask(() => {
+        if (!active) return;
+        void openPostComposer().then(
+          (opened) => {
+            if (!active || !opened) return;
+            textEntrySettled = true;
+            props.clearVideoSongIntent?.();
+          },
+          () => undefined,
+        ).finally(() => { openingForText = false; });
+      });
+    },
+  );
   const submitTextPost = () => {
     const session = engagement.postingSession();
     const personaId = selectedPersonaId();
@@ -637,6 +690,7 @@ function SuccessState(props: {
                 onDismiss={textStore.dismiss}
                 onEdit={editTextPost}
                 onRetry={textStore.retry}
+                onSignIn={signInToFinishPosting}
               />
             )}
             composer={textOpen() && engagement.postingSession() !== undefined ? () => (
@@ -780,6 +834,7 @@ function CommunityState(props: {
   readonly initialVideoSong?: { readonly postId: string };
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
+  readonly composeText?: boolean;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -805,6 +860,7 @@ function CommunityState(props: {
               engagementApi={props.engagementApi}
               initialVideoSong={props.initialVideoSong}
               clearVideoSongIntent={props.clearVideoSongIntent}
+              composeText={props.composeText}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               resolveSession={props.resolveSession}
@@ -839,6 +895,7 @@ function CommunityData(props: CommunityPageProps) {
       engagementApi={engagementApi}
       initialVideoSong={props.initialVideoSong}
       clearVideoSongIntent={props.clearVideoSongIntent}
+      composeText={props.composeText}
       viewerVoteClient={props.viewerVoteClient}
       textSubmissionTransport={props.textSubmissionTransport}
       state={state()}

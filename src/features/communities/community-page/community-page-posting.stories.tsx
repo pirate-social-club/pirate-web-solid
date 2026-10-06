@@ -3,13 +3,14 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Show, createSignal, untrack } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
-import type { SessionResolution } from "../../../api/session.ts";
+import type { AuthenticatedSession } from "../../../api/session.ts";
 import { Button } from "../../../design-system";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
 import type { PendingSubmissionEnvelopeV1 } from "../../posts/post-composer/pending-submission.ts";
 import type { TextContentSubmissionV1 } from "../../posts/post-composer/text-submission-contract.ts";
 import {
   AmbiguousTextSubmissionError,
+  TextSubmissionAuthenticationRequiredError,
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../../posts/post-composer/text-submission-transport.ts";
@@ -51,7 +52,7 @@ const existingPost: CommunityPost = {
   commentCount: 8,
 };
 
-const memberSession: SessionResolution = {
+const memberSession: AuthenticatedSession = {
   status: "authenticated",
   userId: "storybook-account",
   personas: [{
@@ -94,6 +95,10 @@ function standInServer(behaviour: {
   readonly offline?: () => boolean;
   readonly refuse?: boolean;
   readonly holdMs?: number;
+  /** While true the server accepts posts but none of its answers arrive. */
+  readonly answersLost?: () => boolean;
+  /** While false the server answers that the session is not signed in. */
+  readonly signedIn?: () => boolean;
 } = {}) {
   const published = new Map<string, TextContentSubmissionV1>();
   const posts: CommunityPost[] = [existingPost];
@@ -103,6 +108,7 @@ function standInServer(behaviour: {
     dispatch: async (envelope) => {
       if (behaviour.holdMs) await new Promise(resolve => setTimeout(resolve, behaviour.holdMs));
       if (behaviour.offline?.()) throw new AmbiguousTextSubmissionError("offline");
+      if (behaviour.signedIn?.() === false) throw new TextSubmissionAuthenticationRequiredError();
       if (behaviour.refuse) throw new TextSubmissionServerRejectionError(403, "membership_required");
       let snapshot = published.get(envelope.idempotency_key);
       if (snapshot === undefined) {
@@ -130,8 +136,8 @@ function standInServer(behaviour: {
           commentCount: 0,
         });
       }
-      if (lost > 0) {
-        lost -= 1;
+      if (lost > 0 || behaviour.answersLost?.()) {
+        lost = Math.max(0, lost - 1);
         throw new AmbiguousTextSubmissionError("acknowledgement lost");
       }
       return snapshot;
@@ -270,13 +276,54 @@ export const ConnectionLost: Story = {
     await writeAndPost(canvasElement, "Posted from a tunnel");
     await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed"), { timeout: 8_000 });
     const item = within(pending(canvasElement)!);
-    await expect(item.getByText("Not sent yet. Still trying.")).toBeVisible();
+    await expect(item.getByText("Taking longer than usual. Still trying.")).toBeVisible();
     // The author is not trapped: the rest of the page still works.
     await expect(canvas.getByRole("button", { name: "Post" })).toBeEnabled();
     connectionDown = false;
     await userEvent.click(item.getByRole("button", { name: "Try now" }));
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 5_000 });
     await expect(canvas.getAllByText("Posted from a tunnel")).toHaveLength(1);
+  },
+};
+
+let answersLost = true;
+const answerLostServer = standInServer({ answersLost: () => answersLost });
+
+/**
+ * The server published the post, and no answer has arrived since. The page
+ * cannot know that, so it must not say the post was not sent, and it must not
+ * offer to remove it: removing the entry would cancel nothing and would invite
+ * a second post.
+ */
+export const PublishedButAnswerLost: Story = {
+  name: "Published, answer lost, cannot be dismissed",
+  args: pageArgs(answerLostServer),
+  play: async ({ canvasElement }) => {
+    answersLost = true;
+    const canvas = within(canvasElement);
+    const before = answerLostServer.publishedCount();
+    await writeAndPost(canvasElement, "Already on the server");
+    await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed"), { timeout: 8_000 });
+    // The server has it. The author is told only what is known.
+    await expect(answerLostServer.publishedCount() - before).toBe(1);
+    const item = pending(canvasElement)!;
+    await expect(item).toHaveTextContent("Taking longer than usual. Still trying.");
+    await expect(item.textContent ?? "").not.toMatch(/not sent|failed|couldn.t/iu);
+    await expect(within(item).queryByRole("alert")).toBeNull();
+    // Trying to dismiss it: there is nothing to press but Try now.
+    const actions = within(item).getAllByRole("button").map(action => action.textContent?.trim());
+    await expect(actions).toEqual(["Try now"]);
+    await expect(within(item).queryByRole("button", { name: /discard|dismiss|edit|remove|cancel/iu })).toBeNull();
+    // Opening and closing the composer does not stop or remove it.
+    const form = await openComposer(canvasElement);
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
+    await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed");
+    // When an answer finally arrives it is the first post, once.
+    answersLost = false;
+    await userEvent.click(within(pending(canvasElement)!).getByRole("button", { name: "Try now" }));
+    await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 5_000 });
+    await expect(canvas.getAllByText("Already on the server")).toHaveLength(1);
+    await expect(answerLostServer.publishedCount() - before).toBe(1);
   },
 };
 
@@ -315,7 +362,11 @@ export const DismissedWhileSending: Story = {
 };
 
 /** The application shell around the page: its session and its submission owner. */
-function ShellFrame(props: { readonly behaviour: Parameters<typeof standInServer>[0] }) {
+function ShellFrame(props: {
+  readonly behaviour: Parameters<typeof standInServer>[0];
+  /** Runs when the story's stand-in for the sign-in ceremony completes. */
+  readonly onSignedInAgain?: () => void;
+}) {
   // One server for the life of the frame: the feed read must see what the
   // submission owner sent.
   const server = standInServer(untrack(() => props.behaviour));
@@ -328,6 +379,7 @@ function ShellFrame(props: { readonly behaviour: Parameters<typeof standInServer
           <Button onClick={() => setOnCommunity(false)} size="sm" variant="outline">Go elsewhere</Button>
           <Button onClick={() => setOnCommunity(true)} size="sm" variant="outline">Back to community</Button>
           <Button onClick={() => setSession("anonymous")} size="sm" variant="outline">Sign out</Button>
+          <Button onClick={() => { props.onSignedInAgain?.(); setSession({ ...memberSession }); }} size="sm" variant="outline">Complete sign-in</Button>
         </nav>
         <Show when={onCommunity()} fallback={<main aria-label="Another page" class="p-8">Another page</main>}>
           <CommunityPage
@@ -375,5 +427,42 @@ export const SignedOutWhilePending: Story = {
     await canvas.findByRole("heading", { name: "Night Shift" });
     await expect(canvas.queryByText("Only mine to see")).toBeNull();
     await expect(pending(canvasElement)).toBeNull();
+  },
+};
+
+let sessionValid = true;
+let expiredAttempts = 0;
+
+/**
+ * The session expired before the post was sent. Delivery stops instead of
+ * promising progress, the post says what the author has to do, and the same
+ * request goes out once the same account is signed in again.
+ */
+export const SessionExpiredThenSignedIn: Story = {
+  name: "Session expired, then signed in again",
+  render: () => (
+    <ShellFrame
+      behaviour={{ signedIn: () => { if (!sessionValid) expiredAttempts += 1; return sessionValid; } }}
+      onSignedInAgain={() => { sessionValid = true; }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    sessionValid = false;
+    expiredAttempts = 0;
+    const canvas = within(canvasElement);
+    await writeAndPost(canvasElement, "Written before my session ran out");
+    await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sign_in_required"));
+    const item = pending(canvasElement)!;
+    await expect(item).toHaveTextContent("Sign in again to finish posting.");
+    await expect(item.textContent ?? "").not.toMatch(/still trying/iu);
+    await expect(within(item).getByRole("button", { name: "Sign in" })).toBeVisible();
+    // It is held, not retried: no further request goes out while signed out.
+    await new Promise(resolve => setTimeout(resolve, 2_500));
+    await expect(expiredAttempts).toBe(1);
+    await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sign_in_required");
+    // The same account signs in again and the held post is published once.
+    await userEvent.click(canvas.getByRole("button", { name: "Complete sign-in" }));
+    await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
+    await expect(canvas.getAllByText("Written before my session ran out")).toHaveLength(1);
   },
 };

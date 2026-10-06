@@ -6,6 +6,7 @@ import type { TextContentSubmissionV1 } from "../post-composer/text-submission-c
 import {
   AmbiguousTextSubmissionError,
   IdempotencyConflictError,
+  TextSubmissionAuthenticationRequiredError,
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../post-composer/text-submission-transport";
@@ -113,6 +114,37 @@ describe("text submission machine", () => {
     const actor = await run({ dispatch, read: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);
     actor.send({ type: "RETRY" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(actor.getSnapshot().value).toBe("published");
+  });
+
+  it("holds the request when the session is gone and replays it unchanged once signed in", async () => {
+    const dispatch = vi.fn()
+      .mockRejectedValueOnce(new TextSubmissionAuthenticationRequiredError())
+      .mockResolvedValueOnce(published);
+    const actor = await run({ dispatch, read: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(actor.getSnapshot().value).toBe("signInRequired");
+    // No timer sends it again.
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(actor.getSnapshot().context.rejection).toBeNull();
+    actor.send({ type: "RESUME" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(actor.getSnapshot().value).toBe("published");
+    expect(dispatch.mock.calls[1]![0]).toBe(dispatch.mock.calls[0]![0]);
+  });
+
+  it("pauses an unconfirmed request on sign-out and still reconciles it on resume", async () => {
+    const dispatch = vi.fn()
+      .mockRejectedValueOnce(new AmbiguousTextSubmissionError())
+      .mockResolvedValueOnce(published);
+    const actor = await run({ dispatch, read: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    actor.send({ type: "PAUSE" });
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    actor.send({ type: "RESUME" });
     await vi.advanceTimersByTimeAsync(0);
     expect(actor.getSnapshot().value).toBe("published");
   });

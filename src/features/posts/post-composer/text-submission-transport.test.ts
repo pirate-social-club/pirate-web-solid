@@ -7,6 +7,7 @@ import {
 import {
   createSameOriginTextSubmissionTransport,
   IdempotencyConflictError,
+  TextSubmissionAuthenticationRequiredError,
   TextSubmissionServerRejectionError,
 } from "./text-submission-transport";
 
@@ -86,6 +87,15 @@ describe("same-origin text transport", () => {
       status,
       code: "unexpected_status",
     });
+  });
+
+  test("reports a missing session as needing authentication, not as an unknown outcome", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: { code: "unauthenticated" } }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    }));
+    const transport = createSameOriginTextSubmissionTransport({ origin: "https://solid.example", fetchImpl });
+    await expect(transport.dispatch(await envelope())).rejects.toBeInstanceOf(TextSubmissionAuthenticationRequiredError);
   });
 
   test("keeps malformed success responses ambiguous", async () => {

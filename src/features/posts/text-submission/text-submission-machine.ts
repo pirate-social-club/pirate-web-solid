@@ -4,6 +4,7 @@ import type { PendingSubmissionEnvelopeV1 } from "../post-composer/pending-submi
 import type { TextContentSubmissionV1 } from "../post-composer/text-submission-contract";
 import {
   IdempotencyConflictError,
+  TextSubmissionAuthenticationRequiredError,
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../post-composer/text-submission-transport";
@@ -23,13 +24,19 @@ export interface TextSubmissionContext {
   readonly rejection: TextSubmissionRejection | null;
 }
 
-export type TextSubmissionEvent = { readonly type: "RETRY" };
+export type TextSubmissionEvent =
+  /** Send again now instead of waiting for the timer. */
+  | { readonly type: "RETRY" }
+  /** The account is no longer signed in; hold the request without sending. */
+  | { readonly type: "PAUSE" }
+  /** The same account is signed in again; send the held request. */
+  | { readonly type: "RESUME" };
 
 export interface TextSubmissionInput {
   readonly envelope: PendingSubmissionEnvelopeV1;
 }
 
-/** Attempts before the author is told the post has not been sent yet. */
+/** Attempts before the author is told the post is taking longer than usual. */
 export const DELAYED_AFTER_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000] as const;
 
@@ -56,6 +63,7 @@ type Outcome =
   | { readonly kind: "published"; readonly postHref: string; readonly postId: string }
   | { readonly kind: "rejected"; readonly rejection: TextSubmissionRejection }
   | { readonly kind: "conflict"; readonly submissionId: string }
+  | { readonly kind: "sign_in_required" }
   | { readonly kind: "unconfirmed" };
 
 function projectSnapshot(snapshot: TextContentSubmissionV1): Outcome {
@@ -79,6 +87,11 @@ function rejectionFor(error: TextSubmissionServerRejectionError): TextSubmission
  * with the same bytes and key until the server answers; the server returns the
  * original result for a key it has already seen, so a replay confirms a post
  * that was published without creating a second one.
+ *
+ * A request the server refuses for lack of a session is held, not retried on
+ * a timer: it cannot succeed until the author signs in again, and resuming it
+ * replays the same request, which also settles any earlier attempt that went
+ * unanswered.
  */
 export function createTextSubmissionMachine(transport: TextSubmissionTransport) {
   return setup({
@@ -104,6 +117,7 @@ export function createTextSubmissionMachine(transport: TextSubmissionTransport) 
             return projectSnapshot(await withTimeout(transport.dispatch(input.envelope)));
           } catch (error) {
             if (error instanceof IdempotencyConflictError) return { kind: "conflict", submissionId: error.submission_id };
+            if (error instanceof TextSubmissionAuthenticationRequiredError) return { kind: "sign_in_required" };
             if (error instanceof TextSubmissionServerRejectionError && error.definitive) {
               return { kind: "rejected", rejection: rejectionFor(error) };
             }
@@ -157,14 +171,22 @@ export function createTextSubmissionMachine(transport: TextSubmissionTransport) 
                 submissionId: ({ event }) => event.output.kind === "conflict" ? event.output.submissionId : null,
               }),
             },
+            {
+              guard: ({ event }) => event.output.kind === "sign_in_required",
+              target: "signInRequired",
+            },
             { target: "waiting" },
           ],
           onError: { target: "waiting" },
         },
+        on: { PAUSE: { target: "signInRequired" } },
       },
       waiting: {
         after: { retryDelay: { target: "sending" } },
-        on: { RETRY: { target: "sending" } },
+        on: { RETRY: { target: "sending" }, PAUSE: { target: "signInRequired" } },
+      },
+      signInRequired: {
+        on: { RESUME: { target: "sending" } },
       },
       published: { type: "final" },
       rejected: { type: "final" },
