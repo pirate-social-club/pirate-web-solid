@@ -68,6 +68,7 @@ export default defineConfig({
       "src/features/community/owner-settings/community-management-shell.test.tsx",
       "src/features/community/owner-settings/community-hns-wallet.test.ts",
       "src/features/community/owner-settings/community-namespace-settings-api.test.ts",
+      "src/features/community/owner-settings/spaces-route-attachment-panel.test.tsx",
       "src/features/community/owner-settings/community-namespace-settings-controller.test.tsx",
       "src/features/community/owner-settings/community-namespace-admission.test.tsx",
       "src/features/community/owner-settings/community-namespace-lifecycle.test.tsx",

@@ -14,6 +14,8 @@ import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
 import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
 import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
+import type { SpacesRouteAttachmentApi } from "./spaces-route-attachment-api";
+import { SpacesRouteAttachmentPanel } from "./spaces-route-attachment-panel";
 import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
@@ -33,6 +35,8 @@ export interface OwnerSettingsRouteViewProps {
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
+  /** Shown only when supplied; the generated-client wrapper arrives with client 0.111.0. */
+  spacesRouteAttachmentApi?: SpacesRouteAttachmentApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   /** `null` renders the management index instead of a section. */
   requestedSection: string | null;
@@ -235,6 +239,9 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 <CommunityTelegramSettingsController api={props.telegramApi} communityId={state().communityId} section={section() === "assistant" ? "assistant" : "telegram"} />
               </Show>
               <Show when={section() === "namespace"}>
+                <Show when={props.spacesRouteAttachmentApi}>{(api) => (
+                  <SpacesRouteAttachmentPanel api={api()} communityId={state().communityId} />
+                )}</Show>
                 <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
                 <CommunityNamespaceSettingsController
                   api={props.namespaceApi}
