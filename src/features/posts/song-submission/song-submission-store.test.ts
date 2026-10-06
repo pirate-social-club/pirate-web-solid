@@ -1,0 +1,132 @@
+import { describe, expect, it, vi } from "vitest";
+
+import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { SongSubmissionView } from "../media-submission/projection";
+import { songStageIndex, SONG_STAGES } from "./pending-songs";
+import { createSongSubmissionStore, type SongSubmissionHandover } from "./song-submission-store";
+
+type Phase = Extract<SongSubmissionView, { status: "processing" }>["phase"];
+
+/** A server answer carrying only what the observer's projection reads. */
+const snapshot = (fields: object): MediaSubmissionSnapshot => JSON.parse(JSON.stringify(fields));
+const processing = (phase: Phase) => snapshot({ status: "processing", submission_id: "song-1", phase });
+const published = snapshot({ status: "published", submission_id: "song-1", published_resource: { post_id: "post-1", href: "/posts/song-1" } });
+const failed = (retryable: boolean) => snapshot({ status: "processing_failed", submission_id: "song-1", reason_code: "analysis_failed", retryable });
+
+function handover(source: SongSubmissionHandover["source"], accountId = "account-one"): SongSubmissionHandover {
+  return {
+    submissionId: "song-1",
+    accountId,
+    communityId: "community-1",
+    title: "Midnight Waves",
+    view: { status: "processing", submissionId: "song-1", phase: "finalize" },
+    source,
+  };
+}
+
+const viewOf = (store: ReturnType<typeof createSongSubmissionStore>) => store.items()[0]?.view;
+
+describe("song submission store", () => {
+  it("follows a song through its stages to publication", async () => {
+    const answers = [processing("analysis"), processing("decision"), processing("publish"), published];
+    const refresh = vi.fn(async () => answers.shift() ?? published);
+    const store = createSongSubmissionStore({ observeIntervalMs: 5 });
+    store.adopt(handover({ refresh, retry: vi.fn() }));
+    const seen: number[] = [];
+    await vi.waitFor(() => {
+      const view = viewOf(store);
+      const stage = view === undefined ? null : songStageIndex(view);
+      if (stage !== null && seen.at(-1) !== stage) seen.push(stage);
+      expect(view?.status).toBe("published");
+    });
+    // Stages only move forward, and each names something the server is doing.
+    expect(seen).toEqual([...seen].sort((a, b) => a - b));
+    for (const stage of seen) expect(SONG_STAGES[stage]).toBeTruthy();
+    const reads = refresh.mock.calls.length;
+    await new Promise(resolve => setTimeout(resolve, 40));
+    expect(refresh.mock.calls.length).toBe(reads);
+    store.dispose();
+  });
+
+  it("does not turn an unanswered read into a failure of the song", async () => {
+    const refresh = vi.fn(async () => { throw new Error("offline"); });
+    const store = createSongSubmissionStore({ observeIntervalMs: 2 });
+    store.adopt(handover({ refresh, retry: vi.fn() }));
+    await vi.waitFor(() => expect(store.items()[0]?.slow).toBe(true));
+    expect(viewOf(store)).toEqual({ status: "processing", submissionId: "song-1", phase: "finalize" });
+    store.dispose();
+  });
+
+  it("stops at a processing failure and runs it again only when asked", async () => {
+    let rerun = false;
+    const refresh = vi.fn(async () => rerun ? published : failed(true));
+    const retry = vi.fn(async () => { rerun = true; return processing("analysis"); });
+    const store = createSongSubmissionStore({ observeIntervalMs: 5 });
+    store.adopt(handover({ refresh, retry }));
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing_failed"));
+    // It keeps reading, but never reruns processing on its own.
+    await new Promise(resolve => setTimeout(resolve, 120));
+    expect(retry).not.toHaveBeenCalled();
+    expect(viewOf(store)?.status).toBe("processing_failed");
+    store.retry("song-1");
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("published"));
+    expect(retry).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  it("reads the song again when a rerun goes unanswered instead of leaving it marked failed", async () => {
+    // The server took the rerun; only its answer was lost.
+    const refresh = vi.fn().mockResolvedValueOnce(failed(true)).mockResolvedValue(processing("analysis"));
+    const retry = vi.fn(async () => { throw new Error("no answer"); });
+    const store = createSongSubmissionStore({ observeIntervalMs: 5 });
+    store.adopt(handover({ refresh, retry }));
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing_failed"));
+    store.retry("song-1");
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing"));
+    expect(retry).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
+  it("keeps reading, slowly, while a song waits on its author", async () => {
+    const refresh = vi.fn().mockResolvedValueOnce(failed(false)).mockResolvedValue(snapshot({ status: "abandoned", submission_id: "song-1", reason_code: "expired" }));
+    const store = createSongSubmissionStore({ observeIntervalMs: 3 });
+    store.adopt(handover({ refresh, retry: vi.fn() }));
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("abandoned"));
+    store.dispose();
+  });
+
+  it("offers no rerun for a failure the server says is final", async () => {
+    const retry = vi.fn();
+    const store = createSongSubmissionStore({ observeIntervalMs: 5 });
+    store.adopt(handover({ refresh: vi.fn(async () => failed(false)), retry }));
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing_failed"));
+    store.retry("song-1");
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(retry).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it("holds reads while the session is gone and forgets the song on sign-out or another account", async () => {
+    const refresh = vi.fn(async () => processing("analysis"));
+    const store = createSongSubmissionStore({ observeIntervalMs: 5 });
+    store.pause();
+    store.adopt(handover({ refresh, retry: vi.fn() }));
+    await new Promise(resolve => setTimeout(resolve, 40));
+    expect(refresh).not.toHaveBeenCalled();
+    store.resume("account-one");
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+
+    store.pause();
+    const reads = refresh.mock.calls.length;
+    store.retainAccount("account-two");
+    store.resume("account-two");
+    await new Promise(resolve => setTimeout(resolve, 40));
+    expect(store.items()).toHaveLength(0);
+    expect(refresh.mock.calls.length).toBeLessThanOrEqual(reads + 1);
+
+    store.adopt(handover({ refresh, retry: vi.fn() }, "account-two"));
+    store.clear();
+    await vi.waitFor(() => expect(store.items()).toHaveLength(0));
+    store.dispose();
+  });
+});

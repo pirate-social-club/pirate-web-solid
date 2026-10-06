@@ -472,7 +472,23 @@ async function publishSong(page, community, { lyrics }) {
     `the review step was never reached: ${(await form.innerText()).slice(0, 300)}`);
   await form.getByRole("button", { name: "Post song" }).click();
   try {
+    // The steps end when the server accepts the song. The author is back on
+    // the community page with the song in the feed, naming the stage it is on,
+    // and is taken nowhere on their own.
     await form.waitFor({ state: "hidden", timeout: 20_000 });
+    const own = page.locator("[data-pending-song]");
+    await own.waitFor({ state: "visible", timeout: 20_000 });
+    assert((await own.innerText()).includes(`Fixture song ${community}`), "the submitted song is not shown in the feed");
+    assert(await page.getByText("Check status").count() === 0, "the author was offered a status check");
+    assert(await page.getByText("Automatic checks paused").count() === 0, "the author was told checks were paused");
+    assert(await page.getByLabel("Source song asset ID").count() === 0, "a raw asset identifier field was shown");
+    assert(new URL(page.url()).pathname.startsWith("/c/"), "submitting a song navigated away from the community");
+    await page.locator("[data-pending-song-status='published']").waitFor({ state: "visible", timeout: 60_000 });
+    // The dev server optimizes a route's dependencies on its first request and
+    // resets the connection while it reloads. Request the post route once so
+    // the author's navigation below is not that first request. The production
+    // Worker has no such step.
+    await own.getByRole("link", { name: `Fixture song ${community}`, exact: true }).click();
     await page.waitForURL(`**/posts/fixture-song-${community}`);
     await page.locator('[data-public-post-state="content"]').waitFor();
     await page.getByRole("heading", { name: `Fixture song ${community}`, exact: true }).waitFor();

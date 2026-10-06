@@ -7,6 +7,7 @@ import { pageRoutes } from "virtual:file-routes";
 import { resolveSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { ActivePersonaProvider } from "./features/identity/active-persona-store.tsx";
+import { SongSubmissionProvider } from "./features/posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "./features/posts/text-submission/text-submission-store.tsx";
 import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
@@ -86,6 +87,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
     <ActivePersonaProvider>
       <ApplicationSessionProvider state={session} pending={accountPending}>
         <TextSubmissionProvider>
+        <SongSubmissionProvider>
         <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
           navigationScope={currentApplicationNavigationScope()}
@@ -116,6 +118,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
           </Errored>
         </ApplicationChrome>
         </ApplicationPersonasContext>
+        </SongSubmissionProvider>
         </TextSubmissionProvider>
       </ApplicationSessionProvider>
     </ActivePersonaProvider>
