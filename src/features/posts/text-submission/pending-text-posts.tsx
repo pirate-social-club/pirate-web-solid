@@ -9,7 +9,11 @@ import type { TextSubmissionItem } from "./text-submission-store";
 export interface PendingTextPostsProps {
   readonly items: readonly TextSubmissionItem[];
   readonly onRetry: (id: string) => void;
-  /** Take the text back into the composer and forget this attempt. */
+  /**
+   * Take a refused post's text back into the composer. Offered only after a
+   * definite refusal: an unconfirmed post may already be published, and
+   * sending its text again would be a second post.
+   */
   readonly onEdit: (item: TextSubmissionItem) => void;
   readonly onDismiss: (id: string) => void;
 }
@@ -66,7 +70,7 @@ export function PendingTextPosts(props: PendingTextPostsProps): JSX.Element {
               <div class="flex flex-wrap items-center gap-2" role="status">
                 <Type variant="caption">Not sent yet. Still trying.</Type>
                 <Button onClick={() => props.onRetry(current().id)} size="sm" type="button" variant="outline">Try now</Button>
-                <Button onClick={() => props.onEdit(current())} size="sm" type="button" variant="ghost">Stop and edit</Button>
+                <Button onClick={() => props.onDismiss(current().id)} size="sm" type="button" variant="ghost">Discard</Button>
               </div>
             </Show>
             <Show when={current().status === "rejected"}>

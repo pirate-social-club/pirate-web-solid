@@ -33,6 +33,21 @@ export interface TextSubmissionInput {
 export const DELAYED_AFTER_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000] as const;
 
+/** How long one attempt may stay unanswered before it counts as unconfirmed. */
+export const ATTEMPT_TIMEOUT_MS = 15_000;
+
+class AttemptTimedOut extends Error {}
+
+function withTimeout<T>(work: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new AttemptTimedOut()), ATTEMPT_TIMEOUT_MS);
+    work.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: Error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 export function retryDelayMs(attempts: number): number {
   return RETRY_DELAYS_MS[Math.min(Math.max(attempts, 1), RETRY_DELAYS_MS.length) - 1] ?? 15_000;
 }
@@ -80,10 +95,13 @@ export function createTextSubmissionMachine(transport: TextSubmissionTransport) 
         async ({ input }) => {
           try {
             if (input.submissionId !== null) {
-              const known = await transport.read(input.submissionId);
+              const known = await withTimeout(transport.read(input.submissionId));
               if (known !== null) return projectSnapshot(known);
             }
-            return projectSnapshot(await transport.dispatch(input.envelope));
+            // A stalled connection must not hold the post on its first
+            // attempt: an unanswered request is unconfirmed like any other,
+            // and the replay is safe because the key is the same.
+            return projectSnapshot(await withTimeout(transport.dispatch(input.envelope)));
           } catch (error) {
             if (error instanceof IdempotencyConflictError) return { kind: "conflict", submissionId: error.submission_id };
             if (error instanceof TextSubmissionServerRejectionError && error.definitive) {

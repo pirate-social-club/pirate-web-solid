@@ -291,7 +291,15 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   // backing out of the song or video flow closes the dialog.
   createEffect(
     () => props.textHostedElsewhere === true && mode() === "text",
-    (leftMedia) => { if (leftMedia) queueMicrotask(() => { if (!disposed) props.onOpenChange(false); }); },
+    (leftMedia) => {
+      if (!leftMedia) return;
+      queueMicrotask(() => {
+        if (disposed) return;
+        // Leaving goes through the same guard as the close button. A song
+        // with a command still outstanding stays open on its steps.
+        if (!close(false)) setMode("song");
+      });
+    },
   );
 
   function selectSongPersona(nextPersonaId: string | undefined): void {
@@ -351,7 +359,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     resetSongDraft();
   }
 
-  function close(open: boolean): void {
+  /** Returns false when an outstanding song command kept the composer open. */
+  function close(open: boolean): boolean {
     if (!open) {
       // Only an outstanding request keeps the composer open. A processing or
       // manual-review state is a known server response the author cannot act
@@ -359,10 +368,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       const view = mediaView();
       if (mediaBusy() || view.status === "uploading" || view.status === "reconciling") {
         setError("This song submission still has an unresolved command. Resolve it before closing.");
-        return;
+        return false;
       }
     }
     props.onOpenChange(open);
+    return true;
   }
 
   function finishSongPublished(): void {

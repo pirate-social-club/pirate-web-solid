@@ -9,7 +9,7 @@ import {
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../post-composer/text-submission-transport";
-import { createTextSubmissionMachine, DELAYED_AFTER_ATTEMPTS, retryDelayMs } from "./text-submission-machine";
+import { ATTEMPT_TIMEOUT_MS, createTextSubmissionMachine, DELAYED_AFTER_ATTEMPTS, retryDelayMs } from "./text-submission-machine";
 
 const published: TextContentSubmissionV1 = {
   submission_id: "sub-1",
@@ -91,6 +91,19 @@ describe("text submission machine", () => {
     expect(actor.getSnapshot().context.rejection).toBeNull();
     expect(actor.getSnapshot().status).toBe("active");
     actor.stop();
+  });
+
+  it("treats an unanswered request as unconfirmed and replays it", async () => {
+    const dispatch = vi.fn()
+      .mockImplementationOnce(() => new Promise<never>(() => {}))
+      .mockResolvedValueOnce(published);
+    const actor = await run({ dispatch, read: vi.fn() });
+    await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS);
+    expect(actor.getSnapshot().value).toBe("waiting");
+    expect(actor.getSnapshot().context.rejection).toBeNull();
+    await vi.advanceTimersByTimeAsync(retryDelayMs(1));
+    expect(actor.getSnapshot().value).toBe("published");
+    expect(dispatch.mock.calls[1]![0]).toBe(dispatch.mock.calls[0]![0]);
   });
 
   it("retries at once when asked", async () => {

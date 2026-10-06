@@ -205,6 +205,29 @@ describe("community page text posting", () => {
     expect(pending(container)).toBeNull();
   });
 
+  test("does not replace text already being written when a refused post is edited", async () => {
+    const container = render(() => page(server(() => "refuse")));
+    await post(container, "Refused words");
+    await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
+    await openComposer(container);
+    const body = form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!;
+    body.value = "Something new";
+    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button(form(container)!, "Post").disabled).toBe(false));
+    button(pending(container)!, "Edit").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!.value).toBe("Something new");
+    expect(pendingStatus(container)).toBe("rejected");
+  });
+
+  test("offers no way to resend an unconfirmed post as a new one", async () => {
+    const container = render(() => page(server(() => "offline")));
+    await post(container, "Hello world");
+    await vi.waitFor(() => expect(pendingStatus(container)).toBe("delayed"), { timeout: 6_000 });
+    const actions = [...pending(container)!.querySelectorAll("button")].map(action => action.textContent?.trim());
+    expect(actions).toEqual(["Try now", "Discard"]);
+  }, 10_000);
+
   test("keeps sending after the author leaves the community, and clears on sign-out", async () => {
     let release: (value: "ok") => void = () => {};
     const fake = server(() => new Promise<"ok">(resolve => { release = resolve; }));

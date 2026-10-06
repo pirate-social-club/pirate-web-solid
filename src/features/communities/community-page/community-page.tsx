@@ -284,10 +284,32 @@ function SuccessState(props: {
       else recover();
     },
   );
-  onCleanup(onSessionRefreshed(() => setAuthorizedFeed(undefined)));
+  const loadAuthorizedThreads = () => props.loadThreads
+    ? props.loadThreads(communityId)
+    : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() });
+  /**
+   * Every authorized feed read lands here, so a post this author just
+   * published is never shown twice: once the feed carries it, the optimistic
+   * entry is dropped and the real post is kept first.
+   */
+  const applyAuthorizedFeed = (page: CommunityThreadPage) => {
+    const present = new Set(page.posts.map(post => post.id));
+    const confirmed = untrack(pendingTextPosts).filter(item => item.status === "published" && item.postId !== null && present.has(item.postId));
+    setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
+    if (confirmed.length === 0) return;
+    // SAFETY: the filter above kept only items whose postId is a string.
+    setPinnedPostIds(current => [...confirmed.map(item => item.postId as string), ...current]);
+    for (const item of confirmed) textStore.dismiss(item.id);
+  };
+  onCleanup(onSessionRefreshed(() => {
+    setAuthorizedFeed(undefined);
+    // The server-rendered feed predates anything posted from this page, so a
+    // post already confirmed here is read back rather than left to vanish.
+    if (untrack(pinnedPostIds).length > 0) void reconcilePublished();
+  }));
   const refreshAgeFeed = async (signal: AbortSignal) => {
-    const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
-    if (!signal.aborted) setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
+    const page = await loadAuthorizedThreads();
+    if (!signal.aborted) applyAuthorizedFeed(page);
   };
   const feed = createMemo<CommunityFeed>(
     () => {
@@ -472,25 +494,27 @@ function SuccessState(props: {
   // optimistic entry is dropped and the real post takes its place at the top;
   // until then the entry stays, so the author never sees their post vanish.
   let reconciling = false;
-  const reconcilePublished = async (): Promise<void> => {
-    if (reconciling) return;
+  let reconcileAgain = false;
+  async function reconcilePublished(): Promise<void> {
+    if (reconciling) {
+      // A post confirmed while a read is in flight needs a read of its own.
+      reconcileAgain = true;
+      return;
+    }
     reconciling = true;
     try {
-      const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
-      if (!active) return;
-      const present = new Set(page.posts.map(post => post.id));
-      const confirmed = untrack(pendingTextPosts).filter(item => item.status === "published" && item.postId !== null && present.has(item.postId));
-      setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
-      if (confirmed.length === 0) return;
-      // SAFETY: the filter above kept only items whose postId is a string.
-      setPinnedPostIds(current => [...confirmed.map(item => item.postId as string), ...current]);
-      for (const item of confirmed) textStore.dismiss(item.id);
+      const page = await loadAuthorizedThreads();
+      if (active) applyAuthorizedFeed(page);
     } catch {
       // The post is published either way; its optimistic entry keeps showing it.
     } finally {
       reconciling = false;
+      if (reconcileAgain && active) {
+        reconcileAgain = false;
+        void reconcilePublished();
+      }
     }
-  };
+  }
   createEffect(
     () => pendingTextPosts().filter(item => item.status === "published").map(item => item.id).join(","),
     (publishedIds) => {
@@ -525,9 +549,12 @@ function SuccessState(props: {
     setTextOpen(false);
   };
   const editTextPost = (item: TextSubmissionItem) => {
+    setTextOpen(true);
+    // Text already being written is not replaced; the refused post stays in
+    // the feed until the composer is free to take it.
+    if (textDraft().body.trim() !== "" || textDraft().title.trim() !== "") return;
     textStore.dismiss(item.id);
     setTextDraft({ title: item.title, body: item.body, ageGatePolicy: item.ageGatePolicy });
-    setTextOpen(true);
   };
   const openMediaComposer = (entry: { readonly kind: "video" } | { readonly kind: "song"; readonly file: File }) => {
     if (entry.kind === "song" && !isPublicSongMp3(entry.file)) {
@@ -615,7 +642,11 @@ function SuccessState(props: {
             composer={textOpen() && engagement.postingSession() !== undefined ? () => (
               <TextPostPanel
                 draft={textDraft()}
-                onClose={() => setTextOpen(false)}
+                onClose={() => {
+                  setTextOpen(false);
+                  // Focus returns to the action that opened the composer.
+                  queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
+                }}
                 onDraftChange={setTextDraft}
                 onPost={submitTextPost}
                 onSong={file => openMediaComposer({ kind: "song", file })}

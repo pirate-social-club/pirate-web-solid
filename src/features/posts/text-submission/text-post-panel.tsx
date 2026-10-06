@@ -14,6 +14,7 @@ import {
   IconX,
   Input,
   Textarea,
+  createIsMobile,
 } from "../../../design-system";
 
 export interface TextPostDraft {
@@ -47,20 +48,27 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   let bodyInput: HTMLTextAreaElement | undefined;
   let songInput: HTMLInputElement | undefined;
   onSettled(() => { bodyInput?.focus(); });
+  // On a phone the panel covers the page, so it is announced as a dialog. On
+  // desktop it is a region of the page and must not be.
+  const isMobile = createIsMobile();
   const canPost = () => props.unavailable === undefined && props.draft.body.trim() !== "";
   const post = () => { if (canPost()) props.onPost(); };
 
   return (
     <div
+      aria-label={isMobile() ? "Create a post" : undefined}
+      aria-modal={isMobile() ? "true" : undefined}
       class="max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:flex-col max-md:justify-end"
       data-text-post-panel
+      role={isMobile() ? "dialog" : undefined}
       onKeyDown={(event) => {
         if (event.key === "Escape") props.onClose();
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
       }}
     >
+      {/* A pointer convenience only: the named close control is in the form. */}
       <button
-        aria-label="Close composer"
+        aria-hidden="true"
         class="absolute inset-0 bg-black/40 md:hidden"
         onClick={() => props.onClose()}
         tabindex={-1}
