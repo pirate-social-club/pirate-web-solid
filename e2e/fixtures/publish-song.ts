@@ -36,8 +36,10 @@ export async function publishSongAndVerifyPlayback(
 
   try {
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-  await page.getByRole("button", { name: "Post" }).click();
+  await page.getByRole("button", { name: "Post", exact: true }).click();
 
+  // Post opens the text composer beside the feed. Its song action takes the
+  // audio file, and the song steps then replace it under the same form name.
   const composer = page.getByRole("form", { name: "Create a post" });
   await expect(composer).toBeVisible();
 
@@ -46,12 +48,13 @@ export async function publishSongAndVerifyPlayback(
     response.request().method() === "PUT" && response.status() < 400,
     { timeout: 120_000 });
   void storedPromise.catch(() => {}); // The later await still reports failure; avoid an unhandled rejection if UI steps fail first.
-  await composer.locator('input[aria-label="Upload audio"]').first().setInputFiles({
+  await composer.locator('input[aria-label="Choose a song file"]').first().setInputFiles({
     name: `${marker}.mp3`,
     mimeType: "audio/mpeg",
     buffer: audioFixture,
   });
-  await expect(composer.getByRole("navigation", { name: "Steps" })).toBeVisible();
+  // The song steps have no stepper; each step is named by its heading.
+  await expect(composer.getByRole("heading", { name: "Song", exact: true })).toBeVisible();
 
   const title = composer.getByLabel("Song title", { exact: false });
   if (await title.count() > 0) await title.fill(marker);
@@ -60,39 +63,43 @@ export async function publishSongAndVerifyPlayback(
     await composer.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
   }
 
-  // Song, Rights, Review. Each advance waits for the exact next
-  // step; unrelated status copy changing cannot satisfy the assertion.
+  // Song, Royalties, Review. Each advance waits for the exact next step's
+  // heading; unrelated status copy changing cannot satisfy the assertion.
+  // Lyrics are entered on the Song step and bound when the song is published.
   const forward = composer.locator("[data-composer-forward]");
-  const currentStep = (name: string) => composer
-    .getByRole("button", { name, exact: true })
-    .and(composer.locator('[aria-current="step"]'));
+  const stepHeading = (name: string) => composer.getByRole("heading", { name, exact: true });
 
+  await expect(forward).toBeEnabled({ timeout: 120_000 });
   await forward.click();
-  await expect(currentStep("Royalties")).toBeVisible({ timeout: 120_000 });
-  if (lyrics !== "") {
-    const [saved] = await Promise.all([
-      page.waitForResponse(response => response.request().method() === "POST"
-        && /\/media-post-submissions\/[^/]+\/lyrics$/u.test(new URL(response.url()).pathname)),
-      composer.getByRole("button", { name: "Save reviewed lyrics" }).click(),
-    ]);
-    expect(saved.ok()).toBe(true);
-  }
+  await expect(stepHeading("Royalties")).toBeVisible({ timeout: 120_000 });
+  await expect(forward).toBeEnabled({ timeout: 120_000 });
   await forward.click();
-  await expect(currentStep("Review")).toBeVisible({ timeout: 120_000 });
+  await expect(stepHeading("Review")).toBeVisible({ timeout: 120_000 });
 
   // The audio reached the real object store before anything was published.
   expect((await storedPromise).status()).toBeLessThan(400);
 
   const review = await composer.innerText();
-  instrumentalReviewVisible = review.includes("Instrumental");
+  // The Review step states a song without lyrics as "No lyrics added".
+  instrumentalReviewVisible = review.includes("No lyrics added");
   if (lyrics === "") {
-    expect(review).toContain("Instrumental");
+    expect(review).toContain("No lyrics added");
     expect(lyricsRequestCount).toBe(0);
   }
-  else expect(review).not.toContain("Instrumental");
+  else expect(review).not.toContain("No lyrics added");
 
   await composer.getByRole("button", { name: "Post song" }).click();
+  // The steps end when the server accepts the song. It is then in the feed,
+  // naming the stage it is on, until the published song takes its place.
   await expect(composer).toBeHidden({ timeout: 180_000 });
+  const own = page.locator("[data-pending-song]").filter({ has: page.getByText(marker, { exact: false }) });
+  const publishedPost = page.locator("[data-community-post]").filter({ has: page.getByText(marker, { exact: false }) });
+  await expect(own.or(publishedPost).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Check status")).toHaveCount(0);
+  await expect.poll(async () => {
+    if (await publishedPost.count() > 0) return "published";
+    return await own.first().getAttribute("data-pending-song-status").catch(() => null);
+  }, { timeout: 420_000, intervals: [2_000] }).toBe("published");
 
   expect(publications).toHaveLength(1);
   expect(lyricsCommands).toHaveLength(lyrics === "" ? 0 : 1);

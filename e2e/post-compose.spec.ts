@@ -3,8 +3,8 @@ import { expect, hasE2eAuthCredentials, test } from "./fixtures/auth.ts";
 // The composer a member actually opens: the community page's own Post
 // action, not the global entry with a raw community identifier typed into it.
 // The surface under test is the one that ships, so the assertions follow it —
-// the body lives in the framed composer's Description field, and a successful
-// publication closes the form rather than leaving a message inside it.
+// the body lives in the composer beside the feed, and posting closes the form
+// at once rather than leaving a message inside it.
 
 const allowMutation = process.env.E2E_ALLOW_MUTATION === "1";
 const communityPath = process.env.E2E_COMMUNITY_PATH_SEGMENT?.trim()
@@ -23,7 +23,7 @@ test.describe("post to a community from its own page", { tag: "@staging-mutating
     await page.goto(`/c/${communityPath}`);
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
 
-    const postHere = page.getByRole("button", { name: "Post" });
+    const postHere = page.getByRole("button", { name: "Post", exact: true });
     await expect(postHere).toBeVisible();
     await postHere.click();
 
@@ -33,7 +33,7 @@ test.describe("post to a community from its own page", { tag: "@staging-mutating
     // neither is asked for here. A raw identifier field would be a regression.
     await expect(composer.getByRole("textbox", { name: "Community ID" })).toHaveCount(0);
     await composer.getByLabel("Title", { exact: true }).fill(marker);
-    await composer.getByLabel("Description", { exact: true }).fill(marker);
+    await composer.getByLabel("Post", { exact: true }).fill(marker);
 
     const published = page.waitForResponse(response =>
       response.request().method() === "POST"
