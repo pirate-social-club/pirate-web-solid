@@ -87,7 +87,7 @@ plan:
       set -euo pipefail
       export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
       cd /ci/src
-      /tmp/run-verification-gate 04-test-app bun run test:app
+      /tmp/run-verification-gate 04-test-app bun run test:app --maxWorkers=1
   - action: shell
     shell: |
       set -euo pipefail

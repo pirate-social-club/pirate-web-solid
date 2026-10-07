@@ -14,6 +14,9 @@ import {
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "../../posts/post-composer/text-submission-transport.ts";
+import type { MediaSubmissionSnapshot } from "../../posts/media-submission/contracts.ts";
+import { SONG_STAGES } from "../../posts/song-submission/pending-songs.tsx";
+import { createSongSubmissionStore, SongSubmissionProvider } from "../../posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "../../posts/text-submission/text-submission-store.tsx";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
 import { CommunityPage } from "./community-page";
@@ -506,5 +509,162 @@ export const SessionExpiredThenSignedIn: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Complete sign-in" }));
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     await expect(canvas.getAllByText("Written before my session ran out")).toHaveLength(1);
+  },
+};
+
+/** A server answer carrying only what the song observer's projection reads. */
+const songAnswer = (fields: object): MediaSubmissionSnapshot => JSON.parse(JSON.stringify({ submission_id: "song-1", ...fields }));
+const songProcessing = (phase: string) => songAnswer({ status: "processing", phase });
+const songPublished = songAnswer({ status: "published", published_resource: { post_id: "song-post-1", href: "/posts/midnight-waves" } });
+const songPost: CommunityPost = {
+  id: "song-post-1",
+  title: "Midnight Waves",
+  body: "",
+  kind: "song",
+  mediaTitle: "Midnight Waves",
+  score: 0,
+  publishedAt: "2026-10-06T00:00:00.000Z",
+  authorHandle: "Harbor",
+  commentCount: 0,
+};
+
+/**
+ * The community page with a song the server has already accepted, as the page
+ * is when the song steps close. `answers` is what the server reports on each
+ * later read; the last one repeats.
+ */
+function SongFrame(props: {
+  readonly answers: readonly (MediaSubmissionSnapshot | "unanswered")[];
+  readonly rerun?: readonly MediaSubmissionSnapshot[];
+}) {
+  const answers = [...untrack(() => props.answers)];
+  const rerun = [...untrack(() => props.rerun ?? [])];
+  let current: MediaSubmissionSnapshot | "unanswered" = songProcessing("finalize");
+  const store = createSongSubmissionStore({ observeIntervalMs: 700 });
+  const [session] = createSignal<ApplicationSessionState>(memberSession);
+  const [onCommunity, setOnCommunity] = createSignal(true);
+  store.adopt({
+    submissionId: "song-1",
+    accountId: memberSession.userId,
+    communityId,
+    title: "Midnight Waves",
+    authorHandle: "Harbor",
+    view: { status: "processing", submissionId: "song-1", phase: "finalize" },
+    source: {
+      refresh: async () => {
+        current = answers.length > 1 ? answers.shift() ?? current : answers[0] ?? current;
+        if (current === "unanswered") throw new Error("no answer");
+        return current;
+      },
+      retry: async () => {
+        const next = rerun.shift() ?? songProcessing("analysis");
+        answers.splice(0, answers.length, ...rerun.splice(0), songPublished);
+        return next;
+      },
+    },
+  });
+  const server = standInServer();
+  return (
+    <ApplicationSessionProvider state={session}>
+      <SongSubmissionProvider store={store}>
+        <nav aria-label="Story controls" class="flex gap-2 p-2">
+          <Button onClick={() => setOnCommunity(false)} size="sm" variant="outline">Go elsewhere</Button>
+          <Button onClick={() => setOnCommunity(true)} size="sm" variant="outline">Back to community</Button>
+        </nav>
+        <Show when={onCommunity()} fallback={<main aria-label="Another page" class="p-8">Another page</main>}>
+          <CommunityPage
+            {...pageArgs(server)}
+            loadThreads={async () => ({ posts: current !== "unanswered" && current.status === "published" ? [songPost, existingPost] : [existingPost], nextCursor: null })}
+          />
+        </Show>
+      </SongSubmissionProvider>
+    </ApplicationSessionProvider>
+  );
+}
+
+const pendingSong = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-pending-song]");
+
+/** A submitted song names the stage the server is on, in order, and is then in the feed. */
+export const SongMovesThroughItsStages: Story = {
+  name: "Song: each processing stage, then published",
+  render: () => <SongFrame answers={[songProcessing("finalize"), songProcessing("analysis"), songProcessing("decision"), songProcessing("publish"), songPublished]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const seen: string[] = [];
+    await waitFor(() => {
+      const item = pendingSong(canvasElement);
+      const stage = SONG_STAGES.find(name => item?.textContent?.includes(name));
+      if (stage !== undefined && seen.at(-1) !== stage) seen.push(stage);
+      expect(seen).toEqual([...SONG_STAGES]);
+    }, { timeout: 12_000, interval: 100 });
+    // No status button, no paused note, no identifier field: the stage is the status.
+    await expect(canvas.queryByRole("button", { name: /check status/iu })).toBeNull();
+    await expect(canvas.queryByText(/automatic checks paused/iu)).toBeNull();
+    await expect(canvas.queryByLabelText(/asset id/iu)).toBeNull();
+    // Published: the real song post takes the entry's place, once.
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+/** Waiting for a moderator is a different wait from processing, and says so. */
+export const SongWaitingForReview: Story = {
+  name: "Song: waiting for a moderator, not processing",
+  render: () => <SongFrame answers={[songAnswer({ status: "manual_review", reason_code: "review_required", review_ref: "review-1" })]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(pendingSong(canvasElement)).toHaveAttribute("data-pending-song-status", "manual_review"), { timeout: 6_000 });
+    const item = within(pendingSong(canvasElement)!);
+    await expect(item.getByText("This song is waiting for a moderator's review before it can be published.")).toBeVisible();
+    // It is not shown as a processing step, and it cannot be waved away.
+    await expect(item.queryByRole("progressbar")).toBeNull();
+    for (const stage of SONG_STAGES) await expect(item.queryByText(new RegExp(stage, "u"))).toBeNull();
+    await expect(item.queryByRole("alert")).toBeNull();
+    await expect(item.queryByRole("button")).toBeNull();
+  },
+};
+
+/** Processing stopped. The author is told plainly and can run it again. */
+export const SongProcessingFailedThenRerun: Story = {
+  name: "Song: processing failed, then run again",
+  render: () => <SongFrame answers={[songAnswer({ status: "processing_failed", reason_code: "analysis_failed", retryable: true })]} rerun={[songProcessing("analysis"), songProcessing("publish")]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(pendingSong(canvasElement)).toHaveAttribute("data-pending-song-status", "processing_failed"), { timeout: 6_000 });
+    const item = within(pendingSong(canvasElement)!);
+    await expect(item.getByRole("alert")).toHaveTextContent("Processing stopped before this song was published.");
+    await userEvent.click(item.getByRole("button", { name: "Try processing again" }));
+    await waitFor(() => expect(pendingSong(canvasElement)).toHaveAttribute("data-pending-song-status", "processing"), { timeout: 6_000 });
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 12_000 });
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+/** The author leaves while the song is processing; it is watched all the same. */
+export const SongLeftWhileProcessing: Story = {
+  name: "Song: left the community while processing",
+  render: () => <SongFrame answers={[songProcessing("analysis"), songProcessing("analysis"), songProcessing("decision"), songPublished]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(pendingSong(canvasElement)).not.toBeNull(), { timeout: 6_000 });
+    await userEvent.click(canvas.getByRole("button", { name: "Go elsewhere" }));
+    await expect(await canvas.findByRole("main", { name: "Another page" })).toBeVisible();
+    // Long enough for the song to finish with no community page mounted.
+    await new Promise(resolve => setTimeout(resolve, 3_500));
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community" }));
+    await waitFor(() => expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1), { timeout: 8_000 });
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+  },
+};
+
+/** Reads of the song's state go unanswered. That is said of the reads, not of the song. */
+export const SongStatusUnanswered: Story = {
+  name: "Song: status reads unanswered",
+  render: () => <SongFrame answers={["unanswered"]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(pendingSong(canvasElement)?.textContent ?? "").toContain("taking longer than usual"), { timeout: 20_000 });
+    const item = within(pendingSong(canvasElement)!);
+    await expect(item.getByText("Checking on this song is taking longer than usual. Still trying.")).toBeVisible();
+    await expect(item.queryByRole("alert")).toBeNull();
+    await expect(pendingSong(canvasElement)!.textContent ?? "").not.toMatch(/failed|couldn.t|stopped/iu);
+    await expect(item.getByRole("button", { name: "Check now" })).toBeVisible();
   },
 };

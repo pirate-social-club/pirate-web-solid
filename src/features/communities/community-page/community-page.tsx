@@ -34,6 +34,12 @@ import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
+import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
+import {
+  createSongSubmissionStore,
+  useSongSubmissionStore,
+  type SongSubmissionItem,
+} from "../../posts/song-submission/song-submission-store.tsx";
 import { PendingTextPosts } from "../../posts/text-submission/pending-text-posts.tsx";
 import { TextPostPanel, emptyTextPostDraft, type TextPostDraft } from "../../posts/text-submission/text-post-panel.tsx";
 import {
@@ -184,6 +190,9 @@ function SuccessState(props: {
   // shell, so it owns a store for as long as it is mounted.
   const shellTextStore = useTextSubmissionStore();
   const textStore = shellTextStore ?? createTextSubmissionStore({ transport: untrack(() => props.textSubmissionTransport) });
+  // Songs the server is still processing have the same kind of owner.
+  const shellSongStore = useSongSubmissionStore();
+  const songStore = shellSongStore ?? createSongSubmissionStore();
   const [postingBusy, setPostingBusy] = createSignal(false);
   const [canManage, setCanManage] = createSignal(false);
   const [manageResolved, setManageResolved] = createSignal(false);
@@ -298,6 +307,13 @@ function SuccessState(props: {
    */
   const applyAuthorizedFeed = (page: CommunityThreadPage) => {
     const present = new Set(page.posts.map(post => post.id));
+    const publishedSongs = untrack(pendingSongs).flatMap(item => item.view.status === "published" && present.has(item.view.postId)
+      ? [{ submissionId: item.submissionId, postId: item.view.postId }]
+      : []);
+    if (publishedSongs.length > 0) {
+      setPinnedPostIds(current => [...publishedSongs.map(item => item.postId), ...current]);
+      for (const item of publishedSongs) songStore.dismiss(item.submissionId);
+    }
     const confirmed = untrack(pendingTextPosts).filter(item => item.status === "published" && item.postId !== null && present.has(item.postId));
     setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
     if (confirmed.length === 0) return;
@@ -497,6 +513,22 @@ function SuccessState(props: {
     if (account === undefined) return [];
     return textStore.items().filter(item => item.communityId === communityId && item.accountId === account);
   });
+  const pendingSongs = createMemo<readonly SongSubmissionItem[]>(() => {
+    const account = engagement.postingSession()?.userId;
+    if (account === undefined) return [];
+    return songStore.items().filter(item => item.communityId === communityId && item.accountId === account);
+  });
+  createEffect(
+    () => pendingSongs().filter(item => item.view.status === "published").map(item => item.submissionId).join(","),
+    (publishedIds) => {
+      if (publishedIds === "") return;
+      queueMicrotask(() => { if (active) void reconcilePublished(); });
+    },
+  );
+  onCleanup(() => {
+    for (const item of untrack(pendingSongs)) if (item.view.status === "published") songStore.dismiss(item.submissionId);
+    if (shellSongStore === null) songStore.dispose();
+  });
   // A confirmed post is read back into the feed. Once the feed carries it the
   // optimistic entry is dropped and the real post takes its place at the top;
   // until then the entry stays, so the author never sees their post vanish.
@@ -683,8 +715,14 @@ function SuccessState(props: {
             viewerUnknown={engagement.viewerUnknown()}
             feed={feed}
             pinnedPostIds={pinnedPostIds()}
-            feedLeadCount={pendingTextPosts().length}
-            feedLead={() => (
+            feedLeadCount={pendingTextPosts().length + pendingSongs().length}
+            feedLead={() => (<>
+              <PendingSongs
+                items={pendingSongs()}
+                onCheck={songStore.check}
+                onDismiss={songStore.dismiss}
+                onRetry={songStore.retry}
+              />
               <PendingTextPosts
                 items={pendingTextPosts()}
                 onDismiss={textStore.dismiss}
@@ -692,7 +730,7 @@ function SuccessState(props: {
                 onRetry={textStore.retry}
                 onSignIn={signInToFinishPosting}
               />
-            )}
+            </>)}
             composer={textOpen() && engagement.postingSession() !== undefined ? () => (
               <TextPostPanel
                 draft={textDraft()}
@@ -807,6 +845,7 @@ function SuccessState(props: {
             initialMode={mediaEntry()?.kind}
             initialSongFile={(() => { const entry = mediaEntry(); return entry?.kind === "song" ? entry.file : undefined; })()}
             textHostedElsewhere
+            songStore={songStore}
             onPublished={href => { if (href !== undefined) navigate(href); }}
             onOpenChange={(open) => {
               setComposerOpen(open);

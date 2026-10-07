@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, For, getOwner, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import {
@@ -15,7 +15,7 @@ import {
 } from "../../../design-system";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
-import type { SongSubmissionView } from "../media-submission/projection";
+import { projectMediaSubmission, type SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
 import { royaltySplitIssue } from "./earnings-split";
 import {
@@ -34,6 +34,7 @@ import type { SongSourceReader } from "./song-excerpt-source";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
 import type { TextSubmissionTransport } from "./text-submission-transport";
 import { createTextSubmissionStore, useTextSubmissionStore } from "../text-submission/text-submission-store.tsx";
+import { useSongSubmissionStore, type SongSubmissionStore } from "../song-submission/song-submission-store.tsx";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { titleFromFilename } from "./write-step";
 import type {
@@ -124,6 +125,11 @@ export interface CreatePostDialogProps {
   readonly onPublished?: (href?: string) => void;
   /** A text post was handed to the submission owner for this community. */
   readonly onTextSubmitted?: (communityId: string) => void;
+  /** A submitted song was handed to the submission owner for this community. */
+  readonly onSongSubmitted?: (communityId: string) => void;
+  /** The owner a submitted song is handed to when the host has no application
+   * shell to supply one, as in an isolated page render. */
+  readonly songStore?: SongSubmissionStore;
   readonly personaId?: string;
   readonly principalId?: string;
   readonly personas?: readonly ActivePersonaPublicProjection[];
@@ -240,7 +246,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     handle: persona.primaryPublicHandle,
     avatarSrc: persona.avatarRef,
   }));
-  const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
   const [uploadFailure, setUploadFailure] = createSignal<string | null>(null);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
@@ -254,14 +259,18 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
 
   // Text posts are delivered by the application's submission owner, which
   // outlives this dialog. A render outside the shell gets a detached store.
+  const songStore = useSongSubmissionStore() ?? untrack(() => props.songStore) ?? null;
+  // Set once the song belongs to the application's owner; this session's own
+  // signals are gone by then and must not be written from coordinator callbacks.
+  let handedOver = false;
   const textStore = useTextSubmissionStore() ?? createTextSubmissionStore({ transport: untrack(() => props.transport) });
   const mediaCoordinator = !mediaEnabled ? undefined : createMediaSubmissionCoordinator({
     transport: props.mediaTransport,
     createId: props.createMediaId,
     origin: props.origin,
     fetchImpl: props.fetchImpl,
-    onStateChange: setMediaView,
-    onSnapshotChange: applySnapshot,
+    onStateChange: (view) => { if (!handedOver) setMediaView(view); },
+    onSnapshotChange: (snapshot) => { if (!handedOver) applySnapshot(snapshot); },
   });
 
   function applySnapshot(snapshot: MediaSubmissionSnapshot): void {
@@ -375,6 +384,33 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     return true;
   }
 
+  /**
+   * The server has accepted the song. Everything left is the server's work, so
+   * the steps end here: the application's song owner watches it from now on
+   * and the author sees it in the feed. Without that owner, as in an isolated
+   * render, the song stays in this dialog as before.
+   */
+  function handOverSong(snapshot: MediaSubmissionSnapshot, personaId: string, community: string): boolean {
+    if (songStore === null || mediaCoordinator === undefined || props.principalId === undefined) return false;
+    if (!mediaCoordinator.termsIssued) return false;
+    const coordinator = mediaCoordinator;
+    const persona = personas().find(candidate => candidate.personaId === personaId);
+    songStore.adopt({
+      submissionId: snapshot.submission_id,
+      accountId: props.principalId,
+      communityId: community,
+      title: song().title ?? title(),
+      authorHandle: persona?.displayName ?? persona?.primaryPublicHandle ?? undefined,
+      authorAvatarSrc: persona?.avatarRef ?? null,
+      view: projectMediaSubmission(snapshot),
+      source: { refresh: () => coordinator.refresh(), retry: () => coordinator.retry() },
+    });
+    handedOver = true;
+    props.onOpenChange(false);
+    props.onSongSubmitted?.(community);
+    return true;
+  }
+
   function finishSongPublished(): void {
     const snapshot = mediaSnapshot();
     if (finishingPublishedSong || mediaCoordinator?.currentRecord == null
@@ -468,7 +504,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       });
       applySnapshot(snapshot);
       setUploadFailure(null);
-      if (!prepareOnly && snapshot.status === "published") finishSongPublished();
+      // With an owner to take it, a submitted song always goes to the feed,
+      // published already or not, and the author is taken nowhere.
+      if (!prepareOnly && !handOverSong(snapshot, personaId, community) && snapshot.status === "published") finishSongPublished();
       return snapshot.audio_revision >= 1;
     } catch (submissionError) {
       const message = submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.";
@@ -530,14 +568,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     } finally {
       setLyricsBusy(false);
     }
-  }
-
-  async function bindSongReference(): Promise<void> {
-    if (!mediaCoordinator || mediaBusy() || lyricsBusy()) return;
-    setError(""); setMediaBusy(true);
-    try { applySnapshot(await mediaCoordinator.bindReference(sourceAssetId())); }
-    catch (error) { setError(error instanceof Error ? error.message : "The source song could not be bound."); }
-    finally { setMediaBusy(false); }
   }
 
   async function retrySong(): Promise<void> {
@@ -662,6 +692,14 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   // still editing Rights and Review; that is not a state worth a status card.
   const preparedDraft = () => Boolean(mediaSnapshot()?.audio_revision) && !songTermsIssued() && mediaView().status === "processing";
 
+  /** How much of the audio has been sent, once the size is known. */
+  const uploadFraction = (): number | undefined => {
+    const view = mediaView();
+    return view.status === "uploading" && view.bytesTotal > 0
+      ? Math.min(1, view.bytesSent / view.bytesTotal)
+      : undefined;
+  };
+
   const mediaStatusPanel = () => (
     <Show when={mode() === "song" && mediaView().status !== "editing" && !preparedDraft()}>
       <div
@@ -671,26 +709,28 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
       >
         <p>{mediaStateMessage(mediaView())}</p>
+        <Show when={uploadFraction()}>
+          {fraction => (
+            <div
+              aria-label="Audio upload"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={Math.floor(fraction() * 100)}
+              class="h-1 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+            >
+              <div class="h-full rounded-full bg-primary" style={{ width: `${Math.floor(fraction() * 100)}%` }} />
+            </div>
+          )}
+        </Show>
         <Show when={mediaView().status === "uploading"}>
           <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
         </Show>
-        <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
         <Show when={mediaSnapshot() !== null && mediaCoordinator?.recoveredUploadUnavailable}>
           <FormNote tone="warning">The original audio file and upload reservation are no longer available. Cancel this song submission and start again.</FormNote>
         </Show>
-        <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
-          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>
-        </Show>
         <Show when={canCancelSong()}>
           <Button disabled={mediaBusy()} type="button" variant="ghost" onClick={() => void cancelSong()}>Cancel song submission</Button>
-        </Show>
-        <Show when={mediaView().status === "action_required"}>
-          <TextField value={sourceAssetId()} onChange={setSourceAssetId}>
-            <TextFieldLabel>Source song asset ID</TextFieldLabel>
-            <TextFieldInput />
-            <TextFieldDescription>Provide the published source asset requested for this recording.</TextFieldDescription>
-          </TextField>
-          <Button disabled={mediaBusy() || sourceAssetId().trim() === ""} onClick={() => void bindSongReference()}>Confirm source song</Button>
         </Show>
         <Show when={canRetrySong()}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void retrySong()}>Retry processing</Button>

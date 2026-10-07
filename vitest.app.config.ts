@@ -146,6 +146,8 @@ export default defineConfig({
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",
       "src/features/posts/text-submission/*.test.ts",
+      "src/features/posts/song-submission/*.test.ts",
+      "src/features/posts/song-submission/*.test.tsx",
       "src/features/posts/text-submission/*.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
       "src/features/profiles/persona-public-profile/persona-public-profile.test.tsx",

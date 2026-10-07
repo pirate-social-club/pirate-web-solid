@@ -7,7 +7,7 @@ export type SongSubmissionView =
   | { readonly status: "processing"; readonly submissionId: string; readonly phase: Extract<MediaSubmissionSnapshot, { status: "processing" }>["phase"] }
   | { readonly status: "action_required"; readonly submissionId: string; readonly expiresAt: string; readonly referenceRequestRef: string }
   | { readonly status: "manual_review"; readonly submissionId: string; readonly reasonCode: "review_required" | "moderation_unavailable"; readonly reviewRef: string }
-  | { readonly status: "published"; readonly submissionId: string; readonly postHref: string }
+  | { readonly status: "published"; readonly submissionId: string; readonly postHref: string; readonly postId: string }
   | { readonly status: "blocked"; readonly submissionId: string; readonly reasonCode: "policy_violation" }
   | { readonly status: "processing_failed"; readonly submissionId: string; readonly reasonCode: string; readonly retryable: boolean }
   | { readonly status: "abandoned"; readonly submissionId: string; readonly reasonCode: string };
@@ -34,7 +34,7 @@ export function projectMediaSubmission(snapshot: MediaSubmissionSnapshot): SongS
       reasonCode: snapshot.reason_code,
       reviewRef: snapshot.review_ref,
     };
-    case "published": return { status: "published", submissionId: snapshot.submission_id, postHref: snapshot.published_resource.href };
+    case "published": return { status: "published", submissionId: snapshot.submission_id, postHref: snapshot.published_resource.href, postId: snapshot.published_resource.post_id };
     case "blocked": return { status: "blocked", submissionId: snapshot.submission_id, reasonCode: snapshot.reason_code };
     case "processing_failed": return {
       status: "processing_failed",
