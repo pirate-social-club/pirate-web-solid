@@ -80,6 +80,7 @@ export const Mobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: /Night Shift/u })).toBeInTheDocument();
+    // Created communities are no longer listed on the profile.
+    await expect(canvas.queryByRole("link", { name: /Night Shift/u })).not.toBeInTheDocument();
   },
 };
