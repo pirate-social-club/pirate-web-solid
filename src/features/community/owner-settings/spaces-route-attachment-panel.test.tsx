@@ -429,6 +429,26 @@ describe("Spaces community address", () => {
     expect(calls).toHaveLength(0);
   });
 
+  test("reading its state never locks the shared address choice", async () => {
+    let finishRead!: (value: SpacesRouteAttachmentResult | null) => void;
+    const slowRead = new Promise<SpacesRouteAttachmentResult | null>((resolve) => { finishRead = resolve; });
+    const { api } = fakeApi({ current: [slowRead] });
+    const busyReports: boolean[] = [];
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <SpacesRouteAttachmentPanel api={api} communityId="community-1" accountId="account-1"
+      onBusyChange={(busy) => busyReports.push(busy)} />, node);
+    await settle();
+    // The panel's own button waits for the read, but nothing is reported upward.
+    expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(true);
+    expect(busyReports).toEqual([]);
+    finishRead(null);
+    await settle();
+    expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(false);
+    expect(busyReports).toEqual([]);
+  });
+
   test("appears under the Spaces choice of the shared address settings", async () => {
     const { api } = fakeApi({ current: [state("yahoo", { replayed: true })] });
     const node = document.createElement("div");

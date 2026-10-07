@@ -158,7 +158,9 @@ export function SpacesRouteAttachmentPanel(props: {
     } catch (reason) {
       if (at.live() && reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
     } finally {
-      if (at.live()) setBusy(false);
+      // Reading state only disables this panel's own controls; it never holds
+      // the shared address choice, so the owner can switch networks meanwhile.
+      if (at.live()) setBusyState(false);
     }
   };
   createEffect(() => [props.communityId, accountId()], () => {
@@ -173,7 +175,7 @@ export function SpacesRouteAttachmentPanel(props: {
       setMessage("");
       setCopied(false);
       setAuthRequired(false);
-      setBusy(true);
+      setBusyState(true);
       void load(at);
     });
   });
@@ -297,7 +299,7 @@ export function SpacesRouteAttachmentPanel(props: {
   /** After signing in again, read this account's state rather than assume it. */
   const signedIn = () => {
     setAuthRequired(false);
-    setBusy(true);
+    setBusyState(true);
     void load(enter());
   };
 
