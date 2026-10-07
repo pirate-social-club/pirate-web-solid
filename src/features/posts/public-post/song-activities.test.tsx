@@ -21,11 +21,11 @@ it("lets guests inspect rewards without choosing or reading video policy until t
   expect(readVideoEligibility).not.toHaveBeenCalled();
   expect(choose).not.toHaveBeenCalled();
   await userEvent.click(button("Activities · rewards available"));
-  await vi.waitFor(() => expect(button("Use this song")).not.toBeNull());
+  await vi.waitFor(() => expect(button("Dance")).not.toBeNull());
   expect(document.body.textContent).toContain("2.5 USDC bonus");
   expect(document.body.textContent).toContain("Megapot · chance to win");
   expect(readVideoEligibility).toHaveBeenCalledExactlyOnceWith({ communityId: "community", postId: "song" });
-  await userEvent.click(button("Sing"));
+  await userEvent.click(button("Karaoke"));
   expect(choose).toHaveBeenCalledExactlyOnceWith("/song/karaoke", false);
 });
 it("keeps activities usable when reward reads fail and rechecks on retry", async () => {
@@ -44,15 +44,14 @@ it.each(["pending", "error"] as const)("does not treat %s session state as signe
   const { choose } = mount(viewer, { readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => false });
   await userEvent.click(button("Activities"));
   expect(button("Study").disabled).toBe(true);
-  expect(button("Sing").disabled).toBe(true);
+  expect(button("Karaoke").disabled).toBe(true);
   expect(choose).not.toHaveBeenCalled();
 });
-it("routes allowed video creation through the same selection gate and never invents Dance", async () => {
+it("routes Dance through the existing song-linked video flow", async () => {
   const { choose } = mount({ status: "authenticated", userId: "account", personas: [] }, { readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => true });
   await userEvent.click(button("Activities"));
-  await vi.waitFor(() => expect(button("Use this song")).not.toBeNull());
-  expect(document.body.textContent).not.toContain("Dance");
-  await userEvent.click(button("Use this song"));
+  await vi.waitFor(() => expect(button("Dance")).not.toBeNull());
+  await userEvent.click(button("Dance"));
   expect(choose).toHaveBeenCalledExactlyOnceWith("/communities?compose=video&song=song", true);
 });
 it("returns keyboard focus to the activity pill when the chooser is dismissed", async () => {

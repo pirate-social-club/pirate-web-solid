@@ -288,8 +288,8 @@ export const SongActivitiesMobile: Story = {
     const page = within(canvasElement.ownerDocument.body);
     await expect(await page.findByRole("dialog", { name: "Activities" })).toBeInTheDocument();
     await expect(page.getByRole("button", { name: "Study" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: "Sing" })).toBeEnabled();
-    await expect(await page.findByRole("button", { name: "Use this song" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Karaoke" })).toBeEnabled();
+    await expect(await page.findByRole("button", { name: "Dance" })).toBeEnabled();
     await expectFitsViewport(canvasElement);
   },
 };
@@ -317,6 +317,6 @@ export const SongActivitiesRewardsUnavailable: Story = {
     const page = within(canvasElement.ownerDocument.body);
     await expect(await page.findByText(/Rewards could not be checked/u)).toBeInTheDocument();
     await expect(page.getByRole("button", { name: "Study" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: "Sing" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Karaoke" })).toBeEnabled();
   },
 };

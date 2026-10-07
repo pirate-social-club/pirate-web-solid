@@ -84,8 +84,8 @@ export function SongActivities(props: {
   };
   const options = () => [
     { id: "study", label: "Study", description: "Practice the lyrics", href: props.studyPath, icon: IconPlaylist },
-    { id: "karaoke", label: "Sing", description: "Record a scored take", href: props.karaokePath, icon: IconMicrophone },
-    ...(video() ? [{ id: "video", label: "Use this song", description: "Make a video", href: songVideoEntryHref(props.postId), icon: IconVideoCamera }] : []),
+    { id: "karaoke", label: "Karaoke", description: "Sing and get scored", href: props.karaokePath, icon: IconMicrophone },
+    ...(video() ? [{ id: "video", label: "Dance", description: "Make a dance video", href: songVideoEntryHref(props.postId), icon: IconVideoCamera }] : []),
   ];
   return <Modal open={open()} onOpenChange={changeOpen}>
     <ModalTrigger as={PillButton} ref={element => { trigger = element; }} aria-label={rewards().length ? "Activities · rewards available" : "Activities"} aria-haspopup="dialog" aria-expanded={open() ? "true" : "false"}

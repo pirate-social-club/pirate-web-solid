@@ -105,7 +105,7 @@ describe("public post route view", () => {
     await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (0)']")?.hasAttribute("disabled")).toBe(false));
     await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
     expect(document.querySelector("button[aria-label='Study']")).not.toBeNull();
-    expect(document.querySelector("button[aria-label='Sing']")).not.toBeNull();
+    expect(document.querySelector("button[aria-label='Karaoke']")).not.toBeNull();
   });
 
   it.each([
@@ -303,7 +303,7 @@ it("continues the chosen signed-out activity after session refresh, but cancels 
     await Promise.resolve();
     expect(navigate).not.toHaveBeenCalled();
     await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
-    await userEvent.click(document.querySelector("button[aria-label='Sing']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Karaoke']")!);
     authenticated = true;
     refreshSession();
     complete?.(true);
