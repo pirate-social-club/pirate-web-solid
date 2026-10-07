@@ -25,6 +25,6 @@ export const ProfileHeader: Story = {
     await expect(canvas.getByRole("heading", { name: "Owned profile" })).toBeVisible();
     await expect(canvas.getByText("Songs, community sessions and late-night listening.")).toBeVisible();
     // The profile carries its activity tabs now that the public activity read exists.
-    await expect(canvas.getAllByRole("tab").map(tab => tab.getAttribute("aria-label"))).toEqual(["Overview", "Posts", "Comments"]);
+    await expect((await canvas.findAllByRole("tab")).map(tab => tab.getAttribute("aria-label"))).toEqual(["Overview", "Posts", "Comments"]);
   },
 };
