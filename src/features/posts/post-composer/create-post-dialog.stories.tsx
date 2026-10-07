@@ -180,7 +180,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The shipped posting form: the same surface the community page opens through Post here. It adds no dialog chrome, profile choice, or audience policy; the app supplies that context. Deterministic in-memory transports stand in for the network.",
+          "The song steps and video flow opened from the community composer. It adds no dialog chrome, profile choice, or audience policy; the app supplies that context. Deterministic in-memory transports stand in for the network.",
       },
     },
   },
@@ -189,8 +189,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ContextualText: Story = {
-  name: "Contextual / Text",
+export const ContextualSong: Story = {
+  name: "Contextual / Song",
   render: () => dialogHarness().render(),
 };
 
@@ -198,8 +198,8 @@ export const ContextualText: Story = {
  * `onOpenChange`, which is right for reviewing a surface but means closing can
  * only be assumed there. This one closes, and offers the way back, so dismissal
  * and reopening can be observed. */
-export const ContextualTextDismissible: Story = {
-  name: "Contextual / Text / Dismissible",
+export const ContextualSongDismissible: Story = {
+  name: "Contextual / Song / Dismissible",
   render: () => {
     const [open, setOpen] = createSignal(true);
     const mediaTransport = new StoryMediaTransport();
@@ -222,9 +222,9 @@ export const ContextualTextDismissible: Story = {
   },
 };
 
-export const ContextualTextMobile: Story = {
-  ...ContextualText,
-  name: "Contextual / Text / Mobile",
+export const ContextualSongMobile: Story = {
+  ...ContextualSong,
+  name: "Contextual / Song / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
@@ -236,6 +236,7 @@ export const ContextualVideoMobile: Story = {
       communityContext={{ id: "community-one", name: "Pirate Harbor" }}
       onOpenChange={() => {}}
       open
+      initialMode="video"
       personaId="persona-one"
       personas={personas(1).map(persona => ({
         ...persona,
@@ -268,7 +269,6 @@ export const ContextualVideoMobile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    (await canvas.findByRole("button", { name: "Video" })).click();
     await canvas.findByRole("dialog", { name: "Choose a song" });
     await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
     expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
@@ -278,8 +278,8 @@ export const ContextualVideoMobile: Story = {
 /** The composer opens over a page whose mobile tab bar stays mounted, as on a
  * community page. The composer must cover that bar: on a Pixel the bar sat in
  * the same layer, rendered later, and took the tap meant for "Publish video". */
-export const ContextualTextOverMobileNavigation: Story = {
-  name: "Contextual / Text / Over mobile navigation",
+export const ContextualSongOverMobileNavigation: Story = {
+  name: "Contextual / Song / Over mobile navigation",
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => (
     <>
@@ -291,7 +291,7 @@ export const ContextualTextOverMobileNavigation: Story = {
     </>
   ),
   play: async ({ canvasElement }) => {
-    const form = await within(canvasElement).findByRole("form", { name: "Create a post" });
+    const form = await within(canvasElement).findByRole("form", { name: "Post a song" });
     const nav = canvasElement.ownerDocument.querySelector("nav[aria-label='Primary navigation']");
     await expect(nav).not.toBeNull();
     const box = nav!.getBoundingClientRect();
@@ -301,12 +301,12 @@ export const ContextualTextOverMobileNavigation: Story = {
   },
 };
 
-export const ContextualTextMultiplePersonas: Story = {
-  name: "Contextual / Text / App-selected persona",
+export const ContextualSongMultiplePersonas: Story = {
+  name: "Contextual / Song / App-selected persona",
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Post" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
     await waitFor(async () => {
       await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
     });

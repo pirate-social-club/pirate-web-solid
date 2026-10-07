@@ -327,7 +327,6 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 freshVideo={props.freshVideo}
                 videoSongReader={props.videoSongReader}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
-                textHostedElsewhere
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}

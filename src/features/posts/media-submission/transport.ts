@@ -34,8 +34,8 @@ export type MediaCommandResult = PostCommunitiesCommunityIdMediaUploadReservatio
 
 export interface MediaSubmissionTransport {
   readonly listActive: (communityId: string, cursor?: string) => Promise<ActiveSongMediaPostSubmissionPage>;
-  readonly dispatch: (command: PersistedMediaCommand) => Promise<MediaCommandResult>;
-  readonly read: (submissionId: string) => Promise<MediaSubmissionSnapshot | null>;
+  readonly dispatch: (command: PersistedMediaCommand, signal?: AbortSignal) => Promise<MediaCommandResult>;
+  readonly read: (submissionId: string, signal?: AbortSignal) => Promise<MediaSubmissionSnapshot | null>;
   readonly upload: (
     reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
     audio: Blob,
@@ -208,8 +208,8 @@ export function createSameOriginMediaSubmissionTransport(
   const csrfToken = options.csrfToken ?? readCsrfCookie;
   const uploadRequest = options.uploadRequest ?? browserMediaUploadRequest;
   return {
-    async dispatch(command) {
-      const session = requestOptions(csrfToken);
+    async dispatch(command, signal) {
+      const session = { ...requestOptions(csrfToken), ...(signal === undefined ? {} : { signal }) };
       try {
         switch (command.kind) {
           case "reserve": {
@@ -278,12 +278,12 @@ export function createSameOriginMediaSubmissionTransport(
         throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
       }
     },
-    async read(submissionId) {
+    async read(submissionId, signal) {
       try {
         return songSnapshot(
           await api.get_mediaPostSubmissionsSubmissionId(
             { path: { submissionId } },
-            { credentials: "same-origin" },
+            { credentials: "same-origin", ...(signal === undefined ? {} : { signal }) },
           ),
         );
       } catch (error) {

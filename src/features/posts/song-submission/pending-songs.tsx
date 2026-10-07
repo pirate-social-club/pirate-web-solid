@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 
 import { Button, CommunityAvatar, IconMusicNote, Type } from "../../../design-system";
 import type { SongSubmissionView } from "../media-submission/projection";
@@ -10,6 +10,8 @@ export interface PendingSongsProps {
   readonly items: readonly SongSubmissionItem[];
   readonly onCheck: (submissionId: string) => void;
   readonly onRetry: (submissionId: string) => void;
+  readonly onRetryOriginal?: (submissionId: string) => void;
+  readonly onBindOriginal?: (submissionId: string, link: string) => void;
   readonly onDismiss: (submissionId: string) => void;
 }
 
@@ -51,7 +53,7 @@ function attention(view: SongSubmissionView): { readonly text: string; readonly 
         tone: "status",
       };
     case "action_required":
-      return { text: "The original song this one is based on has to be named before it can be published. That can't be done here yet.", tone: "alert" };
+      return { text: "The original song this one is based on has to be named before it can be published.", tone: "alert" };
     case "processing_failed":
       return {
         text: view.retryable
@@ -73,34 +75,40 @@ function attention(view: SongSubmissionView): { readonly text: string; readonly 
  */
 export function PendingSongs(props: PendingSongsProps): JSX.Element {
   return (
-    <For each={props.items}>
-      {item => {
-        const stage = () => songStageIndex(item.view);
-        const note = () => attention(item.view);
-        const author = () => item.authorHandle ?? "You";
+    <For each={props.items.map(item => item.submissionId)}>
+      {submissionId => {
+        const initial = props.items.find(candidate => candidate.submissionId === submissionId);
+        if (initial === undefined) return null;
+        const item = () => props.items.find(candidate => candidate.submissionId === submissionId) ?? initial;
+        const [originalLink, setOriginalLink] = createSignal(initial.originalLink ?? "");
+        const postHref = () => { const view = item().view; return view.status === "published" ? view.postHref : null; };
+        const retryable = () => { const view = item().view; return view.status === "processing_failed" && view.retryable; };
+        const stage = () => songStageIndex(item().view);
+        const note = () => attention(item().view);
+        const author = () => item().authorHandle ?? "You";
         return (
           <article
-            aria-busy={item.view.status === "processing" ? "true" : "false"}
+            aria-busy={item().view.status === "processing" ? "true" : "false"}
             class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0"
-            data-pending-song={item.submissionId}
-            data-pending-song-status={item.view.status}
+            data-pending-song={item().submissionId}
+            data-pending-song-status={item().view.status}
           >
             <div class="flex items-center gap-2">
-              <CommunityAvatar avatarSrc={item.authorAvatarSrc} communityId={item.submissionId} displayName={author()} size="xs" />
+              <CommunityAvatar avatarSrc={item().authorAvatarSrc} communityId={item().submissionId} displayName={author()} size="xs" />
               <Type as="span" variant="label">{author()}</Type>
             </div>
             <div class="flex items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
               <div class="grid size-14 shrink-0 place-items-center rounded-lg bg-secondary"><IconMusicNote class="size-7 text-muted-foreground" /></div>
               <div class="min-w-0 flex-1">
                 <Type class="block truncate" variant="body-strong">
-                  <Show when={item.view.status === "published" ? item.view.postHref : null} fallback={songTitle(item.title)}>
+                  <Show when={postHref()} fallback={songTitle(item().title)}>
                     {/* A full page load, as publishing a song has always ended:
                         the post page is server-rendered for its canonical
                         address, which a client-side route change would skip. */}
-                    {href => <a class="hover:underline" href={href()} rel="external">{songTitle(item.title)}</a>}
+                    {href => <a class="hover:underline" href={href()} rel="external">{songTitle(item().title)}</a>}
                   </Show>
                 </Type>
-                <Show when={item.view.status === "published"}>
+                <Show when={item().view.status === "published"}>
                   <Type class="block" role="status" variant="caption">Published</Type>
                 </Show>
                 <Show when={stage() !== null}>
@@ -121,23 +129,39 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
                 </Show>
               </div>
             </div>
-            <Show when={stage() !== null && item.slow}>
+            <Show when={item().slow}>
               <div class="flex flex-wrap items-center gap-2" role="status">
                 <Type variant="caption">Checking on this song is taking longer than usual. Still trying.</Type>
-                <Button onClick={() => props.onCheck(item.submissionId)} size="sm" type="button" variant="outline">Check now</Button>
+                <Button onClick={() => props.onCheck(item().submissionId)} size="sm" type="button" variant="outline">Check now</Button>
                 {/* Not a cancel: the server goes on with the song either way. */}
-                <Button onClick={() => props.onDismiss(item.submissionId)} size="sm" type="button" variant="ghost">Stop watching here</Button>
+                <Button onClick={() => props.onDismiss(item().submissionId)} size="sm" type="button" variant="ghost">Stop watching here</Button>
               </div>
+            </Show>
+            <Show when={item().view.status === "action_required" && item().canBindOriginal && props.onBindOriginal}>
+              <form aria-label="Name the original song" class="grid gap-2" onSubmit={event => { event.preventDefault(); props.onBindOriginal?.(item().submissionId, originalLink()); }}>
+                <label class="grid gap-1 text-sm">
+                  Original song link
+                  <input class="rounded-lg border border-input bg-background px-3 py-2" value={item().bindingOriginal || item().originalUnconfirmed ? item().originalLink ?? originalLink() : originalLink()} onInput={event => setOriginalLink(event.currentTarget.value)} disabled={item().bindingOriginal || item().originalUnconfirmed} inputmode="url" required placeholder="Paste the song's Pirate link" />
+                </label>
+                <Type variant="caption">The server will check that this song can use that original.</Type>
+                <Button disabled={item().bindingOriginal || item().originalUnconfirmed || originalLink().trim() === ""} loading={item().bindingOriginal} type="submit" size="sm">Use this original song</Button>
+                <Show when={item().originalUnconfirmed}>
+                  <Type role="status" variant="caption">This original song request is still unconfirmed. Check it or repeat the same request before choosing another.</Type>
+                  <Button disabled={item().bindingOriginal} onClick={() => props.onRetryOriginal?.(item().submissionId)} type="button" size="sm">Try this original again</Button>
+                  <Button disabled={item().bindingOriginal} onClick={() => props.onCheck(item().submissionId)} type="button" size="sm" variant="outline">Check original song request</Button>
+                </Show>
+                <Show when={item().originalError}>{error => <Type role="alert" variant="caption">{error()}</Type>}</Show>
+              </form>
             </Show>
             <Show when={note()}>
               {current => (
                 <div class="flex flex-wrap items-center gap-2" role={current().tone}>
                   <Type variant="caption">{current().text}</Type>
-                  <Show when={item.view.status === "processing_failed" && item.view.retryable}>
-                    <Button disabled={item.rerunning} loading={item.rerunning} onClick={() => props.onRetry(item.submissionId)} size="sm" type="button" variant="outline">Try processing again</Button>
+                  <Show when={retryable()}>
+                    <Button disabled={item().rerunning} loading={item().rerunning} onClick={() => props.onRetry(item().submissionId)} size="sm" type="button" variant="outline">Try processing again</Button>
                   </Show>
-                  <Show when={item.view.status !== "manual_review"}>
-                    <Button onClick={() => props.onDismiss(item.submissionId)} size="sm" type="button" variant="ghost">Dismiss</Button>
+                  <Show when={item().view.status !== "manual_review"}>
+                    <Button onClick={() => props.onDismiss(item().submissionId)} size="sm" type="button" variant="ghost">Dismiss</Button>
                   </Show>
                 </div>
               )}

@@ -195,7 +195,8 @@ export class MediaSubmissionCoordinator {
     return parsed as RevisionCommandBody;
   }
 
-  private async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+  private async dispatch(command: PersistedMediaCommand, signal?: AbortSignal): Promise<MediaCommandResult> {
+    signal?.throwIfAborted();
     const current = this.requireRecord();
     if (current.pending_command?.body_sha256 !== command.body_sha256) {
       this.save({
@@ -207,8 +208,11 @@ export class MediaSubmissionCoordinator {
     this.setView({ status: "reconciling", ...(this.record?.submission_id === null ? {} : { submissionId: this.record?.submission_id ?? undefined }) });
     let result: MediaCommandResult;
     try {
-      result = await this.transport.dispatch(command);
+      result = await this.transport.dispatch(command, signal);
+      signal?.throwIfAborted();
     } catch (error) {
+      signal?.throwIfAborted();
+      if (this.record?.pending_command?.body_sha256 !== command.body_sha256) throw error;
       if (
         error instanceof MediaSubmissionConflictError ||
         error instanceof RejectedMediaSubmissionError
@@ -276,18 +280,19 @@ export class MediaSubmissionCoordinator {
     }
   }
 
-  private async reconcilePending(): Promise<void> {
+  private async reconcilePending(signal?: AbortSignal): Promise<void> {
     const current = this.requireRecord();
     const pending = current.pending_command;
     if (pending === null) return;
     if (current.submission_id !== null) {
-      const snapshot = await this.transport.read(current.submission_id);
+      const snapshot = await this.transport.read(current.submission_id, signal);
+      signal?.throwIfAborted();
       if (snapshot !== null) {
         this.saveSnapshot(snapshot, this.commandAlreadyReflected(pending, snapshot) ? null : pending);
         if (this.requireRecord().pending_command === null) return;
       }
     }
-    const result = await this.dispatch(pending);
+    const result = await this.dispatch(pending, signal);
     if (!snapshotResult(result)) {
       const pendingRecord = this.requireRecord();
       if (pendingRecord.version !== MEDIA_PENDING_VERSION) throw new Error("A recovered submission cannot reserve another upload");
@@ -295,10 +300,11 @@ export class MediaSubmissionCoordinator {
     }
   }
 
-  async refresh(): Promise<MediaSubmissionSnapshot | null> {
+  async refresh(signal?: AbortSignal): Promise<MediaSubmissionSnapshot | null> {
     const current = this.requireRecord();
     if (current.submission_id === null) return null;
-    const snapshot = await this.transport.read(current.submission_id);
+    const snapshot = await this.transport.read(current.submission_id, signal);
+    signal?.throwIfAborted();
     if (snapshot !== null) this.saveSnapshot(snapshot, this.requireRecord().pending_command);
     return snapshot === null ? null : this.requireRecord().snapshot;
   }
@@ -491,9 +497,11 @@ export class MediaSubmissionCoordinator {
     return result;
   }
 
-  async bindReference(upstreamAssetId: string): Promise<MediaSubmissionSnapshot> {
-    await this.reconcilePending();
-    const snapshot = await this.refresh();
+  async bindReference(upstreamAssetId: string, signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {
+    signal?.throwIfAborted();
+    if (this.record?.pending_command?.kind === "reference") throw new Error("Confirm the previous original song request before choosing another.");
+    await this.reconcilePending(signal);
+    const snapshot = await this.refresh(signal);
     if (snapshot?.status !== "action_required" || snapshot.action.kind !== "reference_required") {
       if (snapshot !== null) return snapshot;
       throw new Error("The song reference request could not be read");
@@ -509,14 +517,23 @@ export class MediaSubmissionCoordinator {
     };
     const command = await createPersistedMediaCommand({ kind: "reference", idempotencyKey,
       sameOriginPath: `/api/media-post-submissions/${encodeURIComponent(snapshot.submission_id)}/reference`, body: generated.body });
-    const result = await this.dispatch(command);
+    const result = await this.dispatch(command, signal);
     if (!snapshotResult(result)) throw new Error("Reference binding returned an upload reservation");
     return result;
   }
 
-  private async revisionCommand(kind: "retry" | "cancel"): Promise<MediaSubmissionSnapshot> {
-    await this.reconcilePending();
-    const snapshot = await this.refresh();
+  async retryReference(signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {
+    signal?.throwIfAborted();
+    const command = this.requireRecord().pending_command;
+    if (command?.kind !== "reference") throw new Error("There is no unconfirmed original song request.");
+    const result = await this.dispatch(command, signal);
+    if (!snapshotResult(result)) throw new Error("Reference binding returned an upload reservation");
+    return this.requireRecord().snapshot ?? result;
+  }
+
+  private async revisionCommand(kind: "retry" | "cancel", signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {
+    await this.reconcilePending(signal);
+    const snapshot = await this.refresh(signal);
     if (snapshot === null) throw new Error("The media submission is unknown");
     if (kind === "retry" && (snapshot.status !== "processing_failed" || !snapshot.retryable)) throw new Error("This media failure is not retryable");
     if (kind === "cancel" && (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload")) throw new Error("This media submission can no longer be cancelled");
@@ -531,12 +548,13 @@ export class MediaSubmissionCoordinator {
       sameOriginPath: `/api/media-post-submissions/${encodeURIComponent(snapshot.submission_id)}/${kind}`,
       body: generated.body,
     });
-    const result = await this.dispatch(command);
+    signal?.throwIfAborted();
+    const result = await this.dispatch(command, signal);
     if (!snapshotResult(result)) throw new Error(`${kind} command returned an upload reservation`);
     return result;
   }
 
-  retry(): Promise<MediaSubmissionSnapshot> { return this.revisionCommand("retry"); }
+  retry(signal?: AbortSignal): Promise<MediaSubmissionSnapshot> { return this.revisionCommand("retry", signal); }
   cancel(): Promise<MediaSubmissionSnapshot> { return this.revisionCommand("cancel"); }
 
   discardTerminal(): void {

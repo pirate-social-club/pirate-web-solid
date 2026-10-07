@@ -415,8 +415,8 @@ async function publishSong(page, community, { lyrics }) {
   await page.getByRole("button", { name: "Post", exact: true }).click();
 
   // Post opens the text composer beside the feed. Its song action takes the
-  // audio file, and the song steps then replace it under the same form name.
-  const form = page.getByRole("form", { name: "Create a post" });
+  // audio file, and the song steps open in their own form.
+  let form = page.getByRole("form", { name: "Create a post" });
   await form.waitFor({ state: "visible" });
   assert(await page.getByRole("dialog").count() === 0, "the composer opened as a dialog around the form");
 
@@ -429,6 +429,7 @@ async function publishSong(page, community, { lyrics }) {
     throw error;
   }
   await audioInput.setInputFiles(mp3Fixture(`${community}.mp3`));
+  form = page.getByRole("form", { name: "Post a song" });
 
   const title = form.getByLabel(/^Song title/u);
   try {
@@ -453,7 +454,7 @@ async function publishSong(page, community, { lyrics }) {
         const button = document.querySelector(selector);
         return button instanceof HTMLButtonElement && !button.disabled && button.getAttribute("aria-busy") !== "true";
       },
-      "form[aria-label='Create a post'] [data-composer-forward]",
+      "form[aria-label='Post a song'] [data-composer-forward]",
     );
   };
   await waitForForward();
