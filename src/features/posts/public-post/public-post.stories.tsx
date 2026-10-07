@@ -121,9 +121,8 @@ export const Detail: Story = {
   },
 };
 
-export const SongPostMobile: Story = {
+export const SongPostSignedOut: Story = {
   args: { state: songState() },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: /Play A long song title/u })).toBeInTheDocument();
@@ -221,11 +220,6 @@ export const Unavailable: Story = {
   },
 };
 
-export const Mobile: Story = {
-  args: { state: contentState(true) },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-};
-
 /** A signed-in song landing reuses the community card and persisted comment panel. */
 export const SongPostComments: Story = {
   args: {
@@ -237,7 +231,6 @@ export const SongPostComments: Story = {
       readComments: async () => ({ items: [{ comment_id: "story-comment", parent_comment_id: null, body: "A comment on this song", depth: 0, reply_count: 0, status: "published", content_rating: "general", created_at: "2026-09-29T00:00:00Z", author_persona: null }], next_cursor: null }),
     },
   },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Comments (0)" }));
@@ -248,7 +241,7 @@ export const SongPostComments: Story = {
 };
 
 /** URLs and identifiers must wrap even when they contain no spaces. */
-export const LongTextMobile: Story = {
+export const LongText: Story = {
   args: { state: (() => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("expected content fixture");
@@ -256,13 +249,7 @@ export const LongTextMobile: Story = {
       post: { ...state.response.content.post, post_type: "text", title: "LongTitle".repeat(30), body: "https://example.com/" + "long-path".repeat(40) },
     } } };
   })() },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
-};
-
-export const SongPostSignedOutDesktop: Story = {
-  ...SongPostMobile,
-  globals: { viewport: { value: "reset", isRotated: false } },
 };
 
 export const SongPostSignedIn: Story = {
@@ -280,9 +267,8 @@ export const SongPostSignedIn: Story = {
 };
 
 /** The single activity pill opens a bottom sheet on phones and a dialog on desktop. */
-export const SongActivitiesMobile: Story = {
+export const SongActivities: Story = {
   args: { state: songState() },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities" }));
     const page = within(canvasElement.ownerDocument.body);
@@ -293,11 +279,9 @@ export const SongActivitiesMobile: Story = {
     await expectFitsViewport(canvasElement);
   },
 };
-export const SongActivitiesDesktop: Story = { ...SongActivitiesMobile, globals: { viewport: { value: "reset", isRotated: false } } };
 
-export const SongActivitiesRewardsMobile: Story = {
+export const SongActivitiesRewards: Story = {
   args: { state: songState(), activities: { readRewards: async () => activityRewardsFixture, readVideoEligibility: async () => true } },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities · rewards available" }));
     const page = within(canvasElement.ownerDocument.body);
@@ -308,9 +292,8 @@ export const SongActivitiesRewardsMobile: Story = {
     await expectFitsViewport(canvasElement);
   },
 };
-export const SongActivitiesRewardsDesktop: Story = { ...SongActivitiesRewardsMobile, globals: { viewport: { value: "reset", isRotated: false } } };
 export const SongActivitiesRewardsUnavailable: Story = {
-  ...SongActivitiesMobile,
+  ...SongActivities,
   args: { state: songState(), activities: { readRewards: async () => { throw new Error("offline"); }, readVideoEligibility: async () => false } },
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities" }));

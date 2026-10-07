@@ -107,7 +107,6 @@ export function SongActivities(props: {
               <ul class="mt-2 space-y-2 text-foreground"><For each={reward.terms}>{term => <li>{term}</li>}</For></ul>
             </details>}</For>
           </section>}</For>
-          <Show when={props.viewer === "anonymous"}><p class="text-sm text-muted-foreground">Sign in when you choose an activity.</p></Show>
           <Show when={props.viewer === "pending"}><LoadingIndicator label="Checking sign-in" variant="inline" /></Show>
           <Show when={props.viewer === "error"}><p role="status" class="text-sm text-muted-foreground">Sign-in could not be checked. Close this panel and retry the post actions.</p></Show>
           <Show when={loading()}><LoadingIndicator label="Checking rewards" variant="inline" /></Show>

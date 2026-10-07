@@ -37,7 +37,7 @@ try {
         await page.evaluate(async () => { await Promise.race([document.fonts.ready, new Promise((_, reject) => setTimeout(() => reject(new Error("Fonts did not settle")), 5000))]); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
         if (story.id.includes("--song-activities")) {
           await page.getByRole("dialog", { name: "Activities" }).waitFor();
-          if (story.id.includes("rewards-") && !story.id.includes("unavailable")) {
+          if (story.id.includes("rewards") && !story.id.includes("unavailable")) {
             await page.getByText("Megapot · chance to win").waitFor();
             await page.waitForFunction(() => [...document.querySelectorAll("details")].some(element => element.open));
           }
@@ -64,12 +64,12 @@ try {
           const box = await dialog.boundingBox();
           checked++;
           if (box.x < -1 || box.x + box.width > width + 1 || box.y < -1 || box.y + box.height > 901 || (width < 768 ? Math.abs(box.y + box.height - 900) > 2 : Math.abs(box.x + box.width / 2 - width / 2) > 2)) failures.push({ story: story.id, width, state: "dialog-position", box });
-          if (process.env.ACTIVITIES_SCREENSHOT_DIRECTORY && (width === 390 || width === 1280) && /--song-activities-(mobile|rewards-mobile)$/u.test(story.id)) await page.screenshot({ path: `${process.env.ACTIVITIES_SCREENSHOT_DIRECTORY}/${story.id}-${width}.png` });
+          if (process.env.ACTIVITIES_SCREENSHOT_DIRECTORY && (width === 390 || width === 1280) && /--song-activities(?:-rewards)?$/u.test(story.id)) await page.screenshot({ path: `${process.env.ACTIVITIES_SCREENSHOT_DIRECTORY}/${story.id}-${width}.png` });
           await page.keyboard.press("Escape");
           await dialog.waitFor({ state: "hidden" });
           await page.waitForFunction(() => document.activeElement?.getAttribute("title") === "Activities");
         }
-        if (story.id === "screens-posts-publicpostroute--song-post-mobile") {
+        if (story.id === "screens-posts-publicpostroute--song-post-signed-out") {
           await page.getByRole("button", { name: /^Play /u }).click();
           await page.locator("audio").waitFor();
           const playback = await page.evaluate(() => ({
@@ -79,7 +79,7 @@ try {
           checked++;
           if (playback.scrollWidth > playback.viewport + 1 || playback.audioRight > playback.viewport + 1) failures.push({ story: story.id, width, state: "playback", ...playback });
         }
-        if (width === 320 && story.id === "screens-posts-publicpostroute--song-post-mobile" && process.env.RESPONSIVE_SCREENSHOT_PATH) await page.screenshot({ path: process.env.RESPONSIVE_SCREENSHOT_PATH });
+        if (width === 320 && story.id === "screens-posts-publicpostroute--song-post-signed-out" && process.env.RESPONSIVE_SCREENSHOT_PATH) await page.screenshot({ path: process.env.RESPONSIVE_SCREENSHOT_PATH });
       } catch (error) { failures.push({ story: story.id, width, error: String(error) }); }
     }
     await page.close();
