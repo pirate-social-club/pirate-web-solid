@@ -251,7 +251,8 @@ describe("Application navigation", () => {
     expect(desktopControl.getAttribute("title")).toBe("Posting as Night Shift");
     expect(container.querySelector('nav[aria-label="Primary navigation"] button[aria-label="Profile, Night Shift"]')).not.toBeNull();
     expect(onPersonaSelect).not.toHaveBeenCalled();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    // The sheet closes at once and leaves the document after its exit transition.
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
     store!.setTarget(undefined);
     await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")).toBeNull());
     expect(container.querySelector('nav[aria-label="Primary navigation"] button[aria-label="Profile, Account profile"]')).not.toBeNull();
