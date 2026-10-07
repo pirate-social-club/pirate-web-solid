@@ -150,6 +150,8 @@ describe("community page text posting", () => {
     const panel = container.querySelector("[data-text-post-panel]")!;
     expect(panel.closest("main[aria-label='Create a post']")).not.toBeNull();
     expect(panel.closest("aside")).toBeNull();
+    expect(panel.querySelector("input[type=checkbox]")).toBeNull();
+    expect(panel.textContent).not.toContain("18+ only");
     expect(container.querySelector("main[aria-label='Community feed']")).toBeNull();
     expect(container.querySelector("[data-community-tabs]")).toBeNull();
     expect(container.querySelector("[role='dialog']")).toBeNull();

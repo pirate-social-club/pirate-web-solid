@@ -5,8 +5,6 @@ import { Show, onSettled } from "solid-js";
 import {
   Button,
   Card,
-  Checkbox,
-  CheckboxLabel,
   FormNote,
   IconMusicNote,
   IconVideoCamera,
@@ -84,12 +82,6 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
               value={props.draft.body}
             />
           </label>
-          <Checkbox
-            checked={props.draft.ageGatePolicy === "18_plus"}
-            onChange={(next) => props.onDraftChange({ ...props.draft, ageGatePolicy: next === true ? "18_plus" : "none" })}
-          >
-            <CheckboxLabel class="text-muted-foreground">18+ only</CheckboxLabel>
-          </Checkbox>
           <Show when={props.unavailable}>
             {reason => <FormNote tone="warning">{reason()}</FormNote>}
           </Show>

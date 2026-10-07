@@ -15,11 +15,12 @@ import {
   type TextSubmissionTransport,
 } from "../../posts/post-composer/text-submission-transport.ts";
 import type { MediaSubmissionSnapshot } from "../../posts/media-submission/contracts.ts";
+import type { MediaSubmissionTransport } from "../../posts/media-submission/transport.ts";
 import { SONG_STAGES } from "../../posts/song-submission/pending-songs.tsx";
 import { createSongSubmissionStore, SongSubmissionProvider } from "../../posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "../../posts/text-submission/text-submission-store.tsx";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
-import { CommunityPage } from "./community-page";
+import { CommunityPage, type CommunityPageProps } from "./community-page";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityPageSuccess } from "./community-page.model";
 import type { CommunityViewerVoteClient } from "./community-viewer-vote-api.ts";
@@ -169,6 +170,27 @@ function pageArgs(server: ReturnType<typeof standInServer>) {
   };
 }
 
+function SongPostingPreview(props: CommunityPageProps) {
+  const server = createHeldSongUploadTransport();
+  const transport: MediaSubmissionTransport = {
+    ...server.transport,
+    dispatch: async command => {
+      if (command.kind === "terms" || command.kind === "lyrics") {
+        const snapshot = await server.transport.read("upload-progress-song");
+        if (snapshot === null) throw new Error("Song preview snapshot is unavailable");
+        return snapshot;
+      }
+      return server.transport.dispatch(command);
+    },
+    upload: async (reservation, audio, onProgress, signal) => {
+      const uploading = server.transport.upload(reservation, audio, onProgress, signal);
+      server.finish();
+      await uploading;
+    },
+  };
+  return <CommunityPage {...props} mediaSubmissionTransport={transport} />;
+}
+
 const meta = {
   title: "Screens/Community/CommunityPage/Posting",
   component: CommunityPage,
@@ -197,6 +219,7 @@ const pending = (canvasElement: HTMLElement) => canvasElement.querySelector<HTML
 export const ComposerReplacesTheFeed: Story = {
   name: "Desktop full-width post form",
   args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText(existingPost.title)).toBeVisible();
@@ -219,6 +242,7 @@ export const ComposerReplacesTheFeed: Story = {
 export const FullWidthComposerOnMobile: Story = {
   name: "Mobile full-width post form",
   args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     await openComposer(canvasElement);
@@ -252,6 +276,68 @@ export const CancelKeepsTheDraft: Story = {
     await expect(reopened.getByRole("textbox", { name: "Title" })).toHaveValue("A draft title");
     await expect(reopened.getByRole("textbox", { name: "Post" })).toHaveValue("A draft to return to");
   },
+};
+
+async function openSongInMain(canvasElement: HTMLElement) {
+  await openComposer(canvasElement);
+  const canvas = within(canvasElement);
+  await userEvent.upload(canvas.getByLabelText("Choose a song file"),
+    new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
+  await canvas.findByRole("heading", { name: "Song" });
+  const form = canvas.getByRole("form", { name: "Post a song" });
+  const main = canvas.getByRole("main", { name: "Create a post" });
+  await waitFor(() => {
+    expect(form.closest("main")).toBe(main);
+    expect(form.closest("aside")).toBeNull();
+    expect(canvasElement.ownerDocument.defaultView!.getComputedStyle(form).position).toBe("static");
+    expect(Math.abs(form.getBoundingClientRect().width - main.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+    expect(canvasElement.ownerDocument.documentElement.scrollWidth).toBeLessThanOrEqual(canvasElement.ownerDocument.defaultView!.innerWidth);
+  });
+  await expect(canvas.queryByText(existingPost.title)).toBeNull();
+  await expect(canvas.queryByRole("dialog")).toBeNull();
+  await expect(canvas.queryByText("18+ only")).toBeNull();
+  return canvas;
+}
+
+export const SongComposerInMain: Story = {
+  name: "Song stays in the main post form",
+  args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
+  play: async ({ canvasElement }) => { await openSongInMain(canvasElement); },
+};
+
+export const SongComposerInMainOnMobile: Story = {
+  name: "Mobile song stays in the main post form",
+  args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => { await openSongInMain(canvasElement); },
+};
+
+export const SongStepsReturnToFeed: Story = {
+  name: "Song, Royalties and Review stay in the form, then return to feed",
+  args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = await openSongInMain(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await canvas.findByRole("heading", { name: "Royalties" });
+    await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await canvas.findByRole("heading", { name: "Review" });
+    await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Post song" }));
+    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+  },
+};
+
+export const SongStepsReturnToFeedOnMobile: Story = {
+  ...SongStepsReturnToFeed,
+  name: "Mobile song steps stay in the form, then return to feed",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
 /** The post appears at once and is then replaced by the published post. */

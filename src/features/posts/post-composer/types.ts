@@ -414,6 +414,8 @@ export interface SongFlowRuntime {
 }
 
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
+  /** A community host keeps the song form and navigation in its main column. */
+  presentation?: "inline" | "fullscreen";
   /** Where the mobile attachment bar belongs.
    *
    * It defaults to `fixed`: on a page the bar is a viewport-level bottom bar,

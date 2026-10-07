@@ -79,6 +79,8 @@ function mediaStateMessage(view: SongSubmissionView): string {
 }
 
 export interface CreatePostDialogProps {
+  /** Inline song steps replace the community feed; standalone hosts own a page. */
+  readonly presentation?: "inline" | "fullscreen";
   readonly communityContext?: PostCommunityContext;
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
@@ -654,7 +656,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       fallback={
       <form
         aria-label="Post a song"
-        class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+        class={props.presentation === "inline" ? "w-full min-w-0" : "fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"}
         data-create-post-form
         onSubmit={event => event.preventDefault()}
       >
@@ -670,7 +672,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
               <Show when={!showUploadRecovery()} fallback={
-                <section aria-labelledby="upload-recovery-title" class="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4">
+                <section aria-labelledby="upload-recovery-title" class={props.presentation === "inline" ? "grid w-full gap-5 rounded-2xl border border-border-soft bg-card p-5 md:p-8" : "mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4"}>
                   <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
                   <div class="flex flex-1 flex-col justify-center gap-5">
                     <div class="space-y-2">
@@ -687,6 +689,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 </section>
               }>
               <Show when={songDraftVersion()} keyed>{_version => <PostComposer
+                presentation={props.presentation}
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
                   ? mediaSnapshot() !== null || mediaBusy()

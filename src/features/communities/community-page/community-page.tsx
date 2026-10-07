@@ -181,7 +181,7 @@ function SuccessState(props: {
   const engagementApi = untrack(() => props.engagementApi);
   const resolveSession = untrack(() => props.resolveSession);
   // The media composer: the song steps and the video capture flow. Text has
-  // its own form replacing the feed and never opens this.
+  // its own form; song steps use the same main-column surface.
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [mediaEntry, setMediaEntry] = createSignal<{ readonly kind: "video" } | { readonly kind: "song"; readonly file: File }>();
   const [textOpen, setTextOpen] = createSignal(false);
@@ -692,6 +692,37 @@ function SuccessState(props: {
     viewerVote,
   });
 
+  const mediaComposer = (embedded: boolean) => (
+      <Show when={engagement.postingSession()}>
+        {session => (
+          <CreatePostDialog
+            presentation={embedded ? "inline" : "fullscreen"}
+            communityContext={{ id: communityId, name: community().name }}
+            initialVideoSong={props.initialVideoSong}
+            initialMode={mediaEntry()?.kind}
+            initialSongFile={(() => { const entry = mediaEntry(); return entry?.kind === "song" ? entry.file : undefined; })()}
+            songStore={songStore}
+            mediaTransport={props.mediaSubmissionTransport}
+            onPublished={href => { if (href !== undefined) navigate(href); }}
+            onOpenChange={(open) => {
+              setComposerOpen(open);
+              if (!open) setMediaEntry(undefined);
+              // Dismissing the composer the song entry opened also clears
+              // the URL marker, so a reload cannot reopen it.
+              if (!open && openedForSong) {
+                openedForSong = false;
+                props.clearVideoSongIntent?.();
+              }
+            }}
+            open={composerOpen()}
+            personaId={selectedPersonaId()}
+            personas={communityOperationPersonas(session().personas, communityId)}
+            principalId={session().userId}
+          />
+        )}
+      </Show>
+  );
+
   return (
     <div data-community-state="success" data-community-route-family={state.routeFamily}>
       <Title>{title()}</Title>
@@ -736,7 +767,8 @@ function SuccessState(props: {
                 onSignIn={signInToFinishPosting}
               />
             </>)}
-            composer={textOpen() && engagement.postingSession() !== undefined ? () => (
+            composer={(textOpen() || (composerOpen() && mediaEntry()?.kind === "song")) && engagement.postingSession() !== undefined ? () => (
+              <Show when={textOpen()} fallback={mediaComposer(true)}>
               <TextPostPanel
                 draft={textDraft()}
                 onClose={() => {
@@ -750,6 +782,7 @@ function SuccessState(props: {
                 onVideo={() => openMediaComposer({ kind: "video" })}
                 unavailable={selectedPersonaId() === undefined ? "Choose a profile for this community before posting." : undefined}
               />
+              </Show>
             ) : undefined}
             onVerifyAge={refreshAgeFeed}
             renderPost={(post, render) => (
@@ -842,32 +875,8 @@ function SuccessState(props: {
           here invisibly for keyboard users only; it returns when it has a
           visible place on the page. */}
       <p class="sr-only" data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>
-      <Show when={engagement.postingSession()}>
-        {session => (
-          <CreatePostDialog
-            communityContext={{ id: communityId, name: community().name }}
-            initialVideoSong={props.initialVideoSong}
-            initialMode={mediaEntry()?.kind}
-            initialSongFile={(() => { const entry = mediaEntry(); return entry?.kind === "song" ? entry.file : undefined; })()}
-            songStore={songStore}
-            mediaTransport={props.mediaSubmissionTransport}
-            onPublished={href => { if (href !== undefined) navigate(href); }}
-            onOpenChange={(open) => {
-              setComposerOpen(open);
-              if (!open) setMediaEntry(undefined);
-              // Dismissing the composer the song entry opened also clears
-              // the URL marker, so a reload cannot reopen it.
-              if (!open && openedForSong) {
-                openedForSong = false;
-                props.clearVideoSongIntent?.();
-              }
-            }}
-            open={composerOpen()}
-            personaId={selectedPersonaId()}
-            personas={communityOperationPersonas(session().personas, communityId)}
-            principalId={session().userId}
-          />
-        )}
+      <Show when={composerOpen() && mediaEntry()?.kind !== "song"}>
+        {mediaComposer(false)}
       </Show>
     </div>
   );

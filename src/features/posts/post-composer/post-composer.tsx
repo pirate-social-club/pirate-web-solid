@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
+import { Button, Card, IconButton, IconX, Type, createIsMobile, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -91,6 +91,7 @@ export function PostComposer(props: PostComposerProps) {
 
   return (
     <>
+      <Show when={props.presentation === "inline"} fallback={
       <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
         <Show when={controller.isMobile() && !isMultiStep()}>
           <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>{mobileHeader()}</div>
@@ -149,6 +150,24 @@ export function PostComposer(props: PostComposerProps) {
           </Show>
         </Show>
       </div>
+      }>
+        <Card class="w-full overflow-hidden">
+          <header class="flex items-center justify-between gap-3 px-5 pt-5 md:px-8 md:pt-6">
+            <Type as="h2" variant="h2">Create a post</Type>
+            <Button aria-label="Cancel" onClick={() => props.onClose?.()} type="button" variant="ghost">Cancel</Button>
+          </header>
+          <Show when={controller.isMobile() && isMultiStep()}>
+            <Type as="h3" class="mt-4 block px-5" variant="h3">{controller.copy.steps[steps.current()]}</Type>
+          </Show>
+          <div class="max-md:px-5">
+            <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+            {stepContent()}
+          </div>
+          <Show when={isMultiStep()}>
+            <PostComposerStepFooter controller={controller} placement="inline" runtime={props.songFlowRuntime} steps={steps} />
+          </Show>
+        </Card>
+      </Show>
 
       <PostComposerRequiredSheet
         controller={controller}
