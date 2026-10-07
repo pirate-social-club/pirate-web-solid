@@ -9,6 +9,7 @@ export const OwnProfileSettings: Story = {
   render: () => <ProfileSettingsReview />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(await canvas.findAllByRole("tab")).toHaveLength(3);
     await userEvent.click(await canvas.findByRole("link", { name: "Settings" }));
     await expect(await canvas.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
