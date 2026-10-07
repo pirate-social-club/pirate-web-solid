@@ -19,3 +19,12 @@ export const activityRewardsFixture: SongActivityRewards = {
   }] },
 };
 export const noActivityRewardsFixture: SongActivityRewards = { pool: null, bonuses: { object: "song_asset_bonus_list", items: [] } };
+
+/** Two independent rewards for karaoke; the asset bonus is shared with study. */
+export const multipleActivityRewardsFixture: SongActivityRewards = {
+  ...activityRewardsFixture,
+  bonuses: { ...activityRewardsFixture.bonuses, items: activityRewardsFixture.bonuses.items.map(bonus => ({
+    ...bonus,
+    qualification_policies: [...(bonus.qualification_policies ?? []), ...(activityRewardsFixture.pool?.qualification_policies ?? [])],
+  })) },
+};

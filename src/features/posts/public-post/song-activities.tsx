@@ -1,5 +1,5 @@
-import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
-import { Button, IconArrowRight, IconGift, IconMicrophone, IconPlaylist, IconVideoCamera, LoadingIndicator, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, ModalTrigger, PillButton } from "../../../design-system.ts";
+import { For, Show, createSignal, createUniqueId, onCleanup, onSettled } from "solid-js";
+import { Button, IconGift, IconMicrophone, IconPlaylist, IconVideoCamera, LoadingIndicator, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, ModalTrigger, PillButton } from "../../../design-system.ts";
 import type { AuthenticatedSession } from "../../../api/session.ts";
 import { readSongVideoPolicy, songVideoEntryHref, type SongVideoEligibilityReader } from "./song-video-entry.tsx";
 import { readSongActivityRewards, songActivityRewards, type SongActivityRewards } from "./song-activities-rewards.ts";
@@ -24,6 +24,8 @@ export function SongActivities(props: {
   const [compact, setCompact] = createSignal(true);
   let trigger: HTMLButtonElement | undefined;
   const [open, setOpen] = createSignal(false);
+  const [expandedReward, setExpandedReward] = createSignal<string>();
+  const rewardDetailsId = createUniqueId();
   const [data, setData] = createSignal<SongActivityRewards>();
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
@@ -75,7 +77,7 @@ export function SongActivities(props: {
   const ready = () => signedIn() || props.viewer === "anonymous";
   const changeOpen = (value: boolean) => {
     setOpen(value);
-    if (value) { void loadRewards(); void loadVideo(); }
+    if (value) { setExpandedReward(undefined); void loadRewards(); void loadVideo(); }
   };
   const choose = (href: string) => {
     if (!ready()) return;
@@ -96,17 +98,37 @@ export function SongActivities(props: {
       <ModalContent mobileSide="bottom" class="max-h-[88dvh] w-full overflow-y-auto px-4 pb-5 pt-5 md:max-w-lg md:px-6 md:pb-6">
         <ModalHeader class="text-start pr-8"><ModalTitle>Activities</ModalTitle><ModalDescription class="sr-only">Choose an activity for this song and review any rewards.</ModalDescription></ModalHeader>
         <div class="mt-4 space-y-3">
-          <For each={options()}>{option => <section class="min-w-0 rounded-xl border border-border-soft bg-card">
-            <button type="button" disabled={!ready()} aria-label={option.label} class="flex w-full min-w-0 items-center gap-3 rounded-xl p-4 text-start hover:bg-card-hover disabled:opacity-50" onClick={() => choose(option.href)}>
-              <option.icon class="size-6 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span class="min-w-0 flex-1"><span class="block font-semibold">{option.label}</span><span class="block text-sm text-muted-foreground">{option.description}</span></span>
-              <IconArrowRight class="size-5 shrink-0" aria-hidden="true" />
-            </button>
-            <For each={rewards().filter(reward => reward.activity === option.id)}>{reward => <details class="mx-4 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-              <summary class="cursor-pointer font-semibold text-foreground"><IconGift class="mr-2 inline size-4" aria-hidden="true" />{reward.label}</summary>
-              <ul class="mt-2 space-y-2 text-foreground"><For each={reward.terms}>{term => <li>{term}</li>}</For></ul>
-            </details>}</For>
-          </section>}</For>
+          <For each={options()}>{option => {
+            const activityRewards = () => rewards().filter(reward => reward.activity === option.id);
+            const summary = () => {
+              const labels = activityRewards().map(reward => reward.shortLabel).join(" · ");
+              return activityRewards().length === 1 || labels.length <= 28 ? labels : `${activityRewards().length} rewards`;
+            };
+            const expanded = () => expandedReward() === option.id;
+            const detailsId = `${rewardDetailsId}-${option.id}`;
+            return <section class="min-w-0 rounded-xl border border-border-soft bg-card">
+              <div class="grid grid-cols-[1.5rem_minmax(0,1fr)_fit-content(50%)] grid-rows-[auto_auto] gap-x-3 gap-y-1 p-4">
+                <button type="button" disabled={!ready()} aria-label={option.label} class="col-span-3 row-span-2 col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid grid-rows-subgrid rounded-md text-start disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" onClick={() => choose(option.href)}>
+                  <option.icon class="col-start-1 row-span-2 mt-0.5 size-6 text-muted-foreground" aria-hidden="true" />
+                  <span class="col-start-2 row-start-1 self-center font-semibold">{option.label}</span>
+                  <span class="col-span-2 col-start-2 row-start-2 text-sm text-muted-foreground">{option.description}</span>
+                </button>
+                <Show when={activityRewards().length > 0}>
+                  <button type="button" aria-label={`${option.label} rewards: ${summary()}`} aria-expanded={expanded() ? "true" : "false"} aria-controls={detailsId}
+                    class="z-10 col-start-3 row-start-1 self-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-foreground [overflow-wrap:anywhere] hover:bg-amber-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    onClick={() => setExpandedReward(expanded() ? undefined : option.id)}>{summary()}</button>
+                </Show>
+              </div>
+              <Show when={activityRewards().length > 0}>
+                <div id={detailsId} role="region" aria-label={`${option.label} reward details`} hidden={!expanded()} class="mx-4 mb-4 space-y-3 border-t border-border-soft pt-3 text-sm">
+                  <For each={activityRewards()}>{reward => <div>
+                    <p class="font-semibold text-foreground">{reward.label}</p>
+                    <ul class="mt-2 space-y-2 text-foreground"><For each={reward.terms}>{term => <li>{term}</li>}</For></ul>
+                  </div>}</For>
+                </div>
+              </Show>
+            </section>;
+          }}</For>
           <Show when={props.viewer === "pending"}><LoadingIndicator label="Checking sign-in" variant="inline" /></Show>
           <Show when={props.viewer === "error"}><p role="status" class="text-sm text-muted-foreground">Sign-in could not be checked. Close this panel and retry the post actions.</p></Show>
           <Show when={loading()}><LoadingIndicator label="Checking rewards" variant="inline" /></Show>

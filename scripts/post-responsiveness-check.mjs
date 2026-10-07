@@ -38,8 +38,7 @@ try {
         if (story.id.includes("--song-activities")) {
           await page.getByRole("dialog", { name: "Activities" }).waitFor();
           if (story.id.includes("rewards") && !story.id.includes("unavailable")) {
-            await page.getByText("Megapot · chance to win").waitFor();
-            await page.waitForFunction(() => [...document.querySelectorAll("details")].some(element => element.open));
+            await page.getByRole("button", { name: /^Karaoke rewards:/u }).waitFor();
           }
         }
         await page.evaluate(async () => {

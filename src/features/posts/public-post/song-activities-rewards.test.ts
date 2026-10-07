@@ -4,7 +4,7 @@ import { activityRewardsFixture, noActivityRewardsFixture } from "./song-activit
 
 it("attaches token amounts and lottery terms only to the activities that qualify", () => {
   const rewards = songActivityRewards(activityRewardsFixture);
-  expect(rewards.map(reward => [reward.activity, reward.label])).toEqual([["study", "2.5 USDC bonus"], ["karaoke", "Megapot · chance to win"]]);
+  expect(rewards.map(reward => [reward.activity, reward.label])).toEqual([["study", "2.5 USDC bonus"], ["karaoke", "Lottery"]]);
   expect(rewards[0].terms.join(" ")).toContain("70% correct on the first pass");
   expect(rewards[0].terms.join(" ")).toContain("16 claims remaining");
   expect(rewards[1].terms.join(" ")).toContain("Additional score floor: 80%");

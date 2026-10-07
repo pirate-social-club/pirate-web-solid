@@ -3,7 +3,7 @@ import { createRoot } from "solid-js";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { SongActivities, type SongActivitiesDependencies, type SongActivityViewer } from "./song-activities.tsx";
-import { activityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
+import { activityRewardsFixture, multipleActivityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.unstubAllGlobals(); });
@@ -23,7 +23,15 @@ it("lets guests inspect rewards without choosing or reading video policy until t
   await userEvent.click(button("Activities · rewards available"));
   await vi.waitFor(() => expect(button("Dance")).not.toBeNull());
   expect(document.body.textContent).toContain("2.5 USDC bonus");
-  expect(document.body.textContent).toContain("Megapot · chance to win");
+  expect(document.body.textContent).toContain("Lottery");
+  const details = document.querySelector<HTMLElement>('[aria-label="Karaoke reward details"]')!;
+  expect(details.hidden).toBe(true);
+  await userEvent.click(button("Karaoke rewards: Lottery"));
+  expect(details.hidden).toBe(false);
+  expect(document.body.textContent).toContain("Qualify for a chance to share the winnings.");
+  expect(choose).not.toHaveBeenCalled();
+  await userEvent.click(button("Karaoke rewards: Lottery"));
+  expect(details.hidden).toBe(true);
   expect(readVideoEligibility).toHaveBeenCalledExactlyOnceWith({ communityId: "community", postId: "song" });
   await userEvent.click(button("Karaoke"));
   expect(choose).toHaveBeenCalledExactlyOnceWith("/song/karaoke", false);
@@ -80,4 +88,23 @@ it("adapts the label to the action row when desktop comments narrow the card", a
   await vi.waitFor(() => expect(button("Activities").textContent).toBe("Activities"));
   disposers.splice(0).forEach(dispose => dispose());
   expect(disconnect).toHaveBeenCalledOnce();
+});
+
+it("summarizes multiple rewards without combining payouts or starting the activity", async () => {
+  const bonus = multipleActivityRewardsFixture.bonuses.items[0];
+  const { choose } = mount("anonymous", {
+    readVideoEligibility: async () => false,
+    readRewards: async () => ({ ...multipleActivityRewardsFixture, bonuses: { ...multipleActivityRewardsFixture.bonuses,
+      items: [bonus, { ...bonus, leg_id: "another-bonus", token_symbol: "TESTTOKEN", token_address: "0x0000000000000000000000000000000000000002", amount_per_claim_atomic: "1000000", qualification_policies: bonus.qualification_policies?.filter(policy => policy.activity === "karaoke") ?? [] }] } }),
+  });
+  await userEvent.click(button("Activities"));
+  await vi.waitFor(() => expect(button("Karaoke rewards: 3 rewards")).not.toBeNull());
+  await userEvent.click(button("Karaoke rewards: 3 rewards"));
+  const details = document.querySelector<HTMLElement>('[aria-label="Karaoke reward details"]')!;
+  expect(details.hidden).toBe(false);
+  expect(details.textContent).toContain("2.5 USDC bonus");
+  expect(details.textContent).toContain("1 TESTTOKEN bonus");
+  expect(details.textContent).toContain("Lottery");
+  expect(details.textContent).not.toContain("3.5 USDC");
+  expect(choose).not.toHaveBeenCalled();
 });

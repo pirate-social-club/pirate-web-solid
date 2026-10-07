@@ -12,6 +12,7 @@ export interface ActivityReward {
   readonly id: string;
   readonly activity: "study" | "karaoke";
   readonly label: string;
+  readonly shortLabel: string;
   readonly terms: readonly string[];
 }
 
@@ -36,6 +37,7 @@ export function songActivityRewards(data: SongActivityRewards, now = Date.now())
     for (const policy of bonus.qualification_policies ?? []) {
       rewards.push({ id: bonus.leg_id, activity: policy.activity,
         label: `${formatUnits(amount, bonus.token_decimals)} ${bonus.token_symbol} bonus`,
+        shortLabel: `${formatUnits(amount, bonus.token_decimals)} ${bonus.token_symbol}`,
         terms: [qualificationText(policy), `${bonus.max_claims - bonus.claimed_count} claims remaining. One per qualifying account; shared across activities.`],
       });
     }
@@ -45,8 +47,8 @@ export function songActivityRewards(data: SongActivityRewards, now = Date.now())
     && (pool.drawing === null || (pool.drawing.lifecycle_status === "entry_open" && Date.parse(pool.drawing.entry_cutoff_at) > now))) {
     for (const policy of pool.qualification_policies ?? []) {
       if (!pool.eligible_activities.includes(policy.activity)) continue;
-      rewards.push({ id: pool.leg_id, activity: policy.activity, label: "Megapot · chance to win",
-        terms: [qualificationText(policy), `Additional score floor: ${pool.min_score_bps / 100}%.`,
+      rewards.push({ id: pool.leg_id, activity: policy.activity, label: "Lottery", shortLabel: "Lottery",
+        terms: ["Qualify for a chance to share the winnings.", qualificationText(policy), `Additional score floor: ${pool.min_score_bps / 100}%.`,
           `${formatUnits(BigInt(pool.available_budget_atomic), pool.token_decimals)} USDC pool budget. This funds tickets, not a guaranteed payout. Qualifiers share any net winnings equally.`,
           ...(pool.drawing ? [`Entries close ${new Date(pool.drawing.entry_cutoff_at).toLocaleString()}.`] : []),
           "Pirate holds the ticket.", POOL_HOLD_NOTICE_COPY, ...(pool.fallback_disclosure ? [pool.fallback_disclosure] : [])],
