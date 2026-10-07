@@ -131,7 +131,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
           {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
         </Show>
       </div>
-      <div class="relative z-10"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} /></div>
+      <div class="relative z-10 shrink-0 has-[audio]:basis-full"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} /></div>
     </div>
   );
 }
