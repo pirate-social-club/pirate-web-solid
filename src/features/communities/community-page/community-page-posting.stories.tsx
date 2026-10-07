@@ -538,10 +538,12 @@ function SongFrame(props: {
   readonly answers: readonly (MediaSubmissionSnapshot | "unanswered")[];
   readonly rerun?: readonly MediaSubmissionSnapshot[];
   readonly originalRequired?: boolean;
+  readonly originalUnanswered?: boolean;
 }) {
   const answers = [...untrack(() => props.answers)];
   const rerun = [...untrack(() => props.rerun ?? [])];
   let current: MediaSubmissionSnapshot | "unanswered" = songProcessing("finalize");
+  let originalPending = false;
   const store = createSongSubmissionStore({ observeIntervalMs: 700 });
   const [session] = createSignal<ApplicationSessionState>(memberSession);
   const [onCommunity, setOnCommunity] = createSignal(true);
@@ -553,8 +555,14 @@ function SongFrame(props: {
     authorHandle: "Harbor",
     view: { status: "processing", submissionId: "song-1", phase: "finalize" },
     source: {
-      ...(props.originalRequired ? { bindOriginal: async (link: string) => {
+      ...(props.originalRequired ? { hasPendingOriginal: () => originalPending, retryOriginal: async () => {
+        originalPending = false;
+        current = songProcessing("decision");
+        answers.splice(0, answers.length, current, songPublished);
+        return current;
+      }, bindOriginal: async (link: string) => {
         if (link !== "/posts/original-song") throw new Error("ineligible original");
+        if (props.originalUnanswered) { originalPending = true; throw new Error("answer lost"); }
         current = songProcessing("decision");
         answers.splice(0, answers.length, current, songPublished);
         return current;
@@ -720,6 +728,24 @@ export const SongNeedsOriginal: Story = {
     await userEvent.clear(field);
     await userEvent.type(field, "/posts/original-song");
     await userEvent.click(canvas.getByRole("button", { name: "Use this original song" }));
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+export const SongOriginalUnanswered: Story = {
+  name: "Song: preserve an unanswered original choice",
+  render: () => <SongFrame originalRequired originalUnanswered answers={[songAnswer({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } })]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = await canvas.findByRole("textbox", { name: "Original song link" });
+    await userEvent.type(field, "/posts/original-song");
+    await userEvent.click(canvas.getByRole("button", { name: "Use this original song" }));
+    const retry = await canvas.findByRole("button", { name: "Try this original again" });
+    await expect(field).toBeDisabled();
+    await expect(field).toHaveValue("/posts/original-song");
+    await expect(canvas.getByRole("button", { name: "Use this original song" })).toBeDisabled();
+    await userEvent.click(retry);
     await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
     await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
   },

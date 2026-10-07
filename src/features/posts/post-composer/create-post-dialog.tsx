@@ -348,7 +348,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       authorHandle: persona?.displayName ?? persona?.primaryPublicHandle ?? undefined,
       authorAvatarSrc: persona?.avatarRef ?? null,
       view: projectMediaSubmission(snapshot),
-      source: { refresh: signal => coordinator.refresh(signal), retry: signal => coordinator.retry(signal), bindOriginal: async (link, signal) => coordinator.bindReference(await originalSongPostId(link, signal), signal) },
+      source: { refresh: signal => coordinator.refresh(signal), retry: signal => coordinator.retry(signal), hasPendingOriginal: () => coordinator.currentRecord?.pending_command?.kind === "reference", retryOriginal: signal => coordinator.retryReference(signal), bindOriginal: async (link, signal) => coordinator.bindReference(await originalSongPostId(link, signal), signal) },
     });
     handedOver = true;
     props.onOpenChange(false);

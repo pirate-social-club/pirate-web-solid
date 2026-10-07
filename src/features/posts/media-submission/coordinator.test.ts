@@ -179,6 +179,76 @@ afterEach(() => {
 });
 
 describe("media submission coordinator", () => {
+  test("does not replay an uncertain original as a different selection", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    transport.current = snapshot({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } });
+    transport.failOnce = "reference";
+    await expect(coordinator.bindReference("post_source_a")).rejects.toThrow("ambiguous reference");
+    const retained = coordinator.currentRecord?.pending_command;
+    await expect(coordinator.bindReference("post_source_b")).rejects.toThrow("Confirm the previous");
+    expect(transport.kinds.filter(kind => kind === "reference")).toHaveLength(1);
+    expect(coordinator.currentRecord?.pending_command).toEqual(retained);
+    await coordinator.retryReference();
+    expect(transport.commands.filter(command => command.kind === "reference")).toEqual([retained, retained]);
+    expect(coordinator.currentRecord?.pending_command).toBeNull();
+  });
+
+  test("aborted reference preparation cannot replace a successor command", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    transport.current = snapshot({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } });
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const heldDigest = vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(async (algorithm, data) => { await gate; return digest(algorithm, data); });
+    const controller = new AbortController();
+    const obsolete = coordinator.bindReference("post_source_a", controller.signal);
+    void obsolete.catch(() => {});
+    try {
+      await vi.waitFor(() => expect(heldDigest).toHaveBeenCalledOnce());
+      controller.abort();
+      await coordinator.bindReference("post_source_b");
+      const accepted = coordinator.currentRecord?.commands.at(-1);
+      release();
+      await expect(obsolete).rejects.toMatchObject({ name: "AbortError" });
+      expect(coordinator.currentRecord?.commands.at(-1)).toEqual(accepted);
+      expect(transport.kinds.filter(kind => kind === "reference")).toHaveLength(1);
+    } finally { release(); heldDigest.mockRestore(); }
+  });
+
+  test("a late aborted rejection cannot clear a newer original command", async () => {
+    class LateReferenceTransport extends MemoryMediaTransport {
+      referenceCalls = 0;
+      rejectFirst: (error: Error) => void = () => {};
+      resolveThird: (value: MediaSubmissionSnapshot) => void = () => {};
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        if (command.kind !== "reference") return super.dispatch(command);
+        this.referenceCalls += 1;
+        if (this.referenceCalls === 1) return new Promise((_, reject) => { this.rejectFirst = reject; });
+        if (this.referenceCalls === 2) throw rejected();
+        return new Promise(resolve => { this.resolveThird = resolve; });
+      }
+    }
+    const transport = new LateReferenceTransport();
+    const coordinator = await started(transport);
+    transport.current = snapshot({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } });
+    const controller = new AbortController();
+    const first = coordinator.bindReference("post_source_a", controller.signal);
+    void first.catch(() => {});
+    await vi.waitFor(() => expect(transport.referenceCalls).toBe(1));
+    controller.abort();
+    await expect(coordinator.retryReference()).rejects.toThrow("request rejected");
+    const replacement = coordinator.bindReference("post_source_b");
+    await vi.waitFor(() => expect(transport.referenceCalls).toBe(3));
+    const retained = coordinator.currentRecord?.pending_command;
+    transport.rejectFirst(rejected());
+    await expect(first).rejects.toMatchObject({ name: "AbortError" });
+    expect(coordinator.currentRecord?.pending_command).toEqual(retained);
+    transport.resolveThird(snapshot({ audio_revision: 1, phase: "analysis" }));
+    await replacement;
+  });
+
   test("recovers only server state and does not repeat upload or bound terms", async () => {
     const transport = new MemoryMediaTransport();
     transport.current = snapshot({ audio_revision: 1, phase: "analysis", creation_revision: 3,

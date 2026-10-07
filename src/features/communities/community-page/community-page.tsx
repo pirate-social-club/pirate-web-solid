@@ -726,6 +726,7 @@ function SuccessState(props: {
                 onDismiss={songStore.dismiss}
                 onRetry={songStore.retry}
                 onBindOriginal={songStore.bindOriginal}
+                onRetryOriginal={songStore.retryOriginal}
               />
               <PendingTextPosts
                 items={pendingTextPosts()}

@@ -32,6 +32,7 @@ export interface SongSubmissionItem extends Omit<SongSubmissionHandover, "source
   /** A request to run processing again is in flight. */
   readonly rerunning: boolean;
   readonly bindingOriginal?: boolean;
+  readonly originalUnconfirmed?: boolean;
   readonly originalError?: string | null;
   readonly canBindOriginal?: boolean;
 }
@@ -43,6 +44,7 @@ export interface SongSubmissionStore {
   readonly check: (submissionId: string) => void;
   readonly retry: (submissionId: string) => void;
   readonly bindOriginal: (submissionId: string, link: string) => void;
+  readonly retryOriginal: (submissionId: string) => void;
   /** Stops watching a song and forgets it here. The server keeps its own state. */
   readonly dismiss: (submissionId: string) => void;
   readonly retainAccount: (accountId: string) => void;
@@ -96,6 +98,7 @@ export function createSongSubmissionStore(options: {
           rerunning: snapshot.matches("rerunning"),
           bindingOriginal: snapshot.matches("bindingOriginal"),
           originalError: snapshot.context.originalError,
+          originalUnconfirmed: source.hasPendingOriginal?.() === true,
         });
         if (snapshot.status === "done") actors.delete(item.submissionId);
       });
@@ -103,6 +106,7 @@ export function createSongSubmissionStore(options: {
     },
     check(id) { actors.get(id)?.send({ type: "CHECK" }); },
     retry(id) { actors.get(id)?.send({ type: "RETRY" }); },
+    retryOriginal(id) { actors.get(id)?.send({ type: "RETRY_ORIGINAL" }); },
     bindOriginal(id, link) { actors.get(id)?.send({ type: "BIND_ORIGINAL", link }); },
     dismiss(id) {
       stop(id);

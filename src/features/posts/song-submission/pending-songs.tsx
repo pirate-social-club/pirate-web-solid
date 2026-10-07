@@ -10,6 +10,7 @@ export interface PendingSongsProps {
   readonly items: readonly SongSubmissionItem[];
   readonly onCheck: (submissionId: string) => void;
   readonly onRetry: (submissionId: string) => void;
+  readonly onRetryOriginal?: (submissionId: string) => void;
   readonly onBindOriginal?: (submissionId: string, link: string) => void;
   readonly onDismiss: (submissionId: string) => void;
 }
@@ -140,10 +141,15 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
               <form aria-label="Name the original song" class="grid gap-2" onSubmit={event => { event.preventDefault(); props.onBindOriginal?.(item().submissionId, originalLink()); }}>
                 <label class="grid gap-1 text-sm">
                   Original song link
-                  <input class="rounded-lg border border-input bg-background px-3 py-2" value={originalLink()} onInput={event => setOriginalLink(event.currentTarget.value)} disabled={item().bindingOriginal} inputmode="url" required placeholder="Paste the song's Pirate link" />
+                  <input class="rounded-lg border border-input bg-background px-3 py-2" value={originalLink()} onInput={event => setOriginalLink(event.currentTarget.value)} disabled={item().bindingOriginal || item().originalUnconfirmed} inputmode="url" required placeholder="Paste the song's Pirate link" />
                 </label>
                 <Type variant="caption">The server will check that this song can use that original.</Type>
-                <Button disabled={item().bindingOriginal || originalLink().trim() === ""} loading={item().bindingOriginal} type="submit" size="sm">Use this original song</Button>
+                <Button disabled={item().bindingOriginal || item().originalUnconfirmed || originalLink().trim() === ""} loading={item().bindingOriginal} type="submit" size="sm">Use this original song</Button>
+                <Show when={item().originalUnconfirmed}>
+                  <Type role="status" variant="caption">This original song request is still unconfirmed. Check it or repeat the same request before choosing another.</Type>
+                  <Button disabled={item().bindingOriginal} onClick={() => props.onRetryOriginal?.(item().submissionId)} type="button" size="sm">Try this original again</Button>
+                  <Button disabled={item().bindingOriginal} onClick={() => props.onCheck(item().submissionId)} type="button" size="sm" variant="outline">Check original song request</Button>
+                </Show>
                 <Show when={item().originalError}>{error => <Type role="alert" variant="caption">{error()}</Type>}</Show>
               </form>
             </Show>

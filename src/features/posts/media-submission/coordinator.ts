@@ -196,6 +196,7 @@ export class MediaSubmissionCoordinator {
   }
 
   private async dispatch(command: PersistedMediaCommand, signal?: AbortSignal): Promise<MediaCommandResult> {
+    signal?.throwIfAborted();
     const current = this.requireRecord();
     if (current.pending_command?.body_sha256 !== command.body_sha256) {
       this.save({
@@ -210,6 +211,8 @@ export class MediaSubmissionCoordinator {
       result = await this.transport.dispatch(command, signal);
       signal?.throwIfAborted();
     } catch (error) {
+      signal?.throwIfAborted();
+      if (this.record?.pending_command?.body_sha256 !== command.body_sha256) throw error;
       if (
         error instanceof MediaSubmissionConflictError ||
         error instanceof RejectedMediaSubmissionError
@@ -495,6 +498,8 @@ export class MediaSubmissionCoordinator {
   }
 
   async bindReference(upstreamAssetId: string, signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {
+    signal?.throwIfAborted();
+    if (this.record?.pending_command?.kind === "reference") throw new Error("Confirm the previous original song request before choosing another.");
     await this.reconcilePending(signal);
     const snapshot = await this.refresh(signal);
     if (snapshot?.status !== "action_required" || snapshot.action.kind !== "reference_required") {
@@ -515,6 +520,15 @@ export class MediaSubmissionCoordinator {
     const result = await this.dispatch(command, signal);
     if (!snapshotResult(result)) throw new Error("Reference binding returned an upload reservation");
     return result;
+  }
+
+  async retryReference(signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {
+    signal?.throwIfAborted();
+    const command = this.requireRecord().pending_command;
+    if (command?.kind !== "reference") throw new Error("There is no unconfirmed original song request.");
+    const result = await this.dispatch(command, signal);
+    if (!snapshotResult(result)) throw new Error("Reference binding returned an upload reservation");
+    return this.requireRecord().snapshot ?? result;
   }
 
   private async revisionCommand(kind: "retry" | "cancel", signal?: AbortSignal): Promise<MediaSubmissionSnapshot> {

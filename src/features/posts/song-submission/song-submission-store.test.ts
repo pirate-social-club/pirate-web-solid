@@ -143,6 +143,39 @@ describe("song submission store", () => {
     store.dispose();
   });
 
+  it("accepts recovery actions during failed-read backoff and retains an uncertain original", async () => {
+    let pending = false;
+    const refresh = vi.fn().mockRejectedValue(new Error("offline"));
+    const bindOriginal = vi.fn(async () => { pending = true; throw new Error("lost answer"); });
+    const retryOriginal = vi.fn(async () => { pending = false; return processing("decision"); });
+    const store = createSongSubmissionStore({ observeIntervalMs: 100, requestTimeoutMs: 50 });
+    store.adopt({ ...handover({ refresh, retry: vi.fn(), bindOriginal, retryOriginal, hasPendingOriginal: () => pending }), view: { status: "action_required", submissionId: "song-1", expiresAt: "2099-01-01T00:00:00Z", referenceRequestRef: "reference-1" } });
+    store.check("song-1");
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+    store.bindOriginal("song-1", "/posts/source-a");
+    await vi.waitFor(() => expect(store.items()[0]?.originalUnconfirmed).toBe(true));
+    store.bindOriginal("song-1", "/posts/source-b");
+    expect(bindOriginal).toHaveBeenCalledOnce();
+    store.retryOriginal("song-1");
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing"));
+    expect(retryOriginal).toHaveBeenCalledOnce();
+    expect(store.items()[0]?.originalUnconfirmed).toBe(false);
+    store.dispose();
+  });
+
+  it("accepts a processing rerun during failed-read backoff", async () => {
+    const retry = vi.fn(async () => processing("analysis"));
+    const refresh = vi.fn(async () => { throw new Error("offline"); });
+    const store = createSongSubmissionStore({ observeIntervalMs: 100 });
+    store.adopt({ ...handover({ refresh, retry }), view: { status: "processing_failed", submissionId: "song-1", reasonCode: "analysis_failed", retryable: true } });
+    store.check("song-1");
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+    store.retry("song-1");
+    await vi.waitFor(() => expect(viewOf(store)?.status).toBe("processing"));
+    expect(retry).toHaveBeenCalledOnce();
+    store.dispose();
+  });
+
   it("keeps reading, slowly, while a song waits on its author", async () => {
     const refresh = vi.fn().mockResolvedValueOnce(failed(false)).mockResolvedValue(snapshot({ status: "abandoned", submission_id: "song-1", reason_code: "expired" }));
     const store = createSongSubmissionStore({ observeIntervalMs: 3 });
