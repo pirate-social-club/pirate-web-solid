@@ -144,11 +144,15 @@ async function post(container: HTMLElement, text: string) {
 }
 
 describe("community page text posting", () => {
-  test("the composer sits in the page's side column and is not a full-screen form", async () => {
+  test("the composer replaces the main feed and stays out of the sidebar", async () => {
     const container = render(() => page(server(() => "ok")));
     await openComposer(container);
     const panel = container.querySelector("[data-text-post-panel]")!;
-    expect(panel.closest("aside[aria-label='Community information']")).not.toBeNull();
+    expect(panel.closest("main[aria-label='Create a post']")).not.toBeNull();
+    expect(panel.closest("aside")).toBeNull();
+    expect(container.querySelector("main[aria-label='Community feed']")).toBeNull();
+    expect(container.querySelector("[data-community-tabs]")).toBeNull();
+    expect(container.querySelector("[role='dialog']")).toBeNull();
     expect(container.querySelector("[data-create-post-form]")).toBeNull();
   });
 
@@ -160,7 +164,7 @@ describe("community page text posting", () => {
     expect(container.querySelector("[data-create-post-form]")).toBeNull();
     await vi.waitFor(() => expect(clear).toHaveBeenCalledOnce());
     // Closing it is the author's decision; the entry does not reopen it.
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
     await vi.waitFor(() => expect(form(container)).toBeNull());
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(form(container)).toBeNull();
@@ -222,7 +226,7 @@ describe("community page text posting", () => {
 
     // Recovery does not depend on the composer. Opening and closing it changes nothing.
     await openComposer(container);
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
     await vi.waitFor(() => expect(form(container)).toBeNull());
     expect(pendingStatus(container)).toBe("delayed");
     // The page is not held either.
@@ -293,10 +297,14 @@ describe("community page text posting", () => {
     body.value = "Something new";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await vi.waitFor(() => expect(button(form(container)!, "Post").disabled).toBe(false));
+    expect(pending(container)).toBeNull();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
     button(pending(container)!, "Edit").click();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(form(container)).not.toBeNull());
     expect(form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!.value).toBe("Something new");
-    expect(pendingStatus(container)).toBe("rejected");
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
   });
 
 

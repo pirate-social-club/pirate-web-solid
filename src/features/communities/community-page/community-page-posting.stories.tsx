@@ -193,39 +193,64 @@ async function writeAndPost(canvasElement: HTMLElement, text: string) {
 
 const pending = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-pending-text-post]");
 
-/** Desktop: the composer is a card in the right column, beside the feed. */
-export const ComposerBesideTheFeed: Story = {
-  name: "Desktop composer beside the feed",
+/** The actual page transition, left open for visual review. */
+export const ComposerReplacesTheFeed: Story = {
+  name: "Desktop full-width post form",
   args: pageArgs(standInServer()),
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText(existingPost.title)).toBeVisible();
     await openComposer(canvasElement);
     const panel = canvasElement.querySelector<HTMLElement>("[data-text-post-panel]")!;
-    const feed = within(canvasElement).getByRole("main", { name: "Community feed" });
+    const main = canvas.getByRole("main", { name: "Create a post" });
     await waitFor(() => {
-      expect(panel.getBoundingClientRect().left).toBeGreaterThanOrEqual(feed.getBoundingClientRect().right);
-      expect(panel.getBoundingClientRect().width).toBeLessThan(feed.getBoundingClientRect().width);
+      expect(panel.closest("main")).toBe(main);
+      expect(panel.closest("aside")).toBeNull();
+      expect(Math.abs(panel.getBoundingClientRect().width - main.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
     });
-    // The feed stays readable: nothing covers the page.
-    await expect(within(feed).getByText(existingPost.title)).toBeVisible();
+    await expect(canvas.queryByText(existingPost.title)).toBeNull();
+    await expect(canvas.queryByRole("dialog")).toBeNull();
+    await expect(canvas.queryByText("Feed", { selector: "button" })).toBeNull();
+    await expect(canvas.getByRole("complementary", { name: "Community information" })).toBeVisible();
   },
 };
 
-/** Phone: the same composer is a sheet over the bottom of the screen. */
-export const ComposerSheetOnMobile: Story = {
-  name: "Mobile composer sheet",
+/** The same main-column form stays in normal document flow on a phone. */
+export const FullWidthComposerOnMobile: Story = {
+  name: "Mobile full-width post form",
   args: pageArgs(standInServer()),
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     await openComposer(canvasElement);
-    const sheet = canvasElement.querySelector<HTMLElement>("[data-text-post-panel] form")!.parentElement!;
+    const panel = canvasElement.querySelector<HTMLElement>("[data-text-post-panel]")!;
+    const main = within(canvasElement).getByRole("main", { name: "Create a post" });
     await waitFor(() => {
       const view = canvasElement.ownerDocument.defaultView!;
-      const box = sheet.getBoundingClientRect();
-      // Anchored to the bottom edge, full width, and never taller than the screen.
-      expect(Math.abs(box.bottom - view.innerHeight)).toBeLessThanOrEqual(1);
-      expect(Math.round(box.width)).toBe(view.innerWidth);
-      expect(box.top).toBeGreaterThanOrEqual(0);
+      const box = panel.getBoundingClientRect();
+      expect(panel.closest("main")).toBe(main);
+      expect(view.getComputedStyle(panel).position).toBe("static");
+      expect(Math.abs(box.width - main.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(view.innerWidth);
     });
+    await expect(within(canvasElement).queryByRole("dialog")).toBeNull();
+    await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
+  },
+};
+
+export const CancelKeepsTheDraft: Story = {
+  name: "Cancel returns to the feed and keeps the draft",
+  args: pageArgs(standInServer()),
+  play: async ({ canvasElement }) => {
+    const form = await openComposer(canvasElement);
+    await userEvent.type(form.getByRole("textbox", { name: "Title" }), "A draft title");
+    await userEvent.type(form.getByRole("textbox", { name: "Post" }), "A draft to return to");
+    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await expect(await within(canvasElement).findByText(existingPost.title)).toBeVisible();
+    await expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull();
+    const reopened = await openComposer(canvasElement);
+    await expect(reopened.getByRole("textbox", { name: "Title" })).toHaveValue("A draft title");
+    await expect(reopened.getByRole("textbox", { name: "Post" })).toHaveValue("A draft to return to");
   },
 };
 
@@ -320,7 +345,7 @@ export const PublishedButAnswerLost: Story = {
     await expect(within(item).queryByRole("button", { name: /discard|dismiss|edit|remove|cancel/iu })).toBeNull();
     // Opening and closing the composer does not stop or remove it.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
+    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
     await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed");
     // When an answer finally arrives it is the first post, once.
     answersLost = false;
@@ -358,7 +383,7 @@ export const DismissedWhileSending: Story = {
     await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sending"));
     // Open the composer again and dismiss it while the first post is in flight.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
+    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
     await expect(canvas.queryByRole("form", { name: "Create a post" })).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     await expect(canvas.getAllByText("Sent, then I looked away")).toHaveLength(1);

@@ -8,13 +8,11 @@ import {
   Checkbox,
   CheckboxLabel,
   FormNote,
-  IconButton,
   IconMusicNote,
   IconVideoCamera,
-  IconX,
   Input,
   Textarea,
-  createIsMobile,
+  Type,
 } from "../../../design-system";
 
 export interface TextPostDraft {
@@ -38,66 +36,54 @@ export interface TextPostPanelProps {
 }
 
 /**
- * The text composer. On desktop it is a card in the community page's right
- * column; on a phone the same element is a sheet over the bottom of the
- * screen. It only edits: pressing Post hands the text to the application's
- * submission owner and the post appears in the feed, so this panel has no
- * sending, waiting or failed state of its own.
+ * The post form occupies the community page's main content column. Posting
+ * hands the text to the application owner and returns to the feed immediately;
+ * delivery and recovery stay with that owner.
  */
 export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   let bodyInput: HTMLTextAreaElement | undefined;
   let songInput: HTMLInputElement | undefined;
   onSettled(() => { bodyInput?.focus(); });
-  // On a phone the panel covers the page, so it is announced as a dialog. On
-  // desktop it is a region of the page and must not be.
-  const isMobile = createIsMobile();
   const canPost = () => props.unavailable === undefined && props.draft.body.trim() !== "";
   const post = () => { if (canPost()) props.onPost(); };
 
   return (
     <div
-      aria-label={isMobile() ? "Create a post" : undefined}
-      aria-modal={isMobile() ? "true" : undefined}
-      class="max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:flex-col max-md:justify-end"
+      class="w-full min-w-0"
       data-text-post-panel
-      role={isMobile() ? "dialog" : undefined}
       onKeyDown={(event) => {
         if (event.key === "Escape") props.onClose();
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
       }}
     >
-      {/* A pointer convenience only: the named close control is in the form. */}
-      <button
-        aria-hidden="true"
-        class="absolute inset-0 bg-black/40 md:hidden"
-        onClick={() => props.onClose()}
-        tabindex={-1}
-        type="button"
-      />
-      <Card class="relative max-md:max-h-[100dvh] max-md:overflow-y-auto max-md:rounded-b-none max-md:rounded-t-[var(--radius-3xl)] max-md:border-x-0 max-md:border-b-0 max-md:pb-[env(safe-area-inset-bottom)]">
-        <form aria-label="Create a post" class="flex flex-col gap-3 p-4" onSubmit={(event) => { event.preventDefault(); post(); }}>
-          <div class="flex items-center gap-2">
+      <Card class="w-full">
+        <form aria-label="Create a post" class="flex flex-col gap-5 p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); post(); }}>
+          <div class="flex items-center justify-between gap-3">
+            <Type as="h2" variant="h2">Create a post</Type>
+            <Button aria-label="Cancel" onClick={() => props.onClose()} type="button" variant="ghost">Cancel</Button>
+          </div>
+          <label class="flex flex-col gap-2">
+            <Type as="span" variant="label">Title <span class="font-normal text-muted-foreground">(optional)</span></Type>
             <Input
               aria-label="Title"
-              class="h-auto min-w-0 flex-1 px-0 py-0 text-lg font-semibold shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              class="w-full"
               maxlength={300}
               onInput={(event) => props.onDraftChange({ ...props.draft, title: event.currentTarget.value })}
-              placeholder="Title (optional)"
+              placeholder="Give your post a title"
               value={props.draft.title}
-              variant="flat"
             />
-            <IconButton aria-label="Close composer" onClick={() => props.onClose()} type="button" variant="ghost">
-              <IconX class="size-5" />
-            </IconButton>
-          </div>
-          <Textarea
-            aria-label="Post"
-            class="min-h-32 resize-none rounded-none border-0 bg-transparent p-0 text-base leading-relaxed shadow-none focus-visible:ring-0"
-            onInput={(event) => props.onDraftChange({ ...props.draft, body: event.currentTarget.value })}
-            placeholder="Write your post"
-            ref={bodyInput}
-            value={props.draft.body}
-          />
+          </label>
+          <label class="flex flex-col gap-2">
+            <Type as="span" variant="label">Post</Type>
+            <Textarea
+              aria-label="Post"
+              class="min-h-48 w-full resize-y text-base leading-relaxed md:min-h-64"
+              onInput={(event) => props.onDraftChange({ ...props.draft, body: event.currentTarget.value })}
+              placeholder="Write your post"
+              ref={bodyInput}
+              value={props.draft.body}
+            />
+          </label>
           <Checkbox
             checked={props.draft.ageGatePolicy === "18_plus"}
             onChange={(next) => props.onDraftChange({ ...props.draft, ageGatePolicy: next === true ? "18_plus" : "none" })}
@@ -107,11 +93,9 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
           <Show when={props.unavailable}>
             {reason => <FormNote tone="warning">{reason()}</FormNote>}
           </Show>
-          <div class="flex items-center gap-1 border-t border-border-soft pt-3">
+          <div class="flex flex-wrap items-center gap-2 border-t border-border-soft pt-4">
             <Show when={props.onSong}>
-              <IconButton aria-label="Post a song" onClick={() => songInput?.click()} type="button" variant="ghost">
-                <IconMusicNote class="size-5" />
-              </IconButton>
+              <Button class="min-w-0 px-3" aria-label="Post a song" leadingIcon={<IconMusicNote class="size-5" />} onClick={() => songInput?.click()} type="button" variant="outline">Song</Button>
               <input
                 accept=".mp3,audio/mpeg"
                 aria-label="Choose a song file"
@@ -127,9 +111,7 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
               />
             </Show>
             <Show when={props.onVideo}>
-              <IconButton aria-label="Post a video" onClick={() => props.onVideo?.()} type="button" variant="ghost">
-                <IconVideoCamera class="size-5" />
-              </IconButton>
+              <Button class="min-w-0 px-3" aria-label="Post a video" leadingIcon={<IconVideoCamera class="size-5" />} onClick={() => props.onVideo?.()} type="button" variant="outline">Video</Button>
             </Show>
             <Button class="ms-auto min-w-24" disabled={!canPost()} type="submit">Post</Button>
           </div>

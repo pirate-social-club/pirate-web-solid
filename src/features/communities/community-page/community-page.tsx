@@ -181,7 +181,7 @@ function SuccessState(props: {
   const engagementApi = untrack(() => props.engagementApi);
   const resolveSession = untrack(() => props.resolveSession);
   // The media composer: the song steps and the video capture flow. Text has
-  // its own panel beside the feed and never opens this.
+  // its own form replacing the feed and never opens this.
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [mediaEntry, setMediaEntry] = createSignal<{ readonly kind: "video" } | { readonly kind: "song"; readonly file: File }>();
   const [textOpen, setTextOpen] = createSignal(false);
