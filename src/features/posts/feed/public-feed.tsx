@@ -155,10 +155,10 @@ function FeedItemCard(props: {
   const heading = () => title() ?? props.item.postType;
   const body = () => displayBody(props.item);
   const card = (controls?: JSX.Element) => (
-    <article data-feed-item-id={props.item.id}>
+    <article class="min-w-0" data-feed-item-id={props.item.id}>
       <Card>
-        <CardContent class="flex flex-col gap-3 p-5">
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <CardContent class="flex min-w-0 flex-col gap-3 p-5">
+          <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 [overflow-wrap:anywhere]">
             <Type variant="label">{props.item.communityName}</Type>
             <Type as="span" variant="caption">·</Type>
             <Type as="span" variant="caption">{displayAuthor(props.item)}</Type>
@@ -168,13 +168,13 @@ function FeedItemCard(props: {
           <Show when={props.item.postType === "song" && props.item.status === "published"}>
             <div class="ml-auto"><RewardSponsorAction communityId={props.item.communityId} postId={props.item.id} songTitle={heading()} /></div>
           </Show>
-          <Type variant="h3">
+          <Type class="min-w-0 [overflow-wrap:anywhere]" variant="h3">
             <Show when={props.item.canonicalPath} fallback={heading()}>
               {path => <a href={path()}>{heading()}</a>}
             </Show>
           </Type>
           <Show when={body()}>
-            {(value) => <Type variant="body">{value()}</Type>}
+            {(value) => <Type class="min-w-0 [overflow-wrap:anywhere]" variant="body">{value()}</Type>}
           </Show>
           <Show when={props.item.postType === "video" && props.item.videoDelivery}>
             {(state) => <VideoPlayer postId={props.item.id} state={state()} requiresAgeVerification={props.item.ageGatePolicy === "18_plus"} />}

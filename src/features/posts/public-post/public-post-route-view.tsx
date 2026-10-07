@@ -122,7 +122,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           </PublicPostEngagement></div>
         </Show>
         <Show when={props.response.content.post.post_type === "song"}>
-          <div class="mt-6 grid min-w-0 gap-5">
+          <div class="mt-6 grid min-w-0 grid-cols-1 gap-5">
             <h1 class="sr-only">{title()}</h1>
             <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>

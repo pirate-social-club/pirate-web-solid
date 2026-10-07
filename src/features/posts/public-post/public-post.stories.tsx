@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 
+import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { PublicPostRouteView } from "./public-post-route-view";
 import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
 import type { PublicPostRouteState } from "./public-post-route.model";
@@ -103,7 +104,7 @@ export const Loading: Story = {
   args: { state: new Promise<PublicPostRouteState>(() => {}) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Loading post" })).toBeInTheDocument();
+    await expect(canvas.getByRole("status", { name: "Loading post" })).toBeInTheDocument();
   },
 };
 
@@ -127,6 +128,7 @@ export const SongPostMobile: Story = {
     await expect(canvas.getByRole("button", { name: /Play A long song title/u })).toBeInTheDocument();
     await expect(canvas.getByRole("navigation", { name: "Song activities" })).toBeInTheDocument();
     await expect(canvas.queryByRole("list", { name: "Song delivery status" })).toBeNull();
+    await expectFitsViewport(canvasElement);
   },
 };
 
@@ -240,4 +242,17 @@ export const SongPostComments: Story = {
     await expect(await page.findByText("A comment on this song")).toBeInTheDocument();
     await expect(page.getByRole("textbox", { name: "Write a comment" })).toBeEnabled();
   },
+};
+
+/** URLs and identifiers must wrap even when they contain no spaces. */
+export const LongTextMobile: Story = {
+  args: { state: (() => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("expected content fixture");
+    return { ...state, response: { ...state.response, content: { ...state.response.content,
+      post: { ...state.response.content.post, post_type: "text", title: "LongTitle".repeat(30), body: "https://example.com/" + "long-path".repeat(40) },
+    } } };
+  })() },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
 };
