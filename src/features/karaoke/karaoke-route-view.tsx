@@ -31,6 +31,7 @@ import {
   type ActivityPersonaPreparationApi,
 } from "../identity/activity-persona-preparation";
 import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
+import { SongActivitySignIn } from "../activity/song-activity-sign-in.tsx";
 
 function isAgeLocked(error: unknown): boolean { return error instanceof KaraokeApiError && error.code === "age_locked"; }
 
@@ -255,17 +256,14 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   const feedback = () => deriveKaraokeFeedback(scoringState());
 
   return (
+    <Show when={session() !== undefined || sessionFailed() || authError()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}>
     <Show
-      when={!authError()}
+      when={session() !== "anonymous" && !authError()}
       fallback={
-        <KaraokeAuthRequiredState
-          ctaLabel="Sign in"
-          description="This song is available to everyone, but recording a scored take requires an account."
-          onConnect={requestGlobalSignIn}
-          onConnectIntent={prepareGlobalSignIn}
-          onConnectPreload={preloadGlobalSignInAssets}
+        <SongActivitySignIn
+          activity="karaoke"
+          preview={{ title: props.payload.title ?? "Song", firstLine: lines()[0]?.text, audioUrl: props.payload.instrumental_audio_url ?? undefined }}
           onExit={() => navigate(props.exitPath ?? "/")}
-          title="Sign in to sing"
         />
       }
     >
@@ -395,6 +393,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           </div>
         </div>
       </Show>
+    </Show>
     </Show>
   );
 }

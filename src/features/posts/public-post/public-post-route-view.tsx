@@ -125,18 +125,21 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           <div class="mt-6 grid min-w-0 grid-cols-1 gap-5">
             <h1 class="sr-only">{title()}</h1>
             <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
+              signedOutLabel={route() ? "Sign in to study or sing" : undefined}
+              memberActions={() => <>
+                <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <Show when={route()}>
+                  {(songRoute) => (
+                    <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
+                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.study}>Study</a>
+                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
+                    </nav>
+                  )}
+                </Show>
+              </>}
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
               {(controls, menuActions) => <CommunityPostCard post={songPost()} actions={controls} menuActions={menuActions} />}
             </PublicPostEngagement>
-            <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
-            <Show when={route()}>
-              {(songRoute) => (
-                <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
-                  <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.study}>Study</a>
-                  <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
-                </nav>
-              )}
-            </Show>
           </div>
         </Show>
       </article>

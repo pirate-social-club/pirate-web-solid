@@ -25,7 +25,7 @@ function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPo
   let dispose: () => void = () => undefined;
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement} />, container);
+    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement ?? { resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }), readViewerVote: async () => null, pendingStorage: createMemoryPendingEngagementStorage() }} />, container);
   });
   cleanups.push(() => { dispose(); container.remove(); });
   return container;
@@ -83,7 +83,7 @@ describe("public post route view", () => {
     expect(container.textContent).not.toContain("Post unavailable");
   });
 
-  it("renders song playback and API-owned activity paths on the detail page", () => {
+  it("renders song playback and API-owned activity paths on the signed-in detail page", async () => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("Expected fixture content");
     const container = render({
@@ -100,14 +100,14 @@ describe("public post route view", () => {
     expect(container.querySelector("button[aria-label='Play A searchable title']")).not.toBeNull();
     expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
     expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study");
+    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study"));
     expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/karaoke']")?.textContent).toBe("Karaoke");
   });
 
   it.each([
     { alignment: "unavailable", data_registration: "failed" },
     { alignment: "not_applicable", data_registration: "registered" },
-  ] as const)("keeps activities while hiding delivery diagnostics", presentation => {
+  ] as const)("keeps activities while hiding delivery diagnostics", async presentation => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("Expected fixture content");
     const container = render({ ...state, response: { ...state.response, content: {
@@ -117,11 +117,11 @@ describe("public post route view", () => {
     } } });
     expect(container.textContent).not.toContain("Lyrics timing");
     expect(container.textContent).not.toContain("DATA registration");
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull());
     expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
   });
 
-  it.each([undefined, null])("keeps activities when delivery status is unavailable", presentation => {
+  it.each([undefined, null])("keeps activities when delivery status is unavailable", async presentation => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("Expected fixture content");
     const container = render({ ...state, response: { ...state.response, content: {
@@ -131,7 +131,7 @@ describe("public post route view", () => {
     } } });
     expect(container.textContent).not.toContain("Lyrics timing");
     expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull());
     expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
   });
 
@@ -273,4 +273,31 @@ it("leaves video details without engagement or private session reads", async () 
   await vi.waitFor(() => expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull());
   expect(container.querySelector("button[aria-label='Upvote'], button[aria-label^='Comments'], button[aria-label='Post options']")).toBeNull();
   expect(resolveSession).not.toHaveBeenCalled();
+});
+
+it("shows one signed-out song action and restores member activities after sign-in", async () => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const song = { ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: "song" as const, community: "community" } } } };
+  let authenticated = false;
+  const readViewerVote = vi.fn(async () => null);
+  const container = render(song, async () => song, {
+    resolveSession: async () => authenticated ? { status: "authenticated", userId: "account", personas: [] } : "anonymous",
+    readViewerVote, pendingStorage: createMemoryPendingEngagementStorage(),
+  });
+  await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study or sing"));
+  expect(container.querySelector("nav[aria-label='Song activities']")).toBeNull();
+  expect(container.textContent).not.toContain("Sign in to comment");
+  expect(readViewerVote).not.toHaveBeenCalled();
+  const signIn = vi.fn();
+  window.addEventListener("pirate:connect", signIn);
+  try {
+    await userEvent.click([...container.querySelectorAll("button")].find(button => button.textContent === "Sign in to study or sing")!);
+    expect(signIn).toHaveBeenCalledOnce();
+  } finally { window.removeEventListener("pirate:connect", signIn); }
+  authenticated = true;
+  refreshSession();
+  await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities']")).not.toBeNull());
+  expect(container.textContent).not.toContain("Sign in to study or sing");
 });

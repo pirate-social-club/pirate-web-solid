@@ -1,41 +1,10 @@
-import type { JSX } from "@solidjs/web";
-import { Show } from "solid-js";
+import { SongActivitySignIn, type readSongActivityPreview } from "../activity/song-activity-sign-in.tsx";
 
 import {
   LoadingIndicator,
   Button,
-  IconButton,
-  IconCaretLeft,
   Type,
 } from "../../design-system";
-
-interface StudyRouteShellProps {
-  children: JSX.Element;
-  onExit?: () => void;
-  title: string;
-}
-
-/** Shared mobile frame for route states that still belong to a study session. */
-function StudyRouteShell(props: StudyRouteShellProps) {
-  return (
-    <section class="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
-      <header class="flex h-14 shrink-0 items-center gap-3 border-b border-border-soft px-4">
-        <IconButton
-          aria-label="Exit study"
-          class="size-10 bg-secondary"
-          onClick={props.onExit}
-          variant="secondary"
-        >
-          <IconCaretLeft class="size-5" />
-        </IconButton>
-        <Type as="h1" class="text-lg" variant="h4">
-          {props.title}
-        </Type>
-      </header>
-      {props.children}
-    </section>
-  );
-}
 
 export interface StudyRouteLoadingStateProps {
   label?: string;
@@ -83,31 +52,12 @@ export function StudyRouteLoadFailureState(props: StudyRouteLoadFailureStateProp
 }
 
 export interface StudyAuthRequiredStateProps {
-  ctaLabel?: string;
-  description: string;
+  postId?: string;
+  readPreview?: typeof readSongActivityPreview;
   onConnect?: () => void;
-  onConnectIntent?: () => void;
-  onConnectPreload?: () => void;
   onExit?: () => void;
-  title: string;
 }
 
 export function StudyAuthRequiredState(props: StudyAuthRequiredStateProps) {
-  return (
-    <StudyRouteShell onExit={props.onExit} title={props.title}>
-      <div class="flex min-h-0 flex-1 flex-col px-5 pt-6">
-        <Type as="h2" class="text-base" variant="body-strong">
-          Sign in
-        </Type>
-        <Type as="p" class="mt-1 max-w-[350px] text-[15px] leading-5 text-muted-foreground" variant="body">
-          {props.description}
-        </Type>
-        <Show when={props.onConnect}>
-          <Button class="mt-4 h-11 w-[120px]" onClick={() => props.onConnect?.()} onFocus={props.onConnectIntent} onPointerDown={props.onConnectIntent} onPointerEnter={props.onConnectPreload}>
-            {props.ctaLabel ?? "Sign in"}
-          </Button>
-        </Show>
-      </div>
-    </StudyRouteShell>
-  );
+  return <SongActivitySignIn activity="study" postId={props.postId} readPreview={props.readPreview} onConnect={props.onConnect} onExit={props.onExit} />;
 }

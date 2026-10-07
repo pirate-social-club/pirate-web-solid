@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
+import { expectFitsViewport } from "../../stories/viewport-story-helpers";
 import type { SessionResolution } from "../../api/session";
 import type { StudyAvailability, StudySession, StudyV2Api } from "./study-v2-api";
 import { StudyV2RouteView } from "./study-v2-route-view";
@@ -197,11 +198,12 @@ export const DirectFirstExercise: Story = {
 
 /** Anonymous visitors get the sign-in state instead of a member read. */
 export const AuthRequired: Story = {
-  args: { resolveSession: async () => "anonymous" },
+  args: { resolveSession: async () => "anonymous", readPreview: async () => ({ title: "Paper Moon", firstLine: "There is a light across the water" }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByRole("heading", { name: "Sign in to study" })).toBeInTheDocument());
-    expect(canvas.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Sign in to study" })).toBeInTheDocument());
+    expect(await canvas.findByText("There is a light across the water")).toBeInTheDocument();
+    await expectFitsViewport(canvasElement);
   },
 };
 
@@ -317,4 +319,9 @@ export const SessionError: Story = {
     );
     await expect(canvas.queryByRole("button", { name: "Record" })).toBeNull();
   },
+};
+
+export const AuthRequiredMobile: Story = {
+  ...AuthRequired,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };

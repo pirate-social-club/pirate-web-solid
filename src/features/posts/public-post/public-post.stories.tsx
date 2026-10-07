@@ -126,7 +126,8 @@ export const SongPostMobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: /Play A long song title/u })).toBeInTheDocument();
-    await expect(canvas.getByRole("navigation", { name: "Song activities" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Sign in to study or sing" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("navigation", { name: "Song activities" })).toBeNull();
     await expect(canvas.queryByRole("list", { name: "Song delivery status" })).toBeNull();
     await expectFitsViewport(canvasElement);
   },
@@ -255,4 +256,25 @@ export const LongTextMobile: Story = {
   })() },
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
+};
+
+export const SongPostSignedOutDesktop: Story = {
+  ...SongPostMobile,
+  globals: { viewport: { value: "reset", isRotated: false } },
+};
+
+export const SongPostSignedIn: Story = {
+  args: { state: songState(), engagement: {
+    resolveSession: async () => ({ status: "authenticated", userId: "song-story-viewer", personas: [] }),
+    readViewerVote: async () => null,
+    pendingStorage: createMemoryPendingEngagementStorage(),
+  } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("navigation", { name: "Song activities" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Study" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Karaoke" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Sign in to study or sing" })).toBeNull();
+    await expectFitsViewport(canvasElement);
+  },
 };

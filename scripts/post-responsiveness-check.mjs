@@ -20,8 +20,8 @@ try {
     catch { await new Promise(resolve => setTimeout(resolve, 100)); }
   }
   if (!index) throw new Error("Storybook index unavailable");
-  const stories = Object.values(index.entries).filter(story => story.type === "story" && /^(screens-posts-publicpostroute|screens-community-pageshell|screens-profiles-publicprofilepage|parts-posts-shared-engagement)--/u.test(story.id));
-  if (!stories.length) throw new Error("No post, community, profile or comment stories found");
+  const stories = Object.values(index.entries).filter(story => story.type === "story" && (/^(screens-posts-publicpostroute|screens-community-pageshell|screens-profiles-publicprofilepage|parts-posts-shared-engagement)--/u.test(story.id) || /^(screens-studying-studyv2route--auth-required|screens-karaoke-route--session-signed-out)(-mobile)?$/u.test(story.id)));
+  if (!stories.length) throw new Error("No post, community, profile, comment or activity stories found");
   await Promise.all([320, 390, 1280].map(async width => {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     await page.route(/\/song\/playback-access/u, route => route.fulfill({ json: {
@@ -31,9 +31,10 @@ try {
     await page.route("https://audio.example.test/**", route => route.fulfill({ status: 200, contentType: "audio/wav", body: Buffer.alloc(44) }));
     for (const story of stories) {
       try {
+        if (process.env.RESPONSIVE_VERBOSE) console.error(`${width}: ${story.id}`);
         await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story`, { waitUntil: "load" });
         await page.waitForFunction(() => document.body.classList.contains("sb-show-main") && document.querySelector("#storybook-root")?.childElementCount > 0);
-        await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+        await page.evaluate(async () => { await Promise.race([document.fonts.ready, new Promise((_, reject) => setTimeout(() => reject(new Error("Fonts did not settle")), 5000))]); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
         const result = await page.evaluate(() => {
           const viewport = document.documentElement.clientWidth;
           const scrollWidth = document.documentElement.scrollWidth;

@@ -429,11 +429,14 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} readPreview={async () => ({ title: "Real song", firstLine: "Opening lyric" })} />
     ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
     expect(loadAvailability).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(container.textContent).toContain("Opening lyric"));
+    expect(container.querySelector("button")?.textContent).not.toBe("Record");
+    expect([...container.querySelectorAll("button")].some(button => button.textContent === "Sign in to study")).toBe(true);
   });
 
   test("starts speaking practice without inventing a helper language or level", async () => {

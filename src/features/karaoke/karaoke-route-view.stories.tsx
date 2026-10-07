@@ -1,4 +1,6 @@
 import { createRouter, memoryHistory } from "@solidjs/router";
+import { expect, within } from "storybook/test";
+import { expectFitsViewport } from "../../stories/viewport-story-helpers";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import type { ApiKaraokeSession } from "./karaoke-session-bridge";
@@ -137,4 +139,20 @@ export const LeaderboardLoadFailure: Story = {
       postId={storyPostId}
     />
   ),
+};
+
+export const SessionSignedOut: Story = {
+  render: () => <KaraokeSessionRouteView client={storyKaraokeClient()} postId={storyPostId} resolveSession={async () => "anonymous"} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("button", { name: "Sign in to sing" })).toBeInTheDocument();
+    await expect(canvas.getByText("I don't know why", { exact: true })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Start karaoke" })).toBeNull();
+    await expectFitsViewport(canvasElement);
+  },
+};
+
+export const SessionSignedOutMobile: Story = {
+  ...SessionSignedOut,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
