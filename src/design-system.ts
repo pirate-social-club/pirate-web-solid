@@ -211,3 +211,5 @@ export {
 export { ConfirmDialog, type ConfirmDialogProps } from "@pirate/web-solid-ui";
 
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@pirate/web-solid-ui";
+
+export { RewardPill, type RewardPillProps } from "@pirate/web-solid-ui";

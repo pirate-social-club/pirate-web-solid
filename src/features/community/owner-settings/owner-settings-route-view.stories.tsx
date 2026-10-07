@@ -139,7 +139,7 @@ export const Loading: Story = {
   args: { state: new Promise<OwnerSettingsRouteState>(() => {}) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("status")).toHaveTextContent("Loading community settings…");
+    await expect(await canvas.findByRole("status", { name: "Loading community settings" })).toBeInTheDocument();
   },
 };
 

@@ -1,5 +1,5 @@
 import { For, Show, createSignal, createUniqueId, onCleanup, onSettled } from "solid-js";
-import { Button, IconGift, IconMicrophone, IconPlaylist, IconVideoCamera, LoadingIndicator, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, ModalTrigger, PillButton } from "../../../design-system.ts";
+import { Button, IconGift, IconMicrophone, IconPlaylist, IconVideoCamera, LoadingIndicator, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, ModalTrigger, PillButton, RewardPill } from "../../../design-system.ts";
 import type { AuthenticatedSession } from "../../../api/session.ts";
 import { readSongVideoPolicy, songVideoEntryHref, type SongVideoEligibilityReader } from "./song-video-entry.tsx";
 import { readSongActivityRewards, songActivityRewards, type SongActivityRewards } from "./song-activities-rewards.ts";
@@ -100,23 +100,22 @@ export function SongActivities(props: {
         <div class="mt-4 space-y-3">
           <For each={options()}>{option => {
             const activityRewards = () => rewards().filter(reward => reward.activity === option.id);
-            const summary = () => {
-              const labels = activityRewards().map(reward => reward.shortLabel).join(" · ");
-              return activityRewards().length === 1 || labels.length <= 28 ? labels : `${activityRewards().length} rewards`;
-            };
+            const rewardFor = (id: string) => activityRewards().find(reward => reward.id === id)!;
             const expanded = () => expandedReward() === option.id;
             const detailsId = `${rewardDetailsId}-${option.id}`;
             return <section class="min-w-0 rounded-xl border border-border-soft bg-card">
               <div class="grid grid-cols-[1.5rem_minmax(0,1fr)_fit-content(50%)] grid-rows-[auto_auto] gap-x-3 gap-y-1 p-4">
                 <button type="button" disabled={!ready()} aria-label={option.label} class="col-span-3 row-span-2 col-start-1 row-start-1 grid min-w-0 grid-cols-subgrid grid-rows-subgrid rounded-md text-start disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" onClick={() => choose(option.href)}>
-                  <option.icon class="col-start-1 row-span-2 mt-0.5 size-6 text-muted-foreground" aria-hidden="true" />
-                  <span class="col-start-2 row-start-1 self-center font-semibold">{option.label}</span>
+                  <option.icon class="col-start-1 row-span-2 mt-1.5 size-6 text-muted-foreground" aria-hidden="true" />
+                  <span class="col-start-2 row-start-1 flex min-h-9 items-center self-start font-semibold">{option.label}</span>
                   <span class="col-span-2 col-start-2 row-start-2 text-sm text-muted-foreground">{option.description}</span>
                 </button>
                 <Show when={activityRewards().length > 0}>
-                  <button type="button" aria-label={`${option.label} rewards: ${summary()}`} aria-expanded={expanded() ? "true" : "false"} aria-controls={detailsId}
-                    class="z-10 col-start-3 row-start-1 self-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-foreground [overflow-wrap:anywhere] hover:bg-amber-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    onClick={() => setExpandedReward(expanded() ? undefined : option.id)}>{summary()}</button>
+                  <div class="z-10 col-start-3 row-start-1 flex min-w-0 flex-wrap justify-end gap-1.5 self-center">
+                    <For each={activityRewards().map(reward => reward.id)}>{id => <RewardPill kind={rewardFor(id).kind}
+                      aria-label={`${option.label} rewards: ${rewardFor(id).shortLabel}`} aria-expanded={expanded() ? "true" : "false"} aria-controls={detailsId}
+                      onClick={() => setExpandedReward(expanded() ? undefined : option.id)}>{rewardFor(id).shortLabel}</RewardPill>}</For>
+                  </div>
                 </Show>
               </div>
               <Show when={activityRewards().length > 0}>

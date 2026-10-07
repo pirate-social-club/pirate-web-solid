@@ -20,9 +20,21 @@ export const activityRewardsFixture: SongActivityRewards = {
 };
 export const noActivityRewardsFixture: SongActivityRewards = { pool: null, bonuses: { object: "song_asset_bonus_list", items: [] } };
 
+/** API-reported drawing-wide jackpot; intentionally distinct from the $10 ticket budget. */
+export const jackpotActivityRewardsFixture: SongActivityRewards = {
+  ...activityRewardsFixture,
+  pool: { ...activityRewardsFixture.pool!, drawing: {
+    object: "megapot_pool_drawing_projection", drawing_id: "review-drawing", lifecycle_status: "entry_open", state: "entry_open",
+    entry_cutoff_at: "2099-01-01T00:00:00Z", beneficiary_count: 0, ticket_price_ceiling_atomic: "1000000", actual_ticket_cost_atomic: "0",
+    gross_prize_pool_atomic: "1000000000000", global_tickets_bought: null, prize_pool_observed_at: "2026-10-07T12:00:00Z",
+    prize_pool_basis: "gross_observed_before_referral_win_share_terminal_last_observed_pre_rollover", global_tickets_basis: "drawing_wide_all_megapot_buyers",
+    net_winnings_atomic: "0", commitment_reference: null, snapshot_hash: null, ticket_id: null, purchase_transaction_hash: null, claim_transaction_hash: null,
+  } },
+};
+
 /** Two independent rewards for karaoke; the asset bonus is shared with study. */
 export const multipleActivityRewardsFixture: SongActivityRewards = {
-  ...activityRewardsFixture,
+  ...jackpotActivityRewardsFixture,
   bonuses: { ...activityRewardsFixture.bonuses, items: activityRewardsFixture.bonuses.items.map(bonus => ({
     ...bonus,
     qualification_policies: [...(bonus.qualification_policies ?? []), ...(activityRewardsFixture.pool?.qualification_policies ?? [])],

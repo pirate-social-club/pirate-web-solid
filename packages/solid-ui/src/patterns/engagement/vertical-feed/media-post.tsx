@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { createEffect, Show, untrack } from "solid-js";
 
 import { Type } from "@/components/data-display/type/type";
@@ -28,6 +29,8 @@ export interface MediaPostProps extends MediaPostData {
   attachVideo?: VideoSourceAttacher;
   /** Hide the shared author/action overlays when a product host owns chrome. */
   showChrome?: boolean;
+  /** Host-owned labels below the author/caption/soundtrack. */
+  renderLabels?: () => JSX.Element;
   class?: string;
   onLikeClick?: () => void;
   onShareClick?: () => void;
@@ -156,6 +159,8 @@ export function MediaPost(props: MediaPostProps) {
           onTimeUpdate={handleTimeUpdate}
         />
 
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-1/2 bg-linear-to-t from-black/80 to-transparent" />
+
         {/* Desktop: post info overlay, bottom left inside the video container.
             Author and soundtrack degrade to plain text when unwired. */}
         <Show when={props.showChrome ?? true}>
@@ -205,6 +210,7 @@ export function MediaPost(props: MediaPostProps) {
               </button>
             </Show>
           </Show>
+          {props.renderLabels?.()}
           </div>
         </Show>
       </div>
@@ -260,6 +266,7 @@ export function MediaPost(props: MediaPostProps) {
             </button>
           </Show>
         </Show>
+        {props.renderLabels?.()}
         </div>
 
         {/* Mobile: actions overlay on the right side */}

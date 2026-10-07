@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 
-import { activityRewardsFixture, multipleActivityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
+import { jackpotActivityRewardsFixture, multipleActivityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
 import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { PublicPostRouteView } from "./public-post-route-view";
 import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
@@ -281,12 +281,12 @@ export const SongActivities: Story = {
 };
 
 export const SongActivitiesRewards: Story = {
-  args: { state: songState(), activities: { readRewards: async () => activityRewardsFixture, readVideoEligibility: async () => true } },
+  args: { state: songState(), activities: { readRewards: async () => jackpotActivityRewardsFixture, readVideoEligibility: async () => true } },
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities · rewards available" }));
     const page = within(canvasElement.ownerDocument.body);
     await expect(await page.findByRole("button", { name: "Study rewards: 2.5 USDC" })).toBeInTheDocument();
-    await expect(page.getByRole("button", { name: "Karaoke rewards: Lottery" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("button", { name: "Karaoke rewards: $1M lottery" })).toHaveAttribute("aria-expanded", "false");
     await expect(page.getByText(/This funds tickets, not a guaranteed payout/u)).not.toBeVisible();
     await expectFitsViewport(canvasElement);
   },
@@ -303,14 +303,14 @@ export const SongActivitiesRewardsUnavailable: Story = {
   },
 };
 
-/** A bonus and lottery remain separate offers, summarized in one inline badge. */
+/** A bonus and lottery remain separate offers, shown as two inline pills. */
 export const SongActivitiesMultipleRewards: Story = {
   ...SongActivitiesRewards,
   args: { state: songState(), activities: { readRewards: async () => multipleActivityRewardsFixture, readVideoEligibility: async () => true } },
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities · rewards available" }));
     const page = within(canvasElement.ownerDocument.body);
-    await expect(await page.findByRole("button", { name: "Karaoke rewards: 2.5 USDC · Lottery" })).toHaveAttribute("aria-expanded", "false");
+    await expect(await page.findByRole("button", { name: "Karaoke rewards: $1M lottery" })).toHaveAttribute("aria-expanded", "false");
     await expectFitsViewport(canvasElement);
   },
 };

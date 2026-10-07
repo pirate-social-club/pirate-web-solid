@@ -49,6 +49,7 @@ export function readSongAttribution(video: unknown): SongAttribution | null {
 }
 
 export interface SongAttributionLink {
+  readonly communityId?: string;
   readonly href: string;
   readonly title: string | null;
   readonly authorName: string | null;
@@ -70,6 +71,7 @@ export interface SongAttributionPostRead {
   readonly content?: {
     readonly song_presentation?: unknown;
     readonly post: {
+      readonly community?: string;
       readonly song_title?: string | null;
       readonly title?: string | null;
       readonly author_persona?: {
@@ -121,6 +123,7 @@ export function createSongAttributionLinkResolver(
         const paths = response.route.activity_paths;
         return {
           href: response.route.canonical_path,
+          ...(post.community ? { communityId: post.community } : {}),
           title,
           authorName,
           ...(paths ? { activityPaths: { study: paths.study, karaoke: paths.karaoke } } : {}),

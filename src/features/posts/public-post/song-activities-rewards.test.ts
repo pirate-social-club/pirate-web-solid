@@ -36,3 +36,13 @@ it("closes reward entry at the cutoff even if server status has not advanced", (
   expect(songActivityRewards(data, Date.parse(drawing.entry_cutoff_at))).toHaveLength(0);
   expect(songActivityRewards({ ...data, pool: { ...data.pool, drawing: { ...drawing, lifecycle_status: "cutoff_frozen" } } }, Date.parse("2026-10-07T11:00:00Z"))).toHaveLength(0);
 });
+
+it("formats the drawing jackpot rather than the song's ticket budget, without rounding up", async () => {
+  const { jackpotActivityRewardsFixture } = await import("./song-activities.fixtures.ts");
+  const pool = jackpotActivityRewardsFixture.pool!;
+  expect(songActivityRewards(jackpotActivityRewardsFixture).find(reward => reward.kind === "lottery")?.shortLabel).toBe("$1M lottery");
+  for (const [amount, label] of [["850999000000", "$850.9K lottery"], ["1999999000000", "$1.9M lottery"], ["250000000", "$250 lottery"]]) {
+    expect(songActivityRewards({ ...jackpotActivityRewardsFixture, pool: { ...pool, drawing: { ...pool.drawing!, gross_prize_pool_atomic: amount } } }).find(reward => reward.kind === "lottery")?.shortLabel).toBe(label);
+  }
+  expect(songActivityRewards({ ...jackpotActivityRewardsFixture, pool: { ...pool, drawing: { ...pool.drawing!, prize_pool_observed_at: null } } }).find(reward => reward.kind === "lottery")?.shortLabel).toBe("Lottery");
+});

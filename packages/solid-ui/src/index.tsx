@@ -547,3 +547,5 @@ export {
   type ModalContentProps,
   type ModalProps,
 } from "./patterns/overlays/modal/modal";
+
+export { RewardPill, type RewardPillProps } from "./components/actions/reward-pill/reward-pill";

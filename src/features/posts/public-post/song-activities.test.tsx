@@ -98,13 +98,13 @@ it("summarizes multiple rewards without combining payouts or starting the activi
       items: [bonus, { ...bonus, leg_id: "another-bonus", token_symbol: "TESTTOKEN", token_address: "0x0000000000000000000000000000000000000002", amount_per_claim_atomic: "1000000", qualification_policies: bonus.qualification_policies?.filter(policy => policy.activity === "karaoke") ?? [] }] } }),
   });
   await userEvent.click(button("Activities"));
-  await vi.waitFor(() => expect(button("Karaoke rewards: 3 rewards")).not.toBeNull());
-  await userEvent.click(button("Karaoke rewards: 3 rewards"));
+  await vi.waitFor(() => expect(button("Karaoke rewards: 1 TESTTOKEN")).not.toBeNull());
+  await userEvent.click(button("Karaoke rewards: 1 TESTTOKEN"));
   const details = document.querySelector<HTMLElement>('[aria-label="Karaoke reward details"]')!;
   expect(details.hidden).toBe(false);
   expect(details.textContent).toContain("2.5 USDC bonus");
   expect(details.textContent).toContain("1 TESTTOKEN bonus");
-  expect(details.textContent).toContain("Lottery");
+  expect(details.textContent).toContain("$1M lottery");
   expect(details.textContent).not.toContain("3.5 USDC");
   expect(choose).not.toHaveBeenCalled();
 });
