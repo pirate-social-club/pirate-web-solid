@@ -741,11 +741,17 @@ export const SongOriginalUnanswered: Story = {
     const field = await canvas.findByRole("textbox", { name: "Original song link" });
     await userEvent.type(field, "/posts/original-song");
     await userEvent.click(canvas.getByRole("button", { name: "Use this original song" }));
-    const retry = await canvas.findByRole("button", { name: "Try this original again" });
+    await canvas.findByRole("button", { name: "Try this original again" });
     await expect(field).toBeDisabled();
     await expect(field).toHaveValue("/posts/original-song");
     await expect(canvas.getByRole("button", { name: "Use this original song" })).toBeDisabled();
-    await userEvent.click(retry);
+    await userEvent.click(canvas.getByRole("button", { name: "Go elsewhere" }));
+    await canvas.findByRole("main", { name: "Another page" });
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community" }));
+    const restored = await canvas.findByRole("textbox", { name: "Original song link" });
+    await expect(restored).toBeDisabled();
+    await expect(restored).toHaveValue("/posts/original-song");
+    await userEvent.click(canvas.getByRole("button", { name: "Try this original again" }));
     await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
     await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
   },

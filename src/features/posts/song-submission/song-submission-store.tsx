@@ -34,6 +34,7 @@ export interface SongSubmissionItem extends Omit<SongSubmissionHandover, "source
   readonly bindingOriginal?: boolean;
   readonly originalUnconfirmed?: boolean;
   readonly originalError?: string | null;
+  readonly originalLink?: string;
   readonly canBindOriginal?: boolean;
 }
 
@@ -98,6 +99,7 @@ export function createSongSubmissionStore(options: {
           rerunning: snapshot.matches("rerunning"),
           bindingOriginal: snapshot.matches("bindingOriginal"),
           originalError: snapshot.context.originalError,
+          originalLink: snapshot.context.originalLink,
           originalUnconfirmed: source.hasPendingOriginal?.() === true,
         });
         if (snapshot.status === "done") actors.delete(item.submissionId);
