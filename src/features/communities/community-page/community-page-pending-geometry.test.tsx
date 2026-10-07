@@ -1,9 +1,10 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
+  GetPublicCommunitiesCommunityRefFeedResponse,
 } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, type Component } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { SessionResolution } from "../../../api/session.ts";
@@ -11,6 +12,8 @@ import { ApplicationSessionProvider, type ApplicationSessionState } from "../../
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityThreadPage } from "./community-thread-feed-api.ts";
 import CommunityPage from "./community-page.tsx";
+import { createRouter, memoryHistory, query, revalidate, useNavigate } from "@solidjs/router";
+import CommunityRoute, { route as communityRoute } from "../../../routes/c/[path_segment]/index.tsx";
 
 const disposers: Array<() => void> = [];
 
@@ -638,5 +641,87 @@ describe("what a community offers each viewer", () => {
     expect(header?.textContent).not.toContain("c/community_");
     expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href") ?? "")
       .toContain(harbor.communityId);
+  });
+});
+
+
+describe("community file-route navigation", () => {
+  test.each([
+    ["community identifiers", harbor.communityId, lagoon.communityId],
+    ["root routes", harbor.pathSegment, lagoon.pathSegment],
+  ])("a move between %s replaces the preloaded community", async (_kind, first, second) => {
+    query.clear();
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      let body: GetCPathSegmentResponse | GetCommunitiesCommunityIdPreviewResponse | GetPublicCommunitiesCommunityRefFeedResponse;
+      const routeMatch = /^\/api\/c\/([^/]+)$/u.exec(path);
+      const previewMatch = /^\/api\/communities\/([^/]+)\/preview$/u.exec(path);
+      const feedMatch = /^\/api\/public-communities\/([^/]+)\/feed$/u.exec(path);
+      if (routeMatch?.[1]) {
+        body = await client.get_cPathSegment({ path: { path_segment: decodeURIComponent(routeMatch[1]) } });
+      } else if (previewMatch?.[1]) {
+        body = await client.get_communitiesCommunityIdPreview({ path: { communityId: previewMatch[1] } });
+      } else if (feedMatch?.[1]) {
+        const fixture = fixtureFor(feedMatch[1]);
+        body = {
+          community: await client.get_communitiesCommunityIdPreview({ path: { communityId: fixture.communityId } }),
+          items: [{
+            post: {
+              id: `post-${fixture.pathSegment}`, object: "post", community: fixture.communityId,
+              authorship_mode: "human_direct", identity_mode: "public", post_type: "text",
+              status: "published", visibility: "public", analysis_state: "allow",
+              content_safety_state: "safe", age_gate_policy: "none", created: 1_756_752_000,
+              title: fixture.threadTitle, body: "Public feed content.",
+            },
+            thread_snapshot: null, upvote_count: 0, downvote_count: 0, like_count: 0,
+            viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en",
+            translation_state: "ready", machine_translated: false, source_hash: null,
+          }],
+          next_cursor: null,
+        };
+      } else {
+        return new Response(JSON.stringify({ error: { code: "auth_error", message: "Anonymous fixture", retryable: false } }), { status: 401, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      let navigate: ReturnType<typeof useNavigate> | undefined;
+      function RouteWithNavigation(props: Parameters<typeof CommunityRoute>[0]) {
+        navigate = useNavigate();
+        return <CommunityRoute {...props} />;
+      }
+      // SAFETY: the real router supplies this file route's params and data;
+      // this cast only widens its component type for the router test harness.
+      const SectionComponent = RouteWithNavigation as Component<{}>;
+      const TestRouter = createRouter({
+        history: memoryHistory(`/c/${first}`),
+        routes: [{ ...communityRoute, path: "/c/:path_segment", component: SectionComponent }],
+      });
+      const container = render(() => <TestRouter>{routerProps => routerProps.children}</TestRouter>);
+      const routeReads = () => fetchImpl.mock.calls.filter(([input]) => new URL(input instanceof Request ? input.url : String(input)).pathname.startsWith("/api/c/"));
+      await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe(harbor.displayName));
+      await vi.waitFor(() => expect(container.textContent).toContain(harbor.threadTitle));
+      expect(routeReads()).toHaveLength(1);
+
+      navigate!(`/c/${second}`);
+      await vi.waitFor(() => expect(routeReads()).toHaveLength(2));
+      await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe(lagoon.displayName));
+      await vi.waitFor(() => expect(container.textContent).toContain(lagoon.threadTitle));
+      expect(container.textContent).not.toContain(harbor.threadTitle);
+      expect(document.title).toContain(lagoon.displayName);
+      expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href")).toContain(`/c/${second}`);
+
+      revalidate("community-page");
+      await vi.waitFor(() => expect(routeReads()).toHaveLength(3));
+      expect(container.querySelector("h1")?.textContent).toBe(lagoon.displayName);
+      navigate!(`/c/${first}`);
+      await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe(harbor.displayName));
+      await vi.waitFor(() => expect(container.textContent).toContain(harbor.threadTitle));
+      expect(container.textContent).not.toContain(lagoon.threadTitle);
+    } finally {
+      for (const dispose of disposers.splice(0)) dispose();
+      vi.unstubAllGlobals();
+    }
   });
 });
