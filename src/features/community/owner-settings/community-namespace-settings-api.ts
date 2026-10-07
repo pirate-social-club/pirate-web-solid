@@ -187,6 +187,8 @@ function mapSnapshot(
   const lifecycle = lifecycleProjection(response);
   const common = {
     attachment,
+    root_import_session_id: response.root_import_session_id,
+    publish_plan_sha256: response.publish_plan_sha256,
     community_id: response.community_id,
     expires_at: response.expires_at,
     family: "hns" as const,
@@ -432,6 +434,13 @@ export function createCommunityNamespaceSettingsApi(
       }
 
       if (command.expected_generation !== current.generation) {
+        // A pre-acknowledgement read may have advanced the adapter before a
+        // failed POST left the UI behind. A saved publication may resync its
+        // own session here, but only a fresh command may perform a write.
+        if (command.kind === "acknowledge_complete_resource" && command.publication
+          && currentSessionId !== null && command.publication.root_import_session_id === currentSessionId) {
+          return load(currentSessionId);
+        }
         throw new CommunityNamespaceSettingsApiError("The community address changed. Refresh and try again.");
       }
       if (command.kind === "change_namespace") {
@@ -496,7 +505,11 @@ export function createCommunityNamespaceSettingsApi(
         return current;
       }
       if (command.kind === "acknowledge_complete_resource") {
+        if (command.publication && command.publication.root_import_session_id !== sessionId) {
+          throw new CommunityNamespaceSettingsApiError("The saved wallet update belongs to a different import.");
+        }
         await load(sessionId);
+        if (command.publication && command.publication.publish_plan_sha256 !== current.publish_plan_sha256) return current;
         if (current.next_action.kind !== "publish_resource" || current.next_action.check_pending) return current;
       }
       const response = await client().post_communitiesCommunityIdHnsRootImportsSessionIdPoll({

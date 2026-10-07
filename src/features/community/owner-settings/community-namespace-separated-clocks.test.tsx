@@ -331,6 +331,16 @@ test("a deadline the server still reports as pending is asked about once, not in
 type BobScope = { bob3?: { connect: () => Promise<{ sendUpdate: (...args: unknown[]) => Promise<void>; signWithName: () => Promise<string> }> } };
 
 function installBob() {
+  localStorage.clear();
+  const originalLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+  Object.defineProperty(navigator, "locks", { configurable: true, value: {
+    request: async (_key: string, _options: LockOptions, action: () => Promise<void>) => action(),
+  } });
+  disposers.push(() => {
+    localStorage.clear();
+    if (originalLocks) Object.defineProperty(navigator, "locks", originalLocks);
+    else Reflect.deleteProperty(navigator, "locks");
+  });
   const sendUpdate = vi.fn(async () => {});
   // SAFETY: the controller reads the optional Bob provider from globalThis;
   // this installs exactly that one optional property for the test.
@@ -342,6 +352,8 @@ function installBob() {
 
 const walletPublishSnapshot: NamespaceSettingsSnapshot = {
   ...publishSnapshot,
+  root_import_session_id: "clock-session",
+  publish_plan_sha256: "a".repeat(64),
   next_action: {
     kind: "publish_resource",
     acknowledgement_required: true,
@@ -524,7 +536,7 @@ test("a same-revision read after a failed status refresh keeps publication block
 test("the Bob click checks the publication deadline itself, even before the panel re-renders", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  const publishCompleteResource = vi.fn(async () => {});
+  const publishCompleteResource = vi.fn(async () => ({ txid: null }));
   const onCommand = vi.fn();
   const snapshot: NamespaceSettingsSnapshot = {
     ...walletPublishSnapshot,
@@ -546,7 +558,7 @@ test("the Bob click checks the publication deadline itself, even before the pane
       onCommand={onCommand}
       onDraftRootLabelChange={() => {}}
       snapshot={snapshot}
-      wallet={{ isAvailable: () => true, publishCompleteResource, signRootOwnership: async () => "signature" }}
+      wallet={{ isAvailable: () => true, connectForPublication: async () => ({ publishCompleteResource }), signRootOwnership: async () => "signature" }}
     />
   ));
   const bob = button(container, "Publish to midnight/ with Bob Wallet");
