@@ -280,67 +280,17 @@ describe("the designed rights step", () => {
 });
 
 describe("the community dialog's video entrance", () => {
-  /** Renders the dialog exactly as the community page configures it. */
-  function mountCommunityDialog() {
+  test("an explicit video entry opens the host runtime without a text form", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
-    let dispose = () => {};
-    createRoot(rootDispose => {
-      dispose = rootDispose;
-      solidRender(() => (
-        <CreatePostDialog
-          communityContext={{ id: "community-one", name: "Pirate Harbor" }}
-          onOpenChange={() => {}}
-          open
-          personas={[{
-            personaId: "persona-one",
-            displayName: "Persona One",
-            avatarRef: null,
-            primaryPublicHandle: null,
-            communityBinding: null,
-          }]}
-          principalId="account-one"
-        />
-      ), container);
+    createRoot(dispose => {
+      disposers.push(() => { dispose(); container.remove(); });
+      solidRender(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+        initialMode="video" open onOpenChange={() => {}}
+        personas={[{ personaId: "persona-one", displayName: "Profile", avatarRef: null,
+          primaryPublicHandle: null, communityBinding: null }]} principalId="account-one" />, container);
     });
-    disposers.push(() => { dispose(); container.remove(); });
-    return container;
-  }
-
-  test("a dropped video is refused rather than lost when the host owns video entry", async () => {
-    mountCommunityDialog();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    const zone = document.body.querySelector("[data-composer-drop-zone]");
-    expect(zone).not.toBeNull();
-    const event = new Event("drop", { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "dataTransfer", {
-      value: { files: [new File([" "], "clip.mp4", { type: "video/mp4" })] },
-    });
-    zone!.dispatchEvent(event);
-    flush();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    // The dialog swaps this composer for its own video runtime on a video
-    // mode change, and that runtime cannot receive a file staged here, so the
-    // drop must not silently take that path.
-    expect(document.body.textContent).toContain("Start a video with the Video action");
-    expect(document.body.querySelector("[data-composer-drop-zone]")).not.toBeNull();
-    expect(document.body.textContent).not.toContain("clip.mp4");
-  });
-
-  test("the Video action still reaches the host's video runtime", async () => {
-    mountCommunityDialog();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    const video = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Video");
-    expect(video).toBeDefined();
-    video!.click();
-    flush();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    // Leaving the composer for the host's runtime is the supported entrance.
-    expect(document.body.querySelector("[data-composer-drop-zone]")).toBeNull();
+    await vi.waitFor(() => expect(document.querySelector("[data-create-video-overlay]")).not.toBeNull());
+    expect(document.querySelector("#create-post-body")).toBeNull();
   });
 });

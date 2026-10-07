@@ -1,5 +1,4 @@
 /** @jsxImportSource @solidjs/web */
-import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
@@ -31,9 +30,6 @@ import { VideoComposerRuntime } from "../video-submission/video-composer-runtime
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import type { SongSourceReader } from "./song-excerpt-source";
-import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
-import type { TextSubmissionTransport } from "./text-submission-transport";
-import { createTextSubmissionStore, useTextSubmissionStore } from "../text-submission/text-submission-store.tsx";
 import { useSongSubmissionStore, type SongSubmissionStore } from "../song-submission/song-submission-store.tsx";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { titleFromFilename } from "./write-step";
@@ -46,35 +42,9 @@ import type {
   SongMode,
 } from "./types";
 
-export interface CreatePostDraft {
-  readonly communityId: string;
-  readonly personaId: string;
-  readonly title: string;
-  readonly body: string;
-  readonly idempotencyKey: string;
-  readonly ageGatePolicy: AuthorAgeGatePolicy;
-}
-
 export interface PostCommunityContext {
   readonly id: string;
   readonly name: string;
-}
-
-/** Keep request construction pure so the contract boundary is easy to test. */
-export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmissionRequestEnvelopeV1 {
-  const path = { communityId: draft.communityId.trim() } satisfies CreatePostInput["path"];
-  const body = {
-    idempotency_key: draft.idempotencyKey,
-    persona_id: draft.personaId.trim(),
-    post_type: "text",
-    authorship_mode: "human_direct",
-    identity_mode: "public",
-    visibility: "public",
-    author_declared_rating: draft.ageGatePolicy === "18_plus" ? "adult_18" : "general",
-    title: draft.title.trim() === "" ? null : draft.title.trim(),
-    body: draft.body.trim(),
-  } satisfies CreatePostInput["body"];
-  return { path, body };
 }
 
 export function initialOperationPersonaId(
@@ -117,14 +87,9 @@ export interface CreatePostDialogProps {
   readonly initialMode?: "song" | "video";
   /** The audio file chosen before the song steps opened. */
   readonly initialSongFile?: File;
-  /** The host has its own text composer, so leaving the song or video flow
-   * closes this one instead of falling back to a text form. */
-  readonly textHostedElsewhere?: boolean;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
-  /** A text post was handed to the submission owner for this community. */
-  readonly onTextSubmitted?: (communityId: string) => void;
   /** A submitted song was handed to the submission owner for this community. */
   readonly onSongSubmitted?: (communityId: string) => void;
   /** The owner a submitted song is handed to when the host has no application
@@ -133,7 +98,6 @@ export interface CreatePostDialogProps {
   readonly personaId?: string;
   readonly principalId?: string;
   readonly personas?: readonly ActivePersonaPublicProjection[];
-  readonly transport?: TextSubmissionTransport;
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
@@ -180,18 +144,13 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [title, setTitle] = createSignal(untrack(() => props.initialMode === "song" && props.initialSongFile
     ? titleFromFilename(props.initialSongFile.name)
     : ""));
-  const [body, setBody] = createSignal("");
-  const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
-  const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => ((props.initialVideoSong || props.freshVideo) ? "video" : props.initialMode ?? "text")),
+  const [mode, setMode] = createSignal<"song" | "video">(
+    untrack(() => ((props.initialVideoSong || props.freshVideo) ? "video" : props.initialMode ?? "song")),
   );
-  const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
-  const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
-    if (mode() === "song") setSongAgeGatePolicy(next);
-    else setTextAgeGatePolicy(next);
-  };
   const [songMode, setSongMode] = createSignal<SongMode>("original");
+  // Discarding a retained song also starts its steps from the beginning.
+  const [songDraftVersion, setSongDraftVersion] = createSignal(1);
   const initialSongFile = untrack(() => props.initialMode === "song" ? props.initialSongFile : undefined);
   const [song, setSong] = createSignal<SongComposerState>(initialSongFile === undefined ? {
     title: "",
@@ -237,9 +196,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     initialPersonaId,
     { ownedWrite: true },
   );
-  const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId, { ownedWrite: true });
   const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(untrack(() => props.personaId?.trim() || undefined), { ownedWrite: true });
-  const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : mode() === "song" ? songPersonaId() : textPersonaId();
+  const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : songPersonaId();
   const recipientProfiles = () => personas().map(persona => ({
     personaId: persona.personaId,
     displayName: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
@@ -257,13 +215,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   let mediaUploadController: AbortController | undefined;
   let finishingPublishedSong = false;
 
-  // Text posts are delivered by the application's submission owner, which
-  // outlives this dialog. A render outside the shell gets a detached store.
   const songStore = useSongSubmissionStore() ?? untrack(() => props.songStore) ?? null;
-  // Set once the song belongs to the application's owner; this session's own
-  // signals are gone by then and must not be written from coordinator callbacks.
+  // The coordinator stops writing this dialog's state after handover.
   let handedOver = false;
-  const textStore = useTextSubmissionStore() ?? createTextSubmissionStore({ transport: untrack(() => props.transport) });
   const mediaCoordinator = !mediaEnabled ? undefined : createMediaSubmissionCoordinator({
     transport: props.mediaTransport,
     createId: props.createMediaId,
@@ -290,26 +244,15 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     ([open]) => {
       if (!open) return;
       const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
-      setTextPersonaId(nextPersonaId);
       if (mediaCoordinator?.currentRecord == null) selectSongPersona(nextPersonaId);
       if (untrack(mode) !== "video" || untrack(videoPersonaId) === undefined) setVideoPersonaId(props.personaId?.trim() || undefined);
     },
   );
 
-  // A host with its own text composer never shows this dialog's text form:
-  // backing out of the song or video flow closes the dialog.
-  createEffect(
-    () => props.textHostedElsewhere === true && mode() === "text",
-    (leftMedia) => {
-      if (!leftMedia) return;
-      queueMicrotask(() => {
-        if (disposed) return;
-        // Leaving goes through the same guard as the close button. A song
-        // with a command still outstanding stays open on its steps.
-        if (!close(false)) setMode("song");
-      });
-    },
-  );
+  function changeMode(next: ComposerTab): void {
+    if (next === "song" || next === "video") setMode(next);
+    else close(false);
+  }
 
   function selectSongPersona(nextPersonaId: string | undefined): void {
     const previousPersonaId = songPersonaId();
@@ -336,7 +279,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   function resetSongDraft(): void {
-    setMode("text");
+    setMode("song");
     setSongMode("original");
     setSong({ title: "", primaryAudioUpload: null, lyricsEditorState: "hidden" });
     setLyrics("");
@@ -361,6 +304,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setSongAgeGatePolicy("none");
     setError("");
     setUploadFailure(null);
+    setSongDraftVersion(version => version + 1);
   }
 
   function discardTerminalSong(): void {
@@ -426,39 +370,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
-  function submitText(): void {
-    const personaId = selectedActivePersonaId();
-    if (personaId === undefined) {
-      setError("Choose a profile before publishing.");
-      return;
-    }
-    const community = communityId().trim();
-    const content = body().trim();
-    if (community === "" || content === "") {
-      setError("Choose a community and write something before publishing.");
-      return;
-    }
-    if (props.principalId === undefined) {
-      setError("Sign in before posting.");
-      return;
-    }
-    setError("");
-    const persona = personas().find(candidate => candidate.personaId === personaId);
-    textStore.submit({
-      accountId: props.principalId,
-      communityId: community,
-      personaId,
-      title: title(),
-      body: content,
-      ageGatePolicy: ageGatePolicy(),
-      authorHandle: persona?.displayName ?? persona?.primaryPublicHandle ?? undefined,
-      authorAvatarSrc: persona?.avatarRef ?? null,
-    });
-    // The post is now the submission owner's; this form has nothing to wait for.
-    props.onOpenChange(false);
-    props.onTextSubmitted?.(community);
-  }
-
   function selectedActivePersonaId(): string | undefined {
     const selected = selectedPersonaId();
     return selected !== undefined && personas().some(persona => persona.personaId === selected)
@@ -499,7 +410,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         songMode: songMode(),
         license: license(),
         royaltySplit: royaltySplit(),
-        authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
+        authorDeclaredRating: songAgeGatePolicy() === "18_plus" ? "adult_18" : "general",
         signal: uploadController.signal,
       });
       applySnapshot(snapshot);
@@ -603,13 +514,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   function submit(): void {
-    if (mode() === "text") {
-      submitText();
-    } else if (mode() === "song") {
-      void submitSong();
-    } else {
-      setError("This post type does not have a production submission contract yet.");
-    }
+    if (mode() === "song") void submitSong();
   }
 
   const songTermsIssued = () => {
@@ -652,11 +557,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     || selectedActivePersonaId() === undefined
     || communityId().trim() === ""
     || royaltySplitIssue(royaltySplit(), selectedActivePersonaId()) !== "";
-  const submitDisabled = () => mode() === "text"
-    ? selectedActivePersonaId() === undefined
-      || communityId().trim() === ""
-      || body().trim() === ""
-    : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
     if (snapshot === null
@@ -787,12 +687,12 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   </div>
                 </section>
               }>
-              <PostComposer
+              <Show when={songDraftVersion()} keyed>{_version => <PostComposer
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
                   ? mediaSnapshot() !== null || mediaBusy()
                   : false}
-                availableCapabilities={["text", "song", "video"]}
+                availableCapabilities={["song", "video"]}
                 canCreateSongPost={personas().length > 0}
                 currentPersonaId={selectedPersonaId()}
                 initialSongStep={initialSongStep()}
@@ -802,9 +702,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 mode={mode()}
                 onClose={() => close(false)}
                 onLicenseChange={setLicense}
-                onAgeGatePolicyChange={setAgeGatePolicy}
+                onAgeGatePolicyChange={setSongAgeGatePolicy}
                 onLyricsValueChange={value => { lyricsEdited = true; setLyrics(value); }}
-                onModeChange={setMode}
+                onModeChange={changeMode}
                 onVideoEntry={() => { setVideoPersonaId(props.personaId?.trim() || undefined); setMode("video"); }}
                 onRoyaltySplitChange={setRoyaltySplit}
                 onSongChange={next => {
@@ -812,7 +712,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   if (next.title !== undefined) setTitle(next.title);
                 }}
                 onSongModeChange={setSongMode}
-                onTextBodyValueChange={setBody}
                 onTitleValueChange={value => {
                   setTitle(value);
                   if (mode() === "song") setSong(current => ({ ...current, title: value }));
@@ -825,21 +724,20 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   retained: mediaSnapshot() !== null,
                   locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
                 } : undefined}
-                ageGatePolicy={ageGatePolicy()}
+                ageGatePolicy={songAgeGatePolicy()}
                 royaltySplit={royaltySplit()}
                 song={song()}
                 songMode={songMode()}
                 submit={{
-                  get disabled() { return submitDisabled(); },
+                  get disabled() { return songSubmitDisabled(); },
                   get error() { return error() || null; },
-                  get label() { return mode() === "song" ? "Post song" : "Post"; },
+                  label: "Post song",
                   get loading() { return mode() === "song" ? mediaBusy() : false; },
                   onSubmit: submit,
                 }}
-                textBodyValue={body()}
                 titleValue={title()}
-                validateDraftBeforeSubmit={mode() !== "text"}
-              />
+                validateDraftBeforeSubmit
+              />}</Show>
               </Show>
         </div>
       </form>
@@ -873,10 +771,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             alignTake={props.videoAlignTake}
             openPreview={props.videoOpenPreview}
             startCapture={props.videoStartCapture}
-            onExit={() => {
-              if (props.initialVideoSong) close(false);
-              else setMode("text");
-            }} onPublished={props.onPublished}
+            onExit={() => { close(false); }} onPublished={props.onPublished}
             onRetainedPersona={(personaId, retainedCommunityId) => {
               if (personaId !== null) {
                 setVideoPersonaId(personaId);

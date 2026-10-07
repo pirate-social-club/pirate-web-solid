@@ -23,6 +23,7 @@ import { CommunityPage } from "./community-page";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityPageSuccess } from "./community-page.model";
 import type { CommunityViewerVoteClient } from "./community-viewer-vote-api.ts";
+import { createHeldSongUploadTransport } from "./song-upload-story-fixtures";
 
 const communityId = "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345";
 
@@ -583,6 +584,42 @@ function SongFrame(props: {
 }
 
 const pendingSong = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-pending-song]");
+
+function SongUploadFrame() {
+  const upload = createHeldSongUploadTransport();
+  return <>
+    <nav aria-label="Upload story controls" class="fixed right-3 top-3 z-[80] flex gap-2">
+      <Button onClick={() => upload.progress(75)} size="sm">Upload to 75%</Button>
+      <Button onClick={upload.finish} size="sm">Finish upload</Button>
+    </nav>
+    <CommunityPage {...pageArgs(standInServer())} mediaSubmissionTransport={upload.transport} />
+  </>;
+}
+
+/** The same page and song entry the author uses, with upload progress held. */
+export const SongUploadProgress: Story = {
+  name: "Song: upload progress, then Royalties",
+  render: () => <SongUploadFrame />,
+  play: async ({ canvasElement }) => {
+    await openComposer(canvasElement);
+    const canvas = within(canvasElement);
+    await userEvent.upload(canvas.getByLabelText("Choose a song file"),
+      new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
+    await canvas.findByRole("heading", { name: "Song" });
+    const next = canvas.getByRole("button", { name: "Continue" });
+    await waitFor(() => expect(next).toBeEnabled());
+    await userEvent.click(next);
+    const progress = await canvas.findByRole("progressbar", { name: "Audio upload" });
+    await waitFor(() => expect(progress).toHaveAttribute("aria-valuenow", "25"));
+    await expect(canvas.getByRole("button", { name: "Stop upload" })).toBeVisible();
+    await expect(next).toBeDisabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Upload to 75%" }));
+    await waitFor(() => expect(progress).toHaveAttribute("aria-valuenow", "75"));
+    await userEvent.click(canvas.getByRole("button", { name: "Finish upload" }));
+    await canvas.findByRole("heading", { name: "Royalties" });
+    await expect(canvas.queryByRole("progressbar", { name: "Audio upload" })).toBeNull();
+  },
+};
 
 /** A submitted song names the stage the server is on, in order, and is then in the feed. */
 export const SongMovesThroughItsStages: Story = {

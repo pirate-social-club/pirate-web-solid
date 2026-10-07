@@ -10,9 +10,7 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
-import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
-import { pendingBodyBytes, type PendingSubmissionEnvelopeV1 } from "./pending-submission";
-import type { TextContentSubmissionV1 } from "./text-submission-contract";
+import { CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
 
 const disposers: Array<() => void> = [];
 
@@ -76,31 +74,6 @@ function mediaSnapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmi
   } as MediaSubmissionSnapshot;
 }
 
-function publishedTextSnapshot(): TextContentSubmissionV1 {
-  return {
-    submission_id: "text-submission-1",
-    href: "/text-content-submissions/text-submission-1",
-    surface: "text_post",
-    status: "published",
-    result: { decision: "allow", reason_code: null },
-    published_resource: { kind: "post", post_id: "post-1", href: "/posts/post-1" },
-    review_ref: null,
-    created_at: "2026-09-12T00:00:00Z",
-    updated_at: "2026-09-12T00:00:00Z",
-  };
-}
-
-interface TextPostRequestBody {
-  readonly idempotency_key?: string;
-  readonly persona_id?: string;
-}
-
-function envelopeBody(envelope: PendingSubmissionEnvelopeV1): TextPostRequestBody {
-  // SAFETY: the bytes come from createPendingSubmissionEnvelope over a
-  // generated text request; this test reads only closed scalar fields.
-  return JSON.parse(new TextDecoder().decode(pendingBodyBytes(envelope))) as TextPostRequestBody;
-}
-
 class ProductionMediaTransport implements MediaSubmissionTransport {
   async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
@@ -152,14 +125,6 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
     expect(audio.size).toBeGreaterThan(0);
     this.uploadCount += 1;
   }
-}
-
-/** The composer's song tool, labelled "Song" or "Audio" by toolbar. */
-function songTool(): HTMLButtonElement {
-  const tool = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-    .find(candidate => ["Song", "Audio"].includes(candidate.getAttribute("aria-label") ?? candidate.textContent?.trim() ?? ""));
-  if (!tool) throw new Error("song tool not found");
-  return tool;
 }
 
 function button(label: string): HTMLButtonElement {
@@ -219,173 +184,24 @@ describe("create post request", () => {
     expect(transport.commands).toHaveLength(0);
   });
 
-  test("builds the community-scoped text post contract", () => {
-    expect(buildCreatePostRequest({ personaId: "persona-one",
-      communityId: "  community-1 ",
-      title: "  Hello Pirate ",
-      body: "  A first post from the Solid shell. ",
-      idempotencyKey: "idem-1",
-      ageGatePolicy: "none",
-    })).toEqual({
-      path: { communityId: "community-1" },
-      body: {
-        idempotency_key: "idem-1",
-        persona_id: "persona-one",
-        post_type: "text",
-        authorship_mode: "human_direct",
-        identity_mode: "public",
-        visibility: "public",
-        author_declared_rating: "general",
-        title: "Hello Pirate",
-        body: "A first post from the Solid shell.",
-      },
-    });
-  });
-
-  test("maps the 18+ composer selection to the adult text rating", () => {
-    expect(buildCreatePostRequest({ personaId: "persona-one",
-      communityId: "community-1",
-      title: "Night watch",
-      body: "Adult-marked body",
-      idempotencyKey: "idem-adult",
-      ageGatePolicy: "18_plus",
-    }).body.author_declared_rating).toBe("adult_18");
-  });
-
-  test("sends the page community context without exposing or accepting a raw identifier", async () => {
-    const dispatched: PendingSubmissionEnvelopeV1[] = [];
-    render(() => (
-      <CreatePostDialog
-        communityContext={{ id: "community-contextual", name: "Pirate Harbor" }}
-        personas={[activePersona("persona-one", "Persona One")]}
-        principalId="account-one"
-        onOpenChange={() => {}}
-        open
-        transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
-      />
-    ));
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    // The contextual composer carries the page community without host chrome:
-    // no "Posting in" card, no raw identifier input.
-    expect(document.body.textContent).not.toContain("Posting in");
-    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-
-    const publishButtons = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .filter(button => button.textContent?.trim() === "Post");
-    expect(publishButtons).toHaveLength(1);
-    expect(publishButtons[0]?.disabled).toBe(true);
-
-    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
-    body.value = "A contextual post";
-    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    await vi.waitFor(() => expect(publishButtons[0]?.disabled).toBe(false));
-    publishButtons[0]!.click();
-    await vi.waitFor(() => expect(dispatched).toHaveLength(1));
-    expect(dispatched[0]!.same_origin_path).toBe("/api/communities/community-contextual/posts");
-    expect(envelopeBody(dispatched[0]!).persona_id).toBe("persona-one");
-  });
-
-  test("authors as the app-selected profile and shows no identity control", async () => {
-    const dispatched: PendingSubmissionEnvelopeV1[] = [];
-    render(() => <CreatePostDialog
-      communityContext={{ id: "community-one", name: "Harbor" }}
-      onOpenChange={() => {}}
-      open
-      personaId="persona-two"
-      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
-      principalId="account-one"
-      transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
-    />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-
-    // Identity is decided by the community's active profile before the
-    // composer opens; the composer neither shows nor changes it.
-    expect(document.body.querySelector("[data-operation-persona]")).toBeNull();
-    expect(document.body.querySelector("[aria-label^='Post as:']")).toBeNull();
-    expect(document.body.querySelector("[aria-label^='Posting as:']")).toBeNull();
-
-    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
-    body.value = "A persona-authored text post";
-    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Post");
-    await vi.waitFor(() => expect(publish.disabled).toBe(false));
-    publish.click();
-    await vi.waitFor(() => expect(dispatched).toHaveLength(1));
-    expect(envelopeBody(dispatched[0]!).persona_id).toBe("persona-two");
-  });
-
-  test("hands a text post to the submission owner, closes at once, and replays the exact request", async () => {
-    const dispatched: PendingSubmissionEnvelopeV1[] = [];
-    const onOpenChange = vi.fn();
-    let attempts = 0;
-    render(() => <CreatePostDialog
-      communityContext={{ id: "community-one", name: "Harbor" }}
-      onOpenChange={onOpenChange}
-      open
-      personaId="persona-one"
-      personas={[activePersona("persona-one", "Persona One")]}
-      principalId="account-one"
-      transport={{
-        read: async () => null,
-        dispatch: async (envelope) => {
-          dispatched.push(envelope);
-          if (++attempts === 1) throw new Error("network uncertain");
-          return publishedTextSnapshot();
-        },
-      }}
-    />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
-    body.value = "A retried post";
-    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Post");
-    await vi.waitFor(() => expect(publish.disabled).toBe(false));
-    publish.click();
-
-    // The form does not wait for the server and never asks the author to
-    // check anything: it closes as soon as the post is handed over.
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(document.body.textContent).not.toContain("Checking whether your post was accepted");
-    expect(document.body.textContent).not.toContain("Check again");
-
-    // The owner outlives the form and replays the same bytes under the same key.
-    await vi.waitFor(() => expect(dispatched).toHaveLength(2), { timeout: 4_000 });
-    expect(dispatched[1]!.idempotency_key).toBe(dispatched[0]!.idempotency_key);
-    expect(envelopeBody(dispatched[1]!)).toEqual(envelopeBody(dispatched[0]!));
-  });
-
-  test("destroys composer state when it closes and reopens", async () => {
+  test("destroys the song draft on close and never exposes the old text form", async () => {
     const [open, setOpen] = createSignal(true);
-    render(() => <CreatePostDialog
-      communityContext={{ id: "community-one", name: "Harbor" }}
-      onOpenChange={setOpen}
-      open={open()}
-      personaId="persona-one"
-      personas={[activePersona("persona-one", "Persona One")]}
-      transport={{ read: async () => null, dispatch: async () => { throw new Error("not dispatched in this case"); } }}
-    />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
-    body.value = "Half-written post";
-    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-
-    setOpen(false);
-    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
-    setOpen(true);
-    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
-    expect(document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!.value).toBe("");
-
-    // The song side is destroyed the same way: an unfinished audio selection
-    // does not survive the close, and the composer returns to a fresh text
-    // draft with no attachment.
+    const transport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      onOpenChange={setOpen} open={open()} mediaTransport={transport}
+      personaId="persona-one" personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one" />);
     await uploadAudio("abandoned.mp3");
+    expect(document.body.querySelector("#create-post-body")).toBeNull();
     setOpen(false);
     await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
     setOpen(true);
-    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.querySelector("input[aria-label='Upload audio']")).not.toBeNull());
     expect(document.body.textContent).not.toContain("abandoned.mp3");
-    expect(document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!.value).toBe("");
+    expect(document.body.querySelector("#create-post-body")).toBeNull();
+    button("Close composer").click();
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    expect(transport.commands).toHaveLength(0);
   });
 
   test("refuses to close while a song command is unresolved", async () => {
@@ -876,7 +692,7 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("the song tool opens the audio picker and the composer never looks up unfinished songs", async () => {
+  test("the song steps accept audio and never look up unfinished songs", async () => {
     const transport = new ProductionMediaTransport();
     const listActive = vi.spyOn(transport, "listActive");
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
@@ -884,7 +700,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
     const opened = vi.spyOn(picker, "click").mockImplementation(() => {});
-    songTool().click();
+    button("Add audio").click();
     expect(opened).toHaveBeenCalledOnce();
     expect(listActive).not.toHaveBeenCalled();
     expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume/);
@@ -1096,11 +912,9 @@ test.each([false, true])("retains video authority in global/contextual composer 
   const execute = vi.fn(async () => ({ ...snapshot, phase: "analysis" as const }));
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
   try {
-    render(() => <CreatePostDialog open onOpenChange={() => {}} principalId="account" personas={[activePersona("persona-one", "Persona One")]}
+    render(() => <CreatePostDialog initialMode="video" open onOpenChange={() => {}} principalId="account" personas={[activePersona("persona-one", "Persona One")]}
       communityContext={contextual ? { id: "other-community", name: "Other community" } : undefined}
       videoStorage={videoStorage} videoTransport={{ execute, async read() { return snapshot; } }} fetchImpl={fetchImpl} />);
-    const tab = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Video")!;
-    expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
     expect(pickerClick).not.toHaveBeenCalled();
     if (!contextual) {
       // The video flow has no community field: the retained video's
@@ -1197,19 +1011,13 @@ describe("community Video entry", () => {
           communityContext={{ id: "community-one", name: "Harbor" }}
           onOpenChange={() => {}}
           open
+          initialMode="video"
           personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
           personaId="persona-two"
           principalId="account-one"
         />, container);
       });
       disposers.push(() => { dispose(); container.remove(); });
-      const video = await vi.waitFor(() => {
-        const button = [...document.querySelectorAll<HTMLButtonElement>("button")]
-          .find(candidate => candidate.textContent?.trim() === "Video");
-        expect(button).toBeDefined();
-        return button!;
-      });
-      video.click();
       const songChoice = await vi.waitFor(() => {
         const screen = document.querySelector<HTMLElement>("[data-song-choice-screen]");
         expect(screen?.getAttribute("aria-hidden")).toBeNull();

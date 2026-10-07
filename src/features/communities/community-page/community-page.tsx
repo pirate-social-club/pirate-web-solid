@@ -1,3 +1,4 @@
+import type { MediaSubmissionTransport } from "../../posts/media-submission/transport";
 import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../../auth/global-sign-in-host.tsx";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { onSessionRefreshed } from "../../../api/session.ts";
@@ -102,6 +103,7 @@ export interface CommunityPageProps {
   /** Stands in for the text post endpoint when the page renders without the
    * application shell, as in stories and tests. */
   readonly textSubmissionTransport?: TextSubmissionTransport;
+  readonly mediaSubmissionTransport?: MediaSubmissionTransport;
 }
 
 function communityCopy() {
@@ -169,6 +171,7 @@ function SuccessState(props: {
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
   readonly textSubmissionTransport?: TextSubmissionTransport;
+  readonly mediaSubmissionTransport?: MediaSubmissionTransport;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
@@ -844,8 +847,8 @@ function SuccessState(props: {
             initialVideoSong={props.initialVideoSong}
             initialMode={mediaEntry()?.kind}
             initialSongFile={(() => { const entry = mediaEntry(); return entry?.kind === "song" ? entry.file : undefined; })()}
-            textHostedElsewhere
             songStore={songStore}
+            mediaTransport={props.mediaSubmissionTransport}
             onPublished={href => { if (href !== undefined) navigate(href); }}
             onOpenChange={(open) => {
               setComposerOpen(open);
@@ -884,6 +887,7 @@ function CommunityState(props: {
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
   readonly textSubmissionTransport?: TextSubmissionTransport;
+  readonly mediaSubmissionTransport?: MediaSubmissionTransport;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   // The inner Show is keyed by community identity: a same-route move to another
@@ -910,6 +914,7 @@ function CommunityState(props: {
               postEngagementTransport={props.postEngagementTransport}
               viewerVoteClient={props.viewerVoteClient}
               textSubmissionTransport={props.textSubmissionTransport}
+              mediaSubmissionTransport={props.mediaSubmissionTransport}
             />
           )}
         </Show>
@@ -937,6 +942,7 @@ function CommunityData(props: CommunityPageProps) {
       composeText={props.composeText}
       viewerVoteClient={props.viewerVoteClient}
       textSubmissionTransport={props.textSubmissionTransport}
+      mediaSubmissionTransport={props.mediaSubmissionTransport}
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}
