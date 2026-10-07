@@ -6,7 +6,7 @@ import { SongActivities, type SongActivitiesDependencies, type SongActivityViewe
 import { activityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
+afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 function mount(viewer: SongActivityViewer, dependencies: SongActivitiesDependencies, choose = vi.fn()) {
   const host = document.createElement("div"); document.body.appendChild(host);
   createRoot(dispose => { disposers.push(dispose); render(() => <SongActivities communityId="community" postId="song" studyPath="/song/study" karaokePath="/song/karaoke" viewer={viewer} dependencies={dependencies} onChoose={choose} />, host); });
@@ -62,4 +62,23 @@ it("returns keyboard focus to the activity pill when the chooser is dismissed", 
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
   await userEvent.keyboard("{Escape}");
   await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
+});
+
+it("adapts the label to the action row when desktop comments narrow the card", async () => {
+  let width = 704;
+  let resize: () => void = () => undefined;
+  const disconnect = vi.fn();
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(callback: () => void) { resize = callback; }
+    observe(row: HTMLElement) { Object.defineProperty(row, "clientWidth", { get: () => width }); resize(); }
+    disconnect = disconnect;
+  });
+  mount("anonymous", { readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => false });
+  await vi.waitFor(() => expect(button("Activities").textContent).toBe("Activities"));
+  width = 288; resize();
+  await vi.waitFor(() => expect(button("Activities").textContent).toBe(""));
+  width = 358; resize();
+  await vi.waitFor(() => expect(button("Activities").textContent).toBe("Activities"));
+  disposers.splice(0).forEach(dispose => dispose());
+  expect(disconnect).toHaveBeenCalledOnce();
 });

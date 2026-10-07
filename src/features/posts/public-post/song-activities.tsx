@@ -21,6 +21,8 @@ export function SongActivities(props: {
   readonly dependencies?: SongActivitiesDependencies;
   readonly onChoose: (href: string, signedIn: boolean) => void;
 }) {
+  const [compact, setCompact] = createSignal(true);
+  let trigger: HTMLButtonElement | undefined;
   const [open, setOpen] = createSignal(false);
   const [data, setData] = createSignal<SongActivityRewards>();
   const [loading, setLoading] = createSignal(true);
@@ -53,9 +55,20 @@ export function SongActivities(props: {
     } catch { if (active) { setVideo(false); setVideoFailed(true); } }
   };
   onSettled(() => {
+    // The comments panel can narrow the card even on a wide desktop.
+    // Size the label against its actual action row, not the viewport.
+    let observer: ResizeObserver | undefined;
+    const row = trigger?.closest<HTMLElement>('[role="group"][aria-label="Post actions"]') ?? trigger?.parentElement;
+    if (row) {
+      setCompact(row.clientWidth < 350);
+      if (typeof ResizeObserver !== "undefined") {
+        observer = new ResizeObserver(() => setCompact(row.clientWidth < 350));
+        observer.observe(row);
+      }
+    }
     void loadRewards();
     const clock = setInterval(() => setNow(Date.now()), 1_000);
-    return () => clearInterval(clock);
+    return () => { clearInterval(clock); observer?.disconnect(); };
   });
   const rewards = () => data() ? songActivityRewards(data()!, now()) : [];
   const signedIn = () => props.viewer !== "pending" && props.viewer !== "anonymous" && props.viewer !== "error";
@@ -75,10 +88,10 @@ export function SongActivities(props: {
     ...(video() ? [{ id: "video", label: "Use this song", description: "Make a video", href: songVideoEntryHref(props.postId), icon: IconVideoCamera }] : []),
   ];
   return <Modal open={open()} onOpenChange={changeOpen}>
-    <ModalTrigger as={PillButton} aria-label={rewards().length ? "Activities · rewards available" : "Activities"} aria-haspopup="dialog" aria-expanded={open() ? "true" : "false"}
+    <ModalTrigger as={PillButton} ref={element => { trigger = element; }} aria-label={rewards().length ? "Activities · rewards available" : "Activities"} aria-haspopup="dialog" aria-expanded={open() ? "true" : "false"}
       class={`h-11 min-w-11 gap-2 px-2 text-sm ${rewards().length ? "border-amber-500/50 bg-amber-500/10 text-foreground" : ""}`} title="Activities">
       <Show when={rewards().length > 0} fallback={<IconPlaylist class="size-5" aria-hidden="true" />}><IconGift class="size-5" aria-hidden="true" /></Show>
-      <span class="hidden min-[375px]:inline">Activities</span>
+      <Show when={!compact()}><span>Activities</span></Show>
     </ModalTrigger>
       <ModalContent mobileSide="bottom" class="max-h-[88dvh] w-full overflow-y-auto px-4 pb-5 pt-5 md:max-w-lg md:px-6 md:pb-6">
         <ModalHeader class="text-start pr-8"><ModalTitle>Activities</ModalTitle><ModalDescription class="sr-only">Choose an activity for this song and review any rewards.</ModalDescription></ModalHeader>
