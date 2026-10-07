@@ -11,7 +11,8 @@ import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
-import { SongVideoEntry } from "./song-video-entry.tsx";
+import { SongActivities, type SongActivitiesDependencies } from "./song-activities.tsx";
+import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell";
@@ -22,6 +23,7 @@ import { LoadingIndicator, buttonVariants } from "../../../design-system";
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
   readonly engagement?: PublicPostEngagementDependencies;
+  readonly activities?: SongActivitiesDependencies;
   readonly reload?: typeof reloadCurrentPublicPostRoute;
   readonly verifyAge?: typeof verifyAdultViewing;
 }
@@ -83,7 +85,7 @@ function PublicMetadata(props: { readonly state: Extract<PublicPostRouteState, {
   );
 }
 
-function PostDetail(props: { readonly response: PublicPostContentResponse; readonly engagement?: PublicPostEngagementDependencies }) {
+function PostDetail(props: { readonly response: PublicPostContentResponse; readonly engagement?: PublicPostEngagementDependencies; readonly activities?: SongActivitiesDependencies; readonly chooseActivity: (href: string, signedIn: boolean) => void }) {
   const body = () => displayBody(props.response);
   const route = () => props.response.route;
   const title = () => displayTitle(props.response);
@@ -125,18 +127,11 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           <div class="mt-6 grid min-w-0 grid-cols-1 gap-5">
             <h1 class="sr-only">{title()}</h1>
             <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
-              signedOutLabel={route() ? "Sign in to study or sing" : undefined}
-              memberActions={() => <>
-                <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
-                <Show when={route()}>
-                  {(songRoute) => (
-                    <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
-                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.study}>Study</a>
-                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
-                    </nav>
-                  )}
-                </Show>
-              </>}
+              showSignInPrompt={false}
+              extraControls={viewer => <Show when={route()}>{songRoute => <SongActivities
+                communityId={props.response.content.post.community} postId={props.response.post_id}
+                studyPath={songRoute().activity_paths.study} karaokePath={songRoute().activity_paths.karaoke}
+                viewer={viewer()} dependencies={props.activities} onChoose={props.chooseActivity} />}</Show>}
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
               {(controls, menuActions) => <CommunityPostCard post={songPost()} actions={controls} menuActions={menuActions} />}
             </PublicPostEngagement>
@@ -147,7 +142,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
   );
 }
 
-function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }>; readonly engagement?: PublicPostEngagementDependencies }) {
+function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }>; readonly engagement?: PublicPostEngagementDependencies; readonly activities?: SongActivitiesDependencies; readonly chooseActivity: (href: string, signedIn: boolean) => void }) {
   const route = () => props.state.response.route;
   const detailPath = () => route()?.canonical_path ?? "/";
   const karaokePath = () => route()?.activity_paths.karaoke ?? "/";
@@ -186,7 +181,7 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
           />
         </Show>
       )}>
-        <PostDetail response={props.state.response} engagement={props.engagement} />
+        <PostDetail response={props.state.response} engagement={props.engagement} activities={props.activities} chooseActivity={props.chooseActivity} />
       </Show>
     </>
   );
@@ -227,6 +222,20 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
   const [refreshed, setRefreshed] = createSignal<{ source: PublicPostRouteViewProps["state"]; state: PublicPostRouteState }>();
   const [refreshing, setRefreshing] = createSignal(false);
   const state = createMemo(() => refreshed()?.source === props.state ? refreshed()?.state : props.state, { deferStream: true });
+  // Keep the selected destination above the content subtree: session refresh
+  // intentionally unmounts that subtree before the sign-in prompt completes.
+  let activityIntent: AbortController | undefined;
+  onCleanup(() => activityIntent?.abort());
+  const chooseActivity = (href: string, signedIn: boolean) => {
+    activityIntent?.abort();
+    const intent = new AbortController(); activityIntent = intent;
+    const source = props.state;
+    const navigate = () => (props.activities?.navigate ?? (path => location.assign(path)))(href);
+    if (signedIn) { navigate(); return; }
+    void requestGlobalSignInCompletion(intent.signal).then(authenticated => {
+      if (authenticated && !intent.signal.aborted && source === props.state) navigate();
+    });
+  };
   let authorityRefresh: AbortController | undefined;
   onCleanup(() => authorityRefresh?.abort());
   onCleanup(onSessionRefreshed(() => {
@@ -257,15 +266,15 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     <Show when={!refreshing()} fallback={<main><LoadingIndicator label="Loading post" variant="page" /></main>}>
       <Loading fallback={<main><LoadingIndicator label="Loading post" variant="page" /></main>}>
         <Show when={state()} keyed>
-          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} />}
+          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} activities={props.activities} chooseActivity={chooseActivity} />}
         </Show>
       </Loading>
     </Show>
   );
 }
 
-function Resolved(props: { readonly engagement?: PublicPostEngagementDependencies; readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
+function Resolved(props: { readonly activities?: SongActivitiesDependencies; readonly chooseActivity: (href: string, signedIn: boolean) => void; readonly engagement?: PublicPostEngagementDependencies; readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
   const state = untrack(() => props.state);
-  if (state.kind === "content") return <Content state={state} engagement={props.engagement} />;
+  if (state.kind === "content") return <Content state={state} engagement={props.engagement} activities={props.activities} chooseActivity={props.chooseActivity} />;
   return <Failure state={state} onVerified={props.onVerified} verifyAge={props.verifyAge} />;
 }

@@ -1,12 +1,13 @@
 import userEvent from "@testing-library/user-event";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api";
 import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "../post-engagement/post-engagement-pending";
 import { refreshSession } from "../../../api/session.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
+import { noActivityRewardsFixture } from "./song-activities.fixtures.ts";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
 
 const ageProof = vi.fn(async () => false);
@@ -19,13 +20,13 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"]): HTMLElement {
+function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"], navigate?: (href: string) => void): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   let dispose: () => void = () => undefined;
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement ?? { resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }), readViewerVote: async () => null, pendingStorage: createMemoryPendingEngagementStorage() }} />, container);
+    solidRender(() => <PublicPostRouteView state={state} activities={{ readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => false, navigate }} reload={reload} verifyAge={ageProof} engagement={engagement ?? { resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }), readViewerVote: async () => null, pendingStorage: createMemoryPendingEngagementStorage() }} />, container);
   });
   cleanups.push(() => { dispose(); container.remove(); });
   return container;
@@ -100,8 +101,11 @@ describe("public post route view", () => {
     expect(container.querySelector("button[aria-label='Play A searchable title']")).not.toBeNull();
     expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
     expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
-    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study"));
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/karaoke']")?.textContent).toBe("Karaoke");
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Activities']")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (0)']")?.hasAttribute("disabled")).toBe(false));
+    await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
+    expect(document.querySelector("button[aria-label='Study']")).not.toBeNull();
+    expect(document.querySelector("button[aria-label='Sing']")).not.toBeNull();
   });
 
   it.each([
@@ -117,8 +121,7 @@ describe("public post route view", () => {
     } } });
     expect(container.textContent).not.toContain("Lyrics timing");
     expect(container.textContent).not.toContain("DATA registration");
-    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull());
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Activities']")).not.toBeNull());
   });
 
   it.each([undefined, null])("keeps activities when delivery status is unavailable", async presentation => {
@@ -131,8 +134,7 @@ describe("public post route view", () => {
     } } });
     expect(container.textContent).not.toContain("Lyrics timing");
     expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
-    await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull());
-    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Activities']")).not.toBeNull());
   });
 
   it.each(["pending", "ready"] as const)("shows video %s as a safe delivery status without media URLs", status => {
@@ -275,29 +277,88 @@ it("leaves video details without engagement or private session reads", async () 
   expect(resolveSession).not.toHaveBeenCalled();
 });
 
-it("shows one signed-out song action and restores member activities after sign-in", async () => {
+it("continues the chosen signed-out activity after session refresh, but cancels a dismissed prompt", async () => {
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("Expected content");
   const song = { ...state, response: { ...state.response, content: { ...state.response.content,
     post: { ...state.response.content.post, post_type: "song" as const, community: "community" } } } };
   let authenticated = false;
   const readViewerVote = vi.fn(async () => null);
+  const navigate = vi.fn();
   const container = render(song, async () => song, {
     resolveSession: async () => authenticated ? { status: "authenticated", userId: "account", personas: [] } : "anonymous",
     readViewerVote, pendingStorage: createMemoryPendingEngagementStorage(),
-  });
-  await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study or sing"));
-  expect(container.querySelector("nav[aria-label='Song activities']")).toBeNull();
-  expect(container.textContent).not.toContain("Sign in to comment");
+  }, navigate);
+  await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (0)']")?.hasAttribute("disabled")).toBe(false));
+  expect(container.textContent).not.toContain("Sign in to");
   expect(readViewerVote).not.toHaveBeenCalled();
-  const signIn = vi.fn();
+  let complete: ((authenticated: boolean) => void) | undefined;
+  const signIn = (event: Event) => { if (event instanceof CustomEvent) complete = event.detail.complete; };
   window.addEventListener("pirate:connect", signIn);
   try {
-    await userEvent.click([...container.querySelectorAll("button")].find(button => button.textContent === "Sign in to study or sing")!);
-    expect(signIn).toHaveBeenCalledOnce();
+    await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Study']")!);
+    expect(complete).toBeDefined();
+    complete?.(false);
+    await Promise.resolve();
+    expect(navigate).not.toHaveBeenCalled();
+    await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Sing']")!);
+    authenticated = true;
+    refreshSession();
+    complete?.(true);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/posts/a-searchable-title/karaoke"));
+    await vi.waitFor(() => expect(readViewerVote).toHaveBeenCalledOnce());
+    await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Study']")!);
+    expect(navigate).toHaveBeenLastCalledWith("/posts/a-searchable-title/study");
   } finally { window.removeEventListener("pirate:connect", signIn); }
-  authenticated = true;
-  refreshSession();
-  await vi.waitFor(() => expect(container.querySelector("nav[aria-label='Song activities']")).not.toBeNull());
-  expect(container.textContent).not.toContain("Sign in to study or sing");
+});
+
+it("cancels activity continuation when the song route is disposed", async () => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const song = { ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: "song" as const, community: "community" } } } };
+  const navigate = vi.fn();
+  const container = render(song, undefined, { resolveSession: async () => "anonymous" }, navigate);
+  await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (0)']")?.hasAttribute("disabled")).toBe(false));
+  let complete: ((authenticated: boolean) => void) | undefined;
+  const signIn = (event: Event) => { if (event instanceof CustomEvent) complete = event.detail.complete; };
+  window.addEventListener("pirate:connect", signIn);
+  try {
+    await userEvent.click(container.querySelector("button[aria-label='Activities']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Study']")!);
+    cleanups.splice(0).forEach(cleanup => cleanup());
+    complete?.(true);
+    await Promise.resolve();
+    expect(navigate).not.toHaveBeenCalled();
+  } finally { window.removeEventListener("pirate:connect", signIn); }
+});
+
+it("does not continue an old activity after another post replaces the route data", async () => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const song = { ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: "song" as const, community: "community" } } } };
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const navigate = vi.fn();
+  let replace: (next: PublicPostRouteState) => void = () => undefined;
+  createRoot(dispose => {
+    cleanups.push(dispose);
+    const [current, setCurrent] = createSignal<PublicPostRouteState>(song); replace = setCurrent;
+    solidRender(() => <PublicPostRouteView state={current()} engagement={{ resolveSession: async () => "anonymous" }} activities={{ readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => false, navigate }} />, host);
+  });
+  await vi.waitFor(() => expect(host.querySelector("button[aria-label='Comments (0)']")?.hasAttribute("disabled")).toBe(false));
+  let complete: ((authenticated: boolean) => void) | undefined;
+  const signIn = (event: Event) => { if (event instanceof CustomEvent) complete = event.detail.complete; };
+  window.addEventListener("pirate:connect", signIn);
+  try {
+    await userEvent.click(host.querySelector("button[aria-label='Activities']")!);
+    await userEvent.click(document.querySelector("button[aria-label='Study']")!);
+    replace(contentState(false));
+    complete?.(true);
+    await Promise.resolve();
+    expect(navigate).not.toHaveBeenCalled();
+  } finally { window.removeEventListener("pirate:connect", signIn); }
 });

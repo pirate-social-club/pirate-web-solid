@@ -40,6 +40,8 @@ export default defineConfig({
       "src/features/posts/public-post/public-post-route.model.test.ts",
       "src/features/posts/public-post/public-post-preflight.test.ts",
       "src/features/posts/public-post/public-post-route-view.test.tsx",
+      "src/features/posts/public-post/song-activities*.test.ts",
+      "src/features/posts/public-post/song-activities*.test.tsx",
       "src/features/posts/public-post/song-published-status.test.ts",
       "src/features/posts/public-post/song-video-entry.test.tsx",
       "src/features/posts/song-attribution/song-attribution.test.ts",

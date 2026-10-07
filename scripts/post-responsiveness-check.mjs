@@ -35,17 +35,40 @@ try {
         await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story`, { waitUntil: "load" });
         await page.waitForFunction(() => document.body.classList.contains("sb-show-main") && document.querySelector("#storybook-root")?.childElementCount > 0);
         await page.evaluate(async () => { await Promise.race([document.fonts.ready, new Promise((_, reject) => setTimeout(() => reject(new Error("Fonts did not settle")), 5000))]); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+        if (story.id.includes("--song-activities")) {
+          await page.getByRole("dialog", { name: "Activities" }).waitFor();
+          if (story.id.includes("rewards-") && !story.id.includes("unavailable")) {
+            await page.getByText("Megapot · chance to win").waitFor();
+            await page.waitForFunction(() => [...document.querySelectorAll("details")].some(element => element.open));
+          }
+        }
+        await page.evaluate(async () => {
+          await Promise.race([Promise.all(document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined))), new Promise(resolve => setTimeout(resolve, 1500))]);
+        });
         const result = await page.evaluate(() => {
           const viewport = document.documentElement.clientWidth;
           const scrollWidth = document.documentElement.scrollWidth;
-          const controls = [...document.querySelectorAll('[aria-label="Song activities"] a')].map(element => {
+          const controls = [...document.querySelectorAll('[aria-haspopup="dialog"][title="Activities"], [role="dialog"]')].map(element => {
             const box = element.getBoundingClientRect();
             return { text: element.textContent, left: box.left, right: box.right };
           });
-          return { viewport, scrollWidth, controls };
+          const comment = document.querySelector('button[aria-label^="Comments ("]');
+          const activities = document.querySelector('button[title="Activities"]');
+          const rowAligned = !comment || !activities || Math.abs(comment.getBoundingClientRect().y - activities.getBoundingClientRect().y) <= 1;
+          return { viewport, scrollWidth, controls, rowAligned };
         });
         checked++;
-        if (result.scrollWidth > result.viewport + 1 || result.controls.some(box => box.left < -1 || box.right > result.viewport + 1)) failures.push({ story: story.id, width, ...result });
+        if (!result.rowAligned || result.scrollWidth > result.viewport + 1 || result.controls.some(box => box.left < -1 || box.right > result.viewport + 1)) failures.push({ story: story.id, width, ...result });
+        if (story.id.includes("--song-activities")) {
+          const dialog = page.getByRole("dialog", { name: "Activities" });
+          const box = await dialog.boundingBox();
+          checked++;
+          if (box.x < -1 || box.x + box.width > width + 1 || box.y < -1 || box.y + box.height > 901 || (width < 768 ? Math.abs(box.y + box.height - 900) > 2 : Math.abs(box.x + box.width / 2 - width / 2) > 2)) failures.push({ story: story.id, width, state: "dialog-position", box });
+          if (process.env.ACTIVITIES_SCREENSHOT_DIRECTORY && (width === 390 || width === 1280) && /--song-activities-(mobile|rewards-mobile)$/u.test(story.id)) await page.screenshot({ path: `${process.env.ACTIVITIES_SCREENSHOT_DIRECTORY}/${story.id}-${width}.png` });
+          await page.keyboard.press("Escape");
+          await dialog.waitFor({ state: "hidden" });
+          await page.waitForFunction(() => document.activeElement?.getAttribute("title") === "Activities");
+        }
         if (story.id === "screens-posts-publicpostroute--song-post-mobile") {
           await page.getByRole("button", { name: /^Play /u }).click();
           await page.locator("audio").waitFor();

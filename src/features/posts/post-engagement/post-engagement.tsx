@@ -78,6 +78,7 @@ export interface PostEngagementProps {
   readonly canReportPost?: boolean;
   readonly generateIdempotencyKey?: () => string;
   readonly pendingStorage?: PendingEngagementStorage;
+  readonly extraControls?: JSX.Element;
   readonly children?: (controls: JSX.Element, menuActions: readonly ContentAction[]) => JSX.Element;
 }
 
@@ -703,7 +704,7 @@ export function PostEngagement(props: PostEngagementProps) {
     <div class="flex flex-wrap items-center gap-3" data-post-engagement-controls data-viewer-control>
       <EngagementControls busy={voteBusy()} onVote={vote} score={score()}
         viewerVote={viewerVote() === 1 ? "up" : viewerVote() === -1 ? "down" : null}
-        commentCount={commentCount()} onComment={openComments} />
+        commentCount={commentCount()} onComment={openComments}>{props.extraControls}</EngagementControls>
       <Show when={!props.children}><ContentOverflowMenu label="Post options" actions={postMenuActions()} /></Show>
       <Show when={postReported()}><Type role="status" variant="caption">Post reported</Type></Show>
       <Show when={issue()}>

@@ -1,3 +1,4 @@
+import type { SongActivityViewer } from "./song-activities.tsx";
 import { EngagementControls } from "../shared-engagement/engagement-controls.tsx";
 import type { ContentAction } from "../shared-engagement/content-overflow-menu.tsx";
 import type { JSX } from "@solidjs/web";
@@ -28,8 +29,7 @@ export function PublicPostEngagement(props: {
   canReportPost?: boolean;
   /** Compact lists use the pills to request sign-in without another button per card. */
   showSignInPrompt?: boolean;
-  signedOutLabel?: string;
-  memberActions?: () => JSX.Element;
+  extraControls?: (viewer: () => SongActivityViewer) => JSX.Element;
   dependencies?: PublicPostEngagementDependencies;
   children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
 }) {
@@ -63,11 +63,11 @@ export function PublicPostEngagement(props: {
   });
   return (
     <>
-      <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
+      <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn}>{props.extraControls?.(() => session() ?? (anonymous() ? "anonymous" : issue() ? "error" : "pending"))}</EngagementControls>)}>
         <Show when={session()}>{viewer => (
           <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
-            readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}>
+            readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage} extraControls={props.extraControls?.(viewer)}>
             {(controls, menuActions) => props.children(controls, menuActions)}
           </PostEngagement>
         )}</Show>
@@ -75,8 +75,7 @@ export function PublicPostEngagement(props: {
           <OperationPersonaControl label="Commenting as" placeholder="Choose a profile" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={setPersonaId} />
         </Show>
       </Show>
-      <Show when={session()}>{_viewer => props.memberActions?.() ?? null}</Show>
-      <Show when={anonymous() && props.showSignInPrompt !== false}><Button onClick={requestGlobalSignIn} variant="secondary">{props.signedOutLabel ?? "Sign in to comment"}</Button></Show>
+      <Show when={anonymous() && props.showSignInPrompt !== false}><Button onClick={requestGlobalSignIn} variant="secondary">Sign in to comment</Button></Show>
       <Show when={issue()}><p role="status">Your post actions could not be checked. <Button onClick={() => session() ? void readVote() : location.reload()} size="sm" variant="secondary">Retry</Button></p></Show>
     </>
   );
