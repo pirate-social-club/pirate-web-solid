@@ -50,12 +50,35 @@ plan:
       set -uo pipefail
       gate="$1"
       shift
+      log="/tmp/ambient-verification-$gate.log"
       printf '\n=== verification gate: %s ===\n' "$gate"
       set +e
-      "$@"
+      "$@" > "$log" 2>&1
       status="$?"
       set -e
       printf '%s\n' "$status" > "/tmp/ambient-verification-$gate.status"
+      # The guest returns command output over a serial channel at about
+      # 6 KiB/s, and the action does not complete until it has drained. The
+      # 77524e0 run spent 383s draining 2.2 MiB from the app suite alone.
+      # Ambient already holds an action's output until the action returns, so
+      # a gate that never returns leaves no output with or without this file.
+      # Print a readable tail, then the complete log compressed, so the
+      # report keeps every byte without paying for the repetition. The tail
+      # drops its first line, which a byte cut can leave split inside a
+      # character. To recover a log, take the text between the last begin
+      # marker for the gate and its end marker, then base64 -d | gunzip.
+      bytes="$(wc -c < "$log")"
+      if [ "$status" -eq 0 ]; then shown=32768; else shown=98304; fi
+      if [ "$bytes" -le "$shown" ]; then
+        cat "$log"
+      else
+        printf '[%s bytes of output; the last %s follow, then the complete log]\n' "$bytes" "$shown"
+        tail -c "$shown" "$log" | tail -n +2
+        printf '\n--- begin complete log: %s (gzip, base64, sha256 %s) ---\n' \
+          "$gate" "$(sha256sum < "$log" | cut -d ' ' -f 1)"
+        gzip -9 -c "$log" | base64 -w 76
+        printf -- '--- end complete log: %s ---\n' "$gate"
+      fi
       if [ "$status" -eq 0 ]; then
         printf 'PASS: %s\n' "$gate"
       else
@@ -87,7 +110,7 @@ plan:
       set -euo pipefail
       export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
       cd /ci/src
-      /tmp/run-verification-gate 04-test-app bun run test:app
+      /tmp/run-verification-gate 04-test-app bun run test:app --maxWorkers=2
   - action: shell
     shell: |
       set -euo pipefail
