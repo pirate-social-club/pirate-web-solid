@@ -31,6 +31,9 @@ export interface SongSubmissionItem extends Omit<SongSubmissionHandover, "source
   readonly slow: boolean;
   /** A request to run processing again is in flight. */
   readonly rerunning: boolean;
+  readonly bindingOriginal?: boolean;
+  readonly originalError?: string | null;
+  readonly canBindOriginal?: boolean;
 }
 
 export interface SongSubmissionStore {
@@ -39,6 +42,7 @@ export interface SongSubmissionStore {
   readonly adopt: (handover: SongSubmissionHandover) => void;
   readonly check: (submissionId: string) => void;
   readonly retry: (submissionId: string) => void;
+  readonly bindOriginal: (submissionId: string, link: string) => void;
   /** Stops watching a song and forgets it here. The server keeps its own state. */
   readonly dismiss: (submissionId: string) => void;
   readonly retainAccount: (accountId: string) => void;
@@ -57,6 +61,7 @@ export interface SongSubmissionStore {
 export function createSongSubmissionStore(options: {
   /** How often a song's state is read. Shortened by stories and tests. */
   readonly observeIntervalMs?: number;
+  readonly requestTimeoutMs?: number;
 } = {}): SongSubmissionStore {
   const [items, setItems] = createSignal<readonly SongSubmissionItem[]>([], { ownedWrite: true });
   const actors = new Map<string, ActorRefFrom<SongObservationMachine>>();
@@ -78,17 +83,19 @@ export function createSongSubmissionStore(options: {
       const { source, ...item } = handover;
       if (actors.has(item.submissionId)) return;
       setItems(current => [
-        { ...item, slow: false, rerunning: false },
+        { ...item, slow: false, rerunning: false, canBindOriginal: source.bindOriginal !== undefined },
         ...current.filter(existing => existing.submissionId !== item.submissionId),
       ]);
       if (settled(item.view)) return;
-      const actor = createActor(createSongObservationMachine(source, options.observeIntervalMs), { input: { view: item.view, held: paused } });
+      const actor = createActor(createSongObservationMachine(source, options.observeIntervalMs, options.requestTimeoutMs), { input: { view: item.view, held: paused } });
       actors.set(item.submissionId, actor);
       actor.subscribe((snapshot) => {
         patch(item.submissionId, {
           view: snapshot.context.view,
           slow: snapshot.context.failures >= SLOW_AFTER_FAILURES,
           rerunning: snapshot.matches("rerunning"),
+          bindingOriginal: snapshot.matches("bindingOriginal"),
+          originalError: snapshot.context.originalError,
         });
         if (snapshot.status === "done") actors.delete(item.submissionId);
       });
@@ -96,6 +103,7 @@ export function createSongSubmissionStore(options: {
     },
     check(id) { actors.get(id)?.send({ type: "CHECK" }); },
     retry(id) { actors.get(id)?.send({ type: "RETRY" }); },
+    bindOriginal(id, link) { actors.get(id)?.send({ type: "BIND_ORIGINAL", link }); },
     dismiss(id) {
       stop(id);
       setItems(current => current.filter(item => item.submissionId !== id));

@@ -3,7 +3,7 @@ import type { MediaSubmissionSnapshot } from "../../posts/media-submission/contr
 import type { MediaSubmissionTransport } from "../../posts/media-submission/transport";
 
 /** A held upload for community-page stories. All commands stay in memory. */
-export function createHeldSongUploadTransport() {
+export function createHeldSongUploadTransport(options: { readonly unknownSize?: boolean } = {}) {
   const reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse = {
     reservation_id: "upload-progress-reservation", track: "song", slot: "primary_audio", status: "awaiting_upload",
     upload: { method: "PUT", url: "https://upload.example.test/song", required_headers: [], expires_at: "2099-01-01T00:00:00Z" },
@@ -15,6 +15,8 @@ export function createHeldSongUploadTransport() {
     audio_revision: audioRevision, lyrics_state: { current: { status: "not_bound" } },
     updated_at: "2026-10-07T00:00:00Z", status: "processing", phase,
   });
+  const commands: string[] = [];
+  let uploadCount = 0;
   let current = snapshot(0, "awaiting_upload");
   let progress: (percent: number) => void = () => { throw new Error("Upload has not started"); };
   let finish: () => void = () => { throw new Error("Upload has not started"); };
@@ -22,6 +24,11 @@ export function createHeldSongUploadTransport() {
     listActive: async () => ({ object: "active_song_media_post_submission_page", items: [], next_cursor: null }),
     read: async () => current,
     dispatch: async command => {
+      commands.push(command.kind);
+      if (command.kind === "cancel") {
+        current = { ...current, status: "abandoned", reason_code: "author_cancelled_before_finalize" };
+        return current;
+      }
       if (command.kind === "reserve") return reservation;
       if (command.kind === "finalize") current = snapshot(1, "analysis");
       if (command.kind !== "start" && command.kind !== "finalize") {
@@ -31,8 +38,9 @@ export function createHeldSongUploadTransport() {
     },
     upload: async (_reservation, audio, onProgress, signal) => {
       if (signal?.aborted) throw new DOMException("Upload stopped", "AbortError");
-      progress = percent => onProgress?.(Math.round(audio.size * percent / 100), audio.size);
-      progress(25);
+      uploadCount += 1;
+      progress = percent => onProgress?.(Math.round(audio.size * percent / 100), options.unknownSize ? 0 : audio.size);
+      progress(0);
       await new Promise<void>((resolve, reject) => {
         const abort = () => { signal?.removeEventListener("abort", abort); reject(new DOMException("Upload stopped", "AbortError")); };
         signal?.addEventListener("abort", abort, { once: true });
@@ -40,5 +48,5 @@ export function createHeldSongUploadTransport() {
       });
     },
   };
-  return { transport, progress: (percent: number) => progress(percent), finish: () => finish() };
+  return { transport, commands, uploadCount: () => uploadCount, progress: (percent: number) => progress(percent), finish: () => finish() };
 }

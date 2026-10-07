@@ -194,13 +194,13 @@ describe("create post request", () => {
     await uploadAudio("abandoned.mp3");
     expect(document.body.querySelector("#create-post-body")).toBeNull();
     setOpen(false);
-    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull());
     setOpen(true);
     await vi.waitFor(() => expect(document.body.querySelector("input[aria-label='Upload audio']")).not.toBeNull());
     expect(document.body.textContent).not.toContain("abandoned.mp3");
     expect(document.body.querySelector("#create-post-body")).toBeNull();
     button("Close composer").click();
-    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull());
     expect(transport.commands).toHaveLength(0);
   });
 
@@ -227,7 +227,7 @@ describe("create post request", () => {
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("still has an unresolved command"));
-    expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
+    expect(document.body.querySelector("form[aria-label='Post a song']")).not.toBeNull();
   });
 
   test("lets the author stop an in-flight song upload and recover the cancel path", async () => {
@@ -304,7 +304,7 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("This song is awaiting manual review."));
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
-    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull());
   });
 
   test("lets an author discard a non-retryable processing failure", async () => {
@@ -878,7 +878,7 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
-    const form = document.body.querySelector("form[aria-label='Create a post']");
+    const form = document.body.querySelector("form[aria-label='Post a song']");
     expect(form).toBeInstanceOf(HTMLFormElement);
     expect(document.body.querySelectorAll("[role='dialog']")).toHaveLength(0);
     const closeButtons = document.body.querySelectorAll("button[aria-label='Close composer']");

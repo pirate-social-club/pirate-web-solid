@@ -39,8 +39,8 @@ export async function publishSongAndVerifyPlayback(
   await page.getByRole("button", { name: "Post", exact: true }).click();
 
   // Post opens the text composer beside the feed. Its song action takes the
-  // audio file, and the song steps then replace it under the same form name.
-  const composer = page.getByRole("form", { name: "Create a post" });
+  // audio file, and the song steps open in their own form.
+  let composer = page.getByRole("form", { name: "Create a post" });
   await expect(composer).toBeVisible();
 
   // Choosing a song is choosing the audio; the wizard follows the file.
@@ -53,6 +53,7 @@ export async function publishSongAndVerifyPlayback(
     mimeType: "audio/mpeg",
     buffer: audioFixture,
   });
+  composer = page.getByRole("form", { name: "Post a song" });
   // The song steps have no stepper; each step is named by its heading.
   await expect(composer.getByRole("heading", { name: "Song", exact: true })).toBeVisible();
 

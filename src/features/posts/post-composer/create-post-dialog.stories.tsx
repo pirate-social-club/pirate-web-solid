@@ -291,7 +291,7 @@ export const ContextualSongOverMobileNavigation: Story = {
     </>
   ),
   play: async ({ canvasElement }) => {
-    const form = await within(canvasElement).findByRole("form", { name: "Create a post" });
+    const form = await within(canvasElement).findByRole("form", { name: "Post a song" });
     const nav = canvasElement.ownerDocument.querySelector("nav[aria-label='Primary navigation']");
     await expect(nav).not.toBeNull();
     const box = nav!.getBoundingClientRect();

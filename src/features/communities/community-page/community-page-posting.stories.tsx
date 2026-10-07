@@ -537,6 +537,7 @@ const songPost: CommunityPost = {
 function SongFrame(props: {
   readonly answers: readonly (MediaSubmissionSnapshot | "unanswered")[];
   readonly rerun?: readonly MediaSubmissionSnapshot[];
+  readonly originalRequired?: boolean;
 }) {
   const answers = [...untrack(() => props.answers)];
   const rerun = [...untrack(() => props.rerun ?? [])];
@@ -552,6 +553,12 @@ function SongFrame(props: {
     authorHandle: "Harbor",
     view: { status: "processing", submissionId: "song-1", phase: "finalize" },
     source: {
+      ...(props.originalRequired ? { bindOriginal: async (link: string) => {
+        if (link !== "/posts/original-song") throw new Error("ineligible original");
+        current = songProcessing("decision");
+        answers.splice(0, answers.length, current, songPublished);
+        return current;
+      } } : {}),
       refresh: async () => {
         current = answers.length > 1 ? answers.shift() ?? current : answers[0] ?? current;
         if (current === "unanswered") throw new Error("no answer");
@@ -585,11 +592,13 @@ function SongFrame(props: {
 
 const pendingSong = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-pending-song]");
 
-function SongUploadFrame() {
-  const upload = createHeldSongUploadTransport();
+function SongUploadFrame(props: { readonly unknownSize?: boolean } = {}) {
+  const upload = createHeldSongUploadTransport(props);
   return <>
     <nav aria-label="Upload story controls" class="fixed right-3 top-3 z-[80] flex gap-2">
       <Button onClick={() => upload.progress(75)} size="sm">Upload to 75%</Button>
+      <Button onClick={() => { if (upload.commands.includes("finalize") || upload.commands.includes("terms")) throw new Error("Stopped upload was finalized"); }} size="sm">Verify stopped upload</Button>
+      <Button onClick={() => { if (upload.commands.join(",") !== "reserve,start,cancel" || upload.uploadCount() !== 1) throw new Error("Upload cancellation commands were incorrect"); }} size="sm">Verify cancellation</Button>
       <Button onClick={upload.finish} size="sm">Finish upload</Button>
     </nav>
     <CommunityPage {...pageArgs(standInServer())} mediaSubmissionTransport={upload.transport} />
@@ -610,7 +619,7 @@ export const SongUploadProgress: Story = {
     await waitFor(() => expect(next).toBeEnabled());
     await userEvent.click(next);
     const progress = await canvas.findByRole("progressbar", { name: "Audio upload" });
-    await waitFor(() => expect(progress).toHaveAttribute("aria-valuenow", "25"));
+    await waitFor(() => expect(progress).toHaveAttribute("aria-valuenow", "0"));
     await expect(canvas.getByRole("button", { name: "Stop upload" })).toBeVisible();
     await expect(next).toBeDisabled();
     await userEvent.click(canvas.getByRole("button", { name: "Upload to 75%" }));
@@ -618,6 +627,60 @@ export const SongUploadProgress: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Finish upload" }));
     await canvas.findByRole("heading", { name: "Royalties" });
     await expect(canvas.queryByRole("progressbar", { name: "Audio upload" })).toBeNull();
+  },
+};
+
+async function beginHeldUpload(canvasElement: HTMLElement) {
+  await openComposer(canvasElement);
+  const canvas = within(canvasElement);
+  await userEvent.upload(canvas.getByLabelText("Choose a song file"), new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
+  const next = await canvas.findByRole("button", { name: "Continue" });
+  await waitFor(() => expect(next).toBeEnabled());
+  await userEvent.click(next);
+  await canvas.findByRole("progressbar", { name: "Audio upload" });
+  return canvas;
+}
+
+export const SongUploadStopThenRetry: Story = {
+  render: () => <SongUploadFrame />,
+  play: async ({ canvasElement }) => {
+    const canvas = await beginHeldUpload(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Stop upload" }));
+    await canvas.findByRole("heading", { name: "Audio upload needs another try" });
+    await userEvent.click(canvas.getByRole("button", { name: "Verify stopped upload" }));
+    const retry = canvas.getByRole("button", { name: "Try upload again" });
+    await waitFor(() => expect(retry).toBeEnabled());
+    await userEvent.click(retry);
+    const progress = await canvas.findByRole("progressbar", { name: "Audio upload" });
+    await waitFor(() => expect(progress).toHaveAttribute("aria-valuenow", "0"));
+    await userEvent.click(canvas.getByRole("button", { name: "Finish upload" }));
+    await canvas.findByRole("heading", { name: "Royalties" });
+  },
+};
+
+export const SongUploadStopThenCancel: Story = {
+  render: () => <SongUploadFrame />,
+  play: async ({ canvasElement }) => {
+    const canvas = await beginHeldUpload(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Stop upload" }));
+    await canvas.findByRole("heading", { name: "Audio upload needs another try" });
+    const cancel = canvas.getByRole("button", { name: "Cancel song submission" });
+    await waitFor(() => expect(cancel).toBeEnabled());
+    await userEvent.click(cancel);
+    await waitFor(() => expect(canvas.queryByRole("heading", { name: "Audio upload needs another try" })).toBeNull());
+    await userEvent.click(canvas.getByRole("button", { name: "Verify cancellation" }));
+    await expect(canvas.getByRole("heading", { name: "Song" })).toBeVisible();
+    await expect(canvas.queryByText("Selected file: midnight-waves.mp3")).toBeNull();
+  },
+};
+
+export const SongUploadUnknownSize: Story = {
+  render: () => <SongUploadFrame unknownSize />,
+  play: async ({ canvasElement }) => {
+    const canvas = await beginHeldUpload(canvasElement);
+    await expect(canvas.getByRole("progressbar", { name: "Audio upload" })).not.toHaveAttribute("aria-valuenow");
+    await userEvent.click(canvas.getByRole("button", { name: "Finish upload" }));
+    await canvas.findByRole("heading", { name: "Royalties" });
   },
 };
 
@@ -639,6 +702,24 @@ export const SongMovesThroughItsStages: Story = {
     await expect(canvas.queryByText(/automatic checks paused/iu)).toBeNull();
     await expect(canvas.queryByLabelText(/asset id/iu)).toBeNull();
     // Published: the real song post takes the entry's place, once.
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+export const SongNeedsOriginal: Story = {
+  name: "Song: name the original, recover from a rejected choice",
+  render: () => <SongFrame originalRequired answers={[songAnswer({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } })]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = await canvas.findByRole("textbox", { name: "Original song link" });
+    await userEvent.type(field, "/posts/wrong-song");
+    await userEvent.click(canvas.getByRole("button", { name: "Use this original song" }));
+    await canvas.findByText(/We couldn't confirm that original song/u);
+    await expect(field).toBeEnabled();
+    await userEvent.clear(field);
+    await userEvent.type(field, "/posts/original-song");
+    await userEvent.click(canvas.getByRole("button", { name: "Use this original song" }));
     await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
     await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
   },

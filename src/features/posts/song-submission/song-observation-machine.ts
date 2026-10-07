@@ -6,9 +6,10 @@ import { projectMediaSubmission, type SongSubmissionView } from "../media-submis
 /** The part of the song coordinator the observer needs once a song is submitted. */
 export interface SongObservationSource {
   /** Reads the submission's current state from the server. */
-  readonly refresh: () => Promise<MediaSubmissionSnapshot | null>;
+  readonly refresh: (signal?: AbortSignal) => Promise<MediaSubmissionSnapshot | null>;
   /** Asks the server to run processing again after a retryable failure. */
-  readonly retry: () => Promise<MediaSubmissionSnapshot>;
+  readonly retry: (signal?: AbortSignal) => Promise<MediaSubmissionSnapshot>;
+  readonly bindOriginal?: (link: string, signal?: AbortSignal) => Promise<MediaSubmissionSnapshot>;
 }
 
 export interface SongObservationContext {
@@ -16,6 +17,8 @@ export interface SongObservationContext {
   /** Consecutive reads that did not return a state. */
   readonly failures: number;
   readonly startHeld: boolean;
+  readonly originalLink: string;
+  readonly originalError: string | null;
 }
 
 export type SongObservationEvent =
@@ -23,6 +26,7 @@ export type SongObservationEvent =
   | { readonly type: "CHECK" }
   /** Run processing again after it failed. */
   | { readonly type: "RETRY" }
+  | { readonly type: "BIND_ORIGINAL"; readonly link: string }
   /** The session ended: stop reading until the same account is back. */
   | { readonly type: "PAUSE" }
   | { readonly type: "RESUME" };
@@ -33,6 +37,7 @@ export interface SongObservationInput {
 }
 
 export const OBSERVE_INTERVAL_MS = 3_000;
+export const OBSERVE_REQUEST_TIMEOUT_MS = 15_000;
 /** Unanswered reads before the author is told checking is taking longer. */
 export const SLOW_AFTER_FAILURES = 3;
 
@@ -58,7 +63,7 @@ function needsAuthor(view: SongSubmissionView): boolean {
  * song's state. A read that fails says nothing about the song, so it is tried
  * again on a slower timer and never turned into a failure of the song itself.
  */
-export function createSongObservationMachine(source: SongObservationSource, intervalMs = OBSERVE_INTERVAL_MS) {
+export function createSongObservationMachine(source: SongObservationSource, intervalMs = OBSERVE_INTERVAL_MS, requestTimeoutMs = OBSERVE_REQUEST_TIMEOUT_MS) {
   return setup({
     types: {
       // SAFETY: type carrier only.
@@ -69,15 +74,20 @@ export function createSongObservationMachine(source: SongObservationSource, inte
       input: {} as SongObservationInput,
     },
     actors: {
-      read: fromPromise<SongSubmissionView | null>(async () => {
-        const snapshot = await source.refresh();
+      read: fromPromise<SongSubmissionView | null>(async ({ signal }) => {
+        const snapshot = await source.refresh(signal);
         return snapshot === null ? null : projectMediaSubmission(snapshot);
       }),
-      rerun: fromPromise<SongSubmissionView>(async () => projectMediaSubmission(await source.retry())),
+      bindOriginal: fromPromise<SongSubmissionView, { link: string }>(async ({ input, signal }) => {
+        if (source.bindOriginal === undefined) throw new Error("Original song selection is unavailable here.");
+        return projectMediaSubmission(await source.bindOriginal(input.link, signal));
+      }),
+      rerun: fromPromise<SongSubmissionView>(async ({ signal }) => projectMediaSubmission(await source.retry(signal))),
     },
     delays: {
       observeDelay: ({ context }) => observeDelayMs(context.failures, intervalMs),
       idleDelay: intervalMs * 10,
+      requestTimeout: requestTimeoutMs,
     },
     guards: {
       isSettled: ({ context }) => settled(context.view),
@@ -85,7 +95,7 @@ export function createSongObservationMachine(source: SongObservationSource, inte
     },
   }).createMachine({
     id: "songObservation",
-    context: ({ input }) => ({ view: input.view, failures: 0, startHeld: input.held === true }),
+    context: ({ input }) => ({ view: input.view, failures: 0, startHeld: input.held === true, originalLink: "", originalError: null }),
     initial: "starting",
     states: {
       starting: {
@@ -107,6 +117,7 @@ export function createSongObservationMachine(source: SongObservationSource, inte
         on: { CHECK: { target: "reading" }, PAUSE: { target: "held" } },
       },
       reading: {
+        after: { requestTimeout: { target: "waiting", actions: assign({ failures: ({ context }) => context.failures + 1 }) } },
         invoke: {
           src: "read",
           onDone: [
@@ -119,7 +130,11 @@ export function createSongObservationMachine(source: SongObservationSource, inte
           ],
           onError: { target: "waiting", actions: assign({ failures: ({ context }) => context.failures + 1 }) },
         },
-        on: { PAUSE: { target: "held" } },
+        on: {
+          PAUSE: { target: "held" },
+          BIND_ORIGINAL: { guard: ({ context }) => context.view.status === "action_required" && source.bindOriginal !== undefined, target: "bindingOriginal", actions: assign({ originalLink: ({ event }) => event.link, originalError: null }) },
+          RETRY: { guard: ({ context }) => context.view.status === "processing_failed" && context.view.retryable, target: "rerunning" },
+        },
       },
       waitingForAuthor: {
         // Nothing moves until the author acts, but the server can still end
@@ -127,12 +142,24 @@ export function createSongObservationMachine(source: SongObservationSource, inte
         // song expires. Keep reading, slowly.
         after: { idleDelay: { target: "reading" } },
         on: {
+          BIND_ORIGINAL: { guard: ({ context }) => context.view.status === "action_required" && source.bindOriginal !== undefined, target: "bindingOriginal", actions: assign({ originalLink: ({ event }) => event.link, originalError: null }) },
           RETRY: { guard: ({ context }) => context.view.status === "processing_failed" && context.view.retryable, target: "rerunning" },
           CHECK: { target: "reading" },
           PAUSE: { target: "held" },
         },
       },
+      bindingOriginal: {
+        after: { requestTimeout: { target: "reading", actions: assign({ originalError: "The request went unanswered. Checking whether the original was saved." }) } },
+        invoke: {
+          src: "bindOriginal",
+          input: ({ context }) => ({ link: context.originalLink }),
+          onDone: { target: "routing", actions: assign({ view: ({ event }) => event.output, failures: 0, originalError: null }) },
+          onError: { target: "reading", actions: assign({ originalError: "We couldn't confirm that original song. Check its link and whether this song can use it, then try again." }) },
+        },
+        on: { PAUSE: { target: "held" } },
+      },
       rerunning: {
+        after: { requestTimeout: { target: "reading" } },
         invoke: {
           src: "rerun",
           onDone: { target: "routing", actions: assign({ view: ({ event }) => event.output, failures: 0 }) },

@@ -1,5 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
+import { originalSongPostId } from "../song-submission/original-song-link";
 import { createEffect, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
@@ -347,7 +348,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       authorHandle: persona?.displayName ?? persona?.primaryPublicHandle ?? undefined,
       authorAvatarSrc: persona?.avatarRef ?? null,
       view: projectMediaSubmission(snapshot),
-      source: { refresh: () => coordinator.refresh(), retry: () => coordinator.retry() },
+      source: { refresh: signal => coordinator.refresh(signal), retry: signal => coordinator.retry(signal), bindOriginal: async (link, signal) => coordinator.bindReference(await originalSongPostId(link, signal), signal) },
     });
     handedOver = true;
     props.onOpenChange(false);
@@ -609,19 +610,17 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
       >
         <p>{mediaStateMessage(mediaView())}</p>
-        <Show when={uploadFraction()}>
-          {fraction => (
-            <div
-              aria-label="Audio upload"
-              aria-valuemax={100}
-              aria-valuemin={0}
-              aria-valuenow={Math.floor(fraction() * 100)}
-              class="h-1 overflow-hidden rounded-full bg-muted"
-              role="progressbar"
-            >
-              <div class="h-full rounded-full bg-primary" style={{ width: `${Math.floor(fraction() * 100)}%` }} />
-            </div>
-          )}
+        <Show when={mediaView().status === "uploading"}>
+          <div
+            aria-label="Audio upload"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={uploadFraction() === undefined ? undefined : Math.floor(uploadFraction()! * 100)}
+            class="h-1 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+          >
+            <div class="h-full rounded-full bg-primary" style={{ width: uploadFraction() === undefined ? "25%" : `${Math.floor(uploadFraction()! * 100)}%` }} />
+          </div>
         </Show>
         <Show when={mediaView().status === "uploading"}>
           <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
@@ -654,7 +653,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       when={mode() === "video"}
       fallback={
       <form
-        aria-label="Create a post"
+        aria-label="Post a song"
         class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
         data-create-post-form
         onSubmit={event => event.preventDefault()}
