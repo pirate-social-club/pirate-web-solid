@@ -80,7 +80,9 @@ describe("PublicProfilePage", () => {
         client={{ get_publicProfilesHandle: async () => pending }}
       />
     ));
-    expect(container.querySelector("[role='status']")?.textContent).toContain("Loading profile");
+    expect(container.querySelector("[role='status']")?.getAttribute("aria-label")).toBe("Loading profile");
+    expect(container.querySelectorAll("[role='status']")).toHaveLength(1);
+    expect(container.textContent).not.toContain("Loading profile");
     resolve(profileResponse([
       { community: "community-1", display_name: "Harbor", created: 1_700_000_001, route_slug: null },
       { community: "community-2", display_name: "Dock", created: 1_700_000_002, route_slug: "dock" },

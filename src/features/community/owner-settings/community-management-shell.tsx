@@ -2,6 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import {
+  LoadingIndicator,
   Button,
   Card,
   CommunityAvatar,
@@ -19,7 +20,6 @@ import {
   IconSealCheck,
   IconTelegramLogo,
   IconX,
-  Spinner,
   Type,
   cn,
 } from "../../../design-system";
@@ -254,11 +254,8 @@ export function CommunityManagementShell(props: CommunityManagementShellProps) {
             >
               <Show when={status() === "ready"}>{props.children}</Show>
               <Show when={status() === "loading"}>
-                <Card class="grid min-h-64 place-items-center p-8" role="status">
-                  <div class="flex items-center gap-3">
-                    <Spinner class="size-5" />
-                    <Type variant="body">Loading {activeTitle().toLowerCase()}&hellip;</Type>
-                  </div>
+                <Card class="p-8">
+                  <LoadingIndicator class="min-h-64" label={`Loading ${activeTitle().toLowerCase()}`} />
                 </Card>
               </Show>
               <Show when={status() === "empty"}>

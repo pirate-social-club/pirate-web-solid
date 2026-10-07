@@ -75,7 +75,7 @@ describe("public post route view", () => {
     const reload = vi.fn(() => new Promise<PublicPostRouteState>(resolve => { finish = resolve; }));
     const container = render(contentState(true), reload);
     refreshSession();
-    await vi.waitFor(() => expect(container.textContent).toContain("Loading post"));
+    await vi.waitFor(() => expect(container.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe("Loading post"));
     expect(container.textContent).not.toContain("Post unavailable");
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
     finish?.(contentState(true));

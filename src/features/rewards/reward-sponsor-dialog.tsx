@@ -6,7 +6,7 @@ import { RewardSongStatus } from "./reward-song-status.tsx";
 import { sponsorFailure } from "./reward-sponsor-errors.ts";
 import { For, Match, Show, Switch, createSignal, createEffect, onCleanup, untrack } from "solid-js";
 import { formatUnits } from "viem";
-import { Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, TextField, TextFieldInput, TextFieldLabel, Type } from "../../design-system.ts";
+import { LoadingIndicator, Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, TextField, TextFieldInput, TextFieldLabel, Type } from "../../design-system.ts";
 import { createRewardSponsorData, type RewardSponsorContext } from "../../api/reward-sponsor-data.ts";
 import { createBrowserRewardCreationJournal, createRewardCreation, createRewardCreationApi, type RewardCreationScope, type RewardCreationJournal } from "../../api/reward-creation.ts";
 import { createBrowserRewardFunding } from "../../api/reward-funding.ts";
@@ -221,7 +221,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     <Show when={error()}>{message => <p role="alert" class="text-destructive-text break-words">{message()}</p>}</Show>
     <Switch>
       <Match when={step() === "unavailable"}><p>Sign in with a persona wallet and reopen rewards to try again.</p></Match>
-      <Match when={step() === "loading"}><p>Loading rewards…</p></Match>
+      <Match when={step() === "loading"}><LoadingIndicator label="Loading rewards" /></Match>
       <Match when={step() === "compose"}>
         <div class="mt-5 space-y-4">
           <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">Persona</Type><select class="block w-full rounded-md border border-input bg-background px-3 py-2" value={personaId()} disabled={busy()} onChange={event => { void run(() => selectPersona(event.currentTarget.value)); }}>

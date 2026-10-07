@@ -1,5 +1,6 @@
+import { LoadingIndicator } from "../../../design-system";
 import { ApiClientError } from "@pirate/api-client";
-import { Button, Card, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
+import { Button, Card, FormNote, Type } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import type { ApiFetch } from "../../../api/proxy";
 import { createBobCommunityHnsWallet } from "./community-hns-wallet";
@@ -403,8 +404,8 @@ export function CommunityNamespaceSettingsController(
 
   return (
     <Show when={status() !== "loading"} fallback={(
-      <Card class="grid min-h-64 place-items-center" role="status">
-        <div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading community address…</Type></div>
+      <Card class="min-h-64">
+        <LoadingIndicator class="min-h-64" label="Loading community address" />
       </Card>
     )}>
       <Show when={status() !== "denied"} fallback={(

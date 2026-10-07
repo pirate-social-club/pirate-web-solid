@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { ProfileActivity, type ProfileActivityDependencies } from "../profile-page/profile-activity.tsx";
 import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
@@ -66,7 +67,7 @@ function PersonaData(props: PersonaPublicProfileProps) {
 
 export function PersonaPublicProfile(props: PersonaPublicProfileProps) {
   return (
-    <Loading fallback={<main aria-busy="true" class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8"><h1>Loading profile</h1></main>}>
+    <Loading fallback={<main><LoadingIndicator label="Loading profile" variant="page" /></main>}>
       <PersonaData {...props} />
     </Loading>
   );

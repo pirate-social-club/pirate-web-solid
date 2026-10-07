@@ -1,4 +1,4 @@
-import { Button, IconButton, IconCaretLeft, Spinner, Type } from "../../design-system";
+import { LoadingIndicator, Button, IconButton, IconCaretLeft, Type } from "../../design-system";
 
 export interface KaraokeRouteLoadingStateProps {
   label?: string;
@@ -6,9 +6,7 @@ export interface KaraokeRouteLoadingStateProps {
 
 export function KaraokeRouteLoadingState(props: KaraokeRouteLoadingStateProps) {
   return (
-    <div aria-busy="true" aria-label={props.label ?? "Loading"} class="grid min-h-dvh w-full place-items-center bg-background text-foreground" role="status">
-      <Spinner class="size-6" decorative />
-    </div>
+    <LoadingIndicator label={props.label} variant="page" />
   );
 }
 

@@ -107,6 +107,8 @@ export {
 export {
   Skeleton,
 } from "./components/feedback/skeleton/skeleton";
+export { LoadingIndicator, type LoadingIndicatorProps } from "./components/feedback/loading-indicator/loading-indicator";
+
 export {
   Spinner,
   type SpinnerProps,

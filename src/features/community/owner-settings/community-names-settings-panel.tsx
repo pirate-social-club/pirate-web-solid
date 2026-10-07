@@ -1,6 +1,7 @@
+import { LoadingIndicator } from "../../../design-system";
 import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
 import { For, Show, createSignal } from "solid-js";
-import { Button, Card, CopyField, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
+import { Button, Card, CopyField, FormNote, Type } from "@pirate/web-solid-ui";
 import type {
   CommunityNamesCandidate,
   CommunityNamesManagementSnapshot,
@@ -229,7 +230,7 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
       </div></Show>
 
       <Show when={props.errorMessage}><FormNote tone="destructive">{props.errorMessage}</FormNote></Show>
-      <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading names…</Type></div></Card>}>
+      <Show when={!props.loading} fallback={<Card class="min-h-64"><LoadingIndicator class="min-h-64" label="Loading names" /></Card>}>
           <SpacesNamesCards busy={props.busy} onCommand={props.onCommand} snapshot={props.snapshot} />
           <Show when={props.snapshot.context.sale_namespace_candidates.length > 0} fallback={
             <Show when={(props.snapshot.spaces?.candidates.length ?? 0) === 0 && (props.snapshot.spaces?.saleNamespaces.length ?? 0) === 0}>

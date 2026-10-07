@@ -17,7 +17,7 @@ import { readSongAttribution } from "../song-attribution/song-attribution.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell";
 import { PublicPostEngagement, type PublicPostEngagementDependencies } from "./public-post-engagement";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model";
-import { buttonVariants } from "../../../design-system";
+import { LoadingIndicator, buttonVariants } from "../../../design-system";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
@@ -251,8 +251,8 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     if (!signal.aborted && source === props.state) setRefreshed({ source, state: next });
   };
   return (
-    <Show when={!refreshing()} fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
-      <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
+    <Show when={!refreshing()} fallback={<main><LoadingIndicator label="Loading post" variant="page" /></main>}>
+      <Loading fallback={<main><LoadingIndicator label="Loading post" variant="page" /></main>}>
         <Show when={state()} keyed>
           {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} />}
         </Show>

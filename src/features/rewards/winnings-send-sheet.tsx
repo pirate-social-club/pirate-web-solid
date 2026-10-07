@@ -1,6 +1,7 @@
 import { Match, Show, Switch, createSignal, onCleanup, onSettled, untrack } from "solid-js";
 import { formatUnits, getAddress } from "viem";
 import {
+  LoadingIndicator,
   Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle,
   TextField, TextFieldInput, TextFieldLabel, Type,
 } from "../../design-system.ts";
@@ -318,7 +319,7 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
         </ModalHeader>
         <Show when={error()}>{message => <Type role="alert" class="text-destructive-text break-words">{message()}</Type>}</Show>
         <Switch>
-          <Match when={step() === "loading"}><Type role="status">Loading your winnings…</Type></Match>
+          <Match when={step() === "loading"}><LoadingIndicator label="Loading your winnings" /></Match>
           <Match when={step() === "unavailable"}>
             <Type role="alert">Your payout wallet or send record could not be loaded. Nothing was signed.</Type>
             <Button onClick={close}>Close</Button>

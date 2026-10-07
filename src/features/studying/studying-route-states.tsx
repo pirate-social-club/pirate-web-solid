@@ -2,10 +2,10 @@ import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 
 import {
+  LoadingIndicator,
   Button,
   IconButton,
   IconCaretLeft,
-  Spinner,
   Type,
 } from "../../design-system";
 
@@ -43,14 +43,7 @@ export interface StudyRouteLoadingStateProps {
 
 export function StudyRouteLoadingState(props: StudyRouteLoadingStateProps) {
   return (
-    <div
-      aria-busy="true"
-      aria-label={props.label ?? "Loading"}
-      class="grid h-dvh w-full place-items-center bg-background text-foreground"
-      role="status"
-    >
-      <Spinner class="size-6 text-muted-foreground" decorative />
-    </div>
+    <LoadingIndicator label={props.label} variant="page" />
   );
 }
 

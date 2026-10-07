@@ -9,7 +9,7 @@ import type { JSX } from "@solidjs/web";
 import { Show, For, getRequestEvent } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
-import { Button, Card, CardContent, Spinner, Type, buttonVariants } from "../../../design-system";
+import { LoadingIndicator, Button, Card, CardContent, Type, buttonVariants } from "../../../design-system";
 import { resolveRequestUiLocale, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
@@ -101,9 +101,8 @@ function displayBody(item: PublicFeedItem): string | null {
 
 function FeedLoadingState(props: { readonly copy: FeedCopy }) {
   return (
-    <main aria-busy="true" data-feed-state="loading">
-      <h1>{props.copy.title}</h1>
-      <div role="status"><Spinner label={props.copy.loadingLabel} /></div>
+    <main data-feed-state="loading">
+      <LoadingIndicator label={props.copy.loadingLabel} variant="page" />
     </main>
   );
 }
@@ -313,8 +312,8 @@ function FeedResults(props: {
       </Show>
       <Show when={nextCursor()}>
         <div class="mt-5 flex flex-col items-center gap-2">
-          <Button disabled={loadingMore()} onClick={() => void loadMore()} type="button">
-            {loadingMore() ? "Loading more" : "Load more"}
+          <Button loading={loadingMore()} onClick={() => void loadMore()} type="button">
+            Load more
           </Button>
           <Show when={loadMoreError()}>
             <Type role="alert" variant="caption">More posts could not be loaded.</Type>

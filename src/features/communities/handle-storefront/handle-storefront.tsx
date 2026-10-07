@@ -26,6 +26,7 @@ import {
   type SessionHandleSalesApiClient,
 } from "../../../api/handle-sales-client.ts";
 import {
+  LoadingIndicator,
   Avatar,
   Button,
   Card,
@@ -144,9 +145,8 @@ function canonicalOrigin(state: HandleStorefrontPublicSuccess): string | undefin
 
 function LoadingState() {
   const copy = namesCopy();
-  return <main aria-busy="true" aria-live="polite" data-handle-storefront-state="loading">
-    <Type as="h1" variant="h2">{copy.loading}</Type>
-    <p role="status">{copy.loading}</p>
+  return <main data-handle-storefront-state="loading">
+    <LoadingIndicator label={copy.loading} variant="page" />
   </main>;
 }
 
@@ -676,7 +676,7 @@ function BuyerPanel(props: {
 
     <Show when={!hnsServed()}>
       <Show when={session().kind === "loading"}>
-        <p aria-live="polite" role="status">{copy.personasLoading}</p>
+        <LoadingIndicator label={copy.personasLoading} />
       </Show>
 
       <Show when={session().kind === "anonymous"}>

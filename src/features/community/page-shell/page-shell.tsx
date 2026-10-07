@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -179,7 +180,7 @@ function FeedPending() {
   return (
     <Card>
       <CardContent class="p-6">
-        <Type aria-live="polite" role="status" variant="body">Loading community posts…</Type>
+        <LoadingIndicator label="Loading community posts" />
       </CardContent>
     </Card>
   );

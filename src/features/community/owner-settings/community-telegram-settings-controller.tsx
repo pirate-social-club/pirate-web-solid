@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { ApiClientError } from "@pirate/api-client";
 import { Button } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
@@ -94,7 +95,7 @@ export function CommunityTelegramSettingsController(props: { communityId: string
   const run = (action: Parameters<typeof execute>[0]) => { void execute(action).catch(() => {}); };
 
   return <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard />}>
-    <Show when={settings()} fallback={<div class="space-y-4"><p role={loading() ? "status" : "alert"}>{loading() ? "Loading community bot settings…" : error()}</p><Show when={!loading()}><Button onClick={() => void load()}>Try again</Button></Show></div>}>
+    <Show when={settings()} fallback={<div class="space-y-4"><Show when={loading()} fallback={<p role="alert">{error()}</p>}><LoadingIndicator label="Loading community bot settings" /></Show><Show when={!loading()}><Button onClick={() => void load()}>Try again</Button></Show></div>}>
     {(current) => <Show when={props.section === "assistant"} fallback={<CommunityTelegramSettingsPanel showHeading={false}
       settings={current()} setup={setup()} deliveries={deliveries()} loading={loading()} saving={busy()} errorMessage={error() || undefined}
       onConnect={(token) => execute((snapshot, commandKey) => api.connect(snapshot, token, commandKey))}

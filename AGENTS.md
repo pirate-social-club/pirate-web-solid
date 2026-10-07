@@ -29,9 +29,8 @@ source.
 - Authentication is direct between this app and api-next through an HttpOnly,
   Secure, host-only session cookie. Writes require exact Origin and CSRF
   protection. Never persist application bearer tokens in localStorage.
-- Secrets are bindings, never source or checked-in configuration. No deploy,
-  binding mutation, secret provisioning, or remote push without explicit human
-  authorization.
+- Secrets are bindings, never source or checked-in configuration. Deploys,
+  binding mutations, and secret provisioning require explicit human authorization.
 - Staging deploys use `bun run deploy:staging:hns-guarded` from published `main`.
   The command reads the active staging gateway manifest, checks the source and
   built Worker ingress fingerprints and gateway references, and runs the live
@@ -64,6 +63,13 @@ not an authentication, cursor, or API compatibility change.
 
 ## Change policy
 
+- A user request to implement or fix code authorizes the necessary local edits,
+  verification, commits, publication of named feature branches, and creation or
+  updating of pull requests. Proceed without asking for separate confirmation
+  for those steps. Honor any narrower scope or explicit restriction from the
+  user. Feature branches may be published through the GitHub connector or a
+  dedicated feature-branch remote; preserve the integration origin push guard.
+
 - One writer per worktree. Feature work uses named branches and linked
   worktrees; the canonical checkout is integration-owned.
 - Every non-coordinator agent or Codex session must be launched with filesystem
@@ -80,8 +86,9 @@ not an authentication, cursor, or API compatibility change.
   `scripts/configure-radicle-primary --apply`. Advance `main` only through
   `scripts/publish-main --sha <full-sha> --execute`: it publishes the exact
   commit to Radicle first, synchronizes the preferred seed, and then mirrors
-  the same commit to GitHub. Ordinary `git push origin` publication is a
-  policy violation even when the local guard has not been installed.
+  the same commit to GitHub. Direct publication of `main` through `git push`
+  or the GitHub API is a policy violation even when the local guard has not
+  been installed.
 - Import work in reviewable tranches with a source manifest and hash evidence.
   Exclude React, dispatcher, route-migration, legacy-origin, and compatibility
   files even when they are adjacent to useful Solid code.

@@ -12,6 +12,7 @@ import {
 } from "../../../api/handle-sales-client.ts";
 import type { SessionResolution } from "../../../api/session.ts";
 import {
+  LoadingIndicator,
   Button,
   toast,
   Toaster,
@@ -130,9 +131,8 @@ function absolutePath(path: string): string {
 function LoadingState() {
   const copy = communityCopy();
   return (
-    <main aria-busy="true" aria-live="polite" data-community-state="loading">
-      <h1>{copy.loading}</h1>
-      <p role="status">{copy.loading}</p>
+    <main data-community-state="loading">
+      <LoadingIndicator label={copy.loading} variant="page" />
     </main>
   );
 }

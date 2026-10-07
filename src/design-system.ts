@@ -189,6 +189,7 @@ export {
   MediaControlButton,
   Scrubber,
   Skeleton,
+  LoadingIndicator,
   Spinner,
   Switch,
 } from "@pirate/web-solid-ui";

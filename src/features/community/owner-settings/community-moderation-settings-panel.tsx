@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { For, Show } from "solid-js";
 import {
   Button,
@@ -5,7 +6,6 @@ import {
   FormNote,
   IconLock,
   Select,
-  Spinner,
   Type,
   cn,
 } from "@pirate/web-solid-ui";
@@ -203,7 +203,7 @@ export function CommunityModerationQueuePanel(props: CommunityModerationQueuePan
             refresh does not take away the cases already on screen. */}
         <Card class="p-4" role="alert"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>
       </Show>
-      <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading queue&hellip;</Type></div></Card>}>
+      <Show when={!props.loading} fallback={<Card class="min-h-64"><LoadingIndicator class="min-h-64" label="Loading queue" /></Card>}>
         <CaseQueue {...props} />
       </Show>
     </div>
@@ -215,7 +215,7 @@ export function CommunityModerationPolicyPanel(props: CommunityModerationPolicyP
     <div class="flex flex-col gap-5">
       <Show when={props.showHeading !== false}><div><Type as="h2" variant="h2">Content policy</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Set what is allowed, reviewed or blocked in this community.</Type></div></Show>
       <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
-        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading policy…</Type></div></Card>}>
+        <Show when={!props.loading} fallback={<Card class="min-h-64"><LoadingIndicator class="min-h-64" label="Loading policy" /></Card>}>
           <PolicyEditor {...props} />
         </Show>
       </Show>

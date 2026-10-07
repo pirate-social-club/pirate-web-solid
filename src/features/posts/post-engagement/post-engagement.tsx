@@ -8,6 +8,7 @@ import type { JSX } from "@solidjs/web";
 import { For, Show, createEffect, createMemo, createSignal, untrack } from "solid-js";
 
 import {
+  LoadingIndicator,
   Button,
   FormattedTextarea,
   Type,
@@ -729,7 +730,7 @@ export function PostEngagement(props: PostEngagementProps) {
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4" data-comment-thread>
           <Show
             when={comments().length > 0}
-            fallback={<Type variant="body">{thread.pages().root?.state === "loading" ? "Loading comments…" : thread.pages().root?.state === "error" ? "Comments could not be loaded." : "No comments yet."}</Type>}
+            fallback={<Show when={thread.pages().root?.state === "loading"} fallback={<Type variant="body">{thread.pages().root?.state === "error" ? "Comments could not be loaded." : "No comments yet."}</Type>}><LoadingIndicator label="Loading comments" /></Show>}
           >
             <div class="flex flex-col gap-3">
               <For each={thread.ordered()}>{item => (
@@ -737,8 +738,8 @@ export function PostEngagement(props: PostEngagementProps) {
                     <div class="flex flex-wrap gap-2">
                       <For each={commentModerationActions(item)}>{action => <Button disabled={action.disabled} onClick={action.run} size="sm" type="button" variant="outline">{action.label}</Button>}</For>
                       <Show when={item.replyCount > 0 && (thread.pages()[`parent:${item.id}`]?.state !== "ready" || thread.pages()[`parent:${item.id}`]?.cursor !== null)}>
-                        <Button disabled={thread.pages()[`parent:${item.id}`]?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
-                          {thread.pages()[`parent:${item.id}`]?.state === "loading" ? "Loading replies…" : thread.pages()[`parent:${item.id}`]?.state === "error" ? "Retry replies" : thread.pages()[`parent:${item.id}`] ? "More replies" : "View replies"}
+                        <Button loading={thread.pages()[`parent:${item.id}`]?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
+                          {thread.pages()[`parent:${item.id}`]?.state === "error" ? "Retry replies" : thread.pages()[`parent:${item.id}`] ? "More replies" : "View replies"}
                         </Button>
                       </Show>
                       <Show when={canReplyToComment(item)}>
