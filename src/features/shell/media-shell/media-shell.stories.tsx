@@ -236,8 +236,9 @@ async function checkCommunityScope(navigation: ReturnType<typeof within>, modera
     await expect(navigation.queryByRole("link", { name: "Moderation" })).not.toBeInTheDocument();
   }
 }
+// Moderation access comes from the navigation data, so a viewer without it uses the member fixture.
 export const CommunityAppDesktop: Story = {
-  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: memberNavigation }} />,
   play: async ({ canvasElement }) => checkCommunityScope(within(within(canvasElement).getByRole("navigation", { name: "Main navigation" })), false),
 };
 export const CommunityAppModeratorDesktop: Story = {
@@ -250,7 +251,7 @@ export const CommunityAppAnonymousDesktop: Story = {
 };
 export const CommunityAppDrawer: Story = {
   globals: phone,
-  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: memberNavigation }} />,
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByRole("button", { name: "Open navigation" }, { timeout: 10000 }));
     await checkCommunityScope(within(await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Navigation" })), false);
@@ -265,11 +266,16 @@ export const CommunityAppModeratorDrawer: Story = {
   },
 };
 
+// Anonymous visitors load public discovery and are offered community creation.
+// The loader stands in for the public read, so the story never reaches the network.
 export const AnonymousProductionDefaults: Story = {
-  render: () => <ShellStory signedIn={false} communityNavigation={undefined} />,
+  render: () => <ShellStory signedIn={false} communityNavigation={undefined} loadCommunityNavigation={async () => popularNavigation} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.queryByRole("button", { name: "Create community" })).not.toBeInTheDocument());
+    const navigation = within(canvas.getByRole("navigation", { name: "Main navigation" }));
+    await expect(await navigation.findByRole("link", { name: "World of Sound" })).toBeInTheDocument();
+    await expect(navigation.getByRole("button", { name: "Create community" })).toBeInTheDocument();
+    await expect(navigation.queryByRole("heading", { name: /moderator/iu })).not.toBeInTheDocument();
     await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
   },
 };

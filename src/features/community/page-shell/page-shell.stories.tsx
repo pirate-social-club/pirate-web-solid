@@ -135,13 +135,15 @@ export const SortAndManagement: Story = {
     await userEvent.click(trigger);
     await userEvent.click(await body.findByRole("menuitemradio", { name: "New" }));
     await expect(body.queryByRole("menu")).not.toBeInTheDocument();
-    await expect(trigger).toHaveFocus();
+    // Focus returns to the trigger a couple of frames after the menu closes.
+    await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(trigger);
     const current = await body.findByRole("menuitemradio", { name: "New" });
     await expect(current).toHaveAttribute("aria-checked", "true");
     await userEvent.click(current);
     await expect(body.queryByRole("menu")).not.toBeInTheDocument();
-    await expect(trigger).toHaveFocus();
+    // Focus returns to the trigger a couple of frames after the menu closes.
+    await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(canvas.getByRole("button", { name: "More community options" }));
     await expect(await body.findByRole("menuitem", { name: "Manage community" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
