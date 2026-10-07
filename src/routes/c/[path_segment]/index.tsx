@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import { query, useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
@@ -70,9 +71,23 @@ export const route = defineFileRoute("/c/:path_segment", {
 
 export default function CommunityRoute(props: RouteProps<typeof route>) {
   const [searchParams, setSearchParams] = useSearchParams();
+  let preloadPathSegment: string | undefined;
+  let preloadUsable = true;
+  const data = createMemo(() => {
+    const current = decodeCommunityRouteParam(props.params.path_segment);
+    // A param-only move retains this route context and its initial preload.
+    // Retire that result permanently once the community changes; subsequent
+    // navigation and query revalidation must resolve the current community.
+    if (preloadPathSegment === undefined) preloadPathSegment = current;
+    if (preloadUsable && current === preloadPathSegment) {
+      return props.data ?? queryCommunityPage(current);
+    }
+    preloadUsable = false;
+    return queryCommunityPage(current);
+  });
   return <CommunityPage
     pathSegment={props.params.path_segment}
-    data={props.data}
+    data={data()}
     initialVideoSong={initialVideoSongFromSearch(searchParams)}
     composeText={searchParams.compose === "text"}
     clearVideoSongIntent={() => setSearchParams({ compose: undefined, song: undefined }, { replace: true, scroll: false })}
