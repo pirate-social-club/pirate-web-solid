@@ -115,6 +115,27 @@ export function publicPostPathFromRequest(request: Request): Readonly<{
   return { activity, rawSlug: match[1] };
 }
 
+/** Resolve an opaque feed ID without guessing the API-owned canonical slug. */
+export function publicPostIdHref(postId: string): string {
+  return `/post/${encodeURIComponent(postId)}`;
+}
+
+export function publicPostIdPathFromRequest(request: Request): Readonly<{
+  readonly activity: "detail";
+  readonly postId: string;
+}> | undefined | null {
+  const match = /^\/post\/([^/]+)\/?$/u.exec(new URL(request.url).pathname);
+  if (match?.[1] === undefined) return undefined;
+  let postId: string;
+  try {
+    postId = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+  if (postId === "" || /[%/\\?#]/u.test(postId)) return null;
+  return { activity: "detail", postId };
+}
+
 export function legacyPublicPostPathFromRequest(request: Request): Readonly<{
   readonly activity: Exclude<PublicPostActivity, "detail">;
   readonly postId: string;
@@ -256,7 +277,7 @@ export async function loadPublicPostBySlug(options: Readonly<{
 }
 
 export async function loadPublicPostById(options: Readonly<{
-  readonly activity: Exclude<PublicPostActivity, "detail">;
+  readonly activity: PublicPostActivity;
   readonly canonicalOrigin: string | undefined;
   readonly client: PublicPostRouteClient;
   readonly locale?: string;

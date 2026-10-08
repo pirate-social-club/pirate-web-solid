@@ -4,6 +4,7 @@ import { createSessionApiClient } from "../../../api/client.ts";
 import {
   loadPublicPostById,
   loadPublicPostBySlug,
+  publicPostIdPathFromRequest,
   type PublicPostActivity,
   type PublicPostRouteState,
 } from "./public-post-route.model.ts";
@@ -93,7 +94,7 @@ export async function loadSlugRoute(
 
 export async function loadLegacyRoute(
   postId: string,
-  activity: Exclude<PublicPostActivity, "detail">,
+  activity: PublicPostActivity,
   locale: string,
   canonicalOrigin: string | undefined,
 ): Promise<PublicPostRouteState> {
@@ -119,6 +120,10 @@ export function preloadPublicPostSlugRoute(rawSlug: string, activity: PublicPost
   return queryPublicPostSlugRoute(rawSlug, activity, currentLocale(), currentCanonicalOrigin());
 }
 
+export function preloadPublicPostIdRoute(postId: string) {
+  return queryPublicPostLegacyRoute(postId, "detail", currentLocale(), currentCanonicalOrigin());
+}
+
 export function preloadPublicPostLegacyRoute(
   postId: string,
   activity: Exclude<PublicPostActivity, "detail">,
@@ -131,6 +136,11 @@ export async function reloadCurrentPublicPostRoute(activity: PublicPostActivity,
   const requestPath = currentPath();
   const client = createSessionApiClient({ origin: currentOrigin(), fetchImpl: (input, init) => fetch(input, { ...init, signal }) });
   const common = { activity, client, requestPath, locale: currentLocale(), canonicalOrigin: currentCanonicalOrigin() };
+  const idRoute = publicPostIdPathFromRequest(new Request(
+    new URL(requestPath, currentOrigin() ?? "https://pirate.invalid"),
+  ));
+  if (idRoute === null) return { kind: "invalid", status: 400 };
+  if (idRoute !== undefined) return loadPublicPostById({ ...common, ...idRoute });
   const slug = /^\/posts\/([^/]+)(?:\/|$)/u.exec(requestPath)?.[1];
   if (slug) return loadPublicPostBySlug({ ...common, rawSlug: slug });
   const postId = /^\/p\/([^/]+)(?:\/|$)/u.exec(requestPath)?.[1];
