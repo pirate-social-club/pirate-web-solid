@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
@@ -42,6 +43,7 @@ import {
 // Mirrors the legacy `study-route.tsx` controller minus Telegram handoff.
 
 export interface StudyingRouteViewProps {
+  rewardSlot?: JSX.Element;
   postId: string;
   client: StudyingClient;
   /** Mic seam. Absent recorder => the say-it-back card explains it cannot record. */
@@ -465,6 +467,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         onPrimaryAction={handlePrimaryAction}
         onStudyAgain={props.onStudyAgain}
         rewardLabel={props.payload.reward_label}
+        rewardSlot={props.rewardSlot}
         state={lesson().surface}
       />
     </>

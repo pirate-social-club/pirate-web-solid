@@ -1,3 +1,4 @@
+import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
@@ -186,6 +187,7 @@ function FeedItemCard(props: {
             <Type variant="caption">{props.item.postType}</Type>
           </div>
           <Show when={props.item.postType === "song" && props.item.status === "published" && props.item.canonicalPath}>
+            <MegapotPoolSummary communityId={props.item.communityId} postId={props.item.id} compact />
             <nav aria-label="Song activities" class="flex flex-wrap gap-3">
               <a
                 class={buttonVariants({ variant: "secondary" })}

@@ -1,3 +1,4 @@
+import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
 import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { Title } from "@solidjs/meta";
@@ -431,6 +432,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                       {(lesson) => (
                         <StudyingRouteView
                           client={createStudyV2RuntimeClient({ api, initialSession: lesson().session })}
+                          rewardSlot={<MegapotShareStatus communityId={lesson().session.community_id} postId={props.postId} />}
                           onExit={() => navigate(props.exitPath ?? "/")}
                           onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
                           onStudyAgain={() => {

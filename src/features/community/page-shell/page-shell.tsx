@@ -1,3 +1,4 @@
+import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -168,6 +169,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
           <Type variant="body">{props.post.body}</Type>
         </Show>
         <SongPost post={props.post} titleHref={props.titleHref} />
+        <Show when={props.communityId}>{communityId => <MegapotPoolSummary communityId={communityId()} postId={props.post.id} compact />}</Show>
       </Show>
       <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
     </article>

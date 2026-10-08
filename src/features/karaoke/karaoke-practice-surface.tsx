@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import {
   Button,
@@ -18,6 +19,7 @@ export interface KaraokePracticeSurfaceProps {
   instrumentalAudioUrl?: string;
   lines: readonly KaraokeStageLine[];
   rewardLabel?: string;
+  rewardSlot?: JSX.Element;
   rating?: KaraokeLineRating | null;
   /** Seeds an offline/story render at a known point in the lyric timeline. */
   initialTimeMs?: number;
@@ -156,7 +158,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
               const view = () => karaokeResultsView(props.summary ?? null, props.bestCombo ?? 0);
               return (
                 // A scrollable region must be reachable by keyboard.
-                <div aria-label="Results" class="flex size-full overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" role="region" tabindex="0">
+                <div aria-label="Results" class="flex flex-col size-full overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" role="region" tabindex="0">
                   <ActivityResults
                     heading={view().heading}
                     note={view().note}
@@ -164,6 +166,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
                     scorePercent={view().scorePercent}
                     stats={view().stats}
                   />
+                  <div class="mx-auto w-full max-w-md px-4 pb-6">{props.rewardSlot}</div>
                 </div>
               );
             }}
