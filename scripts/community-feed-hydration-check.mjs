@@ -134,6 +134,7 @@ try {
           assert(redirect.status === 308, `${method}: ID route did not redirect before streaming`);
           assert(new URL(redirect.headers.get("location")).pathname === threadPath, `${method}: wrong canonical thread`);
           assert(redirect.headers.get("cache-control") === "private, no-store", `${method}: redirect policy`);
+          assert(redirect.headers.get("vary")?.includes("Cookie"), `${method}: viewer-dependent redirect policy`);
         }
         // Visit the canonical path on the local Worker; its configured public
         // origin remains unchanged and is never followed to a real service.
