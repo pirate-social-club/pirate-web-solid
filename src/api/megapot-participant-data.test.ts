@@ -2,6 +2,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { MegapotPoolUnavailableError } from "./megapot-pool-availability.ts";
 import { afterEach, expect, it, vi } from "vitest";
 import { createMegapotParticipantData } from "./megapot-participant-data.ts";
+import { createPublicApiClient } from "./client.ts";
 import { participantPool as pool, participantStanding as standing } from "../features/rewards/megapot-participant.fixtures.ts";
 const scope = { communityId: "community-1", postId: "post-1" };
 function setup() {
@@ -223,4 +224,18 @@ it("releases the initial probe on cancellation even if its transport ignores abo
   expect(await next).toEqual(pool);
   release();
   expect(await waiting.data.pool(scope, waiting.signal)).toEqual(pool);
+});
+
+it("recognises the reply a disabled provider actually sends, through the generated client", async () => {
+  vi.stubGlobal("window", {});
+  // The body and status api-next staging returns for this route while Rewards is off.
+  const fetchImpl = vi.fn(async () => new Response(
+    JSON.stringify({ error: { code: "provider_unavailable", message: "Reward services are unavailable", retryable: true }, request_id: "request-1" }),
+    { status: 502, headers: { "content-type": "application/json; charset=UTF-8" } },
+  ));
+  const data = createMegapotParticipantData(createPublicApiClient({ origin: "https://app.example", fetchImpl }), setup().sessionClient);
+  await expect(data.pool(scope, new AbortController().signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  expect(fetchImpl).toHaveBeenCalledOnce();
+  await expect(data.pool(scope, new AbortController().signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  expect(fetchImpl).toHaveBeenCalledOnce();
 });

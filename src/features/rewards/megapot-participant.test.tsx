@@ -5,7 +5,7 @@ import { KaraokePracticeSurface } from "../karaoke/karaoke-practice-surface.tsx"
 import { render, type JSX } from "@solidjs/web";
 import { createSignal } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
-import type { MegapotParticipantData, ParticipantRewardSnapshot } from "../../api/megapot-participant-data.ts";
+import type { MegapotParticipantData, ParticipantRewardSnapshot, ParticipantScope } from "../../api/megapot-participant-data.ts";
 import { refreshSession } from "../../api/session.ts";
 import { MegapotPoolSummary, MegapotPoolView, MegapotShareStatus } from "./megapot-participant.tsx";
 import { poolStatus, participantMessage } from "./megapot-participant-model.ts";
@@ -129,15 +129,115 @@ it("keeps open-drawing copy neutral about qualification and distinguishes a hold
   expect(participantMessage({ pool: { ...pool, drawing: { ...pool.drawing!, entry_cutoff_at: "2000-01-01T00:00:00Z" } }, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).not.toContain("pending");
 });
 
-it("keeps a usable retry after transient provider unavailability", async () => {
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+function setVisibility(value: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => value });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+// Restore jsdom's own getter so a later test starts visible.
+afterEach(() => { Reflect.deleteProperty(document, "visibilityState"); vi.restoreAllMocks(); });
+
+it.each([
+  ["a disabled or unavailable provider", () => new MegapotPoolUnavailableError()],
+  ["a failed read", () => new Error("offline")],
+])("renders nothing on a completion surface when the initial pool lookup meets %s", async (_label, failure) => {
   const fake = data();
-  fake.pool = vi.fn().mockRejectedValueOnce(new MegapotPoolUnavailableError()).mockResolvedValue(pool);
-  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("temporarily unavailable"));
+  fake.pool = vi.fn(async () => { throw failure(); });
+  const host = mount(() => <StudyingSurface state={{ kind: "complete", correctCount: 8, scorePercent: 80, totalCount: 10 }} rewardSlot={<MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />} />);
+  await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledOnce());
+  await settle();
+  expect(host.querySelector("[data-megapot-share]")).toBeNull();
+  expect(host.textContent).not.toContain("Megapot");
+  expect(host.textContent).not.toContain("unavailable");
   expect(fake.standing).not.toHaveBeenCalled();
+});
+
+it("shows a retryable error only after a pool has been observed for the song", async () => {
+  const fake = data();
+  fake.pool = vi.fn().mockResolvedValueOnce(pool).mockRejectedValueOnce(new MegapotPoolUnavailableError()).mockResolvedValue(pool);
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  host.querySelector("button")!.click();
+  await vi.waitFor(() => expect(host.textContent).toContain("temporarily unavailable"));
+  expect(host.textContent).not.toContain("You have a share");
+  expect(host.querySelector("button")!.disabled).toBe(false);
   host.querySelector("button")!.click();
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  expect(fake.pool).toHaveBeenCalledTimes(3);
+});
+
+it("forgets an observed pool when the song changes", async () => {
+  const fake = data();
+  fake.pool = vi.fn(async (scope: ParticipantScope) => { if (scope.postId === "post-2") throw new MegapotPoolUnavailableError(); return pool; });
+  const [postId, setPostId] = createSignal("post-1");
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId={postId()} data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  setPostId("post-2");
+  await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
+  await settle();
+  expect(host.textContent).toBe("");
+});
+
+it("forgets an observed pool after an authoritative no-pool reply", async () => {
+  const fake = data();
+  fake.pool = vi.fn().mockResolvedValueOnce(pool).mockResolvedValueOnce(null).mockRejectedValue(new Error("offline"));
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  refreshSession();
+  await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
+  await settle();
+  expect(host.textContent).toBe("");
+  refreshSession();
+  await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(3));
+  await settle();
+  expect(host.textContent).toBe("");
+});
+
+it("drops private standing when hidden and reloads when visible again without a focus event", async () => {
+  const fake = data();
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  setVisibility("hidden");
+  await vi.waitFor(() => expect(host.textContent).toBe(""));
+  await settle();
+  expect(fake.pool).toHaveBeenCalledOnce();
+  setVisibility("visible");
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
   expect(fake.pool).toHaveBeenCalledTimes(2);
+  expect(fake.standing).toHaveBeenCalledTimes(2);
+});
+
+it.each([
+  ["visibility then focus", () => { setVisibility("visible"); window.dispatchEvent(new Event("focus")); }],
+  ["focus then visibility", () => { window.dispatchEvent(new Event("focus")); setVisibility("visible"); }],
+])("reloads once and cancels nothing when returning fires %s", async (_label, comeBack) => {
+  const fake = data();
+  const signals: AbortSignal[] = [];
+  fake.pool = vi.fn(async (_scope: ParticipantScope, signal: AbortSignal) => { signals.push(signal); return pool; });
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  setVisibility("hidden");
+  comeBack();
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await settle();
+  expect(fake.pool).toHaveBeenCalledTimes(2);
+  expect(fake.standing).toHaveBeenCalledTimes(2);
+  expect(signals[1]!.aborted).toBe(false);
+});
+
+it("still reloads on a later focus once the previous load has settled", async () => {
+  const fake = data();
+  let now = 10_000;
+  vi.spyOn(Date, "now").mockImplementation(() => now);
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  window.dispatchEvent(new Event("focus"));
+  await settle();
+  expect(fake.pool).toHaveBeenCalledOnce();
+  now += 1_000;
+  window.dispatchEvent(new Event("focus"));
+  await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
 });
 
 it("does not imply that a below-threshold Study completion is awaiting a share", async () => {

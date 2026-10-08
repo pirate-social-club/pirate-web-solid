@@ -86,13 +86,21 @@ export function MegapotShareStatus(props: Props) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let expiry: ReturnType<typeof setTimeout> | undefined;
   let alive = true;
-  const invalidate = () => { ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); setState(undefined); setBusy(false); };
+  // The song whose public pool this surface has seen. It is public knowledge,
+  // so it survives invalidation; private standing never does.
+  let observed: ParticipantScope | undefined;
+  let inFlight = false;
+  let resumeGuardUntil = 0;
+  const invalidate = () => { ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); inFlight = false; resumeGuardUntil = 0; setState(undefined); setBusy(false); };
   const load = async () => {
     invalidate();
     if (!alive) return;
     const generation = request;
     const scope = { communityId: props.communityId, postId: props.postId };
     const current = () => alive && request === generation && sameScope(scope, props);
+    if (!sameScope(observed, scope)) observed = undefined;
+    inFlight = true;
+    resumeGuardUntil = Date.now() + 1_000;
     controller = new AbortController();
     const signal = controller.signal;
     const ownedController = controller;
@@ -102,7 +110,8 @@ export function MegapotShareStatus(props: Props) {
       const data = props.data ?? createMegapotParticipantData();
       const pool = await data.pool(scope, signal);
       if (!current()) return;
-      if (!pool) return;
+      if (!pool) { observed = undefined; return; }
+      observed = scope;
       setState({ scope, content: "Checking your share…" });
       const snapshot = await data.standing(scope, pool, signal);
       if (!current() || signal.aborted) return;
@@ -110,21 +119,28 @@ export function MegapotShareStatus(props: Props) {
       // Do not leave account-private or drawing-specific claims visible indefinitely.
       expiry = setTimeout(() => { if (current()) setState({ scope, content: "Check again for your latest share status." }); }, 60_000);
     } catch (error) {
-      if (current()) setState(error instanceof MegapotPoolUnavailableError
+      // While rewards are disabled the pool read answers unavailable for every
+      // song. Without an observed pool a failed read renders nothing rather
+      // than putting a rewards box on every completion.
+      if (current() && sameScope(observed, scope)) setState(error instanceof MegapotPoolUnavailableError
         ? { scope, content: "Rewards are temporarily unavailable. Try again shortly." }
         : { scope, content: "Your reward status is unavailable. Check again to confirm your share." });
-    } finally { if (current()) { clearTimeout(timeout); setBusy(false); } }
+    } finally { if (current()) { clearTimeout(timeout); inFlight = false; setBusy(false); } }
   };
   createEffect(() => ({ communityId: props.communityId, postId: props.postId }), () => {
     queueMicrotask(() => { if (alive) void load(); });
   });
   createEffect(() => true, () => {
-    const refresh = () => { invalidate(); void load(); };
-    const hide = () => { if (document.visibilityState === "hidden") invalidate(); };
+    const refresh = () => { void load(); };
+    // Returning to the page fires visibilitychange, focus or both. The first
+    // reloads; the other finds that reload under way, or just started, and
+    // leaves it alone rather than cancelling and repeating it.
+    const resume = () => { if (!inFlight && Date.now() >= resumeGuardUntil) void load(); };
+    const visibility = () => { if (document.visibilityState === "hidden") invalidate(); else resume(); };
     const unsubscribe = onSessionRefreshed(refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", hide);
-    onCleanup(() => { unsubscribe(); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", hide); });
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", visibility);
+    onCleanup(() => { unsubscribe(); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); });
   });
   onCleanup(() => { alive = false; ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); });
   const visible = () => sameScope(state()?.scope, props) ? state() : undefined;

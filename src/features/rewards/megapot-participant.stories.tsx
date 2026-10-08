@@ -1,6 +1,6 @@
 import { MegapotPoolUnavailableError } from "../../api/megapot-pool-availability.ts";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import { MegapotPoolView, MegapotShareStatus } from "./megapot-participant.tsx";
 import { participantPool as pool, participantStanding as standing } from "./megapot-participant.fixtures.ts";
 import { StudyingSurface } from "../studying/studying-surface.tsx";
@@ -39,11 +39,30 @@ export const EntriesClosed: Story = {
   },
 };
 
+/** A pool was seen for this song, then the provider stopped answering: the failure is reported and retryable. */
 export const ServiceUnavailable: Story = {
-  render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} /></main>,
+  render: () => {
+    let reads = 0;
+    const pool_ = async () => { if (++reads > 1) throw new MegapotPoolUnavailableError(); return pool; };
+    return <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: pool_ }} /></main>;
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(await canvas.findByText(/You have a share in drawing 42/)).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Check reward status" }));
     await expect(await canvas.findByText(/temporarily unavailable/)).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Check reward status" })).toBeEnabled();
+  },
+};
+
+/** Rewards switched off: the first pool lookup is unavailable, so completion shows no rewards box at all. */
+export const RewardsOffStudyComplete: Story = {
+  render: () => <StudyingSurface state={{ kind: "complete", correctCount: 8, scorePercent: 80, totalCount: 10 }} lessonProgress={{ resolvedCount: 10, totalCount: 10 }}
+    rewardSlot={<MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} />} onExit={() => {}} onStudyAgain={() => {}} />,
+  play: async ({ canvasElement }) => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await expect(canvasElement.querySelector("[data-megapot-share]")).toBeNull();
+    await expect(canvasElement.textContent).not.toContain("Megapot");
+    await expect(canvasElement.textContent).not.toContain("unavailable");
   },
 };
