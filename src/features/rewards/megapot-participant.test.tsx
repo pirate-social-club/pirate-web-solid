@@ -249,3 +249,17 @@ it("does not imply that a below-threshold Study completion is awaiting a share",
   expect(host.textContent).not.toContain("pending");
   expect(host.textContent).not.toContain("You have a share");
 });
+
+it("renders nothing and asks nothing for a song without a community id", async () => {
+  const fake = data();
+  // SAFETY: a route fixture or a partial response can omit the community; these surfaces must survive it.
+  const missing = undefined as unknown as string;
+  const host = mount(() => <>
+    <MegapotPoolSummary communityId={missing} postId="post-1" data={fake} />
+    <MegapotShareStatus communityId={missing} postId="post-1" data={fake} />
+  </>);
+  await settle();
+  expect(host.textContent).toBe("");
+  expect(fake.pool).not.toHaveBeenCalled();
+  expect(fake.standing).not.toHaveBeenCalled();
+});

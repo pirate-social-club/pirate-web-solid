@@ -8,7 +8,9 @@ import { poolStatus, participantMessage, rewardTime } from "./megapot-participan
 import { qualificationText } from "./reward-sponsor-terms.ts";
 
 type Props = ParticipantScope & { readonly data?: MegapotParticipantData };
-const sameScope = (scope: ParticipantScope | undefined, props: ParticipantScope) => scope?.communityId === props.communityId && scope.postId === props.postId;
+const sameScope = (scope: ParticipantScope | undefined, props: ParticipantScope) => scope !== undefined && scope.communityId === props.communityId && scope.postId === props.postId;
+/** A song without both identifiers has no pool to ask about. */
+const addressable = (scope: ParticipantScope) => Boolean(scope.communityId) && Boolean(scope.postId);
 
 export function MegapotPoolView(props: { readonly pool: ParticipantPool; readonly compact?: boolean; readonly now?: number }) {
   return <section aria-label="Song reward" class="rounded-xl border border-border-soft bg-card p-3 text-sm space-y-2" data-megapot-pool>
@@ -36,6 +38,7 @@ export function MegapotPoolSummary(props: Props & { readonly compact?: boolean }
   const [loaded, setLoaded] = createSignal<{ scope: ParticipantScope; pool: ParticipantPool }>();
   const [now, setNow] = createSignal(Date.now());
   createEffect(() => ({ communityId: props.communityId, postId: props.postId, compact: props.compact }), scope => {
+    if (!addressable(scope)) return;
     const controller = new AbortController();
     let observer: IntersectionObserver | undefined;
     let started = false;
@@ -99,6 +102,7 @@ export function MegapotShareStatus(props: Props) {
     const scope = { communityId: props.communityId, postId: props.postId };
     const current = () => alive && request === generation && sameScope(scope, props);
     if (!sameScope(observed, scope)) observed = undefined;
+    if (!addressable(scope)) return;
     inFlight = true;
     resumeGuardUntil = Date.now() + 1_000;
     controller = new AbortController();
