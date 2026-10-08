@@ -118,7 +118,7 @@ export const LoadFailure: Story = {
 
 export const AuthRequired: Story = {
   render: () => (
-    <StudyingRouteView client={createAuthRequiredClient()} onConnect={noop} postId={storyPostId} />
+    <StudyingRouteView client={createAuthRequiredClient()} onConnect={noop} postId={storyPostId} readPreview={async () => ({ title: "Story song", firstLine: "A lyric to say back" })} />
   ),
 };
 

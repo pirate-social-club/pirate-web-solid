@@ -2,7 +2,7 @@ import { Title } from "@solidjs/meta";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { createSessionApiClient } from "../../api/client.ts";
 import { PageContainer } from "@pirate/web-solid-ui";
-import { Button, Card, CardContent, Type } from "../../design-system";
+import { LoadingIndicator, Button, Card, CardContent, Type } from "../../design-system";
 import { requestGlobalSignIn } from "../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../shell/application-session.tsx";
 import { useApplicationPersonas } from "../shell/application-personas.tsx";
@@ -71,7 +71,7 @@ export function WalletRouteView() {
     <Show when={!authenticated() || loading() || failed()}><Type as="h1" variant="h1">Wallet</Type></Show>
     <Show when={!authenticated()}>
       <Card><CardContent class="flex flex-col items-start gap-4 p-6">
-        <Show when={account() === "anonymous"} fallback={<Show when={account() === "failed"} fallback={<Type role="status">Loading wallet…</Type>}>
+        <Show when={account() === "anonymous"} fallback={<Show when={account() === "failed"} fallback={<LoadingIndicator label="Loading wallet" />}>
           <Type>Your account could not be checked.</Type>
           <Button variant="outline" onClick={() => profiles?.setPickerOpen(true)}>Check again</Button>
         </Show>}>
@@ -81,7 +81,7 @@ export function WalletRouteView() {
       </CardContent></Card>
     </Show>
     <Show when={authenticated()}>
-      <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
+      <Show when={loading()}><LoadingIndicator label="Loading wallets" /></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
       <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => controls.open && wallet.address
         ? <WalletSponsoredSendSheet personaId={wallet.personaId} walletAddress={wallet.address} onClose={() => controls.onOpenChange(false)} /> : null} /></Show>

@@ -1,6 +1,7 @@
 import { createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
 import { formatUnits, getAddress, parseUnits } from "viem";
 import {
+  LoadingIndicator,
   Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle,
   TextField, TextFieldInput, TextFieldLabel, Type,
 } from "../../design-system.ts";
@@ -200,7 +201,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
         <ModalDescription>Send from this wallet. Pirate covers the network fee.</ModalDescription></ModalHeader>
       <Show when={error()}>{message => <Type role="alert" class="text-destructive-text break-words">{message()}</Type>}</Show>
       <Switch>
-        <Match when={step() === "loading"}><Type role="status">Loading your wallet…</Type></Match>
+        <Match when={step() === "loading"}><LoadingIndicator label="Loading your wallet" /></Match>
         <Match when={step() === "unavailable"}><Type role="alert">Your wallet or send record could not be loaded. Nothing was signed.</Type><Button onClick={requestClose}>Close</Button></Match>
         <Match when={step() === "details"}><div class="flex flex-col gap-4">
           <Type class="text-sm">Wallet balance: {balance() === undefined ? "unavailable" : format(balance()!)}</Type>

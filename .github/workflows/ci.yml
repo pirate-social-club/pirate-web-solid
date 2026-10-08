@@ -72,13 +72,14 @@ jobs:
         run: bun run build-storybook
       - name: Check story-to-production parity
         run: bun run check:story-parity
-      - name: Audit Storybook accessibility and interactions
+      - name: Audit Storybook responsiveness, accessibility and interactions
         run: |
           python3 -m http.server 6006 --directory storybook-static > "$RUNNER_TEMP/storybook-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
           curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:6006/index.json > /dev/null
+          bun run check:post-responsiveness
           bun run storybook:a11y
       - name: Upload Storybook audit evidence
         if: always()

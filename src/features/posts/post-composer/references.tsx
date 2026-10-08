@@ -9,6 +9,7 @@
 import { createSignal, For, Show } from "solid-js";
 
 import {
+  LoadingIndicator,
   Button,
   Combobox,
   FormNote,
@@ -118,7 +119,7 @@ export function SearchReferencePicker(props: {
         value={props.value?.id ?? null}
       />
       <Show when={props.loading}>
-        <FormNote>{props.loadingLabel ?? "Loading..."}</FormNote>
+        <LoadingIndicator label={props.loadingLabel} variant="inline" />
       </Show>
       <Show when={!props.loading && props.items.length === 0}>
         <FormNote>{props.emptyLabel}</FormNote>

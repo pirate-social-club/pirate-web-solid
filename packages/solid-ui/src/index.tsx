@@ -107,6 +107,8 @@ export {
 export {
   Skeleton,
 } from "./components/feedback/skeleton/skeleton";
+export { LoadingIndicator, type LoadingIndicatorProps } from "./components/feedback/loading-indicator/loading-indicator";
+
 export {
   Spinner,
   type SpinnerProps,
@@ -545,3 +547,5 @@ export {
   type ModalContentProps,
   type ModalProps,
 } from "./patterns/overlays/modal/modal";
+
+export { RewardPill, type RewardPillProps } from "./components/actions/reward-pill/reward-pill";

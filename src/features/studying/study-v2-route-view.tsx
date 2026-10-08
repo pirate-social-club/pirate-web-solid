@@ -7,7 +7,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { onSessionRefreshed, refreshSession, resolveSession, sessionPersonasUnavailable, type ActivePersonaPublicProjection, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
+import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
 import {
   activityPreparationAdmissible,
@@ -34,11 +34,11 @@ import {
 } from "./study-session-start-coordinator.ts";
 import type { StudyingRecorder } from "./studying-route-model";
 import {
-  StudyAuthRequiredState,
   StudyRouteLoadFailureState,
   StudyRouteLoadingState,
 } from "./studying-route-states";
 import { StudyingRouteView } from "./studying-route-view";
+import { SongActivitySignIn, type readSongActivityPreview } from "../activity/song-activity-sign-in.tsx";
 
 type ReadyAvailability = Extract<StudyAvailability, { state: "ready" }>;
 type RouteState =
@@ -71,6 +71,7 @@ export interface StudyV2RouteViewProps {
   resolveSession?: () => Promise<SessionResolution>;
   /** Test seam for the cross-tab start coordinator. */
   startCoordinator?: StudySessionStartCoordinator;
+  readPreview?: typeof readSongActivityPreview;
 }
 
 function availabilityMessage(availability: Exclude<StudyAvailability, { state: "ready" }>): string {
@@ -401,13 +402,11 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         fallback={<StudyRouteLoadingState label={state().kind === "starting" ? "Starting study" : "Loading study"} />}
       >
         <Show when={state().kind !== "auth-required"} fallback={(
-          <StudyAuthRequiredState
-            description="Study packs follow the song's community. Sign in to start a lesson."
-            onConnect={requestGlobalSignIn}
-            onConnectIntent={prepareGlobalSignIn}
-            onConnectPreload={preloadGlobalSignInAssets}
+          <SongActivitySignIn
+            activity="study"
+            postId={props.postId}
+            readPreview={props.readPreview}
             onExit={() => navigate(props.exitPath ?? "/")}
-            title="Sign in to study"
           />
         )}>
           <Show when={state().kind === "age-required"}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(true); }} /></Show>

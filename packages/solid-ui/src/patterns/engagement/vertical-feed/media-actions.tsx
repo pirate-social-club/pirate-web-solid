@@ -53,9 +53,9 @@ export function MediaActions(props: MediaActionsProps) {
         <div class={iconButtonClass}>
           <Show
             when={!props.isMuted}
-            fallback={<IconSpeakerSlash class="size-8 text-foreground md:size-7" />}
+            fallback={<IconSpeakerSlash class="size-8 text-primary-foreground drop-shadow-md md:size-7" />}
           >
-            <IconSpeakerHigh class="size-8 text-foreground md:size-7" />
+            <IconSpeakerHigh class="size-8 text-primary-foreground drop-shadow-md md:size-7" />
           </Show>
         </div>
       </button>
@@ -117,12 +117,12 @@ export function MediaActions(props: MediaActionsProps) {
             <IconHeart
               class={cn(
                 "size-8 transition-colors md:size-7",
-                props.isLiked ? "text-destructive-text" : "text-foreground",
+                props.isLiked ? "text-destructive-text" : "text-primary-foreground drop-shadow-md",
               )}
             />
           </div>
           <Show when={props.likeCount !== undefined}>
-            <Type as="span" variant="caption" class="font-semibold text-foreground">
+            <Type as="span" variant="caption" class="font-semibold text-primary-foreground drop-shadow-md">
               {formatCount(props.likeCount!)}
             </Type>
           </Show>
@@ -141,7 +141,7 @@ export function MediaActions(props: MediaActionsProps) {
           }}
         >
           <div class={iconButtonClass}>
-            <IconShareNetwork class="size-8 text-foreground md:size-7" />
+            <IconShareNetwork class="size-8 text-primary-foreground drop-shadow-md md:size-7" />
           </div>
         </button>
       </Show>
@@ -162,12 +162,12 @@ export function MediaActions(props: MediaActionsProps) {
             <div class={iconButtonClass}>
               <Show
                 when={activity.icon === "microphone"}
-                fallback={<IconChatCircleDots class="size-8 text-foreground md:size-7" />}
+                fallback={<IconChatCircleDots class="size-8 text-primary-foreground drop-shadow-md md:size-7" />}
               >
-                <IconMicrophoneStage class="size-8 text-foreground md:size-7" />
+                <IconMicrophoneStage class="size-8 text-primary-foreground drop-shadow-md md:size-7" />
               </Show>
             </div>
-            <Type as="span" variant="caption" class="font-semibold text-foreground">
+            <Type as="span" variant="caption" class="font-semibold text-primary-foreground drop-shadow-md">
               {activity.label}
             </Type>
           </button>

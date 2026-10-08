@@ -1,6 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { Avatar, Button, Card, CardContent, IconMicrophone, IconPlaylist, Input, Type } from "../../design-system";
+import { LoadingIndicator, Avatar, Button, Card, CardContent, IconMicrophone, IconPlaylist, Input, Type } from "../../design-system";
 
 export interface LibrarySong {
   id: string;
@@ -43,7 +43,7 @@ export function YourSongsPage(props: YourSongsPageProps) {
     <Title>Your songs</Title>
     <div class="space-y-2"><Type as="h1" variant="h1">Your songs</Type><Type class="text-muted-foreground">Pick up where you left off, or find something new.</Type></div>
     <section aria-label="Recent activity" class="space-y-4"><Type as="h2" variant="h3">Recent activity</Type>
-    <Show when={props.state === "loading"}><Type role="status">Loading your songs…</Type></Show>
+    <Show when={props.state === "loading"}><LoadingIndicator label="Loading your songs" /></Show>
     <Show when={props.state === "signed-out"}><Card><CardContent class="space-y-4 p-6"><Type>Sign in to see your songs.</Type><Button onClick={props.onSignIn}>Sign in</Button></CardContent></Card></Show>
     <Show when={props.state === "not-yet-available"}><Card><CardContent class="space-y-4 p-6"><Type as="h2" variant="h3">Song history is coming soon</Type><Type>For now, open a song post and choose Study or Karaoke to practise it.</Type><Button onClick={() => props.navigate("/")}>Browse For You</Button></CardContent></Card></Show>
     <Show when={props.state === "unavailable"}><Card><CardContent class="space-y-4 p-6"><Type>Your songs could not be loaded.</Type><Button variant="outline" onClick={props.onRetry}>Try again</Button></CardContent></Card></Show>
@@ -54,12 +54,12 @@ export function YourSongsPage(props: YourSongsPageProps) {
         <Show when={songs().length === 0}><Type>No matching songs.</Type></Show>
       </Show>
       <Show when={props.loadMoreFailed}><Type role="alert">More songs could not be loaded. Try Load more again.</Type></Show>
-      <Show when={props.onLoadMore}><Button variant="outline" onClick={props.onLoadMore} disabled={props.loadingMore}>{props.loadingMore ? "Loading…" : "Load more"}</Button></Show>
+      <Show when={props.onLoadMore}><Button variant="outline" onClick={props.onLoadMore} loading={props.loadingMore}>Load more</Button></Show>
     </Show></section>
     <Show when={props.trending?.length || props.trendingState === "loading" || props.trendingState === "unavailable"}><section aria-labelledby="songs-to-learn-heading" class="space-y-4">
       <div><Type as="h2" variant="h3" id="songs-to-learn-heading">Songs to learn</Type><Type class="text-muted-foreground">Find something new to study or sing.</Type></div>
       <Show when={props.trendingState === "not-yet-available"}><Type>For now, find a song post in For You and choose Study or Karaoke.</Type><Button variant="outline" onClick={() => props.navigate("/")}>Browse For You</Button></Show>
-      <Show when={props.trendingState === "loading"}><Type role="status">Loading songs…</Type></Show>
+      <Show when={props.trendingState === "loading"}><LoadingIndicator label="Loading songs" /></Show>
       <Show when={props.trendingState === "unavailable"}><Type>Songs to learn could not be loaded.</Type><Button variant="outline" onClick={props.onTrendingRetry}>Try again</Button></Show>
       <Show when={(props.trendingState ?? "ready") === "ready"}>
         <Show when={props.trending?.length} fallback={<Type class="text-muted-foreground">No songs to learn yet.</Type>}>

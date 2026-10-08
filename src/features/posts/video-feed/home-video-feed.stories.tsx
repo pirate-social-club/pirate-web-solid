@@ -2,6 +2,9 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
+import { noActivityRewardsFixture, jackpotActivityRewardsFixture, multipleActivityRewardsFixture } from "../public-post/song-activities.fixtures.ts";
+import { MediaShell } from "../../shell/media-shell/media-shell.tsx";
+import { popularNavigation } from "../../shell/media-shell/media-shell-story-fixtures.tsx";
 import { HomeVideoFeed } from "./home-video-feed";
 import {
   publicFeedProcessingPage,
@@ -56,6 +59,7 @@ const meta = {
     posterPath: reviewPosterPath,
     resolveSongLink: reviewSongLinks,
     studyReady: async (): Promise<boolean> => false,
+    readRewards: async () => noActivityRewardsFixture,
   },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof HomeVideoFeed>;
@@ -110,6 +114,38 @@ export const SongActivities: Story = {
     await expect(canvas.getAllByRole("button", { name: "Study" }).length).toBeGreaterThan(0);
     await userEvent.click(karaoke[0]!);
     await expect(args.navigate).toHaveBeenCalledWith("/p/harbor-lights/karaoke");
+  },
+};
+
+/** Same reward pills as the song chooser, beneath the bottom-left video text.
+ * Use Storybook's viewport control for mobile and desktop. */
+export const SongRewards: Story = {
+  ...SongActivities,
+  decorators: [Story => <MediaShell activeItemId="home" mobileActiveItem="home" currentPath="/" mode="immersive" hideMobileHeader signedIn={false} communityNavigation={{ kind: "ready", data: popularNavigation }}><Story /></MediaShell>],
+  args: { ...SongActivities.args, readRewards: async () => jackpotActivityRewardsFixture,
+    resolveSongLink: async attribution => ({ ...(await reviewSongLinks(attribution))!, communityId: "community-story",
+      activityPaths: { study: "/p/harbor-lights/study", karaoke: "/p/harbor-lights/karaoke" }, karaokeReady: true }) },
+  play: async ({ canvasElement, args }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const pills = await page.findAllByRole("button", { name: "Song reward: $1M lottery" });
+    await expect(page.getAllByRole("button", { name: "Song reward: 2.5 USDC" }).length).toBeGreaterThan(0);
+    await userEvent.click(pills[0]!);
+    await expect(await page.findByRole("dialog", { name: "$1M lottery" })).toBeInTheDocument();
+    await expect(page.getByText(/This is not your individual payout/u)).toBeInTheDocument();
+    await expect(args.navigate).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Escape}");
+  },
+};
+export const SongMultipleRewards: Story = {
+  ...SongRewards, args: { ...SongRewards.args, readRewards: async () => multipleActivityRewardsFixture },
+};
+export const SongRewardsUnavailable: Story = {
+  ...SongActivities, args: { ...SongRewards.args, readRewards: async () => { throw new Error("offline"); } },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    const canvas = within(canvasElement);
+    await canvas.findAllByRole("button", { name: "Karaoke" });
+    await expect(canvas.queryByRole("button", { name: /Song reward:/u })).toBeNull();
   },
 };
 

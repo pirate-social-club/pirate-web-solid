@@ -40,6 +40,15 @@ The global story layout is `centered`, which is what the design-system stories
 expect. A story that needs the full viewport sets `layout: "fullscreen"` on its
 meta, as the flows and shells do.
 
+## Responsive stories
+
+Use one story per meaningful state, such as signed out, signed in, rewards, or
+errors. Review the same state at different sizes with the viewport toolbar;
+avoid duplicating a story solely for mobile and desktop. Story-level
+`globals.viewport` locks the toolbar, so reserve it for cases that explicitly
+require a fixed environment. The public-post stories leave the viewport free,
+and `scripts/post-responsiveness-check.mjs` covers them at 320, 390, and 1280px.
+
 ## Adding a story
 
 Pick the tier by asking what the story is, then name the feature, then the

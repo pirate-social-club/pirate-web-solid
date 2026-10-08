@@ -339,13 +339,13 @@ export function SongPicker(props: {
               </Type>
             </Show>
             <Button
-              disabled={moreState() === "loading"}
+              loading={moreState() === "loading"}
               onClick={loadMore}
               size="sm"
               type="button"
               variant="secondary"
             >
-              {moreState() === "loading" ? "Loading…" : moreState() === "failed" ? "Try again" : "Load more songs"}
+              {moreState() === "failed" ? "Try again" : "Load more songs"}
             </Button>
           </div>
         </Show>

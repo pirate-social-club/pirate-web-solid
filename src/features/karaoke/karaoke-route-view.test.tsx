@@ -2,7 +2,8 @@ import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createSignal } from "solid-js";
-import type { AuthenticatedSession } from "../../api/session";
+import { refreshSession } from "../../api/session";
+import type { AuthenticatedSession, SessionResolution } from "../../api/session";
 import type { ActivityPersonaPreparationApi } from "../identity/activity-persona-preparation";
 import type { KaraokeApiClient } from "./karaoke-api";
 import { KaraokeSessionRouteView } from "./karaoke-route-view";
@@ -27,7 +28,7 @@ const persona = (id: string, communityId: string | null) => ({
   communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
 });
 
-function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas }), preparationApi?: ActivityPersonaPreparationApi, scoringFactory = createScoring) {
+function mount(personas: AuthenticatedSession["personas"], resolveSession: () => Promise<SessionResolution> = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas }), preparationApi?: ActivityPersonaPreparationApi, scoringFactory = createScoring) {
   // Scored-take tests exercise persona and start behavior; the dedicated
   // disclosure tests clear this acknowledgment to prove the capture gate.
   localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
@@ -98,7 +99,7 @@ describe("Karaoke startup recovery", () => {
       failingScoring("csrf_required", false));
     await start(host);
     await vi.waitFor(() => expect(host.textContent).toContain("Sign in to sing"));
-    expect([...host.querySelectorAll("button")].some(button => button.textContent?.trim() === "Sign in")).toBe(true);
+    expect([...host.querySelectorAll("button")].some(button => button.textContent?.trim() === "Sign in to sing")).toBe(true);
     expect(host.textContent).not.toContain("Start karaoke");
     expect(createSession).not.toHaveBeenCalled();
   });
@@ -303,4 +304,26 @@ test("an age-locked song verifies before karaoke loads and never starts a scored
   [...host.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
   await vi.waitFor(()=>expect(host.querySelector("[data-age-access-prompt]")).toBeNull());
   expect(createSession).not.toHaveBeenCalled();
+});
+
+test("anonymous direct entry shows the opening lyric and sign-in without starting capture", async () => {
+  const scoring = vi.fn(createScoring);
+  let authenticated = false;
+  const { host, createSession } = mount([], async () => authenticated ? { status: "authenticated", userId: "account-1", personas: [persona("here", "community-here")] } : "anonymous", undefined, scoring);
+  await vi.waitFor(() => expect(host.textContent).toContain("Sign in to sing"));
+  expect(host.textContent).toContain("Sing this");
+  expect(host.textContent).not.toContain("Start karaoke");
+  expect(host.textContent).not.toContain("Before you record");
+  const signIn = vi.fn();
+  window.addEventListener("pirate:connect", signIn);
+  try {
+    [...host.querySelectorAll("button")].find(button => button.textContent === "Sign in to sing")!.click();
+    expect(signIn).toHaveBeenCalledOnce();
+    expect(createSession).not.toHaveBeenCalled();
+    authenticated = true;
+    refreshSession();
+    await vi.waitFor(() => expect(host.textContent).toContain("Start karaoke"));
+    expect(host.textContent).not.toContain("Sign in to sing");
+    expect(createSession).not.toHaveBeenCalled();
+  } finally { window.removeEventListener("pirate:connect", signIn); }
 });

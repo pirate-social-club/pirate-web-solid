@@ -3,6 +3,7 @@ import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
+import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { type CommunityData } from "./page-shell-model";
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
 
@@ -166,4 +167,13 @@ export const MobileSort: Story = {
     await expect(await body.findByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
   },
+};
+
+export const LongPostsMobile: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <StoryCommunityPageShell community={{ ...tameImpala, posts: [
+    { ...tameImpala.posts[0], authorHandle: "long-author".repeat(12), mediaTitle: "LongSongTitle".repeat(25), body: "https://example.com/" + "long-path".repeat(35) },
+    { ...tameImpala.posts[1], authorHandle: "long-author".repeat(12), title: "LongPostTitle".repeat(25), body: "long-body".repeat(40) },
+  ] }} />,
+  play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
 };

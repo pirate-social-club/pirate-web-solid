@@ -2,6 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import {
+  LoadingIndicator,
   Avatar,
   Button,
   Modal,
@@ -54,7 +55,7 @@ export function PersonaSwitcherSheet(props: PersonaSwitcherSheetProps) {
         <ModalHeader class="px-4 pe-12 pb-4 text-start">
           <ModalTitle>{props.title ?? "Your profiles"}</ModalTitle>
         </ModalHeader>
-        <Show when={props.loading}><Type class="px-4 pb-4" role="status">Loading profiles…</Type></Show>
+        <Show when={props.loading}><LoadingIndicator variant="inline" label="Loading profiles" /></Show>
         <Show when={props.unavailable}><div class="px-4 pb-4"><Type role="alert">Profiles could not be loaded.</Type><Button onClick={props.onRetry} disabled={props.loading} variant="outline">Try again</Button></div></Show>
         <Show when={!props.loading && !props.unavailable && props.personas.length === 0}><Type class="px-4 pb-4">No active profiles yet.</Type></Show>
         <RadioGroup

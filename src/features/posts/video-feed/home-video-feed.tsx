@@ -24,6 +24,8 @@ import {
 } from "./home-video-feed-model.ts";
 import { signedStreamSource } from "./signed-stream-source.ts";
 import { makeStudyAvailabilityLookup, type StudyAvailabilityLookup } from "./home-feed-study.ts";
+import { createHomeFeedRewards } from "./home-feed-rewards.tsx";
+import { readSongActivityRewards } from "../public-post/song-activities-rewards.ts";
 import { resolveSongActivities, type HomeSongActivity } from "./home-feed-song-activities.ts";
 import { createStudyV2Api } from "../../studying/study-v2-api.ts";
 
@@ -37,6 +39,8 @@ const defaultStudyReady = (songPostId: string, scope: string) =>
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly verifyAge?: typeof verifyAdultViewing;
+  /** Test/review seam; production reads public reward offers for the song. */
+  readonly readRewards?: typeof readSongActivityRewards;
   /** Test/review seam; production resolves the song link through the public read. */
   readonly resolveSongLink?: SongAttributionLinkResolver;
   /** Test/review seam; production asks Study v2 whether the song is ready. */
@@ -299,6 +303,13 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     }
     return attacher;
   };
+  const feedRewards = createHomeFeedRewards({
+    songs: () => posts().flatMap(post => "placeholder" in post || !post.songPostId ? [] : [post.songPostId]),
+    scope: () => props.sourceIdentity ?? "anonymous",
+    songForPost: postId => mediaPost(postId)?.songPostId ?? undefined,
+    resolveLink: attribution => (props.resolveSongLink ?? feedSongLinks)(attribution),
+    readRewards: (communityId, postId) => (props.readRewards ?? readSongActivityRewards)(communityId, postId),
+  });
   const openSong = (postId: string) => {
     const songPostId = mediaPost(postId)?.songPostId;
     if (!songPostId) return;
@@ -381,6 +392,8 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onMuteToggle={(_postId, muted) => setFeedMuted(muted)}
                 attachVideo={attachVideo}
                 onSoundtrackClick={openSong}
+                renderPostLabels={feedRewards.renderLabels}
+                pausedPostId={feedRewards.selectedPostId()}
                 activities={postActivities}
                 onActivityClick={openActivity}
                 renderPlaceholder={() => (
@@ -400,6 +413,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
           </Show>
         </Show>
       </Show>
+      {feedRewards.dialog()}
     </main>
   );
 }

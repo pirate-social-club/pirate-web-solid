@@ -27,6 +27,7 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API, and
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
+      "src/features/activity/song-activity-sign-in.test.tsx",
       "src/features/profiles/own-profile-settings.test.tsx",
       "src/features/posts/song-player/song-player.test.tsx",
       "src/features/rewards/*.test.ts",
@@ -39,6 +40,8 @@ export default defineConfig({
       "src/features/posts/public-post/public-post-route.model.test.ts",
       "src/features/posts/public-post/public-post-preflight.test.ts",
       "src/features/posts/public-post/public-post-route-view.test.tsx",
+      "src/features/posts/public-post/song-activities*.test.ts",
+      "src/features/posts/public-post/song-activities*.test.tsx",
       "src/features/posts/public-post/song-published-status.test.ts",
       "src/features/posts/public-post/song-video-entry.test.tsx",
       "src/features/posts/song-attribution/song-attribution.test.ts",
@@ -108,6 +111,7 @@ export default defineConfig({
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/feed/public-feed.test.ts",
       "src/features/posts/video-feed/home-feed-study.test.ts",
+      "src/features/posts/video-feed/home-feed-rewards.test.tsx",
       "src/features/posts/video-feed/home-video-feed.test.tsx",
       "src/features/posts/feed/public-feed-song-reference.test.ts",
       "src/features/posts/post-engagement/post-engagement-api.test.ts",

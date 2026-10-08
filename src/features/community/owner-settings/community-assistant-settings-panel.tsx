@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { Button, FormFieldLabel, FormNote, Input, Textarea, Type } from "@pirate/web-solid-ui";
 import { For, Show, createSignal } from "solid-js";
 import { assistantSettingsValid, type AssistantOption, type AssistantProvider, type CommunityAssistantSettings, type CommunityTelegramSettings } from "./community-telegram-model";
@@ -50,7 +51,7 @@ export function CommunityAssistantSettingsPanel(props: CommunityAssistantSetting
     <Show when={props.readOnly}><p role="status">Only a community owner can change assistant settings.</p></Show>
     <Show when={props.errorMessage}><p role="alert" class="border-l-2 border-destructive pl-3 text-foreground">{props.errorMessage}</p></Show>
     <Show when={props.successMessage}><p role="status">{props.successMessage}</p></Show>
-    <Show when={props.loading}><p role="status">Loading assistant settings…</p></Show>
+    <Show when={props.loading}><LoadingIndicator label="Loading assistant settings" /></Show>
     <div class="grid gap-4 lg:grid-cols-2">
       <CredentialField provider="openrouter" status={props.settings.openrouter} disabled={disabled()} onSave={props.onCredentialSave} />
       <CredentialField provider="elevenlabs" status={props.settings.elevenlabs} disabled={disabled()} onSave={props.onCredentialSave} />

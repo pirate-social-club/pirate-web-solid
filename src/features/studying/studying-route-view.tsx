@@ -1,6 +1,6 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import type { readSongActivityPreview } from "../activity/song-activity-sign-in.tsx";
 import { Button, Type } from "../../design-system";
 
 import {
@@ -52,6 +52,7 @@ export interface StudyingRouteViewProps {
   onKaraoke?: () => void;
   onStudyAgain?: () => void;
   onConnect?: () => void;
+  readPreview?: typeof readSongActivityPreview;
 }
 
 type SayItBackSurfaceState = Extract<StudyingSurfaceState, { kind: "say_it_back" }>;
@@ -498,13 +499,10 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
       when={!authRequired()}
       fallback={(
         <StudyAuthRequiredState
-          ctaLabel="Sign in"
-          description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
-          onConnect={props.onConnect ?? requestGlobalSignIn}
-          onConnectIntent={props.onConnect === undefined ? prepareGlobalSignIn : undefined}
-          onConnectPreload={props.onConnect === undefined ? preloadGlobalSignInAssets : undefined}
+          postId={props.postId}
+          readPreview={props.readPreview}
+          onConnect={props.onConnect}
           onExit={props.onExit}
-          title="Sign in to study"
         />
       )}
     >

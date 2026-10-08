@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { Button, FormFieldLabel, FormNote, Input, Type } from "@pirate/web-solid-ui";
 import { For, Show, createSignal } from "solid-js";
 import type { CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup } from "./community-telegram-model";
@@ -53,7 +54,7 @@ export function CommunityTelegramSettingsPanel(props: CommunityTelegramSettingsP
   }
   return <section class="space-y-6" aria-busy={props.loading || props.saving ? "true" : "false"}>
     <div><Show when={props.showHeading !== false}><Type as="h2" variant="h2">Telegram</Type></Show><p class="mt-2 text-sm text-muted-foreground">Publish public community content to your channel and help people discover songs and rewards.</p></div>
-    <Show when={props.loading}><p role="status">Loading Telegram settings…</p></Show>
+    <Show when={props.loading}><LoadingIndicator label="Loading Telegram settings" /></Show>
     <Show when={props.readOnly}><p role="status">Only a community owner can change Telegram settings.</p></Show>
     <Show when={props.errorMessage || connectError()}><p role="alert" class="border-l-2 border-destructive pl-3 text-foreground">{props.errorMessage || connectError()}</p></Show>
     <div class="space-y-3 rounded-xl border border-border p-4">

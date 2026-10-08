@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
+import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { profileActivityDependencies } from "../profile-page/profile-activity-fixtures.ts";
 import { PublicProfilePage } from "./public-profile-page";
 import type { PublicProfileViewState } from "./public-profile-page.model";
@@ -82,5 +83,6 @@ export const Mobile: Story = {
     await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
     // Created communities are no longer listed on the profile.
     await expect(canvas.queryByRole("link", { name: /Night Shift/u })).not.toBeInTheDocument();
+    await expectFitsViewport(canvasElement);
   },
 };

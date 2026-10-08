@@ -16,5 +16,5 @@ test("Wallet renders on the server without creating a browser-only rewards clien
     retry: () => undefined,
   }}><WalletRouteView /></ApplicationPersonasContext>);
   expect(markup).toContain("data-route-path=\"/wallet\"");
-  expect(markup).toContain("Loading wallet…");
+  expect(markup).toContain('aria-label="Loading wallet"');
 });

@@ -1,3 +1,4 @@
+import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createSignal } from "solid-js";
@@ -100,4 +101,11 @@ export const CountsWithoutViewer: Story = {
     await expect(canvas.queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
     await expect(canvas.getByText(/Just now/u)).toBeVisible();
   },
+};
+
+export const LongCommentMobile: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <CommentCard item={{ id: "long-comment", submissionId: null, parentId: "parent", body: "https://example.com/" + "long-path".repeat(40), authorLabel: "long-author".repeat(15), createdAt: "2026-10-05T08:00:00Z", depth: 8, replyCount: 0, state: "published", caseRef: null, href: null }}
+    postContext={{ title: "LongPostTitle".repeat(30), href: "/posts/long-title" }} />,
+  play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
 };

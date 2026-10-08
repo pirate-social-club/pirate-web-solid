@@ -3,6 +3,8 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 
+import { jackpotActivityRewardsFixture, multipleActivityRewardsFixture, noActivityRewardsFixture } from "./song-activities.fixtures.ts";
+import { expectFitsViewport } from "../../../stories/viewport-story-helpers";
 import { PublicPostRouteView } from "./public-post-route-view";
 import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
 import type { PublicPostRouteState } from "./public-post-route.model";
@@ -91,7 +93,7 @@ const songState = (): PublicPostRouteState => {
 const meta = {
   title: "Screens/Posts/PublicPostRoute",
   component: PublicPostRouteView,
-  args: { engagement: { resolveSession: async () => "anonymous" as const } },
+  args: { engagement: { resolveSession: async () => "anonymous" as const }, activities: { readRewards: async () => noActivityRewardsFixture, readVideoEligibility: async () => true, navigate: () => undefined } },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof PublicPostRouteView>;
 
@@ -103,7 +105,7 @@ export const Loading: Story = {
   args: { state: new Promise<PublicPostRouteState>(() => {}) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Loading post" })).toBeInTheDocument();
+    await expect(canvas.getByRole("status", { name: "Loading post" })).toBeInTheDocument();
   },
 };
 
@@ -119,14 +121,16 @@ export const Detail: Story = {
   },
 };
 
-export const SongPostMobile: Story = {
+export const SongPostSignedOut: Story = {
   args: { state: songState() },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: /Play A long song title/u })).toBeInTheDocument();
-    await expect(canvas.getByRole("navigation", { name: "Song activities" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Activities" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Sign in to/u })).toBeNull();
+    await expect(canvas.queryByRole("navigation", { name: "Song activities" })).toBeNull();
     await expect(canvas.queryByRole("list", { name: "Song delivery status" })).toBeNull();
+    await expectFitsViewport(canvasElement);
   },
 };
 
@@ -216,11 +220,6 @@ export const Unavailable: Story = {
   },
 };
 
-export const Mobile: Story = {
-  args: { state: contentState(true) },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-};
-
 /** A signed-in song landing reuses the community card and persisted comment panel. */
 export const SongPostComments: Story = {
   args: {
@@ -232,12 +231,86 @@ export const SongPostComments: Story = {
       readComments: async () => ({ items: [{ comment_id: "story-comment", parent_comment_id: null, body: "A comment on this song", depth: 0, reply_count: 0, status: "published", content_rating: "general", created_at: "2026-09-29T00:00:00Z", author_persona: null }], next_cursor: null }),
     },
   },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Comments (0)" }));
     const page = within(document.body);
     await expect(await page.findByText("A comment on this song")).toBeInTheDocument();
     await expect(page.getByRole("textbox", { name: "Write a comment" })).toBeEnabled();
+  },
+};
+
+/** URLs and identifiers must wrap even when they contain no spaces. */
+export const LongText: Story = {
+  args: { state: (() => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("expected content fixture");
+    return { ...state, response: { ...state.response, content: { ...state.response.content,
+      post: { ...state.response.content.post, post_type: "text", title: "LongTitle".repeat(30), body: "https://example.com/" + "long-path".repeat(40) },
+    } } };
+  })() },
+  play: async ({ canvasElement }) => { await expectFitsViewport(canvasElement); },
+};
+
+export const SongPostSignedIn: Story = {
+  args: { state: songState(), engagement: {
+    resolveSession: async () => ({ status: "authenticated", userId: "song-story-viewer", personas: [] }),
+    readViewerVote: async () => null,
+    pendingStorage: createMemoryPendingEngagementStorage(),
+  } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("button", { name: "Activities" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Sign in to/u })).toBeNull();
+    await expectFitsViewport(canvasElement);
+  },
+};
+
+/** The single activity pill opens a bottom sheet on phones and a dialog on desktop. */
+export const SongActivities: Story = {
+  args: { state: songState() },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities" }));
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(await page.findByRole("dialog", { name: "Activities" })).toBeInTheDocument();
+    await expect(page.getByRole("button", { name: "Study" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Karaoke" })).toBeEnabled();
+    await expect(await page.findByRole("button", { name: "Dance" })).toBeEnabled();
+    await expectFitsViewport(canvasElement);
+  },
+};
+
+export const SongActivitiesRewards: Story = {
+  args: { state: songState(), activities: { readRewards: async () => jackpotActivityRewardsFixture, readVideoEligibility: async () => true } },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities · rewards available" }));
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(await page.findByRole("button", { name: "Study rewards: 2.5 USDC" })).toBeInTheDocument();
+    await expect(page.getByRole("button", { name: "Karaoke rewards: $1M lottery" })).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByText(/This funds tickets, not a guaranteed payout/u)).not.toBeVisible();
+    await expectFitsViewport(canvasElement);
+  },
+};
+export const SongActivitiesRewardsUnavailable: Story = {
+  ...SongActivities,
+  args: { state: songState(), activities: { readRewards: async () => { throw new Error("offline"); }, readVideoEligibility: async () => false } },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities" }));
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(await page.findByText(/Rewards could not be checked/u)).toBeInTheDocument();
+    await expect(page.getByRole("button", { name: "Study" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Karaoke" })).toBeEnabled();
+  },
+};
+
+/** A bonus and lottery remain separate offers, shown as two inline pills. */
+export const SongActivitiesMultipleRewards: Story = {
+  ...SongActivitiesRewards,
+  args: { state: songState(), activities: { readRewards: async () => multipleActivityRewardsFixture, readVideoEligibility: async () => true } },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Activities · rewards available" }));
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(await page.findByRole("button", { name: "Karaoke rewards: $1M lottery" })).toHaveAttribute("aria-expanded", "false");
+    await expectFitsViewport(canvasElement);
   },
 };

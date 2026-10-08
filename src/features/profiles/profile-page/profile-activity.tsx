@@ -3,7 +3,7 @@ import type { GetPublicProfileActivityResponse, PirateApiClient } from "@pirate/
 import { For, Show, createEffect, createSignal, onCleanup, onSettled } from "solid-js";
 import { createPublicApiClient, createSessionApiClient } from "../../../api/client.ts";
 import { onSessionRefreshed, resolveSession } from "../../../api/session.ts";
-import { Button, IconChatCircle, IconHouse, IconList, Tabs, TabsContent, TabsList, TabsTrigger, Type } from "../../../design-system.ts";
+import { LoadingIndicator, Button, IconChatCircle, IconHouse, IconList, Tabs, TabsContent, TabsList, TabsTrigger, Type } from "../../../design-system.ts";
 import { projectCommunityThreadPost } from "../../communities/community-page/community-thread-feed-api.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell.tsx";
 import { projectPublishedComment } from "../../posts/post-engagement/comment-thread-api.ts";
@@ -105,7 +105,7 @@ export function ProfileActivity(props: { readonly personaId: string; readonly de
     if (typeof window !== "undefined") window.history.replaceState(window.history.state, "", `#${value}`);
   };
   return <Show when={!disabled}><section aria-label="Profile activity" data-profile-activity>
-    <Show when={mounted()} fallback={<Type role="status" variant="body">Loading activity…</Type>}>
+    <Show when={mounted()} fallback={<LoadingIndicator label="Loading activity" />}>
     <Tabs value={tab()} onChange={changeTab}>
       <TabsList columns={3} variant="underline" aria-label="Profile activity">
         <TabsTrigger value="overview" variant="underline" aria-label="Overview"><IconHouse class="size-5 md:hidden" /><span class="sr-only md:not-sr-only">Overview</span></TabsTrigger>
@@ -113,11 +113,11 @@ export function ProfileActivity(props: { readonly personaId: string; readonly de
         <TabsTrigger value="comments" variant="underline" aria-label="Comments"><IconChatCircle class="size-5 md:hidden" /><span class="sr-only md:not-sr-only">Comments</span></TabsTrigger>
       </TabsList>
       <For each={["overview", "posts", "comments"] as const}>{surface => <TabsContent value={surface}>
-        <Show when={state() !== "loading"} fallback={<Type role="status" variant="body">Loading activity…</Type>}>
+        <Show when={state() !== "loading"} fallback={<LoadingIndicator label="Loading activity" />}>
           <div class="flex flex-col gap-4"><For each={items()}>{item => <ActivityItem item={item} dependencies={props.dependencies?.engagement} />}</For></div>
           <Show when={state() === "ready" && items().length === 0}><Type variant="body">No {surface === "overview" ? "activity" : surface} to show.</Type></Show>
           <Show when={state() === "error"}><Type role="alert" variant="body">Activity could not be loaded.</Type><Button variant="secondary" onClick={() => { void load(items().length > 0); }}>Try again</Button></Show>
-          <Show when={state() === "ready" && cursor()}><Button variant="secondary" disabled={loadingMore()} onClick={() => { void load(true); }}>{loadingMore() ? "Loading…" : "Load more"}</Button></Show>
+          <Show when={state() === "ready" && cursor()}><Button variant="secondary" loading={loadingMore()} onClick={() => { void load(true); }}>Load more</Button></Show>
         </Show>
       </TabsContent>}</For>
     </Tabs>

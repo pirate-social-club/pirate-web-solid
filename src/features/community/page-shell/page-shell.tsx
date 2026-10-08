@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -116,7 +117,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
 
 function SongPost(props: { post: CommunityPost; titleHref?: string }) {
   return (
-    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
+    <div class="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
         <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
           {src => <img alt="" class="size-full object-cover" src={src()} />}
@@ -141,16 +142,16 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
   // rather than attributing the post to an invented account.
   const author = () => props.post.authorHandle ?? "Unknown author";
   return (
-    <article class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
-      <div class="flex items-center gap-2">
+    <article class="relative flex min-w-0 flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
+      <div class="flex min-w-0 items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
           communityId={props.post.id}
           displayName={author()}
           size="xs"
         />
-        <Type as="span" variant="label">{author()}</Type>
-        <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
+        <Type as="span" class="min-w-0 [overflow-wrap:anywhere]" variant="label">{author()}</Type>
+        <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" class="shrink-0" variant="caption">· {timestamp()}</Type>}</Show>
         <div class="relative z-10 ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>
           {communityId => <div class="relative z-10 ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
@@ -158,14 +159,14 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
-          <Type variant="body">{props.post.body}</Type>
+          <Type class="min-w-0 [overflow-wrap:anywhere]" variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
+          <Type class="min-w-0 [overflow-wrap:anywhere]" variant="body">{props.post.body}</Type>
         </>
       }>
         {/* The card names the song and the player plays it; a body that only
             repeats the song title is not commentary and is not shown. */}
         <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
-          <Type variant="body">{props.post.body}</Type>
+          <Type class="min-w-0 [overflow-wrap:anywhere]" variant="body">{props.post.body}</Type>
         </Show>
         <SongPost post={props.post} titleHref={props.titleHref} />
       </Show>
@@ -178,7 +179,7 @@ function FeedPending() {
   return (
     <Card>
       <CardContent class="p-6">
-        <Type aria-live="polite" role="status" variant="body">Loading community posts…</Type>
+        <LoadingIndicator label="Loading community posts" />
       </CardContent>
     </Card>
   );
@@ -442,7 +443,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         </div>
       </Show>
 
-      <div class="grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
+      <div class="grid min-w-0 grid-cols-1 gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
         {/* About is a view at every width. It used to be a mobile-only tab:
             at desktop the main column came back through md:block and rendered
             nothing, so asking for the community's details replaced the feed

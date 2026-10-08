@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { Title } from "@solidjs/meta";
 import { Button, Card, Type } from "@pirate/web-solid-ui";
 import { Loading, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
@@ -263,8 +264,8 @@ export function OwnerSettingsRouteView(props: OwnerSettingsRouteViewProps) {
   const state = createMemo(() => props.state, { deferStream: true });
   return (
     <Loading fallback={
-      <main class="grid min-h-dvh place-items-center">
-        <p role="status">Loading community settings…</p>
+      <main>
+        <LoadingIndicator label="Loading community settings" variant="page" />
       </main>
     }>
       <ResolvedOwnerSettingsRouteView {...props} state={state()} />

@@ -33,7 +33,7 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
         <Button size="sm" disabled={!props.onNetworkModeChange} variant={(props.networkMode ?? "mainnet") === "mainnet" ? "secondary" : "ghost"} aria-pressed={(props.networkMode ?? "mainnet") === "mainnet" ? "true" : "false"} onClick={() => props.onNetworkModeChange?.("mainnet")}>Mainnet</Button>
         <Button size="sm" disabled={!props.onNetworkModeChange} variant={props.networkMode === "testnet" ? "secondary" : "ghost"} aria-pressed={props.networkMode === "testnet" ? "true" : "false"} onClick={() => props.onNetworkModeChange?.("testnet")}>Testnet</Button>
       </div>
-      <Show when={props.onRefresh}><Button size="sm" variant="outline" disabled={props.balancesLoading || !selected()?.address} onClick={props.onRefresh}>{props.balancesLoading ? "Refreshing…" : "Refresh balances"}</Button></Show>
+      <Show when={props.onRefresh}><Button size="sm" variant="outline" loading={props.balancesLoading} disabled={!selected()?.address} onClick={props.onRefresh}>Refresh balances</Button></Show>
     </div>
     <Show when={props.networkMode === "testnet"}><Type>Testnet tokens have no monetary value.</Type></Show>
     <Show when={selected()} fallback={<Type>Choose a profile to view its wallet.</Type>}>

@@ -76,6 +76,8 @@ export interface VerticalFeedProps {
   onFollowClick?: (postId: string) => void;
   onAuthorClick?: (postId: string) => void;
   onSoundtrackClick?: (postId: string) => void;
+  /** Host-owned inline labels below each post's text. */
+  renderPostLabels?: (postId: string) => JSX.Element;
   /** Host-offered activities per post (e.g. Study, Karaoke), shown in the rail. */
   activities?: (postId: string) => readonly MediaActivityAction[] | undefined;
   onActivityClick?: (postId: string, activityId: string) => void;
@@ -280,6 +282,7 @@ export function VerticalFeed(props: VerticalFeedProps) {
                       ? () => props.onSoundtrackClick?.(entry().id)
                       : undefined
                   }
+                  renderLabels={() => props.renderPostLabels?.(entry().id)}
                   activities={props.activities?.(entry().id)}
                   onActivityClick={
                     props.onActivityClick

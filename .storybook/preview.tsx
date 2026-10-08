@@ -2,6 +2,7 @@ import type { Preview } from "storybook-solidjs-vite";
 import { createDecorator } from "storybook-solidjs-vite";
 import { DocsRenderer } from "@storybook/addon-docs";
 import { create } from "storybook/theming/create";
+import { MINIMAL_VIEWPORTS } from "storybook/viewport";
 
 import {
   UiLocaleProvider,
@@ -147,6 +148,12 @@ const preview: Preview = {
     locale: "en",
   },
   parameters: {
+    viewport: {
+      options: {
+        ...MINIMAL_VIEWPORTS,
+        desktop: { name: "Desktop", styles: { width: "1280px", height: "900px" }, type: "desktop" },
+      },
+    },
     docs: {
       renderer: () => new ThemedDocsRenderer(),
     },

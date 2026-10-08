@@ -1,5 +1,6 @@
+import { LoadingIndicator } from "../../../design-system";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
-import { Button, Card, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
+import { Button, Card, FormNote, Type } from "@pirate/web-solid-ui";
 import { ApiClientError } from "@pirate/api-client";
 
 import {
@@ -273,8 +274,8 @@ export function CommunityModerationSettingsController(
 
   return (
     <Show when={status() !== "loading"} fallback={(
-      <Card class="grid min-h-64 place-items-center" role="status">
-        <div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading moderation settings…</Type></div>
+      <Card class="min-h-64">
+        <LoadingIndicator class="min-h-64" label="Loading moderation settings" />
       </Card>
     )}>
       <Show when={status() !== "sign-in"} fallback={<OwnerSettingsSignInCard />}>

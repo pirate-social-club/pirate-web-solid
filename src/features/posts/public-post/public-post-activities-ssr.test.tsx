@@ -71,7 +71,7 @@ test("song detail renders the shared post and counts without private session or 
   const markup = renderToString(() => <PublicPostRouteView state={activityState("detail")} engagement={{ resolveSession: session, readViewerVote: vote }} />);
   expect(markup).toContain('data-community-post="song-post"');
   expect(markup).toContain('aria-label="Upvote"');
-  expect(markup).toContain('/posts/activity-song/study');
+  expect(markup).not.toContain('/posts/activity-song/study');
   expect(session).not.toHaveBeenCalled();
   expect(vote).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();

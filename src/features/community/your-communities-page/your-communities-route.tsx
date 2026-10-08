@@ -14,7 +14,7 @@ import {
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../../api/session.ts";
-import { Button, Type } from "../../../design-system.ts";
+import { LoadingIndicator, Button, Type } from "../../../design-system.ts";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
@@ -248,9 +248,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       <Title>{videoPending() ? "Post a video" : "Your communities"} | Pirate</Title>
       <Show when={state().kind === "loading"}>
         <PageContainer>
-          <Type as="p" role="status">
-            Loading your Communities…
-          </Type>
+          <LoadingIndicator label="Loading your communities" />
         </PageContainer>
       </Show>
       <Show when={state().kind === "anonymous"}>

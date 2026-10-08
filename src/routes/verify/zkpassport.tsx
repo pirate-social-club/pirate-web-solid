@@ -1,6 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
-import { Button, TextField, TextFieldInput, TextFieldLabel } from "../../design-system";
+import { LoadingIndicator, Button, TextField, TextFieldInput, TextFieldLabel } from "../../design-system";
 import {
   PrivyIdentityBootstrapRequired,
   createPrivySessionExchange,
@@ -120,7 +120,7 @@ export default function ZkPassportVerificationRoute(props: ZkPassportVerificatio
       <Title>ZKPassport staging verification</Title>
       <h1 class="text-2xl font-semibold">ZKPassport staging ceremony</h1>
       <p>This diagnostic flow requests only the server-authored age predicate and reports the exact submission size.</p>
-      <Show when={phase() === "loading"}><p role="status">Loading secure configuration…</p></Show>
+      <Show when={phase() === "loading"}><LoadingIndicator label="Loading secure configuration" /></Show>
       <Show when={phase() === "unavailable"}><p role="alert">This staging verification flow is disabled.</p></Show>
       <Show when={phase() === "email"}>
         <TextField name="email" value={email()} onChange={setEmail}>

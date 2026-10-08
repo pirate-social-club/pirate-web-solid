@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import { For, Show, createUniqueId } from "solid-js";
-import { Avatar, Button, IconButton, IconPlus, Type, cn } from "../../design-system";
+import { LoadingIndicator, Avatar, Button, IconButton, IconPlus, Type, cn } from "../../design-system";
 import { communityNavigationSections, type CommunityNavigationState, type NavigationCommunity, type ApplicationNavigationScope } from "./navigation-model.ts";
 
 export interface CommunityNavigationProps {
@@ -33,7 +33,7 @@ function PlatformCommunityNavigation(props: CommunityNavigationProps) {
         <Type as="h2" id={`${id}-communities`} variant="overline" class="text-xs tracking-wide text-sidebar-foreground">Communities</Type>
         <IconButton aria-label="Create community" title="Create community" variant="ghost" onClick={() => props.onNavigate("/communities/new")}><IconPlus class="size-5" /></IconButton>
       </div>
-      <Show when={props.state.kind === "loading"}><Type class="px-3 py-2 text-sidebar-foreground" role="status">Loading communities…</Type></Show>
+      <Show when={props.state.kind === "loading"}><LoadingIndicator variant="inline" label="Loading communities" /></Show>
       <Show when={props.state.kind === "error"}><div class="flex flex-col items-start gap-2 px-3 py-2"><Type role="alert">Communities couldn’t be loaded.</Type><Button size="sm" variant="outline" onClick={props.onRetry}>Try again</Button></div></Show>
       <Show when={sections()}>{list => <>
         <Show when={list().communities.length > 0} fallback={<Type class="px-3 py-2">No communities yet.</Type>}>

@@ -1,3 +1,4 @@
+import { LoadingIndicator } from "../../../design-system";
 import { ProfileActivity, type ProfileActivityDependencies } from "../profile-page/profile-activity.tsx";
 import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { Link, Meta, Title } from "@solidjs/meta";
@@ -58,9 +59,8 @@ function absolutePath(path: string): string {
 function LoadingState() {
   const copy = profileCopy();
   return (
-    <main aria-busy="true" aria-live="polite" class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state="loading">
-      <h1>{copy.loading}</h1>
-      <p role="status">{copy.loading}</p>
+    <main data-profile-state="loading">
+      <LoadingIndicator label={copy.loading} variant="page" />
     </main>
   );
 }
