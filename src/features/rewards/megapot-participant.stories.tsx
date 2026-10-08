@@ -61,6 +61,20 @@ export const RewardsOffStudyComplete: Story = {
     rewardSlot={<MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} />} onExit={() => {}} onStudyAgain={() => {}} />,
   play: async ({ canvasElement }) => {
     await new Promise(resolve => setTimeout(resolve, 100));
+    await expect(canvasElement.querySelector("[data-activity-results]")).not.toBeNull();
+    await expect(canvasElement.querySelector("[data-megapot-share]")).toBeNull();
+    await expect(canvasElement.textContent).not.toContain("Megapot");
+    await expect(canvasElement.textContent).not.toContain("unavailable");
+  },
+};
+
+/** Rewards switched off after a take: the Karaoke results show no rewards box either. */
+export const RewardsOffKaraokeComplete: Story = {
+  render: () => <KaraokePracticeSurface onStartSinging={() => {}} title="Reward song" lines={[]} singingStatus="ended"
+    rewardSlot={<MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} />} onExit={() => {}} />,
+  play: async ({ canvasElement }) => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await expect(canvasElement.querySelector("[data-activity-results]")).not.toBeNull();
     await expect(canvasElement.querySelector("[data-megapot-share]")).toBeNull();
     await expect(canvasElement.textContent).not.toContain("Megapot");
     await expect(canvasElement.textContent).not.toContain("unavailable");
