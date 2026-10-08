@@ -1,3 +1,4 @@
+import { MegapotPoolUnavailableError } from "../../api/megapot-pool-availability.ts";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 import { MegapotPoolView, MegapotShareStatus } from "./megapot-participant.tsx";
@@ -21,8 +22,28 @@ export const KaraokeComplete: Story = {
   play: async ({ canvasElement }) => { await expect(await within(canvasElement).findByText(/You have a share in drawing 42/)).toBeVisible(); },
 };
 export const NotYetConfirmed: Story = {
-  render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, standing: async () => ({ pool, standing: { ...standing, share_held: false } }) }} /></main>,
+  render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, standing: async () => ({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } }) }} /></main>,
 };
 export const Unavailable: Story = {
   render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, standing: async () => { throw new Error("offline"); } }} /></main>,
+};
+
+export const EntriesClosed: Story = {
+  render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{
+    ...data,
+    standing: async () => ({ pool: { ...pool, drawing: { ...pool.drawing!, state: "entry_closed" } }, standing: { ...standing, share_held: false, participant_state: "entry_closed" } }),
+  }} /></main>,
+  play: async ({ canvasElement }) => {
+    await expect(await within(canvasElement).findByText(/Entries are closed/)).toBeVisible();
+    await expect(canvasElement.textContent).not.toContain("processing may still be pending");
+  },
+};
+
+export const ServiceUnavailable: Story = {
+  render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} /></main>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText(/Reload this page/)).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Check reward status" })).toBeNull();
+  },
 };

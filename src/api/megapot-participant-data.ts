@@ -1,3 +1,4 @@
+import { pagePoolReadGate } from "./megapot-pool-availability.ts";
 import type { GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse, GetRewardOfferLegsLegIdStandingResponse } from "@pirate/api-client";
 import { createPublicApiClient, createSessionApiClient, type PirateApiClient } from "./client.ts";
 
@@ -15,8 +16,11 @@ export function createMegapotParticipantData(
   publicClient: Pick<PirateApiClient, "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool"> = createPublicApiClient(),
   sessionClient: Pick<PirateApiClient, "get_usersMe" | "get_rewardOfferLegsLegIdStanding"> = createSessionApiClient(),
 ): MegapotParticipantData {
+  const availability = pagePoolReadGate();
   const pool = async (scope: ParticipantScope, signal: AbortSignal) => {
-    const result = await publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool({ path: scope }, { signal });
+    const result = await availability.read(
+      () => publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool({ path: scope }, { signal }), signal,
+    );
     signal.throwIfAborted();
     if (result.pool && (result.pool.community_id !== scope.communityId || result.pool.post_id !== scope.postId)) {
       throw new Error("reward_song_changed");

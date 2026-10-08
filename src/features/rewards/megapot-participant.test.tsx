@@ -1,3 +1,4 @@
+import { MegapotPoolUnavailableError } from "../../api/megapot-pool-availability.ts";
 import { StudyingSurface } from "../studying/studying-surface.tsx";
 import type { StudyingSurfaceState } from "../studying/studying-model.ts";
 import { KaraokePracticeSurface } from "../karaoke/karaoke-practice-surface.tsx";
@@ -36,7 +37,7 @@ it("confirms a server-held share and never equates sponsor fallback with a parti
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={data()} />);
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share in drawing 42"));
   expect(host.textContent).toContain("does not add another share");
-  expect(participantMessage({ pool, standing: { ...standing, share_held: false, sponsor_fallback_state: "fallback_active" } })).toContain("No share is confirmed");
+  expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open", sponsor_fallback_state: "fallback_active" } })).toContain("No share is confirmed");
 });
 it("clears private results on session refresh and ignores the obsolete in-flight response", async () => {
   let resolve!: (value: ParticipantRewardSnapshot) => void;
@@ -65,7 +66,7 @@ it("fences results across a song change, even when the old transport ignores can
 });
 it("allows an explicit retry when completion processing has not confirmed a share", async () => {
   const fake = data();
-  fake.standing = vi.fn().mockResolvedValueOnce({ pool, standing: { ...standing, share_held: false } }).mockResolvedValueOnce({ pool, standing });
+  fake.standing = vi.fn().mockResolvedValueOnce({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } }).mockResolvedValueOnce({ pool, standing });
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
   await vi.waitFor(() => expect(host.textContent).toContain("No share is confirmed"));
   host.querySelector("button")!.click();
@@ -110,4 +111,29 @@ it("waits for Karaoke to end and keeps its Continue action beside reward status"
   setStatus("ended");
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
   expect([...host.querySelectorAll("button")].some(button => button.textContent?.includes("Continue"))).toBe(true);
+});
+
+it("does not promise a later share after entries close", async () => {
+  const snapshot = { pool: { ...pool, drawing: { ...pool.drawing!, state: "entry_closed" as const } }, standing: { ...standing, share_held: false, participant_state: "entry_closed" as const } };
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={{ pool: async () => snapshot.pool, standing: async () => snapshot }} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("Entries are closed"));
+  expect(host.textContent).toContain("Play again when the next drawing opens");
+  expect(host.textContent).not.toContain("pending");
+  expect(host.textContent).not.toContain("You have a share");
+});
+
+it("reserves pending copy for an open drawing and does not confuse a hold with closure", () => {
+  expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).toContain("pending");
+  expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "operational_hold" } })).toContain("on hold");
+  expect(participantMessage({ pool: { ...pool, drawing: null }, standing: { ...standing, share_held: false, drawing_id: null, participant_state: "entry_closed" } })).toContain("No drawing is currently open");
+  expect(participantMessage({ pool: { ...pool, drawing: { ...pool.drawing!, entry_cutoff_at: "2000-01-01T00:00:00Z" } }, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).not.toContain("pending");
+});
+
+it("asks for a page reload after provider unavailability instead of offering a blocked retry", async () => {
+  const fake = data();
+  fake.pool = vi.fn(async () => { throw new MegapotPoolUnavailableError(); });
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("Reload this page"));
+  expect(host.querySelector("button")).toBeNull();
+  expect(fake.standing).not.toHaveBeenCalled();
 });

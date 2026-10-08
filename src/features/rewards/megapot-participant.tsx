@@ -1,3 +1,4 @@
+import { MegapotPoolUnavailableError } from "../../api/megapot-pool-availability.ts";
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { formatUnits } from "viem";
 import { Button } from "../../design-system.ts";
@@ -75,7 +76,7 @@ export function MegapotShareView(props: { readonly snapshot: ParticipantRewardSn
   </>;
 }
 
-type ShareState = { scope: ParticipantScope; content: string; snapshot?: ParticipantRewardSnapshot };
+type ShareState = { scope: ParticipantScope; content: string; snapshot?: ParticipantRewardSnapshot; retryable?: boolean };
 /** Mount only on the completion surface. Scores never manufacture a share. */
 export function MegapotShareStatus(props: Props) {
   const [state, setState] = createSignal<ShareState>();
@@ -108,8 +109,10 @@ export function MegapotShareStatus(props: Props) {
       setState({ scope, content: "", snapshot });
       // Do not leave account-private or drawing-specific claims visible indefinitely.
       expiry = setTimeout(() => { if (current()) setState({ scope, content: "Check again for your latest share status." }); }, 60_000);
-    } catch {
-      if (current()) setState({ scope, content: "Your reward status is unavailable. Check again to confirm your share." });
+    } catch (error) {
+      if (current()) setState(error instanceof MegapotPoolUnavailableError
+        ? { scope, content: "Rewards are unavailable. Reload this page to check again.", retryable: false }
+        : { scope, content: "Your reward status is unavailable. Check again to confirm your share." });
     } finally { if (current()) { clearTimeout(timeout); setBusy(false); } }
   };
   createEffect(() => ({ communityId: props.communityId, postId: props.postId }), () => {
@@ -128,6 +131,8 @@ export function MegapotShareStatus(props: Props) {
   return <Show when={visible()}>{value => <section aria-label="Your song reward" aria-live="polite" class="rounded-xl border border-border-soft bg-card p-4 text-sm space-y-3" data-megapot-share>
     <p class="font-semibold">Your Megapot share</p>
     <Show when={value().snapshot} fallback={<p>{value().content}</p>}>{snapshot => <MegapotShareView snapshot={snapshot()} />}</Show>
-    <Button variant="outline" disabled={busy()} onClick={() => { void load(); }}>Check reward status</Button>
+    <Show when={value().retryable !== false}>
+      <Button variant="outline" disabled={busy()} onClick={() => { void load(); }}>Check reward status</Button>
+    </Show>
   </section>}</Show>;
 }
