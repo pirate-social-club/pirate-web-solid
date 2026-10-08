@@ -252,11 +252,11 @@ it("does not imply that a below-threshold Study completion is awaiting a share",
 
 it("renders nothing and asks nothing for a song without a community id", async () => {
   const fake = data();
-  // SAFETY: a route fixture or a partial response can omit the community; these surfaces must survive it.
-  const missing = undefined as unknown as string;
+  // A route fixture or a partial response can omit the community; these surfaces must survive it.
+  const partial: Partial<ParticipantScope> = { postId: "post-1" };
   const host = mount(() => <>
-    <MegapotPoolSummary communityId={missing} postId="post-1" data={fake} />
-    <MegapotShareStatus communityId={missing} postId="post-1" data={fake} />
+    <MegapotPoolSummary communityId={partial.communityId!} postId="post-1" data={fake} />
+    <MegapotShareStatus communityId={partial.communityId!} postId="post-1" data={fake} />
   </>);
   await settle();
   expect(host.textContent).toBe("");
