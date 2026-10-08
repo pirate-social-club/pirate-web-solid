@@ -46,7 +46,7 @@ const unavailable = () => new ApiClientError(
   { status: 502, code: "provider_unavailable", name: "ProviderUnavailable", retryable: true },
   { error: { code: "provider_unavailable", message: "Reward services are unavailable", retryable: true } },
 );
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 it("sends one probe for concurrent cards and stops later factories on the same page after 502", async () => {
   vi.stubGlobal("window", {});
@@ -102,4 +102,125 @@ it("keeps enabled reads working after an absent pool or aborted queued card", as
   const absent = createMegapotParticipantData({ get_communitiesCommunityIdPostsPostIdRewardsMegapotPool: async () => ({ pool: null }) }, second.sessionClient);
   expect(await absent.pool(scope, second.signal)).toBeNull();
   expect(await second.data.pool(scope, second.signal)).toEqual(pool);
+});
+
+it("releases healthy cards concurrently after the first probe, despite a hung sibling", async () => {
+  vi.stubGlobal("window", {});
+  const first = setup(), slow = setup(), fast = setup();
+  let releaseProbe!: () => void, releaseSlow!: () => void;
+  first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { releaseProbe = resolve; });
+    return { pool };
+  });
+  slow.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { releaseSlow = resolve; });
+    return { pool };
+  });
+  const initial = first.data.pool(scope, first.signal);
+  const hung = slow.data.pool(scope, slow.signal);
+  const independent = fast.data.pool(scope, fast.signal);
+  expect(fast.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).not.toHaveBeenCalled();
+  releaseProbe();
+  await initial;
+  expect(await independent).toEqual(pool);
+  expect(slow.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).toHaveBeenCalledOnce();
+  // A later card also bypasses the still-pending sibling.
+  expect(await fast.data.pool(scope, fast.signal)).toEqual(pool);
+  releaseSlow();
+  await hung;
+});
+
+it("allows one recovery probe after 30 seconds and resumes parallel reads on success", async () => {
+  vi.stubGlobal("window", {});
+  let now = 1_000;
+  vi.spyOn(Date, "now").mockImplementation(() => now);
+  const first = setup(), recovery = setup(), waiting = setup();
+  first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockRejectedValueOnce(unavailable());
+  await expect(first.data.pool(scope, first.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  now = 30_999;
+  await expect(recovery.data.pool(scope, recovery.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  expect(recovery.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).not.toHaveBeenCalled();
+  now = 31_000;
+  let release!: () => void;
+  recovery.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+    return { pool };
+  });
+  const probe = recovery.data.pool(scope, recovery.signal);
+  const queued = waiting.data.pool(scope, waiting.signal);
+  expect(recovery.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).toHaveBeenCalledOnce();
+  expect(waiting.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).not.toHaveBeenCalled();
+  release();
+  expect(await probe).toEqual(pool);
+  expect(await queued).toEqual(pool);
+});
+
+it("renews the cooldown when recovery still reports an unavailable provider", async () => {
+  vi.stubGlobal("window", {});
+  let now = 1_000;
+  vi.spyOn(Date, "now").mockImplementation(() => now);
+  const first = setup(), second = setup();
+  first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockRejectedValue(unavailable());
+  await expect(first.data.pool(scope, first.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  now += 30_000;
+  const results = await Promise.allSettled([first.data.pool(scope, first.signal), second.data.pool(scope, second.signal)]);
+  expect(results.every(result => result.status === "rejected" && result.reason instanceof MegapotPoolUnavailableError)).toBe(true);
+  now += 29_999;
+  await expect(second.data.pool(scope, second.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  expect(first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).toHaveBeenCalledTimes(2);
+  expect(second.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).not.toHaveBeenCalled();
+});
+
+it("does not let a late healthy reply clear a newer outage", async () => {
+  vi.stubGlobal("window", {});
+  const first = setup(), slow = setup(), failing = setup();
+  await first.data.pool(scope, first.signal);
+  let release!: () => void;
+  slow.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+    return { pool };
+  });
+  const late = slow.data.pool(scope, slow.signal);
+  failing.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockRejectedValueOnce(unavailable());
+  await expect(failing.data.pool(scope, failing.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  release();
+  expect(await late).toEqual(pool);
+  await expect(first.data.pool(scope, first.signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
+  expect(first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).toHaveBeenCalledOnce();
+});
+
+it("cancels a waiting card promptly without cancelling the first probe", async () => {
+  vi.stubGlobal("window", {});
+  const first = setup(), waiting = setup();
+  let release!: () => void;
+  first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+    return { pool };
+  });
+  const initial = first.data.pool(scope, first.signal);
+  const controller = new AbortController();
+  const cancelled = waiting.data.pool(scope, controller.signal);
+  controller.abort();
+  await expect(cancelled).rejects.toThrow();
+  expect(waiting.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool).not.toHaveBeenCalled();
+  release();
+  expect(await initial).toEqual(pool);
+});
+
+it("releases the initial probe on cancellation even if its transport ignores abort", async () => {
+  vi.stubGlobal("window", {});
+  const first = setup(), waiting = setup();
+  let release!: () => void;
+  first.publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool.mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+    throw unavailable();
+  });
+  const controller = new AbortController();
+  const cancelled = first.data.pool(scope, controller.signal);
+  const next = waiting.data.pool(scope, waiting.signal);
+  controller.abort();
+  await expect(cancelled).rejects.toThrow();
+  expect(await next).toEqual(pool);
+  release();
+  expect(await waiting.data.pool(scope, waiting.signal)).toEqual(pool);
 });

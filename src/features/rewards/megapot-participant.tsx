@@ -76,7 +76,7 @@ export function MegapotShareView(props: { readonly snapshot: ParticipantRewardSn
   </>;
 }
 
-type ShareState = { scope: ParticipantScope; content: string; snapshot?: ParticipantRewardSnapshot; retryable?: boolean };
+type ShareState = { scope: ParticipantScope; content: string; snapshot?: ParticipantRewardSnapshot };
 /** Mount only on the completion surface. Scores never manufacture a share. */
 export function MegapotShareStatus(props: Props) {
   const [state, setState] = createSignal<ShareState>();
@@ -111,7 +111,7 @@ export function MegapotShareStatus(props: Props) {
       expiry = setTimeout(() => { if (current()) setState({ scope, content: "Check again for your latest share status." }); }, 60_000);
     } catch (error) {
       if (current()) setState(error instanceof MegapotPoolUnavailableError
-        ? { scope, content: "Rewards are unavailable. Reload this page to check again.", retryable: false }
+        ? { scope, content: "Rewards are temporarily unavailable. Try again shortly." }
         : { scope, content: "Your reward status is unavailable. Check again to confirm your share." });
     } finally { if (current()) { clearTimeout(timeout); setBusy(false); } }
   };
@@ -131,8 +131,6 @@ export function MegapotShareStatus(props: Props) {
   return <Show when={visible()}>{value => <section aria-label="Your song reward" aria-live="polite" class="rounded-xl border border-border-soft bg-card p-4 text-sm space-y-3" data-megapot-share>
     <p class="font-semibold">Your Megapot share</p>
     <Show when={value().snapshot} fallback={<p>{value().content}</p>}>{snapshot => <MegapotShareView snapshot={snapshot()} />}</Show>
-    <Show when={value().retryable !== false}>
-      <Button variant="outline" disabled={busy()} onClick={() => { void load(); }}>Check reward status</Button>
-    </Show>
+    <Button variant="outline" disabled={busy()} onClick={() => { void load(); }}>Check reward status</Button>
   </section>}</Show>;
 }

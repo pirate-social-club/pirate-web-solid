@@ -20,7 +20,7 @@ export function participantMessage({ pool, standing }: ParticipantRewardSnapshot
     if (!pool.drawing) return "No drawing is currently open. Play again when the next drawing opens.";
     if (standing.participant_state === "entry_open" && pool.drawing.state === "entry_open"
       && Date.parse(pool.drawing.entry_cutoff_at) > Date.now()) {
-      return "No share is confirmed for your account in this drawing. Reward processing may still be pending.";
+      return "No share is confirmed for your account in this drawing. Only qualifying activities earn a share.";
     }
     return "Entries are closed. Your account has no share in this drawing. Play again when the next drawing opens.";
   }

@@ -122,18 +122,30 @@ it("does not promise a later share after entries close", async () => {
   expect(host.textContent).not.toContain("You have a share");
 });
 
-it("reserves pending copy for an open drawing and does not confuse a hold with closure", () => {
-  expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).toContain("pending");
+it("keeps open-drawing copy neutral about qualification and distinguishes a hold from closure", () => {
+  expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).toContain("Only qualifying activities earn a share");
   expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "operational_hold" } })).toContain("on hold");
   expect(participantMessage({ pool: { ...pool, drawing: null }, standing: { ...standing, share_held: false, drawing_id: null, participant_state: "entry_closed" } })).toContain("No drawing is currently open");
   expect(participantMessage({ pool: { ...pool, drawing: { ...pool.drawing!, entry_cutoff_at: "2000-01-01T00:00:00Z" } }, standing: { ...standing, share_held: false, participant_state: "entry_open" } })).not.toContain("pending");
 });
 
-it("asks for a page reload after provider unavailability instead of offering a blocked retry", async () => {
+it("keeps a usable retry after transient provider unavailability", async () => {
   const fake = data();
-  fake.pool = vi.fn(async () => { throw new MegapotPoolUnavailableError(); });
+  fake.pool = vi.fn().mockRejectedValueOnce(new MegapotPoolUnavailableError()).mockResolvedValue(pool);
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("Reload this page"));
-  expect(host.querySelector("button")).toBeNull();
+  await vi.waitFor(() => expect(host.textContent).toContain("temporarily unavailable"));
   expect(fake.standing).not.toHaveBeenCalled();
+  host.querySelector("button")!.click();
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  expect(fake.pool).toHaveBeenCalledTimes(2);
+});
+
+it("does not imply that a below-threshold Study completion is awaiting a share", async () => {
+  const fake = data();
+  fake.standing = vi.fn(async (): Promise<ParticipantRewardSnapshot> => ({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } }));
+  const host = mount(() => <StudyingSurface state={{ kind: "complete", correctCount: 5, scorePercent: 50, totalCount: 10 }} rewardSlot={<MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("No share is confirmed"));
+  expect(host.textContent).toContain("Only qualifying activities earn a share");
+  expect(host.textContent).not.toContain("pending");
+  expect(host.textContent).not.toContain("You have a share");
 });

@@ -43,7 +43,7 @@ export const ServiceUnavailable: Story = {
   render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, pool: async () => { throw new MegapotPoolUnavailableError(); } }} /></main>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText(/Reload this page/)).toBeVisible();
-    await expect(canvas.queryByRole("button", { name: "Check reward status" })).toBeNull();
+    await expect(await canvas.findByText(/temporarily unavailable/)).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Check reward status" })).toBeEnabled();
   },
 };
