@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Button, Card, IconButton, IconX, Type, createIsMobile, cn } from "../../../design-system";
+import { Button, Card, IconButton, IconX, Type, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -10,9 +10,14 @@ import { SongReviewStep, SongRightsStep } from "./song-steps";
 import { PostComposerStepFooter } from "./step-footer";
 import type { PostComposerProps } from "./types";
 import { PostComposerWriteStep } from "./write-step";
+import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 
 export function PostComposer(props: PostComposerProps) {
-  const controller = createPostComposerController(props, { isMobile: createIsMobile() });
+  // Knows the phone layout from the first frame (see createPhoneLayout), so
+  // the step controls, which choose their form once when they mount, are the
+  // phone's from the start.
+  const phoneLayout = createPhoneLayout();
+  const controller = createPostComposerController(props, { isMobile: phoneLayout });
   const steps = createComposerSteps(() => controller.tabs.activeTab, () => props.initialSongStep);
   const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
   const isMultiStep = () => steps.list().length > 1;
@@ -151,7 +156,7 @@ export function PostComposer(props: PostComposerProps) {
         </Show>
       </div>
       }>
-        <Show when={controller.isMobile()} fallback={
+        <Show when={phoneLayout()} fallback={
         <Card class="w-full overflow-hidden">
           <header class="flex items-center justify-between gap-3 px-5 pt-5 md:px-8 md:pt-6">
             <Type as="h2" variant="h2">Create a post</Type>

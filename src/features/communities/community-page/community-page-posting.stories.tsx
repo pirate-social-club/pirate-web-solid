@@ -481,6 +481,35 @@ export const SongStepsReturnToFeedOnMobile: Story = {
   },
 };
 
+const heldSongUpload = createHeldSongUploadTransport();
+
+/**
+ * Back while the song's audio is still uploading. The song's own guard keeps
+ * the steps open, exactly as its close button does, and Back stays available
+ * for when the upload has finished.
+ */
+export const MobileBackRespectsTheSongGuard: Story = {
+  name: "Mobile Back does not abandon an uploading song",
+  args: { ...pageArgs(standInServer()), mediaSubmissionTransport: heldSongUpload.transport },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const view = canvasElement.ownerDocument.defaultView!;
+    const canvas = await openSongInMain(canvasElement);
+    const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
+    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    // Continue starts the upload, which the stand-in server holds open.
+    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).not.toBeNull());
+    view.history.back();
+    await waitFor(() => expect(canvas.getByText(/unresolved command/iu)).toBeVisible());
+    await expect(canvas.getByRole("form", { name: "Post a song" })).toBeVisible();
+    // The history entry is back in place, so a later Back still closes.
+    await waitFor(() => expect(view.history.state?.pirateComposer).toBe(true));
+    heldSongUpload.finish();
+    await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).toBeNull());
+  },
+};
+
 /** The post appears at once and is then replaced by the published post. */
 export const PostsInstantly: Story = {
   name: "Posted and confirmed",

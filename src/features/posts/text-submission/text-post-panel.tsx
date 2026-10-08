@@ -14,8 +14,8 @@ import {
   Input,
   Textarea,
   Type,
-  createIsMobile,
 } from "../../../design-system";
+import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 
 export interface TextPostDraft {
   readonly title: string;
@@ -55,7 +55,7 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   const canPost = () => props.unavailable === undefined && props.draft.body.trim() !== "";
   const post = () => { if (canPost()) props.onPost(); };
 
-  const isMobile = createIsMobile();
+  const isMobile = createPhoneLayout();
 
   const songEntry = () => (
     <Show when={props.onSong}>

@@ -711,7 +711,12 @@ function SuccessState(props: {
   // that entry again so Back is not spent twice.
   let composerHistoryEntry = false;
   const pushComposerEntry = () => {
-    history.pushState({ ...(history.state ?? {}), pirateComposer: true }, "");
+    // A depth of its own, one past the page's, so the router's scroll
+    // restoration and leave guards treat it as the next entry and do not
+    // file the composer's scrolling under the feed's position.
+    const state = history.state ?? {};
+    const depth = typeof state._depth === "number" ? state._depth + 1 : undefined;
+    history.pushState({ ...state, ...(depth === undefined ? {} : { _depth: depth }), pirateComposer: true }, "");
     composerHistoryEntry = true;
   };
   createEffect(composing, (open) => {
