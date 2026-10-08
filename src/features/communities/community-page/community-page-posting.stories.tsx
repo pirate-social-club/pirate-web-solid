@@ -16,7 +16,7 @@ import {
 } from "../../posts/post-composer/text-submission-transport.ts";
 import type { MediaSubmissionSnapshot } from "../../posts/media-submission/contracts.ts";
 import type { MediaSubmissionTransport } from "../../posts/media-submission/transport.ts";
-import { SONG_STAGES } from "../../posts/song-submission/pending-songs.tsx";
+import { SONG_PROCESSING_PHASES, SONG_PROCESSING_TEXT } from "../../posts/song-submission/pending-songs.tsx";
 import { createSongSubmissionStore, SongSubmissionProvider } from "../../posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "../../posts/text-submission/text-submission-store.tsx";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
@@ -973,18 +973,24 @@ export const SongUploadUnknownSize: Story = {
   },
 };
 
-/** A submitted song names the stage the server is on, in order, and is then in the feed. */
+/**
+ * A submitted song says plainly that it is processing, with a bar that moves
+ * forward through the server's phases, and is then in the feed.
+ */
 export const SongMovesThroughItsStages: Story = {
-  name: "Song: each processing stage, then published",
+  name: "Song: processing, then published",
   render: () => <SongFrame answers={[songProcessing("finalize"), songProcessing("analysis"), songProcessing("decision"), songProcessing("publish"), songPublished]} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const seen: string[] = [];
+    const seen: number[] = [];
     await waitFor(() => {
       const item = pendingSong(canvasElement);
-      const stage = SONG_STAGES.find(name => item?.textContent?.includes(name));
-      if (stage !== undefined && seen.at(-1) !== stage) seen.push(stage);
-      expect(seen).toEqual([...SONG_STAGES]);
+      expect(item?.textContent ?? "").toContain(SONG_PROCESSING_TEXT);
+      // One plain line: no step count and no phase names.
+      expect(item?.textContent ?? "").not.toMatch(/step \d|of \d|Listening|Saving your audio/u);
+      const value = Number(item?.querySelector("[role='progressbar']")?.getAttribute("aria-valuenow"));
+      if (Number.isFinite(value) && seen.at(-1) !== value) seen.push(value);
+      expect(seen).toEqual(Array.from({ length: SONG_PROCESSING_PHASES }, (_, index) => index + 1));
     }, { timeout: 12_000, interval: 100 });
     // No status button, no paused note, no identifier field: the stage is the status.
     await expect(canvas.queryByRole("button", { name: /check status/iu })).toBeNull();
@@ -1048,7 +1054,7 @@ export const SongWaitingForReview: Story = {
     await expect(item.getByText("This song is waiting for a moderator's review before it can be published.")).toBeVisible();
     // It is not shown as a processing step, and it cannot be waved away.
     await expect(item.queryByRole("progressbar")).toBeNull();
-    for (const stage of SONG_STAGES) await expect(item.queryByText(new RegExp(stage, "u"))).toBeNull();
+    await expect(item.queryByText(SONG_PROCESSING_TEXT)).toBeNull();
     await expect(item.queryByRole("alert")).toBeNull();
     await expect(item.queryByRole("button")).toBeNull();
   },
