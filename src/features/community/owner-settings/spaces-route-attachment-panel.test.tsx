@@ -11,6 +11,7 @@ import type {
 } from "./spaces-route-attachment-api";
 import { CommunityAddressSettings } from "./community-address-settings";
 import { createFakeNamespaceSettingsPort } from "./fake-owner-settings-port";
+import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session";
 import { SpacesRouteAttachmentPanel } from "./spaces-route-attachment-panel";
 
 const unexpected = async (): Promise<never> => { throw new Error("Not reached"); };
@@ -209,14 +210,89 @@ describe("Spaces community address", () => {
     expect(calls.find((call) => call.method === "commit")!.input).toMatchObject({ attachmentIntentId: "sroute_restore", generation: 2 });
   });
 
-  test("a past success is not shown as a working address without checking now", async () => {
+  test("a failed lookup is no verdict: neither working nor stopped, and no restore", async () => {
     const { api } = fakeApi({
       current: [state("yahoo", { status: "committed", route_binding_id: "srbind_1", replayed: true })],
       resolves: [new Error("lookup failed")],
     });
     const view = await mount(api);
     expect(view.node.querySelector("[data-spaces-route-connected]")).toBeNull();
-    expect(view.button("Restore address")).not.toBeUndefined();
+    expect(view.node.querySelector("[data-spaces-route-stopped]")).toBeNull();
+    expect(view.node.querySelector("[data-spaces-route-unchecked]")?.textContent).toContain("@yahoo");
+    expect(view.button("Restore address")).toBeUndefined();
+    expect(view.button("Connect address")).toBeUndefined();
+    expect(view.node.textContent).toContain("We couldn't check this address right now");
+  });
+
+  test("asks the lookup about this community specifically", async () => {
+    const { api, calls } = fakeApi({
+      current: [state("yahoo", { status: "committed", route_binding_id: "srbind_1", replayed: true })],
+      resolves: [true],
+    });
+    await mount(api, "account-1", "community-7");
+    expect(calls.find((call) => call.method === "resolves")?.input).toEqual({ canonicalRoot: "yahoo", communityId: "community-7" });
+  });
+
+  test("a session refresh for the same account keeps the request and the pasted signature", async () => {
+    const { api, calls } = fakeApi({ current: [state("yahoo", { replayed: true })] });
+    const [session, setSession] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-1" });
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <ApplicationSessionProvider state={session}>
+      <SpacesRouteAttachmentPanel api={api} communityId="community-1" />
+    </ApplicationSessionProvider>, node);
+    await settle();
+    const user = userEvent.setup();
+    await user.type(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")!, SIGNATURE);
+    // A refresh replaces the session object for the same signed-in account.
+    setSession({ status: "authenticated", userId: "account-1" });
+    await settle();
+    expect(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")?.value).toBe(SIGNATURE);
+    expect(calls.filter((call) => call.method === "current")).toHaveLength(1);
+    // A different account is a real change and resets.
+    setSession({ status: "authenticated", userId: "account-2" });
+    await settle();
+    expect(calls.filter((call) => call.method === "current")).toHaveLength(2);
+  });
+
+  test("a scope change in the middle of an action releases the shared address choice", async () => {
+    let finishProve!: (value: SpacesRouteAttachmentResult) => void;
+    const slowProve = new Promise<SpacesRouteAttachmentResult>((resolve) => { finishProve = resolve; });
+    const { api } = fakeApi({ current: [state("yahoo", { replayed: true }), null], prove: [slowProve] });
+    const reports: boolean[] = [];
+    const [communityId, setCommunityId] = createSignal("community-1");
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <SpacesRouteAttachmentPanel api={api} communityId={communityId()} accountId="account-1"
+      onBusyChange={(busy) => reports.push(busy)} />, node);
+    await settle();
+    const user = userEvent.setup();
+    await user.type(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")!, SIGNATURE);
+    await user.click([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")!);
+    await settle();
+    expect(reports.at(-1)).toBe(true);
+    setCommunityId("community-2");
+    await settle();
+    expect(reports.at(-1)).toBe(false);
+    finishProve(state("yahoo", { status: "signature_rejected" }));
+    await settle();
+    expect(reports.at(-1)).toBe(false);
+  });
+
+  test("after an accepted signature, a failed finish says to continue, not to sign again", async () => {
+    const { api } = fakeApi({
+      current: [state("yahoo", { replayed: true })],
+      prove: [state("yahoo", { status: "proved" })],
+      commit: [new Error("connection lost")],
+    });
+    const view = await mount(api);
+    await view.typeSignature();
+    await view.press("Connect address");
+    expect(view.node.textContent).toContain("Your signature was accepted, but we couldn't finish");
+    expect(view.node.textContent).not.toContain("try the same signature again");
+    expect(view.button("Continue")).not.toBeUndefined();
   });
 
   test("keeps accounts, communities and roots apart", async () => {
@@ -440,13 +516,13 @@ describe("Spaces community address", () => {
     render(() => <SpacesRouteAttachmentPanel api={api} communityId="community-1" accountId="account-1"
       onBusyChange={(busy) => busyReports.push(busy)} />, node);
     await settle();
-    // The panel's own button waits for the read, but nothing is reported upward.
+    // The panel's own button waits for the read, but it never reports busy upward.
     expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(true);
-    expect(busyReports).toEqual([]);
+    expect(busyReports).not.toContain(true);
     finishRead(null);
     await settle();
     expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(false);
-    expect(busyReports).toEqual([]);
+    expect(busyReports).not.toContain(true);
   });
 
   test("appears under the Spaces choice of the shared address settings", async () => {

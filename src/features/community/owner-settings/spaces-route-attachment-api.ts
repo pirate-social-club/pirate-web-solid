@@ -44,8 +44,8 @@ export interface SpacesRouteAttachmentApi {
   current(input: { communityId: string }): Promise<SpacesRouteAttachmentResult | null>;
   prove(input: { communityId: string; attachmentIntentId: string; signatureHex: string }): Promise<SpacesRouteAttachmentResult>;
   commit(input: { communityId: string; attachmentIntentId: string; generation: number }): Promise<SpacesRouteAttachmentResult>;
-  /** Whether /c/@root reaches a community right now. A past success does not answer this. */
-  resolves(input: { canonicalRoot: string }): Promise<boolean>;
+  /** Whether /c/@root reaches this community right now. A past success does not answer this. */
+  resolves(input: { canonicalRoot: string; communityId: string }): Promise<boolean>;
 }
 
 /**
@@ -87,11 +87,12 @@ export function createSpacesRouteAttachmentApi(options: {
       .post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdCommit({
         path: { communityId, attachmentIntentId }, body: { generation },
       }, writeOptions()),
-    resolves: async ({ canonicalRoot }) => {
+    resolves: async ({ canonicalRoot, communityId }) => {
       try {
-        await createPublicCommunityRouteClient({ fetchImpl: options.fetchImpl, origin: options.origin })
+        const route = await createPublicCommunityRouteClient({ fetchImpl: options.fetchImpl, origin: options.origin })
           .get_cPathSegment({ path: { path_segment: `@${canonicalRoot}` } });
-        return true;
+        // The address works only if it reaches this community.
+        return route.community_id === communityId;
       } catch (reason) {
         if (reason instanceof ApiClientError && reason.status === 404) return false;
         throw reason;

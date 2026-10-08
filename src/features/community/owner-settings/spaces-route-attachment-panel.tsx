@@ -57,7 +57,8 @@ export function SpacesRouteAttachmentPanel(props: {
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
   const [attempt, setAttempt] = createSignal<SpacesRouteAttachmentState>();
-  const [connected, setConnected] = createSignal<{ root: string; href: string; working: boolean }>();
+  // working is null when the live lookup could not answer: no verdict either way.
+  const [connected, setConnected] = createSignal<{ root: string; href: string; working: boolean | null }>();
   const [busy, setBusyState] = createSignal(true);
   const [message, setMessage] = createSignal("");
   const [copied, setCopied] = createSignal(false);
@@ -72,20 +73,25 @@ export function SpacesRouteAttachmentPanel(props: {
   let scope = 0;
   let scopeAbort = new AbortController();
   type Scope = Readonly<{ live: () => boolean; communityId: string; accountId: string | undefined;
-    signal: AbortSignal; storageKey: (root: string) => string }>;
+    signal: AbortSignal; storageKey: (root: string) => string | null }>;
   const enter = (): Scope => {
     const mine = scope;
     const communityId = props.communityId;
     const owner = accountId();
-    const prefix = `spaces-route-attachment:${owner ?? "session"}:${communityId}:`;
+    // Without a known account there is no safe per-account slot, so nothing is
+    // stored; the server's current request is still read back on return.
+    const prefix = owner === undefined ? null : `spaces-route-attachment:${owner}:${communityId}:`;
     return { live: () => mine === scope, communityId, accountId: owner, signal: scopeAbort.signal,
-      storageKey: (canonicalRoot) => prefix + canonicalRoot };
+      storageKey: (canonicalRoot) => prefix === null ? null : prefix + canonicalRoot };
   };
   /** Ends the current scope: its repair is aborted and nothing it awaited may act. */
   const leave = () => {
     scope += 1;
     scopeAbort.abort();
     scopeAbort = new AbortController();
+    // An action from the ended scope skips its own cleanup, so release the
+    // shared address choice here or it would stay locked.
+    props.onBusyChange?.(false);
   };
   /**
    * Session repair is itself a wait. It runs for the scope and owner that
@@ -98,29 +104,34 @@ export function SpacesRouteAttachmentPanel(props: {
     if (!ready) setAuthRequired(true);
     return ready;
   };
-  const savedKey = (at: Scope, canonicalRoot: string) =>
-    typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(at.storageKey(canonicalRoot));
+  const savedKey = (at: Scope, canonicalRoot: string) => {
+    const name = at.storageKey(canonicalRoot);
+    return name === null || typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(name);
+  };
   const saveKey = (at: Scope, canonicalRoot: string, key: string) => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(at.storageKey(canonicalRoot), key);
+    const name = at.storageKey(canonicalRoot);
+    if (name !== null && typeof sessionStorage !== "undefined") sessionStorage.setItem(name, key);
   };
   const clearKey = (at: Scope, canonicalRoot: string) => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(at.storageKey(canonicalRoot));
+    const name = at.storageKey(canonicalRoot);
+    if (name !== null && typeof sessionStorage !== "undefined") sessionStorage.removeItem(name);
   };
 
   /** A finished attempt is history; whether the address works now is read separately. */
   const showConnected = async (at: Scope, state: SpacesRouteAttachmentState) => {
     clearKey(at, state.canonical_root);
-    let working = false;
+    let working: boolean | null;
     try {
-      working = await props.api.resolves({ canonicalRoot: state.canonical_root });
+      working = await props.api.resolves({ canonicalRoot: state.canonical_root, communityId: at.communityId });
     } catch {
-      working = false;
+      working = null; // An outage or bad reply is not evidence the address stopped working.
     }
     if (!at.live()) return;
     setAttempt(undefined);
     setSignature("");
     setRoot(`@${state.canonical_root}`);
     setConnected({ root: state.canonical_root, href: state.canonical_href, working });
+    if (working === null) setMessage(CHECK_LATER);
   };
 
   const apply = async (at: Scope, result: SpacesRouteAttachmentResult): Promise<void> => {
@@ -163,7 +174,13 @@ export function SpacesRouteAttachmentPanel(props: {
       if (at.live()) setBusyState(false);
     }
   };
-  createEffect(() => [props.communityId, accountId()], () => {
+  // Session refreshes replace the session object without changing who is
+  // signed in. Effects here rerun on every recompute, so compare the actual
+  // account and community and ignore a refresh that changes neither.
+  let lastScopeKey: string | undefined;
+  createEffect(() => `${props.communityId}\n${accountId() ?? ""}`, (scopeKey) => {
+    if (scopeKey === lastScopeKey) return;
+    lastScopeKey = scopeKey;
     leave();
     const at = enter();
     queueMicrotask(() => {
@@ -181,11 +198,13 @@ export function SpacesRouteAttachmentPanel(props: {
   });
   onCleanup(leave);
 
-  const reportFailure = (at: Scope, reason: unknown, fallback: string) => {
+  const reportFailure = (at: Scope, reason: unknown, fallback: string, stage: "start" | "continue" = "start") => {
     if (!at.live()) return;
     if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
     else if (reason instanceof ApiClientError && reason.status === 409) {
-      setMessage("This address can't be connected here. It may already belong to a community, or another request is still open. Try again in a few minutes.");
+      setMessage(stage === "start"
+        ? "This address can't be connected here. It may already belong to a community, or another request is still open. Try again in a few minutes."
+        : "This request can't continue as it is. Reload the page to see where it stands.");
     } else setMessage(fallback);
   };
 
@@ -256,14 +275,20 @@ export function SpacesRouteAttachmentPanel(props: {
     }
     setBusy(true);
     setMessage("");
+    let accepted = false;
     try {
       if (!await sessionReady(at)) return;
       const result = await props.api.prove({ communityId: at.communityId,
         attachmentIntentId: state.attachment_intent_id, signatureHex });
       await apply(at, result);
-      if (at.live() && !isPending(result) && result.status === "proved") await finish(at, result);
+      if (at.live() && !isPending(result) && result.status === "proved") {
+        accepted = true;
+        await finish(at, result);
+      }
     } catch (reason) {
-      reportFailure(at, reason, "We couldn't check the signature. You can try the same signature again.");
+      reportFailure(at, reason, accepted
+        ? "Your signature was accepted, but we couldn't finish. Select Continue to try again."
+        : "We couldn't check the signature. You can try the same signature again.", "continue");
     } finally {
       if (at.live()) setBusy(false);
     }
@@ -279,7 +304,7 @@ export function SpacesRouteAttachmentPanel(props: {
       if (!await sessionReady(at)) return;
       await finish(at, state);
     } catch (reason) {
-      reportFailure(at, reason, "We couldn't finish. Select Continue to try again.");
+      reportFailure(at, reason, "We couldn't finish. Select Continue to try again.", "continue");
     } finally {
       if (at.live()) setBusy(false);
     }
@@ -324,7 +349,10 @@ export function SpacesRouteAttachmentPanel(props: {
           <Show when={connected() === undefined && attempt() === undefined}>
             <p class="text-sm text-muted-foreground">Use a Spaces name you own as this community's address. You sign one message with the wallet that owns it. Nothing is sent or spent.</p>
           </Show>
-          <Show when={attempt() === undefined}>
+          <Show when={connected()?.working === null}>
+            <p class="text-sm" data-spaces-route-unchecked>@{connected()!.root} is this community's address.</p>
+          </Show>
+          <Show when={attempt() === undefined && connected()?.working !== null}>
             <div class="space-y-2">
               <FormFieldLabel htmlFor="spaces-route-root" label="Address" />
               <PrefixInput id="spaces-route-root" class="h-16" prefix="@" value={root().replace(/^@/u, "")}

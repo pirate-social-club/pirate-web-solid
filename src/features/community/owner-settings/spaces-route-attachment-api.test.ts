@@ -66,7 +66,7 @@ describe("Spaces route attachment API", () => {
         path_segment: `@${root}`, href: `/c/@${root}`, app_host: null },
     });
     const working = recording(() => json(bound("yahoo")));
-    await expect(working.api.resolves({ canonicalRoot: "yahoo" })).resolves.toBe(true);
+    await expect(working.api.resolves({ canonicalRoot: "yahoo", communityId: "community_00000000-0000-4000-8000-00000000d001" })).resolves.toBe(true);
     expect(working.requests).toHaveLength(1);
     const lookup = working.requests[0]!;
     expect(`${lookup.method} ${lookup.url}`).toBe("GET https://web.test/api/c/@yahoo");
@@ -76,15 +76,19 @@ describe("Spaces route attachment API", () => {
     expect(lookup.headers.get("authorization")).toBeNull();
     expect(lookup.headers.get("cookie")).toBeNull();
 
+    // Reaching some other community is not this community's address working.
+    const elsewhere = recording(() => json(bound("yahoo")));
+    await expect(elsewhere.api.resolves({ canonicalRoot: "yahoo", communityId: "community-other" })).resolves.toBe(false);
+
     const stopped = recording(notFound);
-    await expect(stopped.api.resolves({ canonicalRoot: "csca" })).resolves.toBe(false);
+    await expect(stopped.api.resolves({ canonicalRoot: "csca", communityId: "community-2" })).resolves.toBe(false);
     expect(stopped.requests[0]?.url).toBe("https://web.test/api/c/@csca");
     expect(stopped.requests[0]?.credentials).toBe("omit");
 
     // An outage or a malformed reply is not an answer either way.
     const failing = recording(() => json({ error: { code: "provider_unavailable", message: "Unavailable", retryable: true } }, 503));
-    await expect(failing.api.resolves({ canonicalRoot: "yahoo" })).rejects.toThrow();
+    await expect(failing.api.resolves({ canonicalRoot: "yahoo", communityId: "community-1" })).rejects.toThrow();
     const malformed = recording(() => json({ community_id: "community_1" }));
-    await expect(malformed.api.resolves({ canonicalRoot: "yahoo" })).rejects.toThrow();
+    await expect(malformed.api.resolves({ canonicalRoot: "yahoo", communityId: "community-1" })).rejects.toThrow();
   });
 });
