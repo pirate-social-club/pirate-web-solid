@@ -518,11 +518,11 @@ describe("Spaces community address", () => {
     await settle();
     // The panel's own button waits for the read, but it never reports busy upward.
     expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(true);
-    expect(busyReports).not.toContain(true);
+    expect(busyReports).toEqual([]);
     finishRead(null);
     await settle();
     expect([...node.querySelectorAll("button")].find((b) => b.textContent === "Connect address")?.disabled).toBe(false);
-    expect(busyReports).not.toContain(true);
+    expect(busyReports).toEqual([]);
   });
 
   test("appears under the Spaces choice of the shared address settings", async () => {
@@ -541,6 +541,35 @@ describe("Spaces community address", () => {
     expect(node.querySelector("[data-spaces-route-message]")).not.toBeNull();
     // The sale-ownership ceremony stays a separate panel beneath it.
     expect(node.querySelector("[data-spaces-owner-proof]")).not.toBeNull();
+  });
+
+  test("the real address settings stay switchable after an interrupted Spaces action", async () => {
+    let finishProve!: (value: SpacesRouteAttachmentResult) => void;
+    const slowProve = new Promise<SpacesRouteAttachmentResult>((resolve) => { finishProve = resolve; });
+    const { api } = fakeApi({ current: [state("yahoo", { replayed: true }), null], prove: [slowProve] });
+    const [communityId, setCommunityId] = createSignal("community-1");
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    const untouched = { start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
+    render(() => <CommunityAddressSettings communityId={communityId()} communityPath="/c/community-1"
+      namespaceApi={createFakeNamespaceSettingsPort()} spacesApi={untouched} spacesRouteApi={api} />, node);
+    await settle();
+    const user = userEvent.setup();
+    const button = (label: string) => [...node.querySelectorAll("button")].find((b) => b.textContent === label);
+    await user.click(button("Spaces")!);
+    await settle();
+    await user.type(node.querySelector<HTMLTextAreaElement>("#spaces-route-signature")!, SIGNATURE);
+    await user.click(button("Connect address")!);
+    await settle();
+    expect(button("Handshake")?.disabled).toBe(true);
+    // The parent's busy signal is written outside the effect, so no reactive-write error.
+    setCommunityId("community-2");
+    await settle();
+    expect(button("Handshake")?.disabled).toBe(false);
+    finishProve(state("yahoo", { status: "signature_rejected" }));
+    await settle();
+    expect(button("Handshake")?.disabled).toBe(false);
   });
 
   test("rejects malformed input before calling the server", async () => {

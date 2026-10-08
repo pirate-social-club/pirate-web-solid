@@ -63,8 +63,11 @@ export function SpacesRouteAttachmentPanel(props: {
   const [message, setMessage] = createSignal("");
   const [copied, setCopied] = createSignal(false);
   const [authRequired, setAuthRequired] = createSignal(false);
+  // Whether this panel currently holds the shared address choice.
+  let holdsChoice = false;
   const setBusy = (next: boolean) => {
     setBusyState(next);
+    holdsChoice = next;
     props.onBusyChange?.(next);
   };
 
@@ -89,8 +92,15 @@ export function SpacesRouteAttachmentPanel(props: {
     scope += 1;
     scopeAbort.abort();
     scopeAbort = new AbortController();
-    // An action from the ended scope skips its own cleanup, so release the
-    // shared address choice here or it would stay locked.
+  };
+  /**
+   * An action from an ended scope skips its own cleanup, so release the shared
+   * choice for it. Only when actually held, and never synchronously: leave()
+   * runs inside an effect callback, where a parent's signal write is refused.
+   */
+  const releaseChoice = () => {
+    if (!holdsChoice) return;
+    holdsChoice = false;
     props.onBusyChange?.(false);
   };
   /**
@@ -185,6 +195,7 @@ export function SpacesRouteAttachmentPanel(props: {
     const at = enter();
     queueMicrotask(() => {
       if (!at.live()) return;
+      releaseChoice();
       setRoot("");
       setSignature("");
       setAttempt(undefined);
