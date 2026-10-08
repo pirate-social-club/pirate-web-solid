@@ -33,6 +33,7 @@ import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
+import { useComposingSurface } from "../../shell/composing-surface.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
 import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
@@ -185,6 +186,8 @@ function SuccessState(props: {
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [mediaEntry, setMediaEntry] = createSignal<{ readonly kind: "video" } | { readonly kind: "song"; readonly file: File }>();
   const [textOpen, setTextOpen] = createSignal(false);
+  // Counts Back presses the media composer has to answer through its guard.
+  const [mediaCloseRequest, setMediaCloseRequest] = createSignal(0);
   const [textDraft, setTextDraft] = createSignal<TextPostDraft>(emptyTextPostDraft);
   // Posts the feed already carries that this author just published, kept
   // first so a confirmed post does not jump away from where it appeared.
@@ -692,11 +695,74 @@ function SuccessState(props: {
     viewerVote,
   });
 
+  // Writing a post, in the main column. On a phone this is the whole screen:
+  // the chrome hides its bottom navigation while it is true.
+  const composing = () => (textOpen() || (composerOpen() && mediaEntry()?.kind === "song"))
+    && engagement.postingSession() !== undefined;
+  const surface = useComposingSurface();
+  createEffect(composing, (open) => {
+    queueMicrotask(() => { if (active) surface?.setComposing(open); });
+  });
+  onCleanup(() => surface?.setComposing(false));
+
+  // Back ends composing the way Cancel does: the text draft stays in memory
+  // and a song closes only if its own guard allows. Opening the composer adds
+  // one history entry for Back to consume; closing it any other way removes
+  // that entry again so Back is not spent twice.
+  let composerHistoryEntry = false;
+  const pushComposerEntry = () => {
+    // A depth of its own, one past the page's, so the router's scroll
+    // restoration and leave guards treat it as the next entry and do not
+    // file the composer's scrolling under the feed's position.
+    const state = history.state ?? {};
+    const depth = typeof state._depth === "number" ? state._depth + 1 : undefined;
+    history.pushState({ ...state, ...(depth === undefined ? {} : { _depth: depth }), pirateComposer: true }, "");
+    composerHistoryEntry = true;
+  };
+  createEffect(composing, (open) => {
+    if (typeof window === "undefined") return;
+    if (open && !composerHistoryEntry) {
+      pushComposerEntry();
+      // The action bar sits at the top of the page; start there.
+      if (window.matchMedia?.("(max-width: 767px)").matches) window.scrollTo({ top: 0 });
+    } else if (!open && composerHistoryEntry) {
+      composerHistoryEntry = false;
+      if (history.state?.pirateComposer === true) history.back();
+    }
+  });
+  // Moving from the text form to the song steps starts the steps at the top
+  // on a phone, where the action bar is; focus inside them must not leave the
+  // page scrolled past the audio.
+  createEffect(
+    () => composing() && composerOpen() && mediaEntry()?.kind === "song",
+    (songSteps) => {
+      if (!songSteps || typeof window === "undefined") return;
+      if (!window.matchMedia?.("(max-width: 767px)").matches) return;
+      requestAnimationFrame(() => { if (active) window.scrollTo({ top: 0 }); });
+    },
+  );
+  if (typeof window !== "undefined") {
+    const onPopState = () => {
+      if (!composerHistoryEntry) return;
+      composerHistoryEntry = false;
+      if (textOpen()) {
+        setTextOpen(false);
+        queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
+      } else if (composerOpen()) {
+        setMediaCloseRequest(request => request + 1);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    onCleanup(() => window.removeEventListener("popstate", onPopState));
+  }
+
   const mediaComposer = (embedded: boolean) => (
       <Show when={engagement.postingSession()}>
         {session => (
           <CreatePostDialog
             presentation={embedded ? "inline" : "fullscreen"}
+            closeRequest={embedded ? mediaCloseRequest() : undefined}
+            onCloseRefused={() => { if (!composerHistoryEntry) pushComposerEntry(); }}
             communityContext={{ id: communityId, name: community().name }}
             initialVideoSong={props.initialVideoSong}
             initialMode={mediaEntry()?.kind}

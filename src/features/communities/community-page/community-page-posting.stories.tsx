@@ -16,7 +16,7 @@ import {
 } from "../../posts/post-composer/text-submission-transport.ts";
 import type { MediaSubmissionSnapshot } from "../../posts/media-submission/contracts.ts";
 import type { MediaSubmissionTransport } from "../../posts/media-submission/transport.ts";
-import { SONG_STAGES } from "../../posts/song-submission/pending-songs.tsx";
+import { SONG_PROCESSING_PHASES, SONG_PROCESSING_TEXT } from "../../posts/song-submission/pending-songs.tsx";
 import { createSongSubmissionStore, SongSubmissionProvider } from "../../posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "../../posts/text-submission/text-submission-store.tsx";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
@@ -24,6 +24,8 @@ import { CommunityPage, type CommunityPageProps } from "./community-page";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityPageSuccess } from "./community-page.model";
 import type { CommunityViewerVoteClient } from "./community-viewer-vote-api.ts";
+import { ActivePersonaProvider } from "../../identity/active-persona-store.tsx";
+import { ApplicationChrome } from "../../shell/media-shell/media-shell.tsx";
 import { createHeldSongUploadTransport } from "./song-upload-story-fixtures";
 
 const communityId = "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345";
@@ -238,27 +240,136 @@ export const ComposerReplacesTheFeed: Story = {
   },
 };
 
-/** The same main-column form stays in normal document flow on a phone. */
+/**
+ * The phone presentation recorded in
+ * tasks/records/solid-composer-mobile-flat-surface.md, asserted as intent and
+ * not only as fit: writing is the whole screen, flat, under the 2026-09-24
+ * action bar, with nothing pushing the fields down and no footer.
+ */
+async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: HTMLElement) {
+  const doc = canvasElement.ownerDocument;
+  const view = doc.defaultView!;
+  // The phone viewport is applied after the first render.
+  await waitFor(() => expect(view.matchMedia("(max-width: 767px)").matches).toBe(true));
+  const bar = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await waitFor(() => {
+    // The banner and community header give way while composing.
+    const chrome = canvasElement.querySelector<HTMLElement>("[data-community-chrome]")!;
+    expect(chrome.getBoundingClientRect().height).toBe(0);
+    expect(within(canvasElement).queryByRole("heading", { level: 1 })).toBeNull();
+    // Flat: nothing between the form and the page is a card, and there is
+    // no "Create a post" heading.
+    const form = firstField.closest("form")!;
+    for (let node = form.parentElement; node && node.tagName !== "MAIN"; node = node.parentElement) {
+      expect(node.className).not.toMatch(/bg-card|shadow/u);
+    }
+    expect(form.className).not.toMatch(/bg-card|shadow|border/u);
+    expect(within(canvasElement).queryByRole("heading", { name: "Create a post" })).toBeNull();
+    // The first field is near the top of the screen.
+    expect(firstField.getBoundingClientRect().top).toBeLessThanOrEqual(150);
+    // The actions are in the bar above the fields, not in a footer.
+    expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstField.getBoundingClientRect().top);
+    expect(within(bar).getByRole("button", { name: "Close composer" })).toBeVisible();
+    expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(view.innerWidth);
+  });
+  return bar;
+}
+
+/** Scrolled to the very bottom, the action bar is still on screen. */
+async function expectBarStaysOnScreen(canvasElement: HTMLElement, bar: HTMLElement) {
+  const view = canvasElement.ownerDocument.defaultView!;
+  view.scrollTo({ top: canvasElement.ownerDocument.documentElement.scrollHeight });
+  await waitFor(() => {
+    expect(view.scrollY).toBeGreaterThan(0);
+    const box = bar.getBoundingClientRect();
+    expect(box.top).toBeGreaterThanOrEqual(-1);
+    expect(box.bottom).toBeLessThanOrEqual(view.innerHeight);
+  });
+  view.scrollTo({ top: 0 });
+}
+
+/** A long post, so the page has to scroll. */
+const longPost = Array.from({ length: 40 }, (_, line) => `Line ${line + 1} of a long post.`).join("\n");
+
+/** Phone: a flat surface under the September action bar. */
 export const FullWidthComposerOnMobile: Story = {
-  name: "Mobile full-width post form",
+  name: "Mobile flat post form",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
-    await openComposer(canvasElement);
-    const panel = canvasElement.querySelector<HTMLElement>("[data-text-post-panel]")!;
-    const main = within(canvasElement).getByRole("main", { name: "Create a post" });
-    await waitFor(() => {
-      const view = canvasElement.ownerDocument.defaultView!;
-      const box = panel.getBoundingClientRect();
-      expect(panel.closest("main")).toBe(main);
-      expect(view.getComputedStyle(panel).position).toBe("static");
-      expect(Math.abs(box.width - main.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
-      expect(box.left).toBeGreaterThanOrEqual(0);
-      expect(box.right).toBeLessThanOrEqual(view.innerWidth);
-    });
-    await expect(within(canvasElement).queryByRole("dialog")).toBeNull();
+    const form = await openComposer(canvasElement);
+    const title = form.getByRole("textbox", { name: "Title" });
+    const body = form.getByRole("textbox", { name: "Post" });
+    const bar = await expectFlatPhoneComposer(canvasElement, title);
+    await expect(within(bar).getByRole("button", { name: "Post" })).toBeDisabled();
+    // Song and Video are a plain row directly under the text field.
+    const song = form.getByRole("button", { name: "Post a song" });
+    const video = form.getByRole("button", { name: "Post a video" });
+    await expect(song.getBoundingClientRect().top).toBeGreaterThanOrEqual(body.getBoundingClientRect().bottom);
+    await expect(Math.abs(song.getBoundingClientRect().top - video.getBoundingClientRect().top)).toBeLessThanOrEqual(1);
+    // There is no second Post button below the fields.
+    await expect(form.getAllByRole("button", { name: "Post" })).toHaveLength(1);
+    await userEvent.click(body);
+    await userEvent.paste(longPost);
+    await expect(within(bar).getByRole("button", { name: "Post" })).toBeEnabled();
+    await expectBarStaysOnScreen(canvasElement, bar);
     await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
+  },
+};
+
+/** Phone: Back ends composing like Close, and the draft is kept. */
+export const MobileBackKeepsTheDraft: Story = {
+  name: "Mobile Back closes the form and keeps the draft",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const view = canvasElement.ownerDocument.defaultView!;
+    const form = await openComposer(canvasElement);
+    await userEvent.type(form.getByRole("textbox", { name: "Post" }), "Kept through Back");
+    view.history.back();
+    await waitFor(() => expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull());
+    await expect(await within(canvasElement).findByText(existingPost.title)).toBeVisible();
+    const reopened = await openComposer(canvasElement);
+    await expect(reopened.getByRole("textbox", { name: "Post" })).toHaveValue("Kept through Back");
+    // Close the second time with the bar's own control: Back is not then
+    // spent on a history entry that no longer has a composer behind it.
+    await userEvent.click(reopened.getByRole("button", { name: "Close composer" }));
+    await waitFor(() => expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull());
+  },
+};
+
+/** Phone, inside the real application shell: its bottom navigation gives way. */
+export const MobileComposerInsideTheAppShell: Story = {
+  name: "Mobile composer inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: args => (
+    <ActivePersonaProvider>
+      <ApplicationChrome currentPath="/c/night-shift" hideMobileHeader mobileActiveItem="none" mode="standard" signedIn>
+        <CommunityPage {...args} />
+      </ApplicationChrome>
+    </ActivePersonaProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const footer = await waitFor(() => {
+      const found = canvasElement.ownerDocument.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
+      expect(found).not.toBeNull();
+      expect(found!.getBoundingClientRect().height).toBeGreaterThan(0);
+      return found!;
+    });
+    const form = await openComposer(canvasElement);
+    const bar = await expectFlatPhoneComposer(canvasElement, form.getByRole("textbox", { name: "Title" }));
+    await waitFor(() => expect(footer.getBoundingClientRect().height).toBe(0));
+    await userEvent.click(form.getByRole("textbox", { name: "Post" }));
+    await userEvent.paste(longPost);
+    await expectBarStaysOnScreen(canvasElement, bar);
+    await userEvent.click(within(bar).getByRole("button", { name: "Close composer" }));
+    await waitFor(() => expect(footer.getBoundingClientRect().height).toBeGreaterThan(0));
   },
 };
 
@@ -283,8 +394,9 @@ async function openSongInMain(canvasElement: HTMLElement) {
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"),
     new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
-  await canvas.findByRole("heading", { name: "Song" });
-  const form = canvas.getByRole("form", { name: "Post a song" });
+  // Desktop names the step with a heading; a phone leaves the bar's centre
+  // empty and names nothing, as decided on 2026-09-24.
+  const form = await canvas.findByRole("form", { name: "Post a song" });
   const main = canvas.getByRole("main", { name: "Create a post" });
   await waitFor(() => {
     expect(form.closest("main")).toBe(main);
@@ -307,11 +419,21 @@ export const SongComposerInMain: Story = {
 };
 
 export const SongComposerInMainOnMobile: Story = {
-  name: "Mobile song stays in the main post form",
+  name: "Mobile song steps on the flat surface",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  play: async ({ canvasElement }) => { await openSongInMain(canvasElement); },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSongInMain(canvasElement);
+    const audio = canvas.getByRole("button", { name: "Remove audio" });
+    const bar = await expectFlatPhoneComposer(canvasElement, audio);
+    // Forward is the bar's right-hand control; there is no footer.
+    await expect(within(bar).getByRole("button", { name: "Continue" })).toBeVisible();
+    await expect(canvas.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
+    await userEvent.click(canvas.getByRole("textbox", { name: /Lyrics/u }));
+    await userEvent.paste(longPost);
+    await expectBarStaysOnScreen(canvasElement, bar);
+  },
 };
 
 export const SongStepsReturnToFeed: Story = {
@@ -335,9 +457,57 @@ export const SongStepsReturnToFeed: Story = {
 };
 
 export const SongStepsReturnToFeedOnMobile: Story = {
-  ...SongStepsReturnToFeed,
-  name: "Mobile song steps stay in the form, then return to feed",
+  name: "Mobile song steps move through the bar, then return to feed",
+  args: pageArgs(standInServer()),
+  render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSongInMain(canvasElement);
+    const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
+    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    // Royalties: back on the left, forward on the right.
+    await waitFor(() => expect(bar().getByRole("button", { name: "Back" })).toBeVisible());
+    await expect(canvas.getByText(/earnings/iu)).toBeVisible();
+    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    // Review: the right-hand control publishes.
+    const publish = await waitFor(() => bar().getByRole("button", { name: "Post song" }));
+    await expect(canvas.getAllByRole("button", { name: "Post song" })).toHaveLength(1);
+    await userEvent.click(publish);
+    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+  },
+};
+
+const heldSongUpload = createHeldSongUploadTransport();
+
+/**
+ * Back while the song's audio is still uploading. The song's own guard keeps
+ * the steps open, exactly as its close button does, and Back stays available
+ * for when the upload has finished.
+ */
+export const MobileBackRespectsTheSongGuard: Story = {
+  name: "Mobile Back does not abandon an uploading song",
+  args: { ...pageArgs(standInServer()), mediaSubmissionTransport: heldSongUpload.transport },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const view = canvasElement.ownerDocument.defaultView!;
+    const canvas = await openSongInMain(canvasElement);
+    const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
+    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    // Continue starts the upload, which the stand-in server holds open.
+    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).not.toBeNull());
+    view.history.back();
+    await waitFor(() => expect(canvas.getByText(/unresolved command/iu)).toBeVisible());
+    await expect(canvas.getByRole("form", { name: "Post a song" })).toBeVisible();
+    // The history entry is back in place, so a later Back still closes.
+    await waitFor(() => expect(view.history.state?.pirateComposer).toBe(true));
+    heldSongUpload.finish();
+    await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).toBeNull());
+  },
 };
 
 /** The post appears at once and is then replaced by the published post. */
@@ -803,18 +973,24 @@ export const SongUploadUnknownSize: Story = {
   },
 };
 
-/** A submitted song names the stage the server is on, in order, and is then in the feed. */
+/**
+ * A submitted song says plainly that it is processing, with a bar that moves
+ * forward through the server's phases, and is then in the feed.
+ */
 export const SongMovesThroughItsStages: Story = {
-  name: "Song: each processing stage, then published",
+  name: "Song: processing, then published",
   render: () => <SongFrame answers={[songProcessing("finalize"), songProcessing("analysis"), songProcessing("decision"), songProcessing("publish"), songPublished]} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const seen: string[] = [];
+    const seen: number[] = [];
     await waitFor(() => {
       const item = pendingSong(canvasElement);
-      const stage = SONG_STAGES.find(name => item?.textContent?.includes(name));
-      if (stage !== undefined && seen.at(-1) !== stage) seen.push(stage);
-      expect(seen).toEqual([...SONG_STAGES]);
+      expect(item?.textContent ?? "").toContain(SONG_PROCESSING_TEXT);
+      // One plain line: no step count and no phase names.
+      expect(item?.textContent ?? "").not.toMatch(/step \d|of \d|Listening|Saving your audio/u);
+      const value = Number(item?.querySelector("[role='progressbar']")?.getAttribute("aria-valuenow"));
+      if (Number.isFinite(value) && seen.at(-1) !== value) seen.push(value);
+      expect(seen).toEqual(Array.from({ length: SONG_PROCESSING_PHASES }, (_, index) => index + 1));
     }, { timeout: 12_000, interval: 100 });
     // No status button, no paused note, no identifier field: the stage is the status.
     await expect(canvas.queryByRole("button", { name: /check status/iu })).toBeNull();
@@ -878,7 +1054,7 @@ export const SongWaitingForReview: Story = {
     await expect(item.getByText("This song is waiting for a moderator's review before it can be published.")).toBeVisible();
     // It is not shown as a processing step, and it cannot be waved away.
     await expect(item.queryByRole("progressbar")).toBeNull();
-    for (const stage of SONG_STAGES) await expect(item.queryByText(new RegExp(stage, "u"))).toBeNull();
+    await expect(item.queryByText(SONG_PROCESSING_TEXT)).toBeNull();
     await expect(item.queryByRole("alert")).toBeNull();
     await expect(item.queryByRole("button")).toBeNull();
   },

@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Button, Card, IconButton, IconX, Type, createIsMobile, cn } from "../../../design-system";
+import { Button, Card, IconButton, IconX, Type, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -10,9 +10,14 @@ import { SongReviewStep, SongRightsStep } from "./song-steps";
 import { PostComposerStepFooter } from "./step-footer";
 import type { PostComposerProps } from "./types";
 import { PostComposerWriteStep } from "./write-step";
+import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 
 export function PostComposer(props: PostComposerProps) {
-  const controller = createPostComposerController(props, { isMobile: createIsMobile() });
+  // Knows the phone layout from the first frame (see createPhoneLayout), so
+  // the step controls, which choose their form once when they mount, are the
+  // phone's from the start.
+  const phoneLayout = createPhoneLayout();
+  const controller = createPostComposerController(props, { isMobile: phoneLayout });
   const steps = createComposerSteps(() => controller.tabs.activeTab, () => props.initialSongStep);
   const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
   const isMultiStep = () => steps.list().length > 1;
@@ -151,6 +156,7 @@ export function PostComposer(props: PostComposerProps) {
         </Show>
       </div>
       }>
+        <Show when={phoneLayout()} fallback={
         <Card class="w-full overflow-hidden">
           <header class="flex items-center justify-between gap-3 px-5 pt-5 md:px-8 md:pt-6">
             <Type as="h2" variant="h2">Create a post</Type>
@@ -167,6 +173,26 @@ export function PostComposer(props: PostComposerProps) {
             <PostComposerStepFooter controller={controller} placement="inline" runtime={props.songFlowRuntime} steps={steps} />
           </Show>
         </Card>
+        }>
+          {/* A phone gets the 2026-09-24 controls on a flat surface: close or
+              back top left, forward or publish top right, kept on screen while
+              the steps scroll, with no card, heading or footer. */}
+          <div class="w-full" data-presentation="flat">
+            <div class="sticky top-0 z-20 -mx-4 bg-background px-3 pt-[env(safe-area-inset-top)]" data-composer-sticky-header>
+              <Show when={isMultiStep()} fallback={mobileHeader()}>
+                <PostComposerStepFooter
+                  controller={controller}
+                  layout="header"
+                  onClose={() => props.onClose?.()}
+                  runtime={props.songFlowRuntime}
+                  steps={steps}
+                />
+              </Show>
+            </div>
+            <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+            {stepContent()}
+          </div>
+        </Show>
       </Show>
 
       <PostComposerRequiredSheet

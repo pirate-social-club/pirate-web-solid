@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import type { SongSubmissionView } from "../media-submission/projection";
-import { songStageIndex, SONG_STAGES } from "./pending-songs";
+import { songStageIndex, SONG_PROCESSING_PHASES } from "./pending-songs";
 import { createSongSubmissionStore, type SongSubmissionHandover } from "./song-submission-store";
 
 type Phase = Extract<SongSubmissionView, { status: "processing" }>["phase"];
@@ -41,7 +41,7 @@ describe("song submission store", () => {
     });
     // Stages only move forward, and each names something the server is doing.
     expect(seen).toEqual([...seen].sort((a, b) => a - b));
-    for (const stage of seen) expect(SONG_STAGES[stage]).toBeTruthy();
+    for (const stage of seen) expect(stage).toBeLessThan(SONG_PROCESSING_PHASES);
     const reads = refresh.mock.calls.length;
     await new Promise(resolve => setTimeout(resolve, 40));
     expect(refresh.mock.calls.length).toBe(reads);
