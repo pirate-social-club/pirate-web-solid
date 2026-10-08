@@ -342,7 +342,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const sortControl = createMemo(() => <CommunityFeedSort value={sort()} onChange={setSort} />);
 
   return (
-    <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>
+    <div class="mx-auto w-full max-w-6xl bg-background" data-community-page data-composing={props.composer ? "true" : undefined}>
+      {/* On a phone, writing is the whole screen: the banner and the community
+          header give way to the composer's own action bar. Desktop keeps them
+          beside the form, as accepted on 2026-10-07. */}
+      <div class={props.composer ? "max-md:hidden" : "contents"} data-community-chrome>
       <CommunityBanner
         community={community()}
         manage={props.onManage !== undefined
@@ -431,6 +435,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </div>
         </div>
       </header>
+      </div>
 
       <Show when={!props.composer}>
         <div data-community-tabs>
@@ -442,7 +447,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         </div>
       </Show>
 
-      <div class="grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
+      <div class={props.composer ? "grid gap-8 px-4 pb-6 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8" : "grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8"}>
         {/* About is a view at every width. It used to be a mobile-only tab:
             at desktop the main column came back through md:block and rendered
             nothing, so asking for the community's details replaced the feed

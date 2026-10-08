@@ -81,6 +81,11 @@ function mediaStateMessage(view: SongSubmissionView): string {
 export interface CreatePostDialogProps {
   /** Inline song steps replace the community feed; standalone hosts own a page. */
   readonly presentation?: "inline" | "fullscreen";
+  /** Incremented by the host when the browser's Back asks the composer to
+   * close. The same guard as the close button applies. */
+  readonly closeRequest?: number;
+  /** The guard kept the composer open after a close request. */
+  readonly onCloseRefused?: () => void;
   readonly communityContext?: PostCommunityContext;
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
@@ -314,6 +319,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     mediaCoordinator?.discardTerminal();
     resetSongDraft();
   }
+
+  // Back closes the composer exactly as the close button does, so a song
+  // with a command still outstanding stays open and the host is told.
+  createEffect(
+    () => props.closeRequest ?? 0,
+    (request, previous) => {
+      if (previous === undefined || request === 0 || request === previous) return;
+      queueMicrotask(() => {
+        if (disposed) return;
+        if (!close(false)) props.onCloseRefused?.();
+      });
+    },
+  );
 
   /** Returns false when an outstanding song command kept the composer open. */
   function close(open: boolean): boolean {
@@ -672,7 +690,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
               <Show when={!showUploadRecovery()} fallback={
-                <section aria-labelledby="upload-recovery-title" class={props.presentation === "inline" ? "grid w-full gap-5 rounded-2xl border border-border-soft bg-card p-5 md:p-8" : "mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4"}>
+                <section aria-labelledby="upload-recovery-title" class={props.presentation === "inline" ? "grid w-full gap-5 md:rounded-2xl md:border md:border-border-soft md:bg-card md:p-8" : "mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4"}>
                   <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
                   <div class="flex flex-1 flex-col justify-center gap-5">
                     <div class="space-y-2">
