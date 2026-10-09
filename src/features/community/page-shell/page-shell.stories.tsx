@@ -1,4 +1,5 @@
 /** @jsxImportSource @solidjs/web */
+import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -166,4 +167,41 @@ export const MobileSort: Story = {
     await expect(await body.findByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
   },
+};
+
+function ThreadLinksFixture() {
+  const [actions, setActions] = createSignal(0);
+  const called = () => { setActions(value => value + 1); };
+  return <>
+    <CommunityPageShell following joined={false} community={{
+      ...infinity, name: "Night Shift", posts: [
+        { id: "thread-link-text", title: "A full discussion", body: "Tap this post to read the full thread.", score: 0, commentCount: 2, publishedAt: "2026-10-08" },
+        { id: "thread-link-song", kind: "song", title: "An original song", body: "Recording notes from the session.", score: 0, commentCount: 1, publishedAt: "2026-10-08" },
+      ],
+    }} renderPost={(post, render) => render(
+      <EngagementControls score={post.score} commentCount={post.commentCount ?? 0} onVote={called} onComment={called} />,
+      [{ label: "Report", run: called }],
+    )} />
+    <output aria-label="Action calls">{actions()}</output>
+  </>;
+}
+
+export const FeedPostThreadLinks: Story = {
+  render: ThreadLinksFixture,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("link", { name: "A full discussion" })).toHaveAttribute("href", "/post/thread-link-text");
+    await expect(canvas.getByRole("link", { name: "An original song" })).toHaveAttribute("href", "/post/thread-link-song");
+    await expect(canvas.getByRole("link", { name: "A full discussion" })).toHaveAttribute("rel", "external");
+    await userEvent.click(canvas.getAllByRole("button", { name: "Upvote" })[0]!);
+    await userEvent.click(canvas.getByRole("button", { name: "Comments (2)" }));
+    await userEvent.click(canvas.getAllByRole("button", { name: "Post options" })[0]!);
+    await userEvent.click(within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" }));
+    await expect(canvas.getByLabelText("Action calls")).toHaveTextContent("3");
+  },
+};
+
+export const FeedPostThreadLinksOnMobile: Story = {
+  ...FeedPostThreadLinks,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };

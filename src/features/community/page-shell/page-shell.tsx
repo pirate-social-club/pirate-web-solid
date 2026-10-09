@@ -1,4 +1,5 @@
 import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
+import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -115,7 +116,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
   );
 }
 
-function SongPost(props: { post: CommunityPost; titleHref?: string }) {
+function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNavigation?: boolean }) {
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
@@ -124,7 +125,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
         </Show>
       </div>
       <div class="min-w-0 flex-1">
-        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
+        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
@@ -136,7 +137,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -159,7 +160,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
@@ -168,7 +169,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
           <Type variant="body">{props.post.body}</Type>
         </Show>
-        <SongPost post={props.post} titleHref={props.titleHref} />
+        <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} />
         <Show when={props.communityId}>{communityId => <MegapotPoolSummary communityId={communityId()} postId={props.post.id} compact />}</Show>
       </Show>
       <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
@@ -337,7 +338,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} />;
+    // The ID route redirects to the API-owned thread. Native navigation keeps
+    // router preloading from starting a competing redirect.
+    const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} titleHref={publicPostIdHref(post.id)} nativeNavigation />;
     return props.renderPost?.(post, render) ?? render();
   };
   // Keep this owned subtree stable for SSR hydration key allocation.
