@@ -166,7 +166,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
                     scorePercent={view().scorePercent}
                     stats={view().stats}
                   />
-                  <div class="mx-auto w-full max-w-md px-4 pb-6">{props.rewardSlot}</div>
+                  <div class="mx-auto w-full max-w-md px-4 pb-6 empty:hidden">{props.rewardSlot}</div>
                 </div>
               );
             }}

@@ -2,7 +2,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { MegapotPoolUnavailableError } from "./megapot-pool-availability.ts";
 import { afterEach, expect, it, vi } from "vitest";
 import { createMegapotParticipantData } from "./megapot-participant-data.ts";
-import { createPublicApiClient } from "./client.ts";
+import { createPublicApiClient, createSessionApiClient } from "./client.ts";
 import { participantPool as pool, participantStanding as standing } from "../features/rewards/megapot-participant.fixtures.ts";
 const scope = { communityId: "community-1", postId: "post-1" };
 function setup() {
@@ -238,4 +238,52 @@ it("recognises the reply a disabled provider actually sends, through the generat
   expect(fetchImpl).toHaveBeenCalledOnce();
   await expect(data.pool(scope, new AbortController().signal)).rejects.toBeInstanceOf(MegapotPoolUnavailableError);
   expect(fetchImpl).toHaveBeenCalledOnce();
+});
+
+const notFound = () => new ApiClientError(
+  { status: 404, code: "not_found", name: "NotFound", retryable: false },
+  { error: { code: "not_found", message: "Reward projection is unavailable", retryable: false } },
+);
+
+it("returns no standing when the server has none for the account, and still fences the read", async () => {
+  const { data, signal, sessionClient } = setup();
+  sessionClient.get_rewardOfferLegsLegIdStanding.mockRejectedValueOnce(notFound());
+  expect(await data.standing(scope, pool, signal)).toEqual({ pool, standing: null });
+  expect(sessionClient.get_usersMe).toHaveBeenCalledTimes(2);
+  // Any other failure is still a failure.
+  sessionClient.get_rewardOfferLegsLegIdStanding.mockRejectedValueOnce(new Error("offline"));
+  await expect(data.standing(scope, pool, signal)).rejects.toThrow("offline");
+  // And a missing standing does not excuse an account change during the read.
+  sessionClient.get_rewardOfferLegsLegIdStanding.mockRejectedValueOnce(notFound());
+  // SAFETY: the adapter reads only id from these deliberately different accounts.
+  sessionClient.get_usersMe.mockResolvedValueOnce({ id: "first" } as never).mockResolvedValueOnce({ id: "second" } as never);
+  await expect(data.standing(scope, pool, signal)).rejects.toThrow("reward_account_changed");
+});
+
+it("recognises the reply the standing route actually sends to an account with no standing", async () => {
+  const fetchImpl = vi.fn(async () => new Response(
+    JSON.stringify({ error: { code: "not_found", message: "Reward projection is unavailable", retryable: false }, request_id: "request-1" }),
+    { status: 404, headers: { "content-type": "application/json; charset=UTF-8" } },
+  ));
+  const real = createSessionApiClient({ origin: "https://app.example", fetchImpl });
+  const { publicClient, sessionClient } = setup();
+  // Only the standing call goes through the generated client; it is the mapping under test.
+  const data = createMegapotParticipantData(publicClient, {
+    get_usersMe: sessionClient.get_usersMe,
+    get_rewardOfferLegsLegIdStanding: (input, options) => real.get_rewardOfferLegsLegIdStanding(input, options),
+  });
+  expect(await data.standing(scope, pool, new AbortController().signal)).toEqual({ pool, standing: null });
+  expect(fetchImpl).toHaveBeenCalledOnce();
+});
+
+it("does not build a session client for a card that only reads the public pool", async () => {
+  const session = vi.fn();
+  vi.stubGlobal("location", { origin: "https://app.example" });
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.credentials !== "omit") session();
+    return Response.json({ pool });
+  }));
+  const data = createMegapotParticipantData();
+  expect(await data.pool(scope, new AbortController().signal)).toEqual(pool);
+  expect(session).not.toHaveBeenCalled();
 });

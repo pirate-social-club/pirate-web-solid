@@ -409,7 +409,7 @@ function CompleteState(props: {
             ]}
           />
           <Show when={props.rewardSlot}>
-            {slot => <div class="mx-auto w-full max-w-md px-4 pb-6">{slot()}</div>}
+            {slot => <div class="mx-auto w-full max-w-md px-4 pb-6 empty:hidden">{slot()}</div>}
           </Show>
         </>
       )}
@@ -431,7 +431,7 @@ function CompleteState(props: {
           <Show when={props.state.streakWeek}>{week => <WeekStrip days={week()} />}</Show>
         </div>
         <Show when={props.rewardSlot}>
-          {slot => <div class="w-full">{slot()}</div>}
+          {slot => <div class="w-full empty:hidden">{slot()}</div>}
         </Show>
       </div>
     </Show>

@@ -16,7 +16,7 @@ export function MegapotPoolView(props: { readonly pool: ParticipantPool; readonl
   return <section aria-label="Song reward" class="rounded-xl border border-border-soft bg-card p-3 text-sm space-y-2" data-megapot-pool>
     <p class="font-semibold">Megapot test pool · {poolStatus(props.pool, props.now)}</p>
     <p>Eligible activities: {props.pool.eligible_activities.map(activity => activity === "study" ? "Study" : "Karaoke").join(" or ")}. Qualifying accounts share net winnings equally.</p>
-    <Show when={props.pool.drawing}>{drawing => <p>{drawing().beneficiary_count} qualifying accounts · drawing {drawing().drawing_id}</p>}</Show>
+    <Show when={props.pool.drawing}>{drawing => <p>{drawing().beneficiary_count} qualifying {drawing().beneficiary_count === 1 ? "account" : "accounts"} · drawing {drawing().drawing_id}</p>}</Show>
     <Show when={!props.compact}>
       <p>One share per account, per song, per drawing. Complete a qualifying activity again for a later drawing.</p>
       <For each={props.pool.qualification_policies ?? []}>{policy => <p>{qualificationText(policy)}</p>}</For>
@@ -58,24 +58,27 @@ export function MegapotPoolSummary(props: Props & { readonly compact?: boolean }
     };
     if (scope.compact && typeof IntersectionObserver !== "undefined") {
       observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) start(); }, { rootMargin: "200px" });
-      observer.observe(host);
+      // The host is hidden while it is empty, so watch the card it sits in.
+      observer.observe(host.parentElement ?? host);
     } else start();
     const clock = setInterval(() => setNow(Date.now()), 30_000);
-    onCleanup(() => { controller.abort(); observer?.disconnect(); clearTimeout(timer); clearInterval(clock); });
+    // An effect callback has no owner, so onCleanup would never run here. Return the cleanup.
+    return () => { controller.abort(); observer?.disconnect(); clearTimeout(timer); clearInterval(clock); };
   });
   const pool = () => sameScope(loaded()?.scope, props) ? loaded()?.pool : undefined;
-  return <div ref={host} class="relative z-10"><Show when={pool()}>{value => <MegapotPoolView pool={value()} compact={props.compact} now={now()} />}</Show></div>;
+  // Empty until a pool is known, and then it must take no space or gap in the card.
+  return <div ref={host} class="relative z-10 empty:hidden" data-megapot-host><Show when={pool()}>{value => <MegapotPoolView pool={value()} compact={props.compact} now={now()} />}</Show></div>;
 }
 
 export function MegapotShareView(props: { readonly snapshot: ParticipantRewardSnapshot }) {
   return <>
     <p>{participantMessage(props.snapshot)}</p>
-    <Show when={props.snapshot.standing.share_held}>
-      <Show when={!["no_win", "sent", "payout_pending"].includes(props.snapshot.standing.participant_state)}>
+    <Show when={props.snapshot.standing?.share_held ? props.snapshot.standing : undefined}>{standing => <>
+      <Show when={!["no_win", "won", "sent", "payout_pending"].includes(standing().participant_state)}>
         <p class="text-muted-foreground">If your pool wins, your amount is held until you verify to claim it.</p>
       </Show>
       <a href="/wallet" class="block w-fit underline">Open Wallet</a>
-    </Show>
+    </>}</Show>
   </>;
 }
 
@@ -103,6 +106,8 @@ export function MegapotShareStatus(props: Props) {
     const current = () => alive && request === generation && sameScope(scope, props);
     if (!sameScope(observed, scope)) observed = undefined;
     if (!addressable(scope)) return;
+    // Standing is already cleared. Where a pool is known, keep the box in place while it reloads.
+    if (observed) setState({ scope, content: "Checking your share…" });
     inFlight = true;
     resumeGuardUntil = Date.now() + 1_000;
     controller = new AbortController();
@@ -114,7 +119,7 @@ export function MegapotShareStatus(props: Props) {
       const data = props.data ?? createMegapotParticipantData();
       const pool = await data.pool(scope, signal);
       if (!current()) return;
-      if (!pool) { observed = undefined; return; }
+      if (!pool) { observed = undefined; setState(undefined); return; }
       observed = scope;
       setState({ scope, content: "Checking your share…" });
       const snapshot = await data.standing(scope, pool, signal);
@@ -144,7 +149,7 @@ export function MegapotShareStatus(props: Props) {
     const unsubscribe = onSessionRefreshed(refresh);
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", visibility);
-    onCleanup(() => { unsubscribe(); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); });
+    return () => { unsubscribe(); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); };
   });
   onCleanup(() => { alive = false; ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); });
   const visible = () => sameScope(state()?.scope, props) ? state() : undefined;

@@ -15,10 +15,11 @@ export function poolStatus(pool: ParticipantPool, now = Date.now()): string {
 }
 
 export function participantMessage({ pool, standing }: ParticipantRewardSnapshot): string {
-  if (!standing.share_held) {
-    if (standing.participant_state === "operational_hold") return "Your share is not confirmed. This pool is temporarily on hold.";
+  // No standing at all means the same to the account as a standing without a share.
+  if (standing === null || !standing.share_held) {
+    if (standing?.participant_state === "operational_hold") return "Your share is not confirmed. This pool is temporarily on hold.";
     if (!pool.drawing) return "No drawing is currently open. Play again when the next drawing opens.";
-    if (standing.participant_state === "entry_open" && pool.drawing.state === "entry_open"
+    if ((standing === null || standing.participant_state === "entry_open") && pool.drawing.state === "entry_open"
       && Date.parse(pool.drawing.entry_cutoff_at) > Date.now()) {
       return "No share is confirmed for your account in this drawing. Only qualifying activities earn a share.";
     }
