@@ -237,8 +237,10 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     // Drop rendered content immediately; the new account must win its own read.
     setRefreshing(true);
     setRefreshed({ source, state: { kind: "unavailable", status: 502 } });
-    void Promise.resolve(prior).then(async current => {
-      if (!current || !("activity" in current)) return;
+    // The route source retains its activity while the rendered state is a
+    // loading placeholder. A second identity change must still reread it.
+    void Promise.resolve(source).then(async current => {
+      if (request.signal.aborted || source !== props.state || !current || !("activity" in current)) return;
       const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, request.signal);
       if (!request.signal.aborted && source === props.state) setRefreshed({ source, state: next });
     }).catch(() => undefined).finally(() => {

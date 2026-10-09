@@ -2,7 +2,7 @@ import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
 import { browserIdentitySession } from "./browser-identity-session.ts";
-import { SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
+import { establishSessionAuthority, forgetSessionAuthority, refreshSessionAuthority, SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
 import type { ApiFetch } from "./proxy.ts";
 
 export interface AuthenticatedSession {
@@ -158,6 +158,8 @@ export interface SessionStore {
   resolveAccountSession(options?: AccountSessionResolutionOptions): Promise<AccountSessionResolution>;
   /** Drop the cached resolutions and notify subscribers. */
   refreshSession(): void;
+  /** Hide private UI after refusal while preserving recoverable author work. */
+  invalidateSession(): void;
   clearSession(): void;
   onSessionCleared(listener: () => void): () => void;
   /** Subscribe to `refreshSession` calls; returns the unsubscribe function. */
@@ -183,13 +185,14 @@ interface StoreSlots {
   session: ResolutionSlot<SessionResolution>;
 }
 
-export function createSessionStore(clientFactory: SessionClientFactory): SessionStore {
+export function createSessionStore(clientFactory: SessionClientFactory, onAuthenticated?: () => void): SessionStore {
   const slots: StoreSlots = {
     account: { promise: undefined },
     session: { promise: undefined },
   };
   const refreshListeners = new Set<() => void>();
   const clearListeners = new Set<() => void>();
+  let invalidated = false;
 
   function track<T>(slot: { promise: Promise<T> | undefined }, start: () => Promise<T>): Promise<T> {
     const existing = slot.promise;
@@ -237,17 +240,29 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
       if (hasExplicitTransport(options) || typeof window === "undefined") {
         return resolveAccountSessionUncached(options);
       }
-      return track(slots.account, () => {
+      const pending = track(slots.account, () => {
         const client = clientFactory();
         return resolveAccountSessionUncached({ client });
       });
+      void pending.then(account => {
+        if (account !== "anonymous" && slots.account.promise === pending) onAuthenticated?.();
+      }, () => {});
+      return pending;
     },
     clearSession() {
+      invalidated = true;
       slots.account.promise = Promise.resolve("anonymous");
       slots.session.promise = Promise.resolve("anonymous");
       // Before the refresh listeners: account-owned work is dropped while the
       // identity it belonged to is still the one in view.
       for (const listener of [...clearListeners]) listener();
+      for (const listener of [...refreshListeners]) listener();
+    },
+    invalidateSession() {
+      if (invalidated) return;
+      invalidated = true;
+      slots.account.promise = Promise.resolve("anonymous");
+      slots.session.promise = Promise.resolve("anonymous");
       for (const listener of [...refreshListeners]) listener();
     },
     onSessionCleared(listener: () => void) {
@@ -257,6 +272,7 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
       };
     },
     refreshSession() {
+      invalidated = false;
       slots.account.promise = undefined;
       slots.session.promise = undefined;
       for (const listener of [...refreshListeners]) listener();
@@ -278,7 +294,7 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
  */
 const browserStore = createSessionStore(() => createSessionApiClient({
   fetchImpl: boundedFetch(fetch, SESSION_TIMEOUT_MS),
-}));
+}), establishSessionAuthority);
 
 /** Resolve the session for persona-aware surfaces; see `createSessionStore`. */
 export function resolveSession(options: SessionResolutionOptions = {}): Promise<SessionResolution> {
@@ -298,6 +314,7 @@ export function resolveAccountSession(
  * re-resolve without a document reload.
  */
 export function refreshSession(): void {
+  refreshSessionAuthority();
   browserStore.refreshSession();
 }
 
@@ -317,6 +334,7 @@ export function onSessionCleared(listener: () => void): () => void {
 
 /** Clear account-private UI immediately after a successful host-session logout. */
 export function clearSession(): void {
+  forgetSessionAuthority();
   browserIdentitySession.clear();
   clearWalletAuthorization();
   browserStore.clearSession();
@@ -324,7 +342,8 @@ export function clearSession(): void {
 
 /** A server refusal invalidates chrome without discarding recoverable identity. */
 export function invalidateSession(): void {
-  browserStore.clearSession();
+  forgetSessionAuthority();
+  browserStore.invalidateSession();
 }
 
 if (typeof window !== "undefined") window.addEventListener(SESSION_REJECTED_EVENT, invalidateSession);
