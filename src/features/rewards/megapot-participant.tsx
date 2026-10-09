@@ -3,7 +3,7 @@ import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { formatUnits } from "viem";
 import { Button } from "../../design-system.ts";
 import { createMegapotParticipantData, type MegapotParticipantData, type ParticipantPool, type ParticipantRewardSnapshot, type ParticipantScope } from "../../api/megapot-participant-data.ts";
-import { onSessionRefreshed } from "../../api/session.ts";
+import { onSessionCleared, onSessionRefreshed } from "../../api/session.ts";
 import { poolStatus, participantMessage, rewardTime } from "./megapot-participant-model.ts";
 import { qualificationText } from "./reward-sponsor-terms.ts";
 
@@ -140,16 +140,24 @@ export function MegapotShareStatus(props: Props) {
     queueMicrotask(() => { if (alive) void load(); });
   });
   createEffect(() => true, () => {
-    const refresh = () => { void load(); };
+    // The session store announces a cleared session to its clear listeners and
+    // then, in the same call, to its refresh listeners. A session read of ours
+    // that answers 401 clears the session, so reloading on that refresh would
+    // repeat the rejected read without end. A cleared session only takes the
+    // private standing down; a refresh on its own, as after sign-in, reloads.
+    let cleared = false;
+    const drop = () => { cleared = true; invalidate(); queueMicrotask(() => { cleared = false; }); };
+    const refresh = () => { if (!cleared) void load(); };
     // Returning to the page fires visibilitychange, focus or both. The first
     // reloads; the other finds that reload under way, or just started, and
     // leaves it alone rather than cancelling and repeating it.
     const resume = () => { if (!inFlight && Date.now() >= resumeGuardUntil) void load(); };
     const visibility = () => { if (document.visibilityState === "hidden") invalidate(); else resume(); };
+    const unsubscribeCleared = onSessionCleared(drop);
     const unsubscribe = onSessionRefreshed(refresh);
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", visibility);
-    return () => { unsubscribe(); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); };
+    return () => { unsubscribeCleared(); unsubscribe(); window.removeEventListener("focus", resume); document.removeEventListener("visibilitychange", visibility); };
   });
   onCleanup(() => { alive = false; ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); });
   const visible = () => sameScope(state()?.scope, props) ? state() : undefined;

@@ -352,3 +352,44 @@ it("keeps the box in place while a known pool reloads", async () => {
   release({ pool, standing });
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
 });
+
+it("settles after a rejected session without asking again, and loads the share after sign-in", async () => {
+  // The real data, client and session modules: only fetch is replaced. A 401 on
+  // the account read makes the client report a session rejection, the session
+  // store clears and notifies its refresh subscribers, and this surface is one.
+  let signedIn = false;
+  const calls = { pool: 0, account: 0, standing: 0 };
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const path = new URL(input instanceof Request ? input.url : input.toString()).pathname;
+    if (path.endsWith("/rewards/megapot-pool")) { calls.pool += 1; return Response.json({ pool }); }
+    if (path.endsWith("/standing")) { calls.standing += 1; return Response.json({ standing }); }
+    if (path === "/api/users/me") {
+      calls.account += 1;
+      // Past this, the surface is reloading itself: fail loudly instead of hanging the suite.
+      if (calls.account > 8) return new Response("loop", { status: 500 });
+      return signedIn
+        ? Response.json({
+          id: "account-1", object: "user", verification_state: "unverified", created: 1,
+          verification_capabilities: Object.fromEntries(["unique_human", "age_over_18", "minimum_age", "nationality", "gender", "wallet_score"].map(name => [name, { state: "unverified" }])),
+        })
+        : new Response(JSON.stringify({ error: { code: "auth_error", message: "Authentication required", retryable: false } }),
+          { status: 401, headers: { "content-type": "application/json; charset=UTF-8" } });
+    }
+    return new Response("unexpected", { status: 500 });
+  }));
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
+  await vi.waitFor(() => expect(calls.account).toBeGreaterThanOrEqual(1));
+  await new Promise(resolve => setTimeout(resolve, 300));
+  expect(calls).toEqual({ pool: 1, account: 1, standing: 0 });
+  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("unavailable");
+  // Still settled a moment later: nothing is repeating in the background.
+  await new Promise(resolve => setTimeout(resolve, 300));
+  expect(calls).toEqual({ pool: 1, account: 1, standing: 0 });
+  signedIn = true;
+  refreshSession();
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  expect(calls.standing).toBe(1);
+  expect(calls.account).toBe(3);
+  expect(calls.pool).toBe(3);
+});
