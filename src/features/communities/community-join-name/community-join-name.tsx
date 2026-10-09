@@ -85,39 +85,39 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
       <div class="flex flex-col gap-6" data-community-join-name-state={state().kind}>
         <ModalHeader class="text-start">
           <ModalTitle>{issued() ? copy.successTitle : joinedWithoutName() ? copy.joinedTitle : copy.title}</ModalTitle>
-          <ModalDescription>{issued() ? copy.successDescription : joinedWithoutName()
-            ? copy.joinedDescription : interpolateMessage(copy.description, { community: props.communityName })}</ModalDescription>
+          <Show when={issued() || joinedWithoutName()}>
+            <ModalDescription>{issued() ? copy.successDescription : copy.joinedDescription}</ModalDescription>
+          </Show>
         </ModalHeader>
 
         <Show when={issued() || joinedWithoutName()} fallback={
           <form class="flex flex-col gap-5" onSubmit={event => { event.preventDefault(); if (!disabled()) props.onSubmit(); }}>
             <div class="flex flex-col gap-2">
-              <label class="text-sm font-semibold" for={`${id}-name`}>{copy.label}</label>
+              <label class="text-sm font-semibold" for={`${id}-name`}>{props.nameOptional ? copy.labelOptional : copy.label}</label>
               <div class="flex items-center rounded-[var(--radius-lg)] border border-input bg-background px-4 focus-within:ring-2 focus-within:ring-ring" dir="ltr">
                 <Input
                   id={`${id}-name`} class="min-w-0 border-0 px-0 shadow-none focus-visible:ring-0"
                   value={state().label} autocomplete="nickname" autocapitalize="none"
                   spellcheck={false} disabled={busy() || pending()}
-                  aria-describedby={`${id}-hint${invalid() || taken() ? ` ${id}-error` : ""}`}
+                  aria-describedby={`${id}-hint`}
                   aria-invalid={invalid() || taken() ? "true" : undefined}
                   onInput={event => props.onLabelChange(event.currentTarget.value)}
                 />
                 <span class="shrink-0 text-muted-foreground">.{props.offering.display_root}</span>
               </div>
-              <p class="text-sm text-muted-foreground" id={`${id}-hint`}>{band()} {copy.publicHint}{props.nameOptional ? ` ${copy.optional}` : ""}</p>
-              <Show when={invalid() || taken()}>
-                <p class="text-sm text-destructive-text" id={`${id}-error`} role="alert">{taken() ? props.joined ? copy.takenAfterJoin : copy.taken : copy.invalid}</p>
-              </Show>
+              <p class={`min-h-10 text-sm leading-5 sm:min-h-5 ${invalid() || taken() ? "text-destructive-text" : "text-muted-foreground"}`} id={`${id}-hint`}
+                role={invalid() || taken() ? "alert" : undefined}>
+                {taken() ? props.joined ? copy.takenAfterJoin : copy.taken
+                  : invalid() && normalized() === null ? copy.invalid : band()}
+              </p>
             </div>
 
-            <Show when={state().label !== ""}>
-              <label class="flex items-start gap-3 text-sm leading-5">
-                <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary"
-                  checked={state().acknowledged} disabled={busy() || pending()}
-                  onChange={event => props.onAcknowledgementChange(event.currentTarget.checked)} />
-                <span>{copy.acknowledgement}</span>
-              </label>
-            </Show>
+            <label class="flex items-start gap-3 text-sm leading-5">
+              <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary"
+                checked={state().acknowledged} disabled={busy() || pending()}
+                onChange={event => props.onAcknowledgementChange(event.currentTarget.checked)} />
+              <span>{copy.acknowledgement}</span>
+            </label>
 
             <Show when={failed()}>{failure => <p class="text-sm text-destructive-text" role="alert">
               {failure().joined ? copy.failedAfterJoin : copy.failedBeforeJoin}

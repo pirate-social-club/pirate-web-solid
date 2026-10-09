@@ -226,14 +226,12 @@
   },
   "communityJoinName": {
     "title": "Choose your name",
-    "description": "Your address in {community}.",
     "label": "Name",
     "length": "{min}–{max} characters.",
     "exactName": "Use the name offered by this community.",
-    "optional": "Leave blank to join without a name.",
     "taken": "That name is taken. Try another.",
-    "invalid": "Use the offered length, letters, numbers and hyphens.",
-    "acknowledgement": "I agree to link this name to my community profile and its public posts, scores, other names and wallet activity.",
+    "invalid": "Letters, numbers and hyphens only.",
+    "acknowledgement": "I agree to link this name to my profile and existing public activity.",
     "join": "Join",
     "getName": "Get name",
     "retry": "Try again",
@@ -251,8 +249,8 @@
     "joinedDescription": "You’re now a member of this community.",
     "done": "Done",
     "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
-    "publicHint": "Names are public.",
-    "takenAfterJoin": "You’ve joined. That name is taken. Try another."
+    "takenAfterJoin": "You’ve joined. That name is taken. Try another.",
+    "labelOptional": "Name (optional)"
   },
   "publicIdentity": {
     "fallback": "User {suffix}",

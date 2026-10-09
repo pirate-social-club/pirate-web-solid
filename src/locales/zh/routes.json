@@ -226,14 +226,12 @@
   },
   "communityJoinName": {
     "title": "选择你的名字",
-    "description": "你在 {community} 的地址。",
     "label": "名字",
     "length": "{min}–{max} 个字符。",
     "exactName": "使用此社区提供的名字。",
-    "optional": "留空即可不选名字直接加入。",
     "taken": "这个名字已被使用，请换一个。",
-    "invalid": "请使用规定的长度、字母、数字和连字符。",
-    "acknowledgement": "我同意将这个名字关联到我的社区资料，以及公开的帖子、分数、其他名字和钱包活动。",
+    "invalid": "仅限字母、数字和连字符。",
+    "acknowledgement": "我同意将这个名字关联到我的资料及已有的公开活动。",
     "join": "加入",
     "getName": "获取名称",
     "retry": "重试",
@@ -251,8 +249,8 @@
     "joinedDescription": "你现在是此社区的成员。",
     "done": "完成",
     "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
-    "publicHint": "名字是公开的。",
-    "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。"
+    "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
+    "labelOptional": "名字（可选）"
   },
   "publicIdentity": {
     "fallback": "用户 {suffix}",

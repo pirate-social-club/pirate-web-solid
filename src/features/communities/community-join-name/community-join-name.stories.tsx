@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { ApplicationSessionProvider } from "../../shell/application-session";
 import { CommunityPageShell } from "../../community/page-shell/page-shell";
 import type { CommunityData } from "../../community/page-shell/page-shell-model";
@@ -130,14 +130,39 @@ export const Community: Story = { name: "1 · Community with Join", args: { init
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
     await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
     const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
-    await expect(form.getByRole("textbox", { name: "Name" })).toHaveValue("");
+    await expect(form.getByRole("textbox", { name: "Name (optional)" })).toHaveValue("");
     await expect(body.queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
     await userEvent.click(form.getByRole("button", { name: "Close" }));
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
     await expect(await body.findByRole("button", { name: "Join this community" })).toBeInTheDocument();
   },
 };
-export const NameField: Story = { name: "2 · Choose a name" };
+export const NameField: Story = { name: "2 · Choose a name",
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const dialog = await body.findByRole("dialog", { name: "Choose your name" });
+    const form = within(dialog);
+    const input = form.getByRole("textbox");
+    const button = form.getByRole("button", { name: "Join" });
+    await expect(form.getByRole("checkbox")).not.toBeChecked();
+    await canvasElement.ownerDocument.fonts.ready;
+    // Measure after the shared sheet's 300ms opening transition and viewport sizing.
+    await new Promise(resolve => setTimeout(resolve, 350));
+    const height = dialog.getBoundingClientRect().height;
+    const buttonOffset = button.getBoundingClientRect().bottom - dialog.getBoundingClientRect().top;
+    for (const label of ["32f23f", "nightowl!", "nightowl", ""]) {
+      await userEvent.clear(input);
+      if (label) await userEvent.type(input, label);
+      await waitFor(async () => {
+        await expect(Math.abs(dialog.getBoundingClientRect().height - height)).toBeLessThan(1);
+        await expect(Math.abs(button.getBoundingClientRect().bottom - dialog.getBoundingClientRect().top - buttonOffset)).toBeLessThan(1);
+      });
+      await expect(form.getByRole("checkbox")).not.toBeChecked();
+      if (label) await expect(button).toBeDisabled();
+      else await expect(button).toBeEnabled();
+    }
+  },
+};
 export const Taken: Story = { name: "3 · Taken name", args: { initial: { kind: "editing", label: "membertest", acknowledged: false, issue: "taken" } } };
 export const Success: Story = { name: "4 · Issued name", args: { initial: { kind: "issued", label: "nightowl", acknowledged: true, identifier: "nightowl.8s28" } },
   play: async ({ canvasElement }) => {
@@ -206,5 +231,5 @@ export const JoinWithoutName: Story = { name: "Join without a name", args: { ini
 export const TakenAfterJoin: Story = { ...Taken, name: "Joined · name taken during issuance", args: { ...Taken.args, membershipJoined: true } };
 export const MobileCommunity: Story = { ...Community, args: { ...Community.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const MobileTaken: Story = { ...Taken, args: { ...Taken.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
-export const MobileNameField: Story = { args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
+export const MobileNameField: Story = { ...NameField, args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const MobileSuccess: Story = { ...Success, args: { ...Success.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
