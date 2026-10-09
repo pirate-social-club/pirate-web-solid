@@ -244,12 +244,8 @@
     "successTitle": "你已加入",
     "successDescription": "你的名字已准备好。",
     "openName": "打开我的名字",
-    "joinedTitle": "你已加入",
-    "joinedDescription": "你现在是此社区的成员。",
-    "done": "完成",
     "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
-    "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
-    "labelOptional": "名字（可选）"
+    "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。"
   },
   "publicIdentity": {
     "fallback": "用户 {suffix}",

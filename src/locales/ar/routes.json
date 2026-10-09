@@ -244,12 +244,8 @@
     "successTitle": "لقد انضممت",
     "successDescription": "اسمك جاهز.",
     "openName": "افتح اسمي",
-    "joinedTitle": "لقد انضممت",
-    "joinedDescription": "أنت الآن عضو في هذا المجتمع.",
-    "done": "تم",
     "resultUnavailable": "تعذر تأكيد العنوان الصادر. تحقق من اسمك مجددًا.",
-    "takenAfterJoin": "لقد انضممت. هذا الاسم محجوز. جرّب اسمًا آخر.",
-    "labelOptional": "الاسم (اختياري)"
+    "takenAfterJoin": "لقد انضممت. هذا الاسم محجوز. جرّب اسمًا آخر."
   },
   "publicIdentity": {
     "fallback": "مستخدم {suffix}",

@@ -18,15 +18,12 @@ export type CommunityJoinNameState = {
   | { readonly kind: "failed"; readonly joined: boolean }
   | { readonly kind: "pending"; readonly claimId: string }
   | { readonly kind: "issued"; readonly identifier: string }
-  | { readonly kind: "joined" }
 );
 
 export interface CommunityJoinNameProps {
   readonly communityName: string;
   readonly offering: SupportedHnsOffering;
   readonly state: CommunityJoinNameState;
-  /** Naming policy is supplied by the owner-approved journey, never inferred from a missing Skip control. */
-  readonly nameOptional: boolean;
   readonly joined: boolean;
   readonly open: boolean;
   readonly forceMobile?: boolean;
@@ -51,11 +48,9 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
   const pending = () => state().kind === "pending";
   const issued = () => state().kind === "issued";
   const issuedIdentifier = () => { const current = state(); return current.kind === "issued" ? current.identifier : ""; };
-  const joinedWithoutName = () => state().kind === "joined";
   const taken = () => { const current = state(); return current.kind === "editing" && current.issue === "taken"; };
   const failed = () => { const current = state(); return current.kind === "failed" ? current : undefined; };
-  const disabled = createMemo(() => busy() || pending() || (state().label === ""
-    ? !props.nameOptional : !valid()));
+  const disabled = createMemo(() => busy() || pending() || !valid() || taken());
   const band = () => props.offering.label_scope.kind === "label_rule_v2"
     ? interpolateMessage(copy.length, {
         min: props.offering.label_scope.availability.min_label_length,
@@ -82,16 +77,16 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
     >
       <div class="flex flex-col gap-6" data-community-join-name-state={state().kind}>
         <ModalHeader class="text-start">
-          <ModalTitle>{issued() ? copy.successTitle : joinedWithoutName() ? copy.joinedTitle : copy.title}</ModalTitle>
-          <Show when={issued() || joinedWithoutName()}>
-            <ModalDescription>{issued() ? copy.successDescription : copy.joinedDescription}</ModalDescription>
+          <ModalTitle>{issued() ? copy.successTitle : copy.title}</ModalTitle>
+          <Show when={issued()}>
+            <ModalDescription>{copy.successDescription}</ModalDescription>
           </Show>
         </ModalHeader>
 
-        <Show when={issued() || joinedWithoutName()} fallback={
+        <Show when={issued()} fallback={
           <form class="flex flex-col gap-5" onSubmit={event => { event.preventDefault(); if (!disabled()) props.onSubmit(); }}>
             <div class="flex flex-col gap-2">
-              <label class="text-sm font-semibold" for={`${id}-name`}>{props.nameOptional ? copy.labelOptional : copy.label}</label>
+              <label class="text-sm font-semibold" for={`${id}-name`}>{copy.label}</label>
               <div class="flex items-center rounded-[var(--radius-lg)] border border-input bg-background px-4 focus-within:ring-2 focus-within:ring-ring" dir="ltr">
                 <Input
                   id={`${id}-name`} class="min-w-0 border-0 px-0 shadow-none focus-visible:ring-0"
@@ -123,7 +118,7 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
             </Show>
           </form>
         }>
-          <Show when={issued()} fallback={<Button class="w-full" onClick={() => props.onOpenChange(false)}>{copy.done}</Button>}>
+          <Show when={issued()}>
             <p class="break-all text-center text-xl font-semibold" dir="ltr">{issuedIdentifier()}</p>
             <Show when={issuedHref()} fallback={<p role="alert">{copy.resultUnavailable}</p>}>
               {href => <a class={buttonVariants({ variant: "default" })} href={href()}>{copy.openName}</a>}

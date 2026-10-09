@@ -35,7 +35,6 @@ const offering: SupportedHnsOffering = {
 interface PreviewProps {
   readonly initial: CommunityJoinNameState;
   readonly initialOpen: boolean;
-  readonly nameOptional: boolean;
   readonly forceMobile?: boolean;
   readonly profiles: "none" | "foreign" | "here";
   readonly result: "issued" | "pending" | "failed";
@@ -43,22 +42,24 @@ interface PreviewProps {
 }
 
 function fixtureJoined(props: PreviewProps): boolean {
-  return props.membershipJoined ?? (["issued", "joined", "pending"].includes(props.initial.kind)
+  return props.membershipJoined ?? (["issued", "pending"].includes(props.initial.kind)
     || (props.initial.kind === "failed" && props.initial.joined));
 }
 
 /** API fixtures are account-private, in-memory and make no network requests. */
 function createApiFixture(props: PreviewProps) {
   let joined = fixtureJoined(props);
+  let profileReady = props.profiles === "here" || fixtureJoined(props);
   let failNextClaim = props.result === "failed" && props.initial.kind !== "failed";
   return {
     session: { accountId: "preview_account", profiles: props.profiles === "none" ? [] : [{
       personaId: "preview_profile", communityId: props.profiles === "foreign" ? "other_community" : community.id,
     }] },
-    async prepareProfile() { return { personaId: "prepared_profile", status: "active" as const, communityId: community.id }; },
+    async prepareProfile() { profileReady = true; return { personaId: "prepared_profile", status: "active" as const, communityId: community.id }; },
     async membership() { return { joined }; },
-    async join() { joined = true; return { status: "joined" as const }; },
+    async join() { if (!profileReady) throw new Error("Community profile not prepared"); joined = true; return { status: "joined" as const }; },
     async claim(label: string) {
+      if (!joined || !profileReady) throw new Error("Membership and profile required before naming");
       if (label === "membertest") return { kind: "taken" as const };
       if (failNextClaim) { failNextClaim = false; return { kind: "failed" as const }; }
       if (props.result === "pending") return { kind: "pending" as const, claimId: "claim_preview" };
@@ -76,21 +77,29 @@ function JourneyPreview(props: PreviewProps) {
   const [state, setState] = createSignal<CommunityJoinNameState>(props.initial);
   const [open, setOpen] = createSignal(props.initialOpen);
   const [joined, setJoined] = createSignal(fixtureJoined(props));
+  const [joinBusy, setJoinBusy] = createSignal(false);
+  const beginJoin = async () => {
+    if (joinBusy()) return;
+    setJoinBusy(true);
+    try {
+      const membership = await api.membership();
+      if (!membership.joined) {
+        if (!api.session.profiles.some(profile => profile.communityId === community.id)) await api.prepareProfile();
+        await api.join();
+      }
+      setJoined(true);
+      setState({ kind: "editing", label: state().label });
+      setOpen(true);
+    } catch {
+      setState({ kind: "failed", joined: false, label: state().label });
+      setOpen(true);
+    } finally { setJoinBusy(false); }
+  };
   const submit = async () => {
     const previous = state();
     const base = { label: previous.label };
-    if (previous.kind === "submitting" || previous.kind === "pending") return;
-    const membership = await api.membership();
-    if (!membership.joined) {
-      if (!api.session.profiles.some(profile => profile.communityId === community.id)) {
-        setState({ ...base, kind: "submitting", stage: "profile" });
-        await api.prepareProfile();
-      }
-      setState({ ...base, kind: "submitting", stage: "joining" });
-      await api.join();
-      setJoined(true);
-    }
-    if (base.label === "") { setState({ ...base, kind: "joined" }); setOpen(false); return; }
+    if (previous.kind === "submitting" || previous.kind === "pending" || base.label === "") return;
+    if (!joined()) { await beginJoin(); return; }
     setState({ ...base, kind: "submitting", stage: "issuing" });
     const result = await api.claim(base.label.trim().toLowerCase());
     if (result.kind === "taken") setState({ ...base, kind: "editing", issue: "taken" });
@@ -104,9 +113,9 @@ function JourneyPreview(props: PreviewProps) {
     setState({ label: current.label, ...result });
   };
   return <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: api.session.accountId })}>
-    <CommunityPageShell community={community} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
+    <CommunityPageShell community={community} following={joined()} joined={joined()} joinBusy={joinBusy()} onJoin={() => void beginJoin()} />
     <CommunityJoinName communityName={community.name} offering={offering} state={state()}
-      forceMobile={props.forceMobile} nameOptional={props.nameOptional} joined={joined()} open={open()} onOpenChange={setOpen}
+      forceMobile={props.forceMobile} joined={joined()} open={open()} onOpenChange={setOpen}
       onLabelChange={label => setState({ kind: "editing", label })}
       onSubmit={() => void submit()} onResume={() => void resume()} />
   </ApplicationSessionProvider>;
@@ -115,22 +124,16 @@ function JourneyPreview(props: PreviewProps) {
 const meta = {
   title: "Flows/Community/Join and name", component: JourneyPreview,
   args: { initial: { kind: "editing", label: "" }, initialOpen: true,
-    nameOptional: true, profiles: "here", result: "issued" },
+    membershipJoined: true, profiles: "here", result: "issued" },
   parameters: { layout: "fullscreen", a11y: { test: "error" }, docs: { description: { component:
-    "Owner-directed real-component proposal. Join opens the desktop modal or phone sheet. Later naming has no entry point in this preview. API/session/profile fixtures are explicit; this does not prove live host-local auth, profile activation or claiming." } } },
+    "Owner-directed real-component proposal. Join completes fixture membership before opening the desktop modal or phone sheet. Later naming has no entry point in this preview. API/session/profile fixtures are explicit; this does not prove live host-local auth, profile activation or claiming." } } },
 } satisfies Meta<typeof JourneyPreview>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Community: Story = { name: "1 · Community with Join", args: { initialOpen: false },
+export const Community: Story = { name: "1 · Community with Join", args: { initialOpen: false, membershipJoined: false },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
-    await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
-    const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
-    await expect(form.getByRole("textbox", { name: "Name (optional)" })).toHaveValue("");
-    await expect(body.queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
-    await userEvent.click(form.getByRole("button", { name: "Close" }));
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
     await expect(await body.findByRole("button", { name: "Join this community" })).toBeInTheDocument();
   },
@@ -141,7 +144,7 @@ export const NameField: Story = { name: "2 · Choose a name",
     const dialog = await body.findByRole("dialog", { name: "Choose your name" });
     const form = within(dialog);
     const input = form.getByRole("textbox");
-    const button = form.getByRole("button", { name: "Join" });
+    const button = form.getByRole("button", { name: "Get name" });
     await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
     await canvasElement.ownerDocument.fonts.ready;
     // Measure after the shared sheet's 300ms opening transition and viewport sizing.
@@ -156,7 +159,7 @@ export const NameField: Story = { name: "2 · Choose a name",
         await expect(Math.abs(button.getBoundingClientRect().bottom - dialog.getBoundingClientRect().top - buttonOffset)).toBeLessThan(1);
       });
       await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
-      if (label && label !== "nightowl") await expect(button).toBeDisabled();
+      if (label !== "nightowl") await expect(button).toBeDisabled();
       else await expect(button).toBeEnabled();
     }
   },
@@ -174,13 +177,13 @@ export const Valid: Story = { args: { initial: { kind: "editing", label: "nighto
     const dialog = await body.findByRole("dialog", { name: "Choose your name" });
     const form = within(dialog);
     await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
-    await expect(form.getByRole("button", { name: "Join" })).toBeEnabled();
+    await expect(form.getByRole("button", { name: "Get name" })).toBeEnabled();
   },
 };
 export const Invalid: Story = { args: { initial: { kind: "editing", label: "short" } } };
 export const Submitting: Story = { args: { initial: { kind: "submitting", stage: "issuing", label: "nightowl" } } };
-export const PreparingFirstProfile: Story = { args: { profiles: "none", initial: { kind: "submitting", stage: "profile", label: "nightowl" } } };
-export const FailureBeforeJoin: Story = { args: { initial: { kind: "failed", joined: false, label: "nightowl" } } };
+export const PreparingFirstProfile: Story = { args: { profiles: "none", initial: { kind: "submitting", stage: "profile", label: "nightowl" }, membershipJoined: false } };
+export const FailureBeforeJoin: Story = { args: { initial: { kind: "failed", joined: false, label: "nightowl" }, membershipJoined: false } };
 export const JoinedButNameFailed: Story = { args: { initial: { kind: "failed", joined: true, label: "nightowl" }, result: "failed" } };
 export const RetryAfterJoin: Story = { ...JoinedButNameFailed,
   play: async ({ canvasElement }) => {
@@ -202,23 +205,25 @@ export const ResumePending: Story = { ...Pending,
     await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
   },
 };
-export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kind: "editing", label: "nightowl" } },
-  play: async ({ canvasElement }) => {
-    const body = within(canvasElement.ownerDocument.body);
-    const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
-    await expect(form.queryByRole("radio")).not.toBeInTheDocument();
-    await userEvent.click(form.getByRole("button", { name: "Join" }));
-    await expect(await body.findByRole("link", { name: "Open my name" })).toBeInTheDocument();
-  },
-};
-export const OnlyForeignProfile: Story = { ...FirstTimeMember, args: { ...FirstTimeMember.args, profiles: "foreign" } };
-export const JoinWithoutName: Story = { name: "Join without a name", args: { initialOpen: false },
+export const FirstTimeMember: Story = { args: { profiles: "none", initialOpen: false, membershipJoined: false, initial: { kind: "editing", label: "nightowl" } },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
     const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
-    await expect(form.getByRole("textbox")).toHaveValue("");
-    await userEvent.click(form.getByRole("button", { name: "Join" }));
+    await expect(form.queryByRole("radio")).not.toBeInTheDocument();
+    await userEvent.click(form.getByRole("button", { name: "Get name" }));
+    await expect(await body.findByRole("link", { name: "Open my name" })).toBeInTheDocument();
+  },
+};
+export const OnlyForeignProfile: Story = { ...FirstTimeMember, args: { ...FirstTimeMember.args, profiles: "foreign" } };
+export const CloseAfterJoining: Story = { name: "Close naming after joining", args: { initialOpen: false, membershipJoined: false },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
+    const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
+    await expect(form.getByRole("textbox", { name: "Name" })).toHaveValue("");
+    await expect(form.getByRole("button", { name: "Get name" })).toBeDisabled();
+    await userEvent.click(form.getByRole("button", { name: "Close" }));
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
     await expect(await body.findByRole("button", { name: "Post" })).toBeInTheDocument();
     await expect(body.queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();

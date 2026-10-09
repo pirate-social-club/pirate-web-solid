@@ -244,12 +244,8 @@
     "successTitle": "You’re in",
     "successDescription": "Your name is ready.",
     "openName": "Open my name",
-    "joinedTitle": "You’re in",
-    "joinedDescription": "You’re now a member of this community.",
-    "done": "Done",
     "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
-    "takenAfterJoin": "You’ve joined. That name is taken. Try another.",
-    "labelOptional": "Name (optional)"
+    "takenAfterJoin": "You’ve joined. That name is taken. Try another."
   },
   "publicIdentity": {
     "fallback": "User {suffix}",
