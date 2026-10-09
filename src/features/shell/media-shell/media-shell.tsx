@@ -1,6 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { ComposingSurfaceContext } from "../composing-surface.tsx";
 
 import {
   Button,
@@ -71,6 +72,11 @@ export interface MediaShellProps {
 
 /** One application-chrome owner; route content retains only feature layout. */
 export function ApplicationChrome(props: MediaShellProps) {
+  // A page reports that the viewer is writing; on a phone that hides the
+  // bottom navigation so the composer has the whole screen.
+  const [composing, setComposing] = createSignal(false, { ownedWrite: true });
+  const surface = { composing, setComposing };
+  const surfaceChildren = () => <ComposingSurfaceContext value={surface}>{props.children}</ComposingSurfaceContext>;
   let menuTrigger: HTMLButtonElement | undefined;
   let pendingNavigation: string | undefined;
   const signedIn = () => props.signedIn === true;
@@ -277,7 +283,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" accountControl={signedIn() || props.sessionResolving || props.sessionUnavailable ? { label: profileLabel(), displayName: selected()?.displayName ?? "Profile", handle: selected()?.publicHandle, avatarSrc: selected()?.avatarSrc, avatarSeed: selected()?.avatarSeed, onClick: openProfilePicker } : undefined} signInAction={{ onClick: requestGlobalSignIn, prepare: prepareGlobalSignIn, preload: preloadGlobalSignInAssets }} homeAriaLabel="Go home" brandLabel={communityScope()?.community.displayName} onHomeClick={() => go(homePath())} onNavigate={navigateById} primaryItems={items()} communityState={navigationState()} navigationScope={scope()} currentPath={props.currentPath} onNavigateCommunity={go} onRetryCommunities={loadCommunities} />;
   }
 
-  return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
+  return <Show when={mode() !== "bare"} fallback={surfaceChildren()}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
     <div class="flex min-h-screen">
       <NavigationSidebar />
       <Sheet open={menuOpen()} onOpenChange={setMenuOpen}>
@@ -286,7 +292,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           <NavigationDrawer state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />
         </SheetContent>
       </Sheet>
-      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0"}>
+      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : (composing() ? "min-h-[100dvh] bg-background md:min-h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0")}>
         <Show when={!props.hideMobileHeader}>
         <div class="md:hidden">
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
@@ -306,9 +312,9 @@ export function ApplicationChrome(props: MediaShellProps) {
           />
         </div>
         </Show>
-        <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : props.hideMobileHeader ? "min-h-[100dvh] w-full md:min-h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{props.children}</div>
+        <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : props.hideMobileHeader ? "min-h-[100dvh] w-full md:min-h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{surfaceChildren()}</div>
         <MobileFooterNav
-          class="md:hidden"
+          class={composing() ? "hidden" : "md:hidden"}
           forceMobile
           activeItem={props.mobileActiveItem ?? "home"}
           avatarFallback={footerPersona()?.displayName ?? "Profile"}

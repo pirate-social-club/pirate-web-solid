@@ -7,6 +7,8 @@ import {
   loadPublicPostById,
   projectPublicPostResponse,
   publicPostPathFromRequest,
+  publicPostIdHref,
+  publicPostIdPathFromRequest,
   validatePublicAppOrigin,
 } from "./public-post-route.model.ts";
 
@@ -221,5 +223,44 @@ describe("public post raw slug boundary", () => {
       postId: "post-1",
       requestPath: "/p/post-1/study",
     })).resolves.toMatchObject({ kind: "content", canonicalPath: null });
+  });
+});
+
+
+describe("community feed post ID navigation", () => {
+  it("encodes opaque IDs and leaves canonical activity paths independently matchable", () => {
+    expect(publicPostIdHref("post:one two")).toBe("/post/post%3Aone%20two");
+    expect(publicPostIdPathFromRequest(new Request("https://pirate.sc/post/post%3Aone%20two")))
+      .toEqual({ activity: "detail", postId: "post:one two" });
+    expect(publicPostIdPathFromRequest(new Request("https://pirate.sc/posts/by-id/study"))).toBeUndefined();
+    expect(publicPostPathFromRequest(new Request("https://pirate.sc/posts/by-id/study")))
+      .toEqual({ activity: "study", rawSlug: "by-id" });
+  });
+
+  it.each(["%", "%C3%28", "%252F", "%2F", "%5C", "%3F", "%23"])(
+    "rejects malformed or unsafe ID %s", raw => {
+      expect(publicPostIdPathFromRequest(new Request(`https://pirate.sc/post/${raw}`))).toBeNull();
+    },
+  );
+
+  it("resolves a feed ID to the canonical thread and refuses a mismatched post", async () => {
+    const route = {
+      canonical_path: "/posts/real-thread-title",
+      activity_paths: {
+        study: "/posts/real-thread-title/study",
+        karaoke: "/posts/real-thread-title/karaoke",
+        karaoke_leaderboard: "/posts/real-thread-title/karaoke/leaderboard",
+      },
+    };
+    const lookup = vi.fn().mockResolvedValue(contentResponse(route));
+    const client = { get_publicPostsBySlug: vi.fn(), get_publicPostsByIdPostIdCanonicalRoute: lookup };
+    const options = { activity: "detail" as const, canonicalOrigin: PUBLIC_APP_ORIGIN, client,
+      locale: "en", postId: "post-1", requestPath: "/post/post-1" };
+    await expect(loadPublicPostById(options)).resolves.toEqual({ kind: "redirect", status: 308,
+      location: "https://pirate.sc/posts/real-thread-title" });
+    expect(lookup).toHaveBeenCalledExactlyOnceWith({ path: { postId: "post-1" }, query: { locale: "en" } });
+    expect(client.get_publicPostsBySlug).not.toHaveBeenCalled();
+    await expect(loadPublicPostById({ ...options, postId: "other-post" })).resolves
+      .toEqual({ kind: "unavailable", status: 502 });
   });
 });

@@ -164,3 +164,25 @@ describe("community desktop sort dismissal", () => {
     expect(changed).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("community feed thread links", () => {
+  test("links text and song IDs while keeping supplied actions outside the link", async () => {
+    const vote = vi.fn();
+    const container = render(() => <CommunityPageShell community={{ ...community, posts: [
+      { id: "text:one", title: "A full discussion", body: "Open the full thread.", score: 0, publishedAt: "2026-10-08" },
+      { id: "song-one", kind: "song", title: "An original song", body: "Recording notes.", score: 0, publishedAt: "2026-10-08" },
+    ] }} following={false} joined={false}
+      renderPost={(_post, card) => card(<button type="button" onClick={vote}>Vote fixture</button>)} />);
+    expect(within(container).getByRole("link", { name: "A full discussion" }).getAttribute("href"))
+      .toBe("/post/text%3Aone");
+    expect(within(container).getByRole("link", { name: "A full discussion" }).getAttribute("rel")).toBe("external");
+    expect(within(container).getByRole("link", { name: "An original song" }).getAttribute("href"))
+      .toBe("/post/song-one");
+    const button = within(container).getAllByRole("button", { name: "Vote fixture" })[0]!;
+    expect(button.closest("a")).toBeNull();
+    await userEvent.setup().click(button);
+    expect(vote).toHaveBeenCalledOnce();
+    expect(within(container).getByRole("button", { name: "Play An original song" }).closest("a")).toBeNull();
+  });
+});

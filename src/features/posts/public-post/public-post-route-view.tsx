@@ -248,7 +248,12 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     const current = await state();
     if (!current || current.kind !== "age-locked") return;
     const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, signal);
-    if (!signal.aborted && source === props.state) setRefreshed({ source, state: next });
+    if (signal.aborted || source !== props.state) return;
+    if (next.kind === "redirect") {
+      location.replace(next.location);
+      return;
+    }
+    setRefreshed({ source, state: next });
   };
   return (
     <Show when={!refreshing()} fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>

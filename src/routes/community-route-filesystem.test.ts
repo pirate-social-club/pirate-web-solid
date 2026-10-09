@@ -32,6 +32,7 @@ describe("community file-route structure", () => {
     expect(paths).toContain("/p/:postId/karaoke/");
     expect(paths).toContain("/p/:postId/study/");
     expect(paths).toContain("/posts/:slug/");
+    expect(paths).toContain("/post/:postId/");
     expect(paths).toContain("/posts/:slug/study/");
     expect(paths).toContain("/posts/:slug/karaoke/");
     expect(paths).toContain("/posts/:slug/karaoke/leaderboard");

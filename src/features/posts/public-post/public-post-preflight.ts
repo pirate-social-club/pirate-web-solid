@@ -8,6 +8,7 @@ import {
   loadPublicPostById,
   loadPublicPostBySlug,
   publicPostPathFromRequest,
+  publicPostIdPathFromRequest,
   type PublicPostRouteState,
   validatePublicAppOrigin,
 } from "./public-post-route.model.ts";
@@ -59,13 +60,14 @@ export async function resolvePublicPostPreflight(
   fetchImpl: ApiFetch = fetch,
 ): Promise<PublicPostPreflight | undefined> {
   const slugRoute = publicPostPathFromRequest(request);
+  const idRoute = publicPostIdPathFromRequest(request);
   const legacyRoute = legacyPublicPostPathFromRequest(request);
-  if (slugRoute === undefined && legacyRoute === undefined) return undefined;
+  if (slugRoute === undefined && idRoute === undefined && legacyRoute === undefined) return undefined;
   const requestPath = new URL(request.url).pathname;
   if (request.method !== "GET" && request.method !== "HEAD") {
     return { requestPath, state: { kind: "method-not-allowed", status: 405 } };
   }
-  if (legacyRoute === null) return { requestPath, state: { kind: "invalid", status: 400 } };
+  if (idRoute === null || legacyRoute === null) return { requestPath, state: { kind: "invalid", status: 400 } };
   if (slugRoute !== undefined && decodePublicPostSlug(slugRoute.rawSlug) === null) {
     return { requestPath, state: { kind: "invalid", status: 400 } };
   }
@@ -81,7 +83,7 @@ export async function resolvePublicPostPreflight(
   const locale = resolvePublicPostLocale(new URL(request.url), request.headers.get("accept-language"));
   const state = slugRoute === undefined
     ? await loadPublicPostById({
-      ...legacyRoute!,
+      ...(idRoute ?? legacyRoute!),
       canonicalOrigin: canonicalOrigin.origin,
       client,
       locale,

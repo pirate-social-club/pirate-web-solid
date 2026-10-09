@@ -90,3 +90,51 @@ describe("public post SSR preflight", () => {
     expect(policy.headers.get("vary")).toContain("Cookie");
   });
 });
+
+
+describe("feed ID SSR preflight", () => {
+  it.each(["GET", "HEAD"])("uses the ID lookup and session guard for %s before streaming", async method => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({
+      error: { code: "not_found", message: "Not found", retryable: false },
+    }, { status: 404 }));
+    const result = await resolvePublicPostPreflight(new Request("https://pirate.sc/post/post-1", {
+      method, headers: { cookie: "__Host-pirate_session=session; extra=discard" },
+    }), "https://api-next.pirate.sc", "https://pirate.sc", fetchImpl);
+    expect(result).toMatchObject({ requestPath: "/post/post-1", state: { kind: "not-found", status: 404 } });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    const [input, init] = fetchImpl.mock.calls[0]!;
+    expect(new URL(input instanceof Request ? input.url : String(input)).pathname)
+      .toBe("/public/posts/by-id/post-1/canonical-route");
+    expect(new Headers(init?.headers).get("cookie")).toBe("__Host-pirate_session=session");
+    expect(publicPostResponsePolicy(result!.state).headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("rejects invalid IDs and write methods without looking up a post", async () => {
+    const fetchImpl = vi.fn();
+    for (const [path, method, kind] of [
+      ["/post/%252F", "GET", "invalid"], ["/post/post-1", "POST", "method-not-allowed"],
+    ]) {
+      await expect(resolvePublicPostPreflight(new Request(`https://pirate.sc${path}`, { method }),
+        "https://api-next.pirate.sc", "https://pirate.sc", fetchImpl))
+        .resolves.toMatchObject({ state: { kind } });
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("feed ID age access", () => {
+  it("renders the age gate without leaking a canonical thread address", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({
+      kind: "age_locked", locked: {
+        kind: "age_locked", content_rating: "adult_18",
+        next_action: { kind: "verify_minimum_age", minimum_age: 18 },
+      },
+    }));
+    const result = await resolvePublicPostPreflight(new Request("https://pirate.sc/post/post-1"),
+      "https://api-next.pirate.sc", "https://pirate.sc", fetchImpl);
+    expect(result?.state).toMatchObject({ kind: "age-locked", status: 200, activity: "detail" });
+    expect(result?.state).not.toHaveProperty("location");
+    expect(publicPostResponsePolicy(result!.state).headers.get("cache-control")).toBe("private, no-store");
+  });
+});

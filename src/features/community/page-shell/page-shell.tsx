@@ -1,3 +1,4 @@
+import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -81,9 +82,8 @@ export interface CommunityPageShellProps {
    */
   managePending?: boolean;
   /**
-   * The open text composer. It sits at the top of the right column on desktop
-   * and presents itself as a bottom sheet on a phone, so the shell only gives
-   * it a place that exists at every width.
+   * The open text composer replaces the feed in the main content column.
+   * It stays in the page flow at every width.
    */
   composer?: () => JSX.Element;
   /** The viewer's own posts still being delivered, shown above the feed. */
@@ -115,7 +115,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
   );
 }
 
-function SongPost(props: { post: CommunityPost; titleHref?: string }) {
+function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNavigation?: boolean }) {
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
@@ -124,7 +124,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
         </Show>
       </div>
       <div class="min-w-0 flex-1">
-        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
+        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
@@ -136,7 +136,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -159,7 +159,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
@@ -168,7 +168,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
           <Type variant="body">{props.post.body}</Type>
         </Show>
-        <SongPost post={props.post} titleHref={props.titleHref} />
+        <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} />
       </Show>
       <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
     </article>
@@ -336,14 +336,20 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} />;
+    // The ID route redirects to the API-owned thread. Native navigation keeps
+    // router preloading from starting a competing redirect.
+    const render = (actions?: JSX.Element, menuActions?: readonly ContentAction[]) => <CommunityPostCard actions={actions} menuActions={menuActions} communityId={props.community.id} post={post} titleHref={publicPostIdHref(post.id)} nativeNavigation />;
     return props.renderPost?.(post, render) ?? render();
   };
   // Keep this owned subtree stable for SSR hydration key allocation.
   const sortControl = createMemo(() => <CommunityFeedSort value={sort()} onChange={setSort} />);
 
   return (
-    <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>
+    <div class="mx-auto w-full max-w-6xl bg-background" data-community-page data-composing={props.composer ? "true" : undefined}>
+      {/* On a phone, writing is the whole screen: the banner and the community
+          header give way to the composer's own action bar. Desktop keeps them
+          beside the form, as accepted on 2026-10-07. */}
+      <div class={props.composer ? "max-md:hidden" : "contents"} data-community-chrome>
       <CommunityBanner
         community={community()}
         manage={props.onManage !== undefined
@@ -351,7 +357,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           : (props.managePending ?? props.authorityPending) ? "pending" : "unavailable"}
         onBack={props.onBack}
         onManage={props.onManage}
-        sortControl={tab() === "about" ? undefined : sortControl()}
+        sortControl={props.composer || tab() === "about" ? undefined : sortControl()}
       />
 
       <header class="relative bg-background px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-6">
@@ -387,7 +393,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               member gets one useful command spanning the two visitor slots. */}
           <div
             aria-label="Community actions"
-            class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:w-[16.75rem] md:shrink-0"
+            class={props.composer ? "hidden" : "mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:w-[16.75rem] md:shrink-0"}
             data-community-actions-reserved
             role="group"
           >
@@ -423,30 +429,34 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <Button
                 class="col-span-2 h-11 w-full min-w-0"
                 data-community-post-slot
-                disabled={props.createPostBusy}
+                disabled={props.createPostBusy || props.composer !== undefined}
                 loading={props.createPostBusy}
                 leadingIcon={<IconPlus class="size-4" />}
-                onClick={() => props.onCreatePost?.()}
+                onClick={() => { setTab("feed"); props.onCreatePost?.(); }}
               >{props.createPostBusy ? "Opening…" : props.createPostLabel ?? "Post"}</Button>
             </Show>
           </div>
         </div>
       </header>
+      </div>
 
-      <div data-community-tabs>
-      <FlatTabBar class="px-5 md:px-8" columns={3}>
+      <Show when={!props.composer}>
+        <div data-community-tabs>
+        <FlatTabBar class="px-5 md:px-8" columns={3}>
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
-      </FlatTabBar>
-      </div>
+        </FlatTabBar>
+        </div>
+      </Show>
 
-      <div class="grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
+      <div class={props.composer ? "grid gap-8 px-4 pb-6 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8" : "grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8"}>
         {/* About is a view at every width. It used to be a mobile-only tab:
             at desktop the main column came back through md:block and rendered
             nothing, so asking for the community's details replaced the feed
             with a blank column beside an aside that was already there. */}
-        <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
+        <main class={!props.composer && tab() === "about" ? "hidden" : "min-w-0"} aria-label={props.composer ? "Create a post" : "Community feed"}>
+          <Show when={props.composer} fallback={<>
           <Show when={tab() === "feed"}>
             <Show when={props.feedLead}>{lead => <div class="flex flex-col" data-community-feed-lead>{lead()()}</div>}</Show>
             <Loading fallback={<FeedPending />}>
@@ -468,19 +478,17 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               </Show>
             </Loading>
           </Show>
+          </>}>{composer => composer()()}</Show>
         </main>
 
-        {/* The right column. Below desktop width it contributes no box of its
-            own outside the About tab: the composer positions itself as a
-            sheet, so nothing here may add a grid row. */}
+        {/* Community information remains beside the main content on desktop. */}
         <aside
           aria-label="Community information"
-          class={tab() === "about"
+          class={!props.composer && tab() === "about"
             ? "flex flex-col gap-4 md:col-span-2 md:max-w-3xl"
             : "max-md:contents md:flex md:min-w-0 md:flex-col md:gap-4"}
         >
-          <Show when={props.composer}>{composer => composer()()}</Show>
-          <div class={tab() === "about" ? "contents" : "hidden md:block"} data-community-about>
+          <div class={!props.composer && tab() === "about" ? "contents" : "hidden md:block"} data-community-about>
             <CommunityAbout community={community()} />
           </div>
         </aside>

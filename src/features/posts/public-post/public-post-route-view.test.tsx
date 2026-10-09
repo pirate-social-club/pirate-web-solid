@@ -7,6 +7,7 @@ import type { PostEngagementTransport } from "../post-engagement/post-engagement
 import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "../post-engagement/post-engagement-pending";
 import { refreshSession } from "../../../api/session.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
+import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
 
 const ageProof = vi.fn(async () => false);
@@ -17,6 +18,8 @@ afterEach(() => {
   ageProof.mockReset().mockResolvedValue(false);
   document.head.replaceChildren();
   document.body.replaceChildren();
+  delete document.documentElement.dataset.publicAppCanonicalOrigin;
+  vi.unstubAllGlobals();
 });
 
 function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"]): HTMLElement {
@@ -202,6 +205,59 @@ it("unlocks post detail only after proof and a fresh guarded read, without navig
   await vi.waitFor(() => expect(container.textContent).toContain("A searchable title"));
   expect(reload).toHaveBeenCalledOnce();
   expect(location.href).toBe(before);
+});
+
+function feedIdProofFixture() {
+  const origin = location.origin;
+  const replace = vi.fn();
+  vi.stubGlobal("location", { origin, pathname: "/post/post-1", href: `${origin}/post/post-1`, replace });
+  document.documentElement.dataset.publicAppCanonicalOrigin = "https://pirate.sc";
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected fixture content");
+  const response = { ...state.response, content: { ...state.response.content, post: {
+    ...state.response.content.post, object: "post", post_type: "text", status: "published",
+    author_persona: { persona_id: "persona-1", object: "persona", display_name: "Public creator", avatar_ref: null, primary_public_handle: null },
+    community: "community-1", visibility: "public", authorship_mode: "human_direct",
+    identity_mode: "public", analysis_state: "allow", content_safety_state: "safe",
+    age_gate_policy: "none", created: 1_756_752_000,
+  }, thread_snapshot: null, upvote_count: 0, downvote_count: 0, like_count: 0,
+    viewer_vote: null, viewer_reaction_kinds: [], machine_translated: false, source_hash: null } };
+  const locked: PublicPostRouteState = { kind: "age-locked", status: 200, activity: "detail", locked: {
+    kind: "age_locked", content_rating: "adult_18", next_action: { kind: "verify_minimum_age", minimum_age: 18 },
+  } };
+  return { replace, response, locked };
+}
+
+it("follows the guarded canonical thread once after verifying a feed ID route", async () => {
+  const { replace, response, locked } = feedIdProofFixture();
+  const read = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json(response));
+  vi.stubGlobal("fetch", read);
+  ageProof.mockResolvedValue(true);
+  const container = render(locked);
+  await userEvent.setup().click(container.querySelector("[data-age-access-prompt] button")!);
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(replace).toHaveBeenCalledExactlyOnceWith("https://pirate.sc/posts/a-searchable-title"));
+  expect(read).toHaveBeenCalledOnce();
+  expect(String(read.mock.calls[0]?.[0])).toContain("/api/public/posts/by-id/post-1/canonical-route");
+  expect(container.textContent).not.toContain("Post unavailable");
+});
+
+it("does not follow a completed ID lookup after leaving its age prompt", async () => {
+  const { replace, response, locked } = feedIdProofFixture();
+  let finish: (response: Response) => void = () => undefined;
+  const read = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(resolve => { finish = resolve; }));
+  vi.stubGlobal("fetch", read);
+  ageProof.mockResolvedValue(true);
+  let finished: () => void = () => undefined;
+  const settled = new Promise<void>(resolve => { finished = resolve; });
+  const container = render(locked, (activity, signal) => reloadCurrentPublicPostRoute(activity, signal).finally(finished));
+  await userEvent.setup().click(container.querySelector("[data-age-access-prompt] button")!);
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+  cleanups.pop()!();
+  finish(Response.json(response));
+  await settled;
+  await Promise.resolve();
+  expect(replace).not.toHaveBeenCalled();
 });
 
 it("uses the standard song post card and opens its persisted comment thread", async () => {

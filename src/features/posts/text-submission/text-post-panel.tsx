@@ -5,17 +5,17 @@ import { Show, onSettled } from "solid-js";
 import {
   Button,
   Card,
-  Checkbox,
-  CheckboxLabel,
   FormNote,
+  IconArrowUp,
   IconButton,
   IconMusicNote,
   IconVideoCamera,
   IconX,
   Input,
   Textarea,
-  createIsMobile,
+  Type,
 } from "../../../design-system";
+import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 
 export interface TextPostDraft {
   readonly title: string;
@@ -38,103 +38,123 @@ export interface TextPostPanelProps {
 }
 
 /**
- * The text composer. On desktop it is a card in the community page's right
- * column; on a phone the same element is a sheet over the bottom of the
- * screen. It only edits: pressing Post hands the text to the application's
- * submission owner and the post appears in the feed, so this panel has no
- * sending, waiting or failed state of its own.
+ * The post form occupies the community page's main content column. Posting
+ * hands the text to the application owner and returns to the feed immediately;
+ * delivery and recovery stay with that owner.
+ *
+ * On a phone the form is a flat surface: no card and no heading, with the
+ * 2026-09-24 action bar above the fields, close on the left and the publish
+ * arrow on the right, kept on screen while the page scrolls. Song and Video
+ * sit in a plain row under the text field, and there is no footer. The rules
+ * are stated once in tasks/records/solid-composer-mobile-flat-surface.md.
  */
 export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   let bodyInput: HTMLTextAreaElement | undefined;
   let songInput: HTMLInputElement | undefined;
   onSettled(() => { bodyInput?.focus(); });
-  // On a phone the panel covers the page, so it is announced as a dialog. On
-  // desktop it is a region of the page and must not be.
-  const isMobile = createIsMobile();
   const canPost = () => props.unavailable === undefined && props.draft.body.trim() !== "";
   const post = () => { if (canPost()) props.onPost(); };
 
+  const isMobile = createPhoneLayout();
+
+  const songEntry = () => (
+    <Show when={props.onSong}>
+      <Button class="min-w-0 px-3" aria-label="Post a song" leadingIcon={<IconMusicNote class="size-5" />} onClick={() => songInput?.click()} type="button" variant="outline">Song</Button>
+      <input
+        accept=".mp3,audio/mpeg"
+        aria-label="Choose a song file"
+        class="sr-only"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) props.onSong?.(file);
+        }}
+        ref={songInput}
+        tabindex={-1}
+        type="file"
+      />
+    </Show>
+  );
+  const videoEntry = () => (
+    <Show when={props.onVideo}>
+      <Button class="min-w-0 px-3" aria-label="Post a video" leadingIcon={<IconVideoCamera class="size-5" />} onClick={() => props.onVideo?.()} type="button" variant="outline">Video</Button>
+    </Show>
+  );
+  const fields = (mobile: boolean) => (
+    <>
+      <label class="flex flex-col gap-2">
+        <Type as="span" variant="label">Title <span class="font-normal text-muted-foreground">(optional)</span></Type>
+        <Input
+          aria-label="Title"
+          class="w-full"
+          maxlength={300}
+          onInput={(event) => props.onDraftChange({ ...props.draft, title: event.currentTarget.value })}
+          placeholder="Give your post a title"
+          value={props.draft.title}
+        />
+      </label>
+      <label class="flex flex-col gap-2">
+        <Type as="span" variant="label">Post</Type>
+        <Textarea
+          aria-label="Post"
+          class={mobile ? "min-h-40 w-full resize-y text-base leading-relaxed" : "min-h-48 w-full resize-y text-base leading-relaxed md:min-h-64"}
+          onInput={(event) => props.onDraftChange({ ...props.draft, body: event.currentTarget.value })}
+          placeholder="Write your post"
+          ref={bodyInput}
+          value={props.draft.body}
+        />
+      </label>
+      <Show when={props.unavailable}>
+        {reason => <FormNote tone="warning">{reason()}</FormNote>}
+      </Show>
+    </>
+  );
+
   return (
     <div
-      aria-label={isMobile() ? "Create a post" : undefined}
-      aria-modal={isMobile() ? "true" : undefined}
-      class="max-md:fixed max-md:inset-0 max-md:z-50 max-md:flex max-md:flex-col max-md:justify-end"
+      class="w-full min-w-0"
       data-text-post-panel
-      role={isMobile() ? "dialog" : undefined}
+      data-presentation={isMobile() ? "flat" : "card"}
       onKeyDown={(event) => {
         if (event.key === "Escape") props.onClose();
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) post();
       }}
     >
-      {/* A pointer convenience only: the named close control is in the form. */}
-      <button
-        aria-hidden="true"
-        class="absolute inset-0 bg-black/40 md:hidden"
-        onClick={() => props.onClose()}
-        tabindex={-1}
-        type="button"
-      />
-      <Card class="relative max-md:max-h-[100dvh] max-md:overflow-y-auto max-md:rounded-b-none max-md:rounded-t-[var(--radius-3xl)] max-md:border-x-0 max-md:border-b-0 max-md:pb-[env(safe-area-inset-bottom)]">
-        <form aria-label="Create a post" class="flex flex-col gap-3 p-4" onSubmit={(event) => { event.preventDefault(); post(); }}>
-          <div class="flex items-center gap-2">
-            <Input
-              aria-label="Title"
-              class="h-auto min-w-0 flex-1 px-0 py-0 text-lg font-semibold shadow-none focus-visible:border-transparent focus-visible:ring-0"
-              maxlength={300}
-              onInput={(event) => props.onDraftChange({ ...props.draft, title: event.currentTarget.value })}
-              placeholder="Title (optional)"
-              value={props.draft.title}
-              variant="flat"
-            />
+      <Show
+        when={isMobile()}
+        fallback={
+          <Card class="w-full">
+            <form aria-label="Create a post" class="flex flex-col gap-5 p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); post(); }}>
+              <div class="flex items-center justify-between gap-3">
+                <Type as="h2" variant="h2">Create a post</Type>
+                <Button aria-label="Cancel" onClick={() => props.onClose()} type="button" variant="ghost">Cancel</Button>
+              </div>
+              {fields(false)}
+              <div class="flex flex-wrap items-center gap-2 border-t border-border-soft pt-4">
+                {songEntry()}
+                {videoEntry()}
+                <Button class="ms-auto min-w-24" disabled={!canPost()} type="submit">Post</Button>
+              </div>
+            </form>
+          </Card>
+        }
+      >
+        <form aria-label="Create a post" class="flex flex-col gap-5" onSubmit={(event) => { event.preventDefault(); post(); }}>
+          <header class="sticky top-0 z-20 -mx-4 flex min-h-14 items-center justify-between bg-background px-3 pt-[env(safe-area-inset-top)]" data-composer-sticky-header>
             <IconButton aria-label="Close composer" onClick={() => props.onClose()} type="button" variant="ghost">
               <IconX class="size-5" />
             </IconButton>
-          </div>
-          <Textarea
-            aria-label="Post"
-            class="min-h-32 resize-none rounded-none border-0 bg-transparent p-0 text-base leading-relaxed shadow-none focus-visible:ring-0"
-            onInput={(event) => props.onDraftChange({ ...props.draft, body: event.currentTarget.value })}
-            placeholder="Write your post"
-            ref={bodyInput}
-            value={props.draft.body}
-          />
-          <Checkbox
-            checked={props.draft.ageGatePolicy === "18_plus"}
-            onChange={(next) => props.onDraftChange({ ...props.draft, ageGatePolicy: next === true ? "18_plus" : "none" })}
-          >
-            <CheckboxLabel class="text-muted-foreground">18+ only</CheckboxLabel>
-          </Checkbox>
-          <Show when={props.unavailable}>
-            {reason => <FormNote tone="warning">{reason()}</FormNote>}
-          </Show>
-          <div class="flex items-center gap-1 border-t border-border-soft pt-3">
-            <Show when={props.onSong}>
-              <IconButton aria-label="Post a song" onClick={() => songInput?.click()} type="button" variant="ghost">
-                <IconMusicNote class="size-5" />
-              </IconButton>
-              <input
-                accept=".mp3,audio/mpeg"
-                aria-label="Choose a song file"
-                class="sr-only"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (file) props.onSong?.(file);
-                }}
-                ref={songInput}
-                tabindex={-1}
-                type="file"
-              />
-            </Show>
-            <Show when={props.onVideo}>
-              <IconButton aria-label="Post a video" onClick={() => props.onVideo?.()} type="button" variant="ghost">
-                <IconVideoCamera class="size-5" />
-              </IconButton>
-            </Show>
-            <Button class="ms-auto min-w-24" disabled={!canPost()} type="submit">Post</Button>
+            <IconButton aria-label="Post" disabled={!canPost()} type="submit" variant="default">
+              <IconArrowUp class="size-5" />
+            </IconButton>
+          </header>
+          {fields(true)}
+          <div aria-label="Add to your post" class="flex flex-wrap items-center gap-2" role="group">
+            {songEntry()}
+            {videoEntry()}
           </div>
         </form>
-      </Card>
+      </Show>
     </div>
   );
 }

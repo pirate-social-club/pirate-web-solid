@@ -25,6 +25,15 @@ const item = {
   viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en",
   translation_state: "ready", machine_translated: false, source_hash: null,
 };
+const threadPath = "/posts/hydrated-feed-fixture";
+const thread = {
+  kind: "content", post_id: item.post.id,
+  content: { ...item, translated_title: null, translated_body: null, translation_state: "same_language" },
+  route: { canonical_path: threadPath, activity_paths: {
+    study: `${threadPath}/study`, karaoke: `${threadPath}/karaoke`,
+    karaoke_leaderboard: `${threadPath}/karaoke/leaderboard`,
+  } },
+};
 let scenario;
 let feedCalls = 0;
 const credentialLeaks = [];
@@ -42,6 +51,10 @@ const upstream = createServer((request, response) => {
     } });
   }
   if (path === `/communities/${communityId}/preview`) return send(200, preview);
+  if (path === `/public/posts/by-id/${item.post.id}/canonical-route` ||
+      (path === "/public/posts/by-slug" && new URL(request.url, "http://fixture").searchParams.get("slug") === "hydrated-feed-fixture")) {
+    return send(200, thread);
+  }
   if (path === `/public-communities/${communityId}/feed`) {
     feedCalls += 1;
     if (request.headers.cookie || request.headers.authorization || request.headers["x-csrf-token"]) credentialLeaks.push(path);
@@ -112,10 +125,30 @@ try {
       assert(feedCalls === (failedServer ? 2 : 1), `${scenario}: total reads ${feedCalls}`);
       assert(failures.length === 0, `${scenario}: ${failures.join("; ")}`);
       assert(credentialLeaks.length === 0, "Public feed forwarded credentials");
+      if (scenario === "ready") {
+        const link = page.getByRole("link", { name: item.post.title, exact: true });
+        assert(await link.getAttribute("href") === `/post/${item.post.id}`, "Feed card omitted its ID route");
+        assert(await link.getAttribute("rel") === "external", "Feed card must use native navigation");
+        for (const method of ["GET", "HEAD"]) {
+          const redirect = await fetch(`${origin}/post/${item.post.id}`, { method, redirect: "manual" });
+          assert(redirect.status === 308, `${method}: ID route did not redirect before streaming`);
+          assert(new URL(redirect.headers.get("location")).pathname === threadPath, `${method}: wrong canonical thread`);
+          assert(redirect.headers.get("cache-control") === "private, no-store", `${method}: redirect policy`);
+          assert(redirect.headers.get("vary")?.includes("Cookie"), `${method}: viewer-dependent redirect policy`);
+        }
+        // Visit the canonical path on the local Worker; its configured public
+        // origin remains unchanged and is never followed to a real service.
+        const detail = await page.goto(`${origin}${threadPath}`, { waitUntil: "domcontentloaded" });
+        assert(detail?.status() === 200, "Canonical thread did not render");
+        await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached", timeout: 30_000 });
+        await page.getByRole("heading", { name: item.post.title, exact: true }).waitFor({ state: "visible" });
+        assert(failures.length === 0, `Thread hydration: ${failures.join("; ")}`);
+      }
     } finally { await context.close(); }
   }
-  console.log(JSON.stringify({ ok: true, scenarios: ["ready", "empty", "recovered", "failed"], hydrationErrors: 0, recoveryReads: 1 }));
+  console.log(JSON.stringify({ ok: true, scenarios: ["ready", "empty", "recovered", "failed"], hydrationErrors: 0, recoveryReads: 1, feedThread: { nativeLink: true, getAndHeadRedirect: 308, canonicalThread: 200 } }));
 } catch (error) {
+  process.stderr.write(`Community feed fixture failed during ${scenario ?? "startup"}\n`);
   process.stderr.write(workerLog);
   throw error;
 } finally {

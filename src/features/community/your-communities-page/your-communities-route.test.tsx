@@ -18,7 +18,7 @@ function routeRoot(container: HTMLElement): HTMLElement {
 /** The contextual composer is open when its one close control exists and no
  * raw community identifier input is offered. */
 function contextualComposerOpen(): boolean {
-  return document.body.querySelector("button[aria-label='Close composer']") !== null
+  return document.body.querySelector("button[aria-label='Close composer'], button[aria-label='Cancel']") !== null
     && document.body.querySelector("input[name='community-id']") === null;
 }
 

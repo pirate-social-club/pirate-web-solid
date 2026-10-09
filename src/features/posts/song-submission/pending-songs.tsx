@@ -15,8 +15,16 @@ export interface PendingSongsProps {
   readonly onDismiss: (submissionId: string) => void;
 }
 
-/** The stages a submitted song passes through, in the order the server runs them. */
-export const SONG_STAGES = ["Saving your audio", "Listening to the song", "Checking it against the rules", "Publishing"] as const;
+/**
+ * What a submitted song says while the server works on it. One plain line:
+ * the server's phases are not steps the author takes, and naming them, with a
+ * step count, made a wait of about a minute read like a procedure. The
+ * progress bar still advances with the phases. Owner wording, 2026-10-08.
+ */
+export const SONG_PROCESSING_TEXT = "Processing your song. This usually takes about a minute.";
+
+/** How many server phases the progress bar spans. */
+export const SONG_PROCESSING_PHASES = 4;
 
 /**
  * Which stage the server is on, or null when the song is not being processed.
@@ -112,19 +120,17 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
                   <Type class="block" role="status" variant="caption">Published</Type>
                 </Show>
                 <Show when={stage() !== null}>
-                  <Type class="block" role="status" variant="caption">
-                    {SONG_STAGES[stage() ?? 0]} · step {(stage() ?? 0) + 1} of {SONG_STAGES.length}
-                  </Type>
+                  <Type class="block" role="status" variant="caption">{SONG_PROCESSING_TEXT}</Type>
                   <div
                     aria-label="Song processing"
-                    aria-valuemax={SONG_STAGES.length}
+                    aria-valuemax={SONG_PROCESSING_PHASES}
                     aria-valuemin={0}
                     aria-valuenow={(stage() ?? 0) + 1}
-                    aria-valuetext={SONG_STAGES[stage() ?? 0]}
+                    aria-valuetext="Processing your song"
                     class="mt-2 h-1 overflow-hidden rounded-full bg-muted"
                     role="progressbar"
                   >
-                    <div class="h-full rounded-full bg-primary" style={{ width: `${(((stage() ?? 0) + 1) / SONG_STAGES.length) * 100}%` }} />
+                    <div class="h-full rounded-full bg-primary" style={{ width: `${(((stage() ?? 0) + 1) / SONG_PROCESSING_PHASES) * 100}%` }} />
                   </div>
                 </Show>
               </div>
