@@ -223,5 +223,33 @@
     "signInToCreate": "Sign in to create",
     "submit": "Create",
     "tryAgain": "Try again"
+  },
+  "communityJoinName": {
+    "title": "Choose your name",
+    "description": "Your address in {community}.",
+    "label": "Name",
+    "length": "{min}–{max} characters.",
+    "exactName": "Use the name offered by this community.",
+    "optional": "You can choose one later.",
+    "taken": "That name is taken. Try another.",
+    "invalid": "Use the offered length, letters, numbers and hyphens.",
+    "acknowledgement": "I understand this name publicly links to my community profile, including its existing public posts, names and wallet footprint.",
+    "join": "Join",
+    "getName": "Get name",
+    "retry": "Try again",
+    "preparing": "Getting your profile ready…",
+    "joining": "Joining…",
+    "issuing": "Finishing your name…",
+    "failedBeforeJoin": "We couldn’t finish joining. Try again.",
+    "failedAfterJoin": "You have joined. Your name is unfinished; try again to finish it.",
+    "pending": "You have joined. Your name is still being issued. You can leave and check back.",
+    "checkStatus": "Check my name",
+    "successTitle": "You’re in",
+    "successDescription": "Your name is ready.",
+    "openName": "Open my name",
+    "joinedTitle": "You’re in",
+    "joinedDescription": "You can choose a name from the community page when you’re ready.",
+    "done": "Done",
+    "resultUnavailable": "The issued address could not be confirmed. Check your name again."
   }
 }

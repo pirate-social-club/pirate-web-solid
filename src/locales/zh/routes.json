@@ -223,5 +223,33 @@
     "signInToCreate": "登录以创建",
     "submit": "创建",
     "tryAgain": "重试"
+  },
+  "communityJoinName": {
+    "title": "选择你的名字",
+    "description": "你在 {community} 的地址。",
+    "label": "名字",
+    "length": "{min}–{max} 个字符。",
+    "exactName": "使用此社区提供的名字。",
+    "optional": "你可以稍后选择。",
+    "taken": "这个名字已被使用，请换一个。",
+    "invalid": "请使用规定的长度、字母、数字和连字符。",
+    "acknowledgement": "我理解这个名字会公开关联我的社区资料，包括现有的公开帖子、名字和钱包足迹。",
+    "join": "加入",
+    "getName": "获取名称",
+    "retry": "重试",
+    "preparing": "正在准备你的资料…",
+    "joining": "正在加入…",
+    "issuing": "正在完成你的名字…",
+    "failedBeforeJoin": "未能完成加入，请重试。",
+    "failedAfterJoin": "你已加入，但名字尚未完成；请重试以完成。",
+    "pending": "你已加入，名字仍在签发中。你可以离开后再回来查看。",
+    "checkStatus": "查看我的名字",
+    "successTitle": "你已加入",
+    "successDescription": "你的名字已准备好。",
+    "openName": "打开我的名字",
+    "joinedTitle": "你已加入",
+    "joinedDescription": "准备好后，你可以在社区页面选择名字。",
+    "done": "完成",
+    "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。"
   }
 }
