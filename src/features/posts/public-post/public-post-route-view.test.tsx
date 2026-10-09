@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api";
 import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "../post-engagement/post-engagement-pending";
-import { refreshSession } from "../../../api/session.ts";
+import { clearSession, refreshSession, resolveSession } from "../../../api/session.ts";
+import { createSessionApiClient } from "../../../api/client.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
@@ -73,6 +74,37 @@ function contentState(canonical: boolean): PublicPostRouteState {
 }
 
 describe("public post route view", () => {
+  it("keeps rendered public content through anonymous account and persona refusals", async () => {
+    clearSession();
+    const reload = vi.fn(async () => contentState(true));
+    const container = render(contentState(true), reload);
+    const fetchImpl = vi.fn(async () => Response.json({ error: { code: "auth_error", message: "Not authenticated", retryable: false } }, { status: 401 }));
+    await expect(resolveSession({ client: createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }) })).resolves.toBe("anonymous");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(container.textContent).toContain("A searchable title");
+    expect(container.textContent).not.toContain("Post unavailable");
+    expect(reload).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads the route activity on a second identity refresh and ignores the old response", async () => {
+    const requests: Array<{ signal: AbortSignal; finish: (state: PublicPostRouteState) => void }> = [];
+    const reload = vi.fn((_activity: string, signal: AbortSignal) => new Promise<PublicPostRouteState>(finish => { requests.push({ signal, finish }); }));
+    const container = render(contentState(true), reload);
+    refreshSession();
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    refreshSession();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[0].signal.aborted).toBe(true);
+    expect(container.textContent).not.toContain("A searchable title");
+    requests[1].finish(contentState(true));
+    await vi.waitFor(() => expect(container.textContent).toContain("A searchable title"));
+    requests[0].finish({ kind: "not-found", status: 404 });
+    await Promise.resolve();
+    expect(container.textContent).toContain("A searchable title");
+    expect(container.textContent).not.toContain("Post unavailable");
+  });
+
   it("shows a loading state during session refresh without flashing post unavailable", async () => {
     let finish: ((state: PublicPostRouteState) => void) | undefined;
     const reload = vi.fn(() => new Promise<PublicPostRouteState>(resolve => { finish = resolve; }));
