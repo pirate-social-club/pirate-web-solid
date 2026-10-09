@@ -1,3 +1,5 @@
+import { UiLocaleProvider } from "../../../lib/ui-locale.tsx";
+import { publicProfileFragment } from "../../identity/public-profile-label.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell.tsx";
 import { relativeTime } from "./relative-time.ts";
 import { renderToString } from "@solidjs/web";
@@ -17,7 +19,7 @@ test("age-locked comments redact retained content and identity in SSR", () => {
 });
 
 test("matching display labels retain different complete profile targets in posts and comments", () => {
-  const label = "User 0123456789AB";
+  const label = "User 012345";
   const post = renderToString(() => <CommunityPostCard post={{ id: "post-one", title: "Earlier post", body: "Text",
     authorHandle: label, authorPersonaId: "community-profile-one", score: 0, publishedAt: "2026-10-09T00:00:00Z" }} />);
   const comment = renderToString(() => <CommentCard item={{ id: "comment-two", submissionId: null, parentId: null,
@@ -53,4 +55,20 @@ test("timestamps distinguish minutes from hours and omit invalid dates", () => {
   expect(relativeTime("2026-10-04T08:00:00Z", now)).toBe("1d ago");
   expect(relativeTime("invalid", now)).toBeUndefined();
   expect(relativeTime(undefined, now)).toBeUndefined();
+});
+
+test.each(["ar", "zh"] as const)("public post and comment labels use the %s page locale in SSR", locale => {
+  const profile = { persona_id: "public-community-profile", primary_public_handle: null, display_name: null };
+  const html = renderToString(() => <UiLocaleProvider locale={locale}>
+    <CommunityPostCard post={{ id: "post", title: "Earlier post", body: "Text", authorHandle: "User stale-english",
+      authorProfile: profile, authorPersonaId: profile.persona_id, score: 0, publishedAt: "2026-10-09T00:00:00Z" }} titleHref="/posts/earlier-post" />
+    <CommentCard item={{ id: "comment", submissionId: null, parentId: null, body: "Earlier comment",
+      authorLabel: "User stale-english", authorProfile: profile, authorPersonaId: profile.persona_id,
+      depth: 0, replyCount: 0, state: "published", caseRef: null, href: null }} />
+  </UiLocaleProvider>);
+  expect(html).toContain(`${locale === "ar" ? "مستخدم" : "用户"} ${publicProfileFragment(profile.persona_id)}`);
+  expect(html).not.toContain("User stale-english");
+  expect(html).toContain('href="/p/public-community-profile"');
+  expect(html).toContain('href="/posts/earlier-post"');
+  expect(html).toContain('relative z-10 hover:underline');
 });

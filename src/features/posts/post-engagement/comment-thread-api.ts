@@ -38,6 +38,7 @@ export function projectPublishedComment(
     authorAvatarRef: item.author_persona?.avatar_ref,
     createdAt: item.created_at,
     authorLabel: publicProfileLabel(item.author_persona),
+    authorProfile: item.author_persona ?? null,
     authorPersonaId: item.author_persona?.persona_id,
   };
 }

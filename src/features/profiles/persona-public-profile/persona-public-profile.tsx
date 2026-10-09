@@ -1,3 +1,4 @@
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { ProfileActivity, type ProfileActivityDependencies } from "../profile-page/profile-activity.tsx";
 import { ProfileLayout } from "../profile-page/profile-layout.tsx";
 import { publicProfileLabel } from "../../identity/public-profile-label.ts";
@@ -22,8 +23,9 @@ function failureCopy(state: PersonaPublicProfileState): string {
 }
 
 function Success(props: { readonly state: PersonaPublicProfileSuccess; readonly activityDependencies?: ProfileActivityDependencies }) {
+  const locale = usePageUiLocale();
   const persona = () => props.state.response.persona;
-  const name = () => publicProfileLabel(persona());
+  const name = () => publicProfileLabel(persona(), locale);
   const description = () => props.state.response.profile.bio?.trim() || `${name()} on Pirate`;
   const handle = () => persona().primary_public_handle?.trim();
   return (

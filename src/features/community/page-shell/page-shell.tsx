@@ -1,5 +1,6 @@
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
-import { publicProfileHref } from "../../identity/public-profile-label.ts";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -138,10 +139,10 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
 }
 
 export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
-  // The feed adapter always resolves a handle, including "Anonymous" and a
-  // generic public label. This covers a caller that supplied none, and says so
-  // rather than attributing the post to an invented account.
-  const author = () => props.post.authorHandle ?? "Unknown author";
+  const locale = usePageUiLocale();
+  const author = () => props.post.authorProfile !== undefined
+    ? publicProfileLabel(props.post.authorProfile, locale, props.post.authorPublicHandle)
+    : props.post.authorHandle ?? "Unknown author";
   return (
     <article class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">

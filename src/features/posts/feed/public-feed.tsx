@@ -1,3 +1,5 @@
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
@@ -6,11 +8,11 @@ import { feedSlots, type FeedSlot } from "./feed-slots.ts";
 import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
 import { Title } from "@solidjs/meta";
 import type { JSX } from "@solidjs/web";
-import { Show, For, getRequestEvent } from "@solidjs/web";
+import { Show, For } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
 import { Button, Card, CardContent, Spinner, Type, buttonVariants } from "../../../design-system";
-import { resolveRequestUiLocale, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
+import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
 import type { CommentThreadItem } from "../post-engagement/post-engagement-model.ts";
@@ -69,24 +71,12 @@ export interface FeedEngagementOptions {
   readonly transport?: PostEngagementTransport;
 }
 
-function requestLocale(): UiLocaleCode {
-  const event = getRequestEvent();
-  if (event !== undefined) {
-    return resolveRequestUiLocale(
-      new URL(event.request.url),
-      event.request.headers.get("accept-language"),
-    );
-  }
-  if (typeof location === "undefined") return "en";
-  return resolveRequestUiLocale(
-    new URL(location.href),
-    typeof navigator === "undefined" ? undefined : navigator.language,
-  );
-}
-
-function displayAuthor(item: PublicFeedItem): string {
+function displayAuthor(item: PublicFeedItem, locale: UiLocaleCode): string {
   if (item.identityMode === "anonymous") return item.anonymousLabel ?? "Anonymous";
-  return item.authorPublicHandle ?? item.authorUser ?? "Public creator";
+  return publicProfileLabel({
+    persona_id: item.authorPersonaId ?? "", primary_public_handle: item.authorPrimaryPublicHandle ?? null,
+    display_name: item.authorDisplayName ?? null,
+  }, locale, item.authorPublicHandle);
 }
 
 function displayTitle(item: PublicFeedItem): string | null {
@@ -149,6 +139,7 @@ function FeedResult(props: {
 }
 
 function FeedItemCard(props: {
+  readonly locale: UiLocaleCode;
   readonly engagement?: FeedEngagementOptions;
   readonly item: PublicFeedItem;
 }) {
@@ -162,7 +153,7 @@ function FeedItemCard(props: {
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Type variant="label">{props.item.communityName}</Type>
             <Type as="span" variant="caption">·</Type>
-            <Type as="span" variant="caption">{displayAuthor(props.item)}</Type>
+            <Type as="span" variant="caption">{displayAuthor(props.item, props.locale)}</Type>
             <Type as="span" variant="caption">·</Type>
             <time datetime={props.item.createdAt}>{props.item.createdAt.slice(0, 10)}</time>
           </div>
@@ -306,7 +297,7 @@ function FeedResults(props: {
           <For each={slots()} keyed={slot => slot.key}>{slot => {
             const item = () => { const value = slot(); return value.kind === "post" ? value.item : undefined; };
             return <Show when={item()} fallback={<AgeAccessPrompt verify={props.verifyAge} onVerified={refreshAuthorized} />}>
-              {post => <FeedItemCard engagement={props.engagement} item={post()} />}
+              {post => <FeedItemCard locale={props.locale} engagement={props.engagement} item={post()} />}
             </Show>;
           }}</For>
         </div>
@@ -326,7 +317,8 @@ function FeedResults(props: {
 }
 
 export function FeedSurface(props: FeedSurfaceProps) {
-  const locale = props.locale ?? requestLocale();
+  const pageLocale = usePageUiLocale();
+  const locale = props.locale ?? pageLocale;
   const sort = props.sort ?? "best";
   const provided = props.data;
   const initialResult: FeedLoadResult | undefined = provided !== undefined && !("then" in provided)

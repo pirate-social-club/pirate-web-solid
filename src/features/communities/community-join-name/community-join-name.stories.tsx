@@ -1,9 +1,10 @@
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { Button } from "../../../design-system";
 import { ApplicationSessionProvider } from "../../shell/application-session";
-import { CommunityPageShell } from "../../community/page-shell/page-shell";
+import { CommunityPageShell, CommunityPostCard } from "../../community/page-shell/page-shell";
 import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 import { CommentCard } from "../../posts/shared-engagement/comment-card.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model";
@@ -75,6 +76,7 @@ function createApiFixture(props: PreviewProps) {
 }
 
 function JourneyPreview(props: PreviewProps) {
+  const locale = usePageUiLocale();
   const api = createApiFixture(props);
   const [state, setState] = createSignal<CommunityJoinNameState>(props.initial);
   const [open, setOpen] = createSignal(props.initialOpen);
@@ -83,7 +85,7 @@ function JourneyPreview(props: PreviewProps) {
   const activityLabel = () => {
     const current = state();
     return publicProfileLabel({ persona_id: profileId, display_name: null,
-      primary_public_handle: current.kind === "issued" ? current.identifier : null });
+      primary_public_handle: current.kind === "issued" ? current.identifier : null }, locale);
   };
   const shownCommunity = (): CommunityData => !props.showEarlierActivity ? community : { ...community,
     posts: [{ ...community.posts[0], authorHandle: activityLabel(), authorPersonaId: profileId }] };
@@ -116,7 +118,8 @@ function JourneyPreview(props: PreviewProps) {
     setState({ label: current.label, acknowledged: current.acknowledged, ...result });
   };
   return <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: api.session.accountId })}>
-    <CommunityPageShell community={shownCommunity()} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
+    <CommunityPageShell community={shownCommunity()} following={joined()} joined={joined()} onJoin={() => setOpen(true)}
+      renderPost={props.showEarlierActivity ? post => <CommunityPostCard post={post} titleHref="/posts/earlier-activity-preview" /> : undefined} />
     {props.showEarlierActivity && <div class="mx-auto max-w-3xl px-5" data-earlier-comment>
       <CommentCard item={{ id: "earlier_comment_preview", parentId: null, submissionId: null,
         body: "My earlier comment stays on this profile.", authorLabel: activityLabel(), authorPersonaId: profileId,

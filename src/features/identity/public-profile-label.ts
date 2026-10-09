@@ -10,12 +10,12 @@ export interface PublicProfileLabelSource {
 
 /** A presentation fragment, not an allocated or guaranteed unique username.
  * Hash the whole public community profile id, never an account or wallet id.
- * Twelve base-32 characters retain 60 bits and render identically in SSR and
+ * Six base-32 characters retain 30 bits and render identically in SSR and
  * the browser. Profile navigation always uses the complete public id.
  */
 export function publicProfileFragment(personaId: string): string {
   const digest = sha256(toBytes(`community-profile-label-v1\u0000${personaId}`));
-  return BigInt(`0x${digest.slice(2, 17)}`).toString(32).padStart(12, "0").toUpperCase();
+  return BigInt(`0x${digest.slice(2, 17)}`).toString(32).padStart(12, "0").toUpperCase().slice(0, 6);
 }
 
 export function publicProfileLabel(

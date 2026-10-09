@@ -58,7 +58,7 @@ describe("public Community thread feed", () => {
     };
     const before = project(null);
     const label = before.posts[0]?.authorHandle;
-    expect(label).toMatch(/^User [0-9A-V]{12}$/u);
+    expect(label).toMatch(/^User [0-9A-V]{6}$/u);
     expect(before.posts[1]?.authorHandle).toBe(label);
     expect(before.comment.authorLabel).toBe(label);
     expect(before.comment.authorPersonaId).toBe(persona.persona_id);
@@ -88,7 +88,7 @@ describe("public Community thread feed", () => {
     const persona = { persona_id: "profile-one", primary_public_handle: null, display_name: "Chosen label" };
     expect(publicProfileLabel(persona)).toBe("Chosen label");
     expect(publicProfileLabel({ ...persona, primary_public_handle: "nightowl.8s28" })).toBe("nightowl.8s28");
-    expect(publicProfileLabel({ ...persona, display_name: "  " })).toMatch(/^User [0-9A-V]{12}$/u);
+    expect(publicProfileLabel({ ...persona, display_name: "  " })).toMatch(/^User [0-9A-V]{6}$/u);
     expect(publicProfileLabel(null)).toBe("Unavailable profile");
     expect(publicProfileLabel({ ...persona, display_name: null }, "ar")).toContain(publicProfileFragment(persona.persona_id));
     expect(publicProfileLabel({ ...persona, display_name: null }, "zh")).toContain(publicProfileFragment(persona.persona_id));
@@ -106,6 +106,8 @@ describe("public Community thread feed", () => {
         downvoteCount: 2,
         publishedAt: "2025-09-01T18:40:00.000Z",
         authorHandle: "captain-one.pirate",
+        authorPublicHandle: null,
+        authorProfile: response.items[0] && "post" in response.items[0] ? response.items[0].post.author_persona : null,
         authorAvatarSrc: "/media/captain.webp",
         kind: "text",
         supportsPostReports: true,

@@ -1,3 +1,4 @@
+import type { PublicProfileLabelSource } from "../../identity/public-profile-label.ts";
 import {
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
@@ -29,6 +30,8 @@ export interface CommentThreadItem {
   readonly body: string;
   readonly authorLabel?: string;
   readonly authorPersonaId?: string;
+  /** Retain the public projection so rendering can use the page locale. */
+  readonly authorProfile?: PublicProfileLabelSource | null;
   readonly authorAvatarRef?: string | null;
   readonly createdAt?: string;
   readonly depth: number;

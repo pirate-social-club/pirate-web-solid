@@ -1,3 +1,4 @@
+import type { PublicProfileLabelSource } from "../../identity/public-profile-label.ts";
 export type CommunitySort = "best" | "new" | "top";
 
 export type CommunityPostKind = "text" | "song";
@@ -19,8 +20,11 @@ export interface CommunityPost {
   downvoteCount?: number;
   publishedAt: string;
   authorHandle?: string;
+  readonly authorPublicHandle?: string | null;
   /** The complete public community profile id; never an account identifier. */
   authorPersonaId?: string;
+  /** Retain the public projection so rendering can use the page locale. */
+  readonly authorProfile?: PublicProfileLabelSource | null;
   authorAvatarSrc?: string | null;
   kind?: CommunityPostKind;
   /** The report endpoint currently accepts published text submissions only. */

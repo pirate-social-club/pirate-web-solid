@@ -41,7 +41,7 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
   const persona = post.author_persona;
   const authorHandle = post.identity_mode === "anonymous"
     ? post.anonymous_label ?? "Anonymous"
-    : publicProfileLabel(persona, "en", post.author_public_handle);
+    : publicProfileLabel(persona, undefined, post.author_public_handle);
   const title = post.title ?? post.caption ?? (post.post_type === "song" ? post.song_title : null) ?? post.post_type;
   const body = post.body ?? post.caption ?? "";
   const upvoteCount = finiteCount(item.upvote_count);
@@ -57,6 +57,8 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
     downvoteCount,
     publishedAt: created.toISOString(),
     authorHandle,
+    authorPublicHandle: post.identity_mode === "anonymous" ? undefined : post.author_public_handle,
+    authorProfile: post.identity_mode === "anonymous" ? undefined : persona ?? null,
     authorPersonaId: post.identity_mode === "anonymous" ? undefined : persona?.persona_id,
     authorAvatarSrc: post.identity_mode === "anonymous" ? null : persona?.avatar_ref ?? null,
     kind: post.post_type === "song" ? "song" : "text",
