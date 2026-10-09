@@ -167,6 +167,26 @@ describe("community desktop sort dismissal", () => {
 
 
 describe("community feed thread links", () => {
+  test.each(["", "   "])("names an untitled text link from its body (title: %j)", (title) => {
+    const body = "An untitled discussion.\n  More context.";
+    const container = render(() => <CommunityPageShell community={{ ...community, posts: [
+      { id: "untitled", title, body, score: 0, publishedAt: "2026-10-09" },
+    ] }} following={false} joined={false} />);
+    const link = within(container).getByRole("link", { name: "An untitled discussion. More context." });
+    expect(link.getAttribute("href")).toBe("/post/untitled");
+    expect(link.getAttribute("rel")).toBe("external");
+    expect(container.textContent).toContain(body);
+  });
+
+  test("keeps an empty post link named and limits long body names", () => {
+    const container = render(() => <CommunityPageShell community={{ ...community, posts: [
+      { id: "empty", title: "", body: " \n ", score: 0, publishedAt: "2026-10-09" },
+      { id: "long", title: "", body: "A".repeat(200), score: 0, publishedAt: "2026-10-09" },
+    ] }} following={false} joined={false} />);
+    expect(within(container).getByRole("link", { name: "Open post" }).getAttribute("href")).toBe("/post/empty");
+    expect(within(container).getByRole("link", { name: "A".repeat(120) }).getAttribute("href")).toBe("/post/long");
+  });
+
   test("links text and song IDs while keeping supplied actions outside the link", async () => {
     const vote = vi.fn();
     const container = render(() => <CommunityPageShell community={{ ...community, posts: [
