@@ -40,6 +40,23 @@ function transport(fetchImpl: ApiFetch) {
 }
 
 describe("session refusal at the real client/store boundary", () => {
+  test.each([200, 401])("a non-aborted read renews once and handles the retry's %s response", async status => {
+    await establishSession();
+    const renew = vi.fn(async () => true);
+    browserIdentitySession.retain({ renew, clear() {} });
+    const rejected = observeRejection();
+    const cleared = vi.fn();
+    cleanups.push(onSessionCleared(cleared));
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status }));
+    expect((await transport(fetchImpl).read()).status).toBe(status);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(renew).toHaveBeenCalledOnce();
+    expect(rejected).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
+    expect(cleared).not.toHaveBeenCalled();
+  });
+
   test("anonymous account and persona reads do not reject a session or refresh mounted routes", async () => {
     const rejected = observeRejection();
     const refreshed = vi.fn();
