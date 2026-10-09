@@ -249,8 +249,7 @@
     "done": "完成",
     "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
     "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
-    "labelOptional": "名字（可选）",
-    "publicLink": "链接到你的公开资料。"
+    "labelOptional": "名字（可选）"
   },
   "publicIdentity": {
     "fallback": "用户 {suffix}",

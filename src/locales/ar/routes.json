@@ -249,8 +249,7 @@
     "done": "تم",
     "resultUnavailable": "تعذر تأكيد العنوان الصادر. تحقق من اسمك مجددًا.",
     "takenAfterJoin": "لقد انضممت. هذا الاسم محجوز. جرّب اسمًا آخر.",
-    "labelOptional": "الاسم (اختياري)",
-    "publicLink": "يرتبط بملفك العلني."
+    "labelOptional": "الاسم (اختياري)"
   },
   "publicIdentity": {
     "fallback": "مستخدم {suffix}",

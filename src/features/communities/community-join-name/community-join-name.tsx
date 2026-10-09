@@ -106,7 +106,7 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
               <p class={`min-h-10 text-sm leading-5 sm:min-h-5 ${invalid() || taken() ? "text-destructive-text" : "text-muted-foreground"}`} id={`${id}-hint`}
                 role={invalid() || taken() ? "alert" : undefined}>
                 {taken() ? props.joined ? copy.takenAfterJoin : copy.taken
-                  : invalid() && normalized() === null ? copy.invalid : `${band()} ${copy.publicLink}` }
+                  : invalid() && normalized() === null ? copy.invalid : band()}
               </p>
             </div>
 

@@ -249,8 +249,7 @@
     "done": "Done",
     "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
     "takenAfterJoin": "You’ve joined. That name is taken. Try another.",
-    "labelOptional": "Name (optional)",
-    "publicLink": "Links to your public profile."
+    "labelOptional": "Name (optional)"
   },
   "publicIdentity": {
     "fallback": "User {suffix}",
