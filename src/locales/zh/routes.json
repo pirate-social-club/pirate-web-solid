@@ -231,7 +231,6 @@
     "exactName": "使用此社区提供的名字。",
     "taken": "这个名字已被使用，请换一个。",
     "invalid": "仅限字母、数字和连字符。",
-    "acknowledgement": "我同意将这个名字关联到我的资料及已有的公开活动。",
     "join": "加入",
     "getName": "获取名称",
     "retry": "重试",
@@ -250,7 +249,8 @@
     "done": "完成",
     "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
     "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
-    "labelOptional": "名字（可选）"
+    "labelOptional": "名字（可选）",
+    "publicLink": "链接到你的公开资料。"
   },
   "publicIdentity": {
     "fallback": "用户 {suffix}",

@@ -78,9 +78,8 @@ function JourneyPreview(props: PreviewProps) {
   const [joined, setJoined] = createSignal(fixtureJoined(props));
   const submit = async () => {
     const previous = state();
-    const base = { label: previous.label, acknowledged: previous.acknowledged };
+    const base = { label: previous.label };
     if (previous.kind === "submitting" || previous.kind === "pending") return;
-    if (base.label !== "" && !base.acknowledged) return;
     const membership = await api.membership();
     if (!membership.joined) {
       if (!api.session.profiles.some(profile => profile.communityId === community.id)) {
@@ -102,21 +101,20 @@ function JourneyPreview(props: PreviewProps) {
     const current = state();
     if (current.kind !== "pending") return;
     const result = await api.readClaim(current.claimId, current.label);
-    setState({ label: current.label, acknowledged: current.acknowledged, ...result });
+    setState({ label: current.label, ...result });
   };
   return <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: api.session.accountId })}>
     <CommunityPageShell community={community} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
     <CommunityJoinName communityName={community.name} offering={offering} state={state()}
       forceMobile={props.forceMobile} nameOptional={props.nameOptional} joined={joined()} open={open()} onOpenChange={setOpen}
-      onLabelChange={label => setState({ kind: "editing", label, acknowledged: false })}
-      onAcknowledgementChange={acknowledged => setState({ ...state(), acknowledged })}
+      onLabelChange={label => setState({ kind: "editing", label })}
       onSubmit={() => void submit()} onResume={() => void resume()} />
   </ApplicationSessionProvider>;
 }
 
 const meta = {
   title: "Flows/Community/Join and name", component: JourneyPreview,
-  args: { initial: { kind: "editing", label: "", acknowledged: false }, initialOpen: true,
+  args: { initial: { kind: "editing", label: "" }, initialOpen: true,
     nameOptional: true, profiles: "here", result: "issued" },
   parameters: { layout: "fullscreen", a11y: { test: "error" }, docs: { description: { component:
     "Owner-directed real-component proposal. Join opens the desktop modal or phone sheet. Later naming has no entry point in this preview. API/session/profile fixtures are explicit; this does not prove live host-local auth, profile activation or claiming." } } },
@@ -144,7 +142,7 @@ export const NameField: Story = { name: "2 · Choose a name",
     const form = within(dialog);
     const input = form.getByRole("textbox");
     const button = form.getByRole("button", { name: "Join" });
-    await expect(form.getByRole("checkbox")).not.toBeChecked();
+    await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
     await canvasElement.ownerDocument.fonts.ready;
     // Measure after the shared sheet's 300ms opening transition and viewport sizing.
     await new Promise(resolve => setTimeout(resolve, 350));
@@ -157,34 +155,33 @@ export const NameField: Story = { name: "2 · Choose a name",
         await expect(Math.abs(dialog.getBoundingClientRect().height - height)).toBeLessThan(1);
         await expect(Math.abs(button.getBoundingClientRect().bottom - dialog.getBoundingClientRect().top - buttonOffset)).toBeLessThan(1);
       });
-      await expect(form.getByRole("checkbox")).not.toBeChecked();
-      if (label) await expect(button).toBeDisabled();
+      await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
+      if (label && label !== "nightowl") await expect(button).toBeDisabled();
       else await expect(button).toBeEnabled();
     }
   },
 };
-export const Taken: Story = { name: "3 · Taken name", args: { initial: { kind: "editing", label: "membertest", acknowledged: false, issue: "taken" } } };
-export const Success: Story = { name: "4 · Issued name", args: { initial: { kind: "issued", label: "nightowl", acknowledged: true, identifier: "nightowl.8s28" } },
+export const Taken: Story = { name: "3 · Taken name", args: { initial: { kind: "editing", label: "membertest", issue: "taken" } } };
+export const Success: Story = { name: "4 · Issued name", args: { initial: { kind: "issued", label: "nightowl", identifier: "nightowl.8s28" } },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
   },
 };
-export const Valid: Story = { args: { initial: { kind: "editing", label: "nightowl", acknowledged: false } },
+export const Valid: Story = { args: { initial: { kind: "editing", label: "nightowl" } },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     const dialog = await body.findByRole("dialog", { name: "Choose your name" });
     const form = within(dialog);
-    await expect(form.getByRole("button", { name: "Join" })).toBeDisabled();
-    await userEvent.click(form.getByRole("checkbox"));
+    await expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
     await expect(form.getByRole("button", { name: "Join" })).toBeEnabled();
   },
 };
-export const Invalid: Story = { args: { initial: { kind: "editing", label: "short", acknowledged: false } } };
-export const Submitting: Story = { args: { initial: { kind: "submitting", stage: "issuing", label: "nightowl", acknowledged: true } } };
-export const PreparingFirstProfile: Story = { args: { profiles: "none", initial: { kind: "submitting", stage: "profile", label: "nightowl", acknowledged: true } } };
-export const FailureBeforeJoin: Story = { args: { initial: { kind: "failed", joined: false, label: "nightowl", acknowledged: true } } };
-export const JoinedButNameFailed: Story = { args: { initial: { kind: "failed", joined: true, label: "nightowl", acknowledged: true }, result: "failed" } };
+export const Invalid: Story = { args: { initial: { kind: "editing", label: "short" } } };
+export const Submitting: Story = { args: { initial: { kind: "submitting", stage: "issuing", label: "nightowl" } } };
+export const PreparingFirstProfile: Story = { args: { profiles: "none", initial: { kind: "submitting", stage: "profile", label: "nightowl" } } };
+export const FailureBeforeJoin: Story = { args: { initial: { kind: "failed", joined: false, label: "nightowl" } } };
+export const JoinedButNameFailed: Story = { args: { initial: { kind: "failed", joined: true, label: "nightowl" }, result: "failed" } };
 export const RetryAfterJoin: Story = { ...JoinedButNameFailed,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
@@ -195,7 +192,7 @@ export const RetryAfterJoin: Story = { ...JoinedButNameFailed,
     await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
   },
 };
-export const Pending: Story = { args: { initial: { kind: "pending", claimId: "claim_preview", label: "nightowl", acknowledged: true } } };
+export const Pending: Story = { args: { initial: { kind: "pending", claimId: "claim_preview", label: "nightowl" } } };
 export const ResumePending: Story = { ...Pending,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
@@ -205,12 +202,11 @@ export const ResumePending: Story = { ...Pending,
     await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
   },
 };
-export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kind: "editing", label: "nightowl", acknowledged: false } },
+export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kind: "editing", label: "nightowl" } },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
     await expect(form.queryByRole("radio")).not.toBeInTheDocument();
-    await userEvent.click(form.getByRole("checkbox"));
     await userEvent.click(form.getByRole("button", { name: "Join" }));
     await expect(await body.findByRole("link", { name: "Open my name" })).toBeInTheDocument();
   },

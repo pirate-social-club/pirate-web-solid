@@ -45,7 +45,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name} · بايرت ويب"
       },
       "communityJoinName": {
-        "acknowledgement": "أوافق على ربط هذا الاسم بملفي ونشاطي العلني السابق.",
         "checkStatus": "تحقق من اسمي",
         "done": "تم",
         "exactName": "استخدم الاسم الذي يقدمه هذا المجتمع.",
@@ -64,6 +63,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openName": "افتح اسمي",
         "pending": "لقد انضممت. لا يزال اسمك قيد الإصدار.",
         "preparing": "جارٍ تجهيز ملفك…",
+        "publicLink": "يرتبط بملفك العلني.",
         "resultUnavailable": "تعذر تأكيد العنوان الصادر. تحقق من اسمك مجددًا.",
         "retry": "حاول مجددًا",
         "successDescription": "اسمك جاهز.",
@@ -340,7 +340,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name}"
       },
       "communityJoinName": {
-        "acknowledgement": "I agree to link this name to my profile and existing public activity.",
         "checkStatus": "Check my name",
         "done": "Done",
         "exactName": "Use the name offered by this community.",
@@ -359,6 +358,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openName": "Open my name",
         "pending": "You have joined. Your name is still being issued.",
         "preparing": "Getting your profile ready…",
+        "publicLink": "Links to your public profile.",
         "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
         "retry": "Try again",
         "successDescription": "Your name is ready.",
@@ -635,7 +635,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name}"
       },
       "communityJoinName": {
-        "acknowledgement": "我同意将这个名字关联到我的资料及已有的公开活动。",
         "checkStatus": "查看我的名字",
         "done": "完成",
         "exactName": "使用此社区提供的名字。",
@@ -654,6 +653,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openName": "打开我的名字",
         "pending": "你已加入，名字仍在签发中。",
         "preparing": "正在准备你的资料…",
+        "publicLink": "链接到你的公开资料。",
         "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
         "retry": "重试",
         "successDescription": "你的名字已准备好。",

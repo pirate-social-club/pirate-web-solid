@@ -12,7 +12,6 @@ import {
 
 export type CommunityJoinNameState = {
   readonly label: string;
-  readonly acknowledged: boolean;
 } & (
   | { readonly kind: "editing"; readonly issue?: "taken" | "invalid" }
   | { readonly kind: "submitting"; readonly stage: "profile" | "joining" | "issuing" }
@@ -33,7 +32,6 @@ export interface CommunityJoinNameProps {
   readonly forceMobile?: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onLabelChange: (label: string) => void;
-  readonly onAcknowledgementChange: (acknowledged: boolean) => void;
   readonly onSubmit: () => void;
   readonly onResume: () => void;
 }
@@ -57,7 +55,7 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
   const taken = () => { const current = state(); return current.kind === "editing" && current.issue === "taken"; };
   const failed = () => { const current = state(); return current.kind === "failed" ? current : undefined; };
   const disabled = createMemo(() => busy() || pending() || (state().label === ""
-    ? !props.nameOptional : !valid() || !state().acknowledged));
+    ? !props.nameOptional : !valid()));
   const band = () => props.offering.label_scope.kind === "label_rule_v2"
     ? interpolateMessage(copy.length, {
         min: props.offering.label_scope.availability.min_label_length,
@@ -108,16 +106,9 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
               <p class={`min-h-10 text-sm leading-5 sm:min-h-5 ${invalid() || taken() ? "text-destructive-text" : "text-muted-foreground"}`} id={`${id}-hint`}
                 role={invalid() || taken() ? "alert" : undefined}>
                 {taken() ? props.joined ? copy.takenAfterJoin : copy.taken
-                  : invalid() && normalized() === null ? copy.invalid : band()}
+                  : invalid() && normalized() === null ? copy.invalid : `${band()} ${copy.publicLink}` }
               </p>
             </div>
-
-            <label class="flex items-start gap-3 text-sm leading-5">
-              <input type="checkbox" class="mt-0.5 size-5 shrink-0 accent-primary"
-                checked={state().acknowledged} disabled={busy() || pending()}
-                onChange={event => props.onAcknowledgementChange(event.currentTarget.checked)} />
-              <span>{copy.acknowledgement}</span>
-            </label>
 
             <Show when={failed()}>{failure => <p class="text-sm text-destructive-text" role="alert">
               {failure().joined ? copy.failedAfterJoin : copy.failedBeforeJoin}
