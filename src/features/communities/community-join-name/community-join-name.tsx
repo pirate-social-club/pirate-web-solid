@@ -104,9 +104,9 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
                 />
                 <span class="shrink-0 text-muted-foreground">.{props.offering.display_root}</span>
               </div>
-              <p class="text-sm text-muted-foreground" id={`${id}-hint`}>{band()}{props.nameOptional ? ` ${copy.optional}` : ""}</p>
+              <p class="text-sm text-muted-foreground" id={`${id}-hint`}>{band()} {copy.publicHint}{props.nameOptional ? ` ${copy.optional}` : ""}</p>
               <Show when={invalid() || taken()}>
-                <p class="text-sm text-destructive-text" id={`${id}-error`} role="alert">{taken() ? copy.taken : copy.invalid}</p>
+                <p class="text-sm text-destructive-text" id={`${id}-error`} role="alert">{taken() ? props.joined ? copy.takenAfterJoin : copy.taken : copy.invalid}</p>
               </Show>
             </div>
 

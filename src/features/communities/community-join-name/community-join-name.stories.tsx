@@ -1,22 +1,19 @@
-import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { Button } from "../../../design-system";
 import { ApplicationSessionProvider } from "../../shell/application-session";
-import { CommunityPageShell, CommunityPostCard } from "../../community/page-shell/page-shell";
-import { publicProfileLabel } from "../../identity/public-profile-label.ts";
-import { CommentCard } from "../../posts/shared-engagement/comment-card.tsx";
+import { CommunityPageShell } from "../../community/page-shell/page-shell";
 import type { CommunityData } from "../../community/page-shell/page-shell-model";
 import type { SupportedHnsOffering } from "../handle-storefront/handle-storefront.model";
 import { CommunityJoinName, type CommunityJoinNameState } from "./community-join-name";
 
 const community: CommunityData = {
-  id: "community_preview", name: "Night Shift", handle: "app.8s28",
+  id: "community_preview", name: "Night Shift", handle: "",
   description: "Music, ideas, and people building after dark.",
   membershipMode: "open", members: 1270, followers: 18400,
   posts: [{ id: "preview_post", title: "What are you working on tonight?", body: "Share something you are making.",
-    authorHandle: "nightowl.8s28", score: 12, commentCount: 3, publishedAt: "2026-10-09T06:00:00Z" }],
+    authorProfile: { persona_id: "community_contributor_preview", display_name: null, primary_public_handle: null },
+    authorPersonaId: "community_contributor_preview", score: 12, commentCount: 3, publishedAt: "2026-10-09T06:00:00Z" }],
 };
 
 /** Explicit supported staging-shaped offer, independent of Storybook's origin. */
@@ -42,7 +39,6 @@ interface PreviewProps {
   readonly forceMobile?: boolean;
   readonly profiles: "none" | "foreign" | "here";
   readonly result: "issued" | "pending" | "failed";
-  readonly showEarlierActivity?: boolean;
   readonly membershipJoined?: boolean;
 }
 
@@ -76,19 +72,10 @@ function createApiFixture(props: PreviewProps) {
 }
 
 function JourneyPreview(props: PreviewProps) {
-  const locale = usePageUiLocale();
   const api = createApiFixture(props);
   const [state, setState] = createSignal<CommunityJoinNameState>(props.initial);
   const [open, setOpen] = createSignal(props.initialOpen);
   const [joined, setJoined] = createSignal(fixtureJoined(props));
-  const profileId = "community_profile_preview";
-  const activityLabel = () => {
-    const current = state();
-    return publicProfileLabel({ persona_id: profileId, display_name: null,
-      primary_public_handle: current.kind === "issued" ? current.identifier : null }, locale);
-  };
-  const shownCommunity = (): CommunityData => !props.showEarlierActivity ? community : { ...community,
-    posts: [{ ...community.posts[0], authorHandle: activityLabel(), authorPersonaId: profileId }] };
   const submit = async () => {
     const previous = state();
     const base = { label: previous.label, acknowledged: previous.acknowledged };
@@ -104,7 +91,7 @@ function JourneyPreview(props: PreviewProps) {
       await api.join();
       setJoined(true);
     }
-    if (base.label === "") { setState({ ...base, kind: "joined" }); return; }
+    if (base.label === "") { setState({ ...base, kind: "joined" }); setOpen(false); return; }
     setState({ ...base, kind: "submitting", stage: "issuing" });
     const result = await api.claim(base.label.trim().toLowerCase());
     if (result.kind === "taken") setState({ ...base, kind: "editing", issue: "taken" });
@@ -118,19 +105,7 @@ function JourneyPreview(props: PreviewProps) {
     setState({ label: current.label, acknowledged: current.acknowledged, ...result });
   };
   return <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: api.session.accountId })}>
-    <CommunityPageShell community={shownCommunity()} following={joined()} joined={joined()} onJoin={() => setOpen(true)}
-      renderPost={props.showEarlierActivity ? post => <CommunityPostCard post={post} titleHref="/posts/earlier-activity-preview" /> : undefined} />
-    {props.showEarlierActivity && <div class="mx-auto max-w-3xl px-5" data-earlier-comment>
-      <CommentCard item={{ id: "earlier_comment_preview", parentId: null, submissionId: null,
-        body: "My earlier comment stays on this profile.", authorLabel: activityLabel(), authorPersonaId: profileId,
-        depth: 0, replyCount: 0, state: "published", caseRef: null, href: null }} />
-    </div>}
-    {joined() && <div class="mx-auto max-w-3xl px-5 py-3">
-      <Button variant="outline" onClick={() => {
-        if (state().kind === "joined") setState({ kind: "editing", label: "", acknowledged: false });
-        setOpen(true);
-      }}>{state().kind === "issued" ? "My name" : state().kind === "pending" ? "Check my name" : "Choose a name"}</Button>
-    </div>}
+    <CommunityPageShell community={community} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
     <CommunityJoinName communityName={community.name} offering={offering} state={state()}
       forceMobile={props.forceMobile} nameOptional={props.nameOptional} joined={joined()} open={open()} onOpenChange={setOpen}
       onLabelChange={label => setState({ kind: "editing", label, acknowledged: false })}
@@ -144,12 +119,24 @@ const meta = {
   args: { initial: { kind: "editing", label: "", acknowledged: false }, initialOpen: true,
     nameOptional: true, profiles: "here", result: "issued" },
   parameters: { layout: "fullscreen", a11y: { test: "error" }, docs: { description: { component:
-    "Owner-directed real-component proposal. Optional naming and the revisit action await screen review. API/session/profile fixtures are explicit; this does not prove live host-local auth, profile activation or claiming." } } },
+    "Owner-directed real-component proposal. Join opens the desktop modal or phone sheet. Later naming has no entry point in this preview. API/session/profile fixtures are explicit; this does not prove live host-local auth, profile activation or claiming." } } },
 } satisfies Meta<typeof JourneyPreview>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Community: Story = { name: "1 · Community with Join", args: { initialOpen: false } };
+export const Community: Story = { name: "1 · Community with Join", args: { initialOpen: false },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
+    const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
+    await expect(form.getByRole("textbox", { name: "Name" })).toHaveValue("");
+    await expect(body.queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
+    await userEvent.click(form.getByRole("button", { name: "Close" }));
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await expect(await body.findByRole("button", { name: "Join this community" })).toBeInTheDocument();
+  },
+};
 export const NameField: Story = { name: "2 · Choose a name" };
 export const Taken: Story = { name: "3 · Taken name", args: { initial: { kind: "editing", label: "membertest", acknowledged: false, issue: "taken" } } };
 export const Success: Story = { name: "4 · Issued name", args: { initial: { kind: "issued", label: "nightowl", acknowledged: true, identifier: "nightowl.8s28" } },
@@ -193,10 +180,6 @@ export const ResumePending: Story = { ...Pending,
     await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
   },
 };
-export const RevisitPending: Story = { name: "Revisit · pending claim, no automatic popup", args: { initialOpen: false,
-  initial: { kind: "pending", claimId: "claim_preview", label: "nightowl", acknowledged: true } } };
-export const RevisitWithoutName: Story = { name: "Revisit · joined without a name", args: { initialOpen: false,
-  initial: { kind: "joined", label: "", acknowledged: false } } };
 export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kind: "editing", label: "nightowl", acknowledged: false } },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
@@ -208,26 +191,20 @@ export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kin
   },
 };
 export const OnlyForeignProfile: Story = { ...FirstTimeMember, args: { ...FirstTimeMember.args, profiles: "foreign" } };
-export const StableFallback: Story = { name: "Joined · stable label on earlier activity", args: { initialOpen: false,
-  showEarlierActivity: true, initial: { kind: "joined", label: "", acknowledged: false } } };
-export const NameLabelsEarlierActivity: Story = { name: "Choose a name · earlier activity keeps its profile", args: {
-  ...StableFallback.args, initialOpen: true, membershipJoined: true, initial: { kind: "editing", label: "", acknowledged: false } },
+export const JoinWithoutName: Story = { name: "Join without a name", args: { initialOpen: false },
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
-    const before = publicProfileLabel({ persona_id: "community_profile_preview", display_name: null, primary_public_handle: null });
-    await expect(body.getAllByText(before, { selector: "a" })).toHaveLength(2);
+    await userEvent.click(await body.findByRole("button", { name: "Join this community" }));
     const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
     await expect(form.getByRole("textbox")).toHaveValue("");
-    await userEvent.type(form.getByRole("textbox"), "nightowl");
-    await userEvent.click(form.getByRole("checkbox"));
-    await userEvent.click(form.getByRole("button", { name: "Get name" }));
-    await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
-    await userEvent.click(body.getByRole("button", { name: "Close" }));
-    const earlier = await body.findAllByRole("link", { name: "nightowl.8s28" });
-    await expect(earlier).toHaveLength(2);
-    for (const link of earlier) await expect(link).toHaveAttribute("href", "/p/community_profile_preview");
-    await expect(body.queryByRole("link", { name: before })).not.toBeInTheDocument();
+    await userEvent.click(form.getByRole("button", { name: "Join" }));
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await expect(await body.findByRole("button", { name: "Post" })).toBeInTheDocument();
+    await expect(body.queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
   },
 };
+export const TakenAfterJoin: Story = { ...Taken, name: "Joined · name taken during issuance", args: { ...Taken.args, membershipJoined: true } };
+export const MobileCommunity: Story = { ...Community, args: { ...Community.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
+export const MobileTaken: Story = { ...Taken, args: { ...Taken.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const MobileNameField: Story = { args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const MobileSuccess: Story = { ...Success, args: { ...Success.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
