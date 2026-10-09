@@ -4,6 +4,8 @@ import { expect, userEvent, within } from "storybook/test";
 import { Button } from "../../../design-system";
 import { ApplicationSessionProvider } from "../../shell/application-session";
 import { CommunityPageShell } from "../../community/page-shell/page-shell";
+import { publicProfileLabel } from "../../identity/public-profile-label.ts";
+import { CommentCard } from "../../posts/shared-engagement/comment-card.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model";
 import type { SupportedHnsOffering } from "../handle-storefront/handle-storefront.model";
 import { CommunityJoinName, type CommunityJoinNameState } from "./community-join-name";
@@ -39,12 +41,18 @@ interface PreviewProps {
   readonly forceMobile?: boolean;
   readonly profiles: "none" | "foreign" | "here";
   readonly result: "issued" | "pending" | "failed";
+  readonly showEarlierActivity?: boolean;
+  readonly membershipJoined?: boolean;
+}
+
+function fixtureJoined(props: PreviewProps): boolean {
+  return props.membershipJoined ?? (["issued", "joined", "pending"].includes(props.initial.kind)
+    || (props.initial.kind === "failed" && props.initial.joined));
 }
 
 /** API fixtures are account-private, in-memory and make no network requests. */
 function createApiFixture(props: PreviewProps) {
-  let joined = ["issued", "joined", "pending"].includes(props.initial.kind)
-    || (props.initial.kind === "failed" && props.initial.joined);
+  let joined = fixtureJoined(props);
   let failNextClaim = props.result === "failed" && props.initial.kind !== "failed";
   return {
     session: { accountId: "preview_account", profiles: props.profiles === "none" ? [] : [{
@@ -70,8 +78,15 @@ function JourneyPreview(props: PreviewProps) {
   const api = createApiFixture(props);
   const [state, setState] = createSignal<CommunityJoinNameState>(props.initial);
   const [open, setOpen] = createSignal(props.initialOpen);
-  const [joined, setJoined] = createSignal(["issued", "joined", "pending"].includes(props.initial.kind)
-    || (props.initial.kind === "failed" && props.initial.joined));
+  const [joined, setJoined] = createSignal(fixtureJoined(props));
+  const profileId = "community_profile_preview";
+  const activityLabel = () => {
+    const current = state();
+    return publicProfileLabel({ persona_id: profileId, display_name: null,
+      primary_public_handle: current.kind === "issued" ? current.identifier : null });
+  };
+  const shownCommunity = (): CommunityData => !props.showEarlierActivity ? community : { ...community,
+    posts: [{ ...community.posts[0], authorHandle: activityLabel(), authorPersonaId: profileId }] };
   const submit = async () => {
     const previous = state();
     const base = { label: previous.label, acknowledged: previous.acknowledged };
@@ -101,7 +116,12 @@ function JourneyPreview(props: PreviewProps) {
     setState({ label: current.label, acknowledged: current.acknowledged, ...result });
   };
   return <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: api.session.accountId })}>
-    <CommunityPageShell community={community} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
+    <CommunityPageShell community={shownCommunity()} following={joined()} joined={joined()} onJoin={() => setOpen(true)} />
+    {props.showEarlierActivity && <div class="mx-auto max-w-3xl px-5" data-earlier-comment>
+      <CommentCard item={{ id: "earlier_comment_preview", parentId: null, submissionId: null,
+        body: "My earlier comment stays on this profile.", authorLabel: activityLabel(), authorPersonaId: profileId,
+        depth: 0, replyCount: 0, state: "published", caseRef: null, href: null }} />
+    </div>}
     {joined() && <div class="mx-auto max-w-3xl px-5 py-3">
       <Button variant="outline" onClick={() => {
         if (state().kind === "joined") setState({ kind: "editing", label: "", acknowledged: false });
@@ -185,6 +205,26 @@ export const FirstTimeMember: Story = { args: { profiles: "none", initial: { kin
   },
 };
 export const OnlyForeignProfile: Story = { ...FirstTimeMember, args: { ...FirstTimeMember.args, profiles: "foreign" } };
-export const RequiredNameProposal: Story = { name: "Decision comparison · required name", args: { nameOptional: false } };
+export const StableFallback: Story = { name: "Joined · stable label on earlier activity", args: { initialOpen: false,
+  showEarlierActivity: true, initial: { kind: "joined", label: "", acknowledged: false } } };
+export const NameLabelsEarlierActivity: Story = { name: "Choose a name · earlier activity keeps its profile", args: {
+  ...StableFallback.args, initialOpen: true, membershipJoined: true, initial: { kind: "editing", label: "", acknowledged: false } },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const before = publicProfileLabel({ persona_id: "community_profile_preview", display_name: null, primary_public_handle: null });
+    await expect(body.getAllByText(before, { selector: "a" })).toHaveLength(2);
+    const form = within(await body.findByRole("dialog", { name: "Choose your name" }));
+    await expect(form.getByRole("textbox")).toHaveValue("");
+    await userEvent.type(form.getByRole("textbox"), "nightowl");
+    await userEvent.click(form.getByRole("checkbox"));
+    await userEvent.click(form.getByRole("button", { name: "Get name" }));
+    await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", "https://nightowl.8s28/");
+    await userEvent.click(body.getByRole("button", { name: "Close" }));
+    const earlier = await body.findAllByRole("link", { name: "nightowl.8s28" });
+    await expect(earlier).toHaveLength(2);
+    for (const link of earlier) await expect(link).toHaveAttribute("href", "/p/community_profile_preview");
+    await expect(body.queryByRole("link", { name: before })).not.toBeInTheDocument();
+  },
+};
 export const MobileNameField: Story = { args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const MobileSuccess: Story = { ...Success, args: { ...Success.args, forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } } };

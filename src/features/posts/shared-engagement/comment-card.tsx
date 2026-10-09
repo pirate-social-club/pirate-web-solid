@@ -1,4 +1,5 @@
 import { relativeTime } from "./relative-time.ts";
+import { publicProfileHref } from "../../identity/public-profile-label.ts";
 import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { Card, CardContent, CommunityAvatar, Type } from "../../../design-system.ts";
@@ -45,8 +46,8 @@ export function CommentCard(props: CommentCardProps) {
     style={{ "margin-inline-start": `${props.nested === false ? 0 : Math.min(item().depth, 8) * 0.75}rem` }}>
     <CardContent class={props.nested === false ? "flex flex-col gap-3 px-0 py-5" : "flex flex-col gap-3 p-4"}>
       <div class="flex min-w-0 items-center gap-2">
-        <Show when={item().authorLabel && item().state !== "age_locked"}><CommunityAvatar avatarSrc={item().authorAvatarRef} communityId={item().id} displayName={item().authorLabel ?? "Public creator"} size="xs" /></Show>
-        <div class="min-w-0 flex-1"><Type variant="label">{item().state === "age_locked" ? commentStateLabel(item()) : item().authorLabel ?? commentStateLabel(item())}</Type>
+        <Show when={item().authorLabel && item().state !== "age_locked"}><CommunityAvatar avatarSrc={item().authorAvatarRef} communityId={item().authorPersonaId ?? item().id} displayName={item().authorLabel ?? "Public creator"} size="xs" /></Show>
+        <div class="min-w-0 flex-1"><Type variant="label"><Show when={item().state !== "age_locked" ? publicProfileHref(item().authorPersonaId) : undefined} fallback={item().state === "age_locked" ? commentStateLabel(item()) : item().authorLabel ?? commentStateLabel(item())}>{href => <a href={href()} class="hover:underline">{item().authorLabel}</a>}</Show></Type>
           <Show when={item().state !== "age_locked" && relativeTime(item().createdAt)}>{timestamp => <Type as="span" variant="caption" class="ml-2">· {timestamp()}</Type>}</Show>
           <Show when={item().state !== "age_locked" && (props.communityLabel || props.nested === false)}><Type as="p" variant="caption">{props.nested === false ? (props.communityLabel ? `Commented in ${props.communityLabel}` : "Comment") : props.communityLabel}</Type></Show>
         </div>

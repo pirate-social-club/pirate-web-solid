@@ -235,6 +235,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openCommunity": "فتح {name}",
         "title": "@{handle} · بايرت ويب"
       },
+      "publicIdentity": {
+        "fallback": "مستخدم {suffix}",
+        "unavailable": "الملف الشخصي غير متاح"
+      },
       "settings": {
         "booking": {
           "addAvailability": "إضافة",
@@ -526,6 +530,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openCommunity": "Open {name}",
         "title": "@{handle}"
       },
+      "publicIdentity": {
+        "fallback": "User {suffix}",
+        "unavailable": "Unavailable profile"
+      },
       "settings": {
         "booking": {
           "addAvailability": "Add",
@@ -816,6 +824,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "notFound": "找不到该个人资料。",
         "openCommunity": "打开 {name}",
         "title": "@{handle}"
+      },
+      "publicIdentity": {
+        "fallback": "用户 {suffix}",
+        "unavailable": "个人资料不可用"
       },
       "settings": {
         "booking": {

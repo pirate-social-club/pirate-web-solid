@@ -19,6 +19,8 @@ export interface CommunityPost {
   downvoteCount?: number;
   publishedAt: string;
   authorHandle?: string;
+  /** The complete public community profile id; never an account identifier. */
+  authorPersonaId?: string;
   authorAvatarSrc?: string | null;
   kind?: CommunityPostKind;
   /** The report endpoint currently accepts published text submissions only. */

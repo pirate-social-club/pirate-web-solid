@@ -1,3 +1,4 @@
+import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
 import { ContentOverflowMenu } from "../shared-engagement/content-overflow-menu.tsx";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
@@ -48,9 +49,14 @@ function description(response: PublicPostContentResponse): string {
 }
 
 function author(response: PublicPostContentResponse): string {
-  const persona = response.content.post.author_persona;
-  return persona?.display_name?.trim() || persona?.primary_public_handle ||
-    response.content.post.author_public_handle || response.content.post.anonymous_label || "Pirate creator";
+  const post = response.content.post;
+  return post.identity_mode === "anonymous" ? post.anonymous_label ?? "Anonymous"
+    : publicProfileLabel(post.author_persona, "en", post.author_public_handle);
+}
+
+function authorHref(response: PublicPostContentResponse): string | undefined {
+  const post = response.content.post;
+  return post.identity_mode === "anonymous" ? undefined : publicProfileHref(post.author_persona?.persona_id);
 }
 
 function contentDirection(locale: string): "ltr" | "rtl" {
@@ -90,7 +96,9 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
   const count = (value: unknown): number => typeof value === "number" && Number.isFinite(value) ? value : 0;
   const songPost = (): CommunityPost => ({
     id: props.response.post_id, title: title(), body: body() ?? "", kind: "song",
-    mediaTitle: title(), authorHandle: author(props.response), authorAvatarSrc: props.response.content.post.author_persona?.avatar_ref,
+    mediaTitle: title(), authorHandle: author(props.response),
+    authorAvatarSrc: props.response.content.post.identity_mode === "anonymous" ? null : props.response.content.post.author_persona?.avatar_ref,
+    authorPersonaId: props.response.content.post.identity_mode === "anonymous" ? undefined : props.response.content.post.author_persona?.persona_id,
     publishedAt: typeof props.response.content.post.created === "number" ? new Date(props.response.content.post.created * 1000).toISOString() : "",
     score: count(props.response.content.upvote_count) - count(props.response.content.downvote_count),
     upvoteCount: count(props.response.content.upvote_count), downvoteCount: count(props.response.content.downvote_count), commentCount: count(props.response.content.comment_count),
@@ -104,7 +112,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
       >
         <Show when={props.response.content.post.post_type !== "song"}>
         <header class="min-w-0 border-b border-border-soft pb-5">
-          <p class="mb-2 text-sm text-muted-foreground">{author(props.response)}</p>
+          <p class="mb-2 text-sm text-muted-foreground"><Show when={authorHref(props.response)} fallback={author(props.response)}>{href => <a href={href()} class="hover:underline">{author(props.response)}</a>}</Show></p>
           <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{title()}</h1>
         </header>
         <Show when={body()}>{value => <p class="mt-5 whitespace-pre-wrap break-words leading-relaxed">{value()}</p>}</Show>

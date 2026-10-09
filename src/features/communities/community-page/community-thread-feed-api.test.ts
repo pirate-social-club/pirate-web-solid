@@ -1,5 +1,7 @@
 import type { GetPublicCommunitiesCommunityRefFeedResponse } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
+import { publicProfileFragment, publicProfileLabel } from "../../identity/public-profile-label.ts";
+import { projectPublishedComment } from "../../posts/post-engagement/comment-thread-api.ts";
 
 import {
   loadCommunityThreadPage,
@@ -40,6 +42,58 @@ const response: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.s
 }));
 
 describe("public Community thread feed", () => {
+  test("an unnamed profile keeps one label across posts and comments, then its issued name replaces it", () => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const persona = { object: "persona" as const, persona_id: "community-profile-one",
+      primary_public_handle: null, display_name: null, avatar_ref: null };
+    const project = (publicHandle: string | null) => {
+      const author = { ...persona, primary_public_handle: publicHandle };
+      const feed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({ ...response,
+        items: ["post-a", "post-b"].map(id => ({ ...item, post: { ...item.post, id, author_persona: author } })) }));
+      const comment = projectPublishedComment({ comment_id: "comment-a", parent_comment_id: null,
+        body: "Earlier comment", depth: 0, reply_count: 0, status: "published", content_rating: "general",
+        created_at: "2026-10-09T00:00:00Z", author_persona: author });
+      return { posts: normalizeCommunityThreadPage(feed).posts, comment };
+    };
+    const before = project(null);
+    const label = before.posts[0]?.authorHandle;
+    expect(label).toMatch(/^User [0-9A-V]{12}$/u);
+    expect(before.posts[1]?.authorHandle).toBe(label);
+    expect(before.comment.authorLabel).toBe(label);
+    expect(before.comment.authorPersonaId).toBe(persona.persona_id);
+    const after = project("nightowl.8s28");
+    expect(after.posts.map(post => post.authorHandle)).toEqual(["nightowl.8s28", "nightowl.8s28"]);
+    expect(after.comment.authorLabel).toBe("nightowl.8s28");
+    expect(after.posts.map(post => post.id)).toEqual(before.posts.map(post => post.id));
+    expect(after.posts.map(post => post.authorPersonaId)).toEqual(before.posts.map(post => post.authorPersonaId));
+    expect(after.comment.id).toBe(before.comment.id);
+    expect(after.comment.authorPersonaId).toBe(before.comment.authorPersonaId);
+  });
+
+  test("explicit anonymous authors do not acquire a profile-derived label or profile link", () => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const feed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({ ...response,
+      items: [{ ...item, post: { ...item.post, identity_mode: "anonymous", anonymous_label: "Quiet listener",
+        author_persona: { persona_id: "public-profile-retained", display_name: "Retained name", primary_public_handle: null, avatar_ref: "/retained-avatar" } } }] }));
+    const post = normalizeCommunityThreadPage(feed).posts[0];
+    expect(post?.authorHandle).toBe("Quiet listener");
+    expect(post?.authorPersonaId).toBeUndefined();
+    expect(post?.authorAvatarSrc).toBeNull();
+  });
+
+  test("labels hash the full community profile id and preserve chosen display names", () => {
+    expect(publicProfileFragment("community-one-same-suffix")).not.toBe(publicProfileFragment("community-two-same-suffix"));
+    const persona = { persona_id: "profile-one", primary_public_handle: null, display_name: "Chosen label" };
+    expect(publicProfileLabel(persona)).toBe("Chosen label");
+    expect(publicProfileLabel({ ...persona, primary_public_handle: "nightowl.8s28" })).toBe("nightowl.8s28");
+    expect(publicProfileLabel({ ...persona, display_name: "  " })).toMatch(/^User [0-9A-V]{12}$/u);
+    expect(publicProfileLabel(null)).toBe("Unavailable profile");
+    expect(publicProfileLabel({ ...persona, display_name: null }, "ar")).toContain(publicProfileFragment(persona.persona_id));
+    expect(publicProfileLabel({ ...persona, display_name: null }, "zh")).toContain(publicProfileFragment(persona.persona_id));
+  });
+
   test("projects public threads into the Reddit-style page model", () => {
     expect(normalizeCommunityThreadPage(response)).toEqual({
       ageLockedCount: 1,

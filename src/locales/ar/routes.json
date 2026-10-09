@@ -251,5 +251,9 @@
     "joinedDescription": "يمكنك اختيار اسم من صفحة المجتمع عندما تكون مستعدًا.",
     "done": "تم",
     "resultUnavailable": "تعذر تأكيد العنوان الصادر. تحقق من اسمك مجددًا."
+  },
+  "publicIdentity": {
+    "fallback": "مستخدم {suffix}",
+    "unavailable": "الملف الشخصي غير متاح"
   }
 }

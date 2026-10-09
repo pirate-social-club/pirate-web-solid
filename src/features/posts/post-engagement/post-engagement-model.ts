@@ -28,6 +28,7 @@ export interface CommentThreadItem {
   readonly parentId: string | null;
   readonly body: string;
   readonly authorLabel?: string;
+  readonly authorPersonaId?: string;
   readonly authorAvatarRef?: string | null;
   readonly createdAt?: string;
   readonly depth: number;

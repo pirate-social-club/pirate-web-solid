@@ -9,6 +9,7 @@ import {
   type ApiClientFactoryOptions,
 } from "../../../api/client.ts";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
+import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 
 export type CommunityThreadFeedClient = Pick<PirateApiClient, "get_publicCommunitiesCommunityRefFeed">;
 
@@ -40,7 +41,7 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
   const persona = post.author_persona;
   const authorHandle = post.identity_mode === "anonymous"
     ? post.anonymous_label ?? "Anonymous"
-    : persona?.primary_public_handle ?? post.author_public_handle ?? persona?.display_name ?? "Public creator";
+    : publicProfileLabel(persona, "en", post.author_public_handle);
   const title = post.title ?? post.caption ?? (post.post_type === "song" ? post.song_title : null) ?? post.post_type;
   const body = post.body ?? post.caption ?? "";
   const upvoteCount = finiteCount(item.upvote_count);
@@ -56,7 +57,8 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
     downvoteCount,
     publishedAt: created.toISOString(),
     authorHandle,
-    authorAvatarSrc: persona?.avatar_ref ?? null,
+    authorPersonaId: post.identity_mode === "anonymous" ? undefined : persona?.persona_id,
+    authorAvatarSrc: post.identity_mode === "anonymous" ? null : persona?.avatar_ref ?? null,
     kind: post.post_type === "song" ? "song" : "text",
     supportsPostReports: post.post_type === "text",
     ...(post.post_type === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),

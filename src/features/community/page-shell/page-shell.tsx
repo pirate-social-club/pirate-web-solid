@@ -1,4 +1,5 @@
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
+import { publicProfileHref } from "../../identity/public-profile-label.ts";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -146,11 +147,11 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       <div class="flex items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
-          communityId={props.post.id}
+          communityId={props.post.authorPersonaId ?? props.post.id}
           displayName={author()}
           size="xs"
         />
-        <Type as="span" variant="label">{author()}</Type>
+        <Type as="span" variant="label"><Show when={publicProfileHref(props.post.authorPersonaId)} fallback={author()}>{href => <a href={href()} class="relative z-10 hover:underline">{author()}</a>}</Show></Type>
         <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
         <div class="relative z-10 ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>

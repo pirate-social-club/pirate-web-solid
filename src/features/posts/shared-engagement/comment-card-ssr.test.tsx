@@ -8,12 +8,26 @@ import { CommentCard } from "./comment-card.tsx";
 // card must not put those fields into public HTML, even without a controller.
 test("age-locked comments redact retained content and identity in SSR", () => {
   const html = renderToString(() => <CommentCard item={{ id: "locked", submissionId: null, parentId: null,
-    body: "restricted-content-marker", authorLabel: "restricted-identity-marker", authorAvatarRef: "/restricted-avatar-marker", createdAt: "2026-10-05T08:00:00Z",
+    body: "restricted-content-marker", authorLabel: "restricted-identity-marker", authorPersonaId: "restricted-profile-marker", authorAvatarRef: "/restricted-avatar-marker", createdAt: "2026-10-05T08:00:00Z",
     depth: 0, replyCount: 0, state: "age_locked", caseRef: null, href: null }}
     communityLabel="restricted-community-marker" postContext={{ title: "restricted-title-marker", href: "/restricted-target-marker" }}
     menuActions={[{ label: "restricted-command-marker", run: () => {} }]} />);
   expect(html).toContain("Verify your age to view this comment.");
   expect(html).not.toContain("restricted-");
+});
+
+test("matching display labels retain different complete profile targets in posts and comments", () => {
+  const label = "User 0123456789AB";
+  const post = renderToString(() => <CommunityPostCard post={{ id: "post-one", title: "Earlier post", body: "Text",
+    authorHandle: label, authorPersonaId: "community-profile-one", score: 0, publishedAt: "2026-10-09T00:00:00Z" }} />);
+  const comment = renderToString(() => <CommentCard item={{ id: "comment-two", submissionId: null, parentId: null,
+    body: "Earlier comment", authorLabel: label, authorPersonaId: "community-profile-two", depth: 0, replyCount: 0,
+    state: "published", caseRef: null, href: null }} />);
+  expect(post).toContain(label);
+  expect(comment).toContain(label);
+  expect(post).toContain('href="/p/community-profile-one"');
+  expect(comment).toContain('href="/p/community-profile-two"');
+  expect(post).not.toContain('href="https://User');
 });
 
 test("public comments omit debug metadata when no timestamp exists", () => {

@@ -251,5 +251,9 @@
     "joinedDescription": "You can choose a name from the community page when you’re ready.",
     "done": "Done",
     "resultUnavailable": "The issued address could not be confirmed. Check your name again."
+  },
+  "publicIdentity": {
+    "fallback": "User {suffix}",
+    "unavailable": "Unavailable profile"
   }
 }

@@ -251,5 +251,9 @@
     "joinedDescription": "准备好后，你可以在社区页面选择名字。",
     "done": "完成",
     "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。"
+  },
+  "publicIdentity": {
+    "fallback": "用户 {suffix}",
+    "unavailable": "个人资料不可用"
   }
 }
