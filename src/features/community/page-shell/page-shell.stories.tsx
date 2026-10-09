@@ -177,6 +177,7 @@ function ThreadLinksFixture() {
       ...infinity, name: "Night Shift", posts: [
         { id: "thread-link-text", title: "A full discussion", body: "Tap this post to read the full thread.", score: 0, commentCount: 2, publishedAt: "2026-10-08" },
         { id: "thread-link-song", kind: "song", title: "An original song", body: "Recording notes from the session.", score: 0, commentCount: 1, publishedAt: "2026-10-08" },
+        { id: "thread-link-untitled", title: "", body: "An untitled discussion still opens its full thread.", score: 0, commentCount: 0, publishedAt: "2026-10-09" },
       ],
     }} renderPost={(post, render) => render(
       <EngagementControls score={post.score} commentCount={post.commentCount ?? 0} onVote={called} onComment={called} />,
@@ -192,6 +193,7 @@ export const FeedPostThreadLinks: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("link", { name: "A full discussion" })).toHaveAttribute("href", "/post/thread-link-text");
     await expect(canvas.getByRole("link", { name: "An original song" })).toHaveAttribute("href", "/post/thread-link-song");
+    await expect(canvas.getByRole("link", { name: "An untitled discussion still opens its full thread." })).toHaveAttribute("href", "/post/thread-link-untitled");
     await expect(canvas.getByRole("link", { name: "A full discussion" })).toHaveAttribute("rel", "external");
     await userEvent.click(canvas.getAllByRole("button", { name: "Upvote" })[0]!);
     await userEvent.click(canvas.getByRole("button", { name: "Comments (2)" }));

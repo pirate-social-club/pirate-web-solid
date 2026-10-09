@@ -159,7 +159,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} aria-label={props.post.title.trim() ? undefined : props.post.body.trim().replace(/\s+/gu, " ").slice(0, 120) || "Open post"} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
