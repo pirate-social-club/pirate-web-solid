@@ -200,6 +200,14 @@ export const FeedPostThreadLinks: Story = {
     await userEvent.click(canvas.getAllByRole("button", { name: "Post options" })[0]!);
     await userEvent.click(within(canvasElement.ownerDocument.body).getByRole("menuitem", { name: "Report" }));
     await expect(canvas.getByLabelText("Action calls")).toHaveTextContent("3");
+    const untitled = canvas.getByRole("link", { name: "An untitled discussion still opens its full thread." });
+    untitled.closest("article")?.scrollIntoView({ block: "center" });
+    untitled.focus();
+    await userEvent.tab({ shift: true });
+    await userEvent.tab();
+    await expect(untitled).toHaveFocus();
+    await expect(untitled.matches(":focus-visible")).toBe(true);
+    await expect(getComputedStyle(untitled, "::after").boxShadow).not.toBe("none");
   },
 };
 
