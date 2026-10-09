@@ -2,7 +2,6 @@ import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import {
   hasInjectedEthereumProvider,
-  type MinimumAgeAffirmation,
   type OAuthProvider,
   type PrivySessionExchange,
 } from "../../api/privy-session.ts";
@@ -61,17 +60,6 @@ export interface SignInSession {
   setEmail(email: string): void;
   submitCode(): void;
 }
-
-/**
- * The declaration carried by the primary sign-in action. Its notice states the
- * same terms in the same words, so pressing that control is the user's
- * affirmation; there is no second surface to collect it again.
- */
-const MINIMUM_AGE_AFFIRMATION: MinimumAgeAffirmation = {
-  version: "minimum-age-attestation-v1",
-  minimum_age: 16,
-  affirmed: true,
-};
 
 function oauthRedirect(provider: OAuthProvider): string {
   return oauthRedirectUrl(provider, window.location.href);
@@ -135,8 +123,8 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
    * `bootstrap: "register"` marks an authentication attempt, whose
    * registration-required rejection is the ordinary first visit rather than a
    * failure: the provider authenticated an identity that has no Pirate account
-   * yet, and the action the user already pressed carried the declaration, so
-   * registration continues without a second surface.
+   * yet, so registration continues from verified identity proof without a
+   * second surface.
    *
    * The registration attempt itself passes `"reject"`. Nothing else may claim
    * to need bootstrapping once bootstrapping is what is running, so the same
@@ -155,7 +143,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
       attempt(
         "working",
         recovery,
-        (handle) => handle.register(MINIMUM_AGE_AFFIRMATION),
+        (handle) => handle.register(),
         succeed,
         "reject",
       );

@@ -6,6 +6,8 @@ import {
 } from "@pirate/api-client";
 import { sameOrigin } from "./origin.ts";
 import type { ApiFetch } from "./proxy.ts";
+import { reportSessionRejection } from "./browser-session-events.ts";
+import { browserIdentitySession } from "./browser-identity-session.ts";
 
 export type { PirateApiClient, PirateApiClientOptions, PirateApiRequestOptions } from "@pirate/api-client";
 
@@ -67,7 +69,23 @@ export function createGeneratedApiClient<Client>(
   const fetchImpl = options.fetchImpl ?? fetch;
   const rewriteFetchImplementation: ApiFetch = async (input, init) => {
     const rewritten = rewriteGeneratedClientUrl(input, origin);
-    return fetchImpl(rewritten, init);
+    if (rewritten.pathname === "/api/auth/session/logout") browserIdentitySession.clear();
+    const response = await fetchImpl(rewritten, init);
+    const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : requestOptions.credentials);
+    if (response.status === 401 && requestOptions.credentials === "same-origin"
+      && credentials === "same-origin"
+      && !rewritten.pathname.startsWith("/api/auth/")) {
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      // Reads can be retried after a coalesced exchange. Unsafe requests and
+      // wallet actions require their explicit continuation, never replay.
+      if ((method === "GET" || method === "HEAD") && await browserIdentitySession.renew() && !init?.signal?.aborted) {
+        const recovered = await fetchImpl(rewritten, init);
+        if (recovered.status === 401) reportSessionRejection();
+        return recovered;
+      }
+      reportSessionRejection();
+    }
+    return response;
   };
   // SAFETY: The generated client uses the standard fetch call signature; the
   // Worker/Bun-specific optional fetch members are not used by the adapter.

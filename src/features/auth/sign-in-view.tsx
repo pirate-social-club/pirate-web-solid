@@ -136,7 +136,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
           </form>
 
           <Type as="p" variant="caption" class="mt-5 text-center text-xs leading-4">
-            By continuing, you confirm you are at least 16 years old and agree to the <a class="text-foreground underline underline-offset-2" href="/terms">Terms</a> and <a class="text-foreground underline underline-offset-2" href="/privacy">Privacy Policy</a>.
+            By continuing, you agree to the <a class="text-foreground underline underline-offset-2" href="/terms">Terms</a> and <a class="text-foreground underline underline-offset-2" href="/privacy">Privacy Policy</a>.
           </Type>
         </div>
       </Show>

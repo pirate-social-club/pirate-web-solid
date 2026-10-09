@@ -182,13 +182,8 @@ describe("sign-in session controller", () => {
     flush();
     await settle();
 
-    // The declaration rode on the action the user already pressed, so the
-    // identity registers straight through to a session with no further input.
-    expect(register).toHaveBeenCalledWith({
-      version: "minimum-age-attestation-v1",
-      minimum_age: 16,
-      affirmed: true,
-    });
+    // Verified identity proof registers directly without collecting age.
+    expect(register).toHaveBeenCalledWith();
     expect(session.state().phase).toBe("signed-in");
   });
 
@@ -238,11 +233,7 @@ describe("sign-in session controller", () => {
 
     // The third authentication method reaches the same inline path as the
     // wallet and the provider return.
-    expect(register).toHaveBeenCalledWith({
-      version: "minimum-age-attestation-v1",
-      minimum_age: 16,
-      affirmed: true,
-    });
+    expect(register).toHaveBeenCalledWith();
     expect(session.state().phase).toBe("signed-in");
   });
 
@@ -372,11 +363,7 @@ describe("sign-in session controller", () => {
 
     // An OAuth return lands on the same inline path as the wallet and code
     // methods: no interstitial, straight to a session.
-    expect(register).toHaveBeenCalledWith({
-      version: "minimum-age-attestation-v1",
-      minimum_age: 16,
-      affirmed: true,
-    });
+    expect(register).toHaveBeenCalledWith();
     expect(session.state().phase).toBe("signed-in");
   });
 

@@ -2,6 +2,7 @@ import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
 import {
   ApiClientError,
   type GetPersonasResponse,
+  type PostAuthRegisterInput,
   type PostAuthRegisterResponse,
 } from "@pirate/api-client";
 import { getAddress } from "viem";
@@ -13,6 +14,7 @@ import {
 } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 import { clearWalletAuthorization, privyAccessTokenSubject, rememberWalletAuthorization } from "./privy-wallet-authorization.ts";
+import { browserIdentitySession, type BrowserIdentitySession } from "./browser-identity-session.ts";
 
 export class MemoryOnlyStorage implements Storage {
   readonly #values = new Map<string, unknown>();
@@ -75,16 +77,7 @@ interface PrivyAccessTokenProof {
   privy_identity_token?: string;
 }
 
-export interface MinimumAgeAffirmation {
-  readonly version: "minimum-age-attestation-v1";
-  readonly minimum_age: 16;
-  readonly affirmed: true;
-}
-
-export interface MinimumAgeRegistrationBody {
-  readonly privy_access_token: string;
-  readonly minimum_age_attestation: MinimumAgeAffirmation;
-}
+export type IdentityRegistrationBody = PostAuthRegisterInput["body"];
 
 export class PrivyIdentityBootstrapRequired extends Error {
   constructor(readonly sourceUserId: string) {
@@ -272,7 +265,7 @@ export interface PrivySessionExchange {
   completeOAuth(provider: OAuthProvider, authorizationCode: string, returnedStateCode: string): Promise<void>;
   loginWithWallet(): Promise<void>;
   /** Complete first-time account provisioning after an exchange 401. */
-  register(affirmation: MinimumAgeAffirmation): Promise<void>;
+  register(): Promise<void>;
   clear(): void;
 }
 
@@ -423,10 +416,11 @@ export async function createPrivySessionExchange(
     readonly exchange?: (
       accessToken: string,
       identityToken?: string,
+      signal?: AbortSignal,
     ) => Promise<void>;
     readonly listPersonas?: () => Promise<GetPersonasResponse>;
     readonly listPendingWallets?: () => Promise<{ wallets: readonly { persona_id: string }[] }>;
-    readonly register?: (body: MinimumAgeRegistrationBody) => Promise<RegistrationResult | void>;
+    readonly register?: (body: IdentityRegistrationBody) => Promise<RegistrationResult | void>;
     readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
       readonly persona_id: string;
       readonly hd_wallet_index: number;
@@ -436,6 +430,7 @@ export async function createPrivySessionExchange(
       readonly hd_wallet_index: number;
     }>;
     readonly csrf?: () => string | undefined;
+    readonly retainSession?: (session: BrowserIdentitySession) => void;
     readonly idempotencyKey?: () => string;
     readonly reportWalletResumeError?: (error: unknown, personaId?: string) => void;
     readonly reportWalletLoginStage?: (stage: WalletLoginStage, error: unknown) => void;
@@ -454,7 +449,7 @@ export async function createPrivySessionExchange(
     const csrf = (dependencies.csrf ?? readCsrfCookie)();
     return csrf === undefined ? undefined : sessionRequestOptions(csrf);
   };
-  const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
+  const exchange = dependencies.exchange ?? (async (accessToken, identityToken, signal) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
         privy_access_token: accessToken,
@@ -462,7 +457,7 @@ export async function createPrivySessionExchange(
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
     await createSessionApiClient().post_authSessionExchange(
       { body: { proof } },
-      csrfRequestOptions(),
+      { ...csrfRequestOptions(), ...(signal === undefined ? {} : { signal }) },
     );
   });
   const listPersonas = dependencies.listPersonas ?? (async () => {
@@ -470,7 +465,7 @@ export async function createPrivySessionExchange(
   });
   const listPendingWallets = dependencies.listPendingWallets ?? (() => createSessionApiClient().get_personasWalletsEvmPending(undefined));
   const register = dependencies.register ?? (async (
-    body: MinimumAgeRegistrationBody,
+    body: IdentityRegistrationBody,
   ): Promise<RegistrationResult> => {
     return createSessionApiClient().post_authRegister({ body }, csrfRequestOptions());
   });
@@ -595,10 +590,25 @@ export async function createPrivySessionExchange(
     pendingRegistrationToken = undefined;
     walletPreparationKeys.clear();
     terminal = true;
-    storage.clear();
+    const subject = privyAccessTokenSubject(accessToken);
+    if ((dependencies.retainSession !== undefined || (typeof window !== "undefined" && dependencies.createPrivy === undefined)) && subject !== undefined) {
+      const retain = dependencies.retainSession ?? (session => browserIdentitySession.retain(session));
+      retain({
+        renew: async signal => {
+          const proof = await client.getAccessToken();
+          if (signal.aborted || proof === null || privyAccessTokenSubject(proof) !== subject) return false;
+          await exchange(proof, undefined, signal);
+          return !signal.aborted && (dependencies.csrf ?? readCsrfCookie)() !== undefined;
+        },
+        clear: () => storage.clear(),
+      });
+    } else storage.clear();
     client.dispose?.();
   };
   const establishSession = async () => {
+    // An explicit login supersedes the previous identity. Its pending read
+    // recovery must not replace the new account's cookie during sign-in.
+    browserIdentitySession.clear();
     const accessToken = await client.getAccessToken();
     if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
     const sourceUserId = privyAccessTokenSubject(accessToken);
@@ -690,14 +700,14 @@ export async function createPrivySessionExchange(
         throw error;
       }
     },
-    async register(affirmation) {
+    async register() {
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
+      browserIdentitySession.clear();
       const body = {
         privy_access_token: accessToken,
-        minimum_age_attestation: affirmation,
-      } satisfies MinimumAgeRegistrationBody;
+      } satisfies IdentityRegistrationBody;
       await completeRegistrationWalletSetup(accessToken, await register(body));
       // Wallet confirmation makes the persona product-ready. Replace the
       // narrow setup session with the ordinary application session only after
@@ -706,6 +716,9 @@ export async function createPrivySessionExchange(
       finishSession(accessToken);
     },
     clear() {
+      // A successful sign-in transfers its memory-only client to the shared
+      // recovery store. Closing the sign-in sheet must not destroy it.
+      if (terminal) return;
       terminal = true;
       pendingRegistrationToken = undefined;
       walletPreparationKeys.clear();

@@ -42,13 +42,14 @@ function signInView(state: SignInState): JSX.Element {
   );
 }
 
-describe("sign-in declaration", () => {
-  test("states the declaration on the primary action and offers no second step", () => {
-    // The account-creation interstitial was removed: the same commitment is
-    // made by pressing the primary control, under the notice beside it.
+describe("sign-in terms", () => {
+  test("keeps Terms and Privacy links without an age declaration", () => {
     const container = render(() => signInView(signInReady(initialSignInState)));
 
-    expect(container.textContent).toContain("you confirm you are at least 16 years old");
+    expect(container.textContent).toContain("By continuing, you agree to the");
+    expect(container.querySelector("a[href='/terms']")?.textContent).toBe("Terms");
+    expect(container.querySelector("a[href='/privacy']")?.textContent).toBe("Privacy Policy");
+    expect(container.textContent).not.toContain("16 years old");
     expect(container.querySelector("input[type='checkbox']")).toBeNull();
     expect([...container.querySelectorAll("button")]
       .some(button => button.textContent?.includes("Create account"))).toBe(false);
