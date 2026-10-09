@@ -25,14 +25,13 @@ const pendingDetails =
 export const termsOfService: LegalDocumentContent = {
   path: "/terms",
   title: "Terms of Service",
-  updated: "23 September 2026",
+  updated: "9 October 2026",
   summary:
     "These terms cover your use of this app: your account and profiles, what you post, how communities work, and the wallets that come with your profiles.",
   sections: [
     {
       heading: "Who can use the app",
       paragraphs: [
-        "You must be at least 16 years old. When you create an account you confirm that you are.",
         "Some content is rated 18+. To view it you must prove you are over 18 with a supported age check (currently Self or ZKPassport). Each community decides who may join; some ask for a palm scan with Very or a document check of your nationality.",
       ],
     },

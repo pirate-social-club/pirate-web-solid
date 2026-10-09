@@ -2,6 +2,7 @@ import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
 import {
   ApiClientError,
   type GetPersonasResponse,
+  type PostAuthRegisterInput,
   type PostAuthRegisterResponse,
 } from "@pirate/api-client";
 import { getAddress } from "viem";
@@ -75,16 +76,7 @@ interface PrivyAccessTokenProof {
   privy_identity_token?: string;
 }
 
-export interface MinimumAgeAffirmation {
-  readonly version: "minimum-age-attestation-v1";
-  readonly minimum_age: 16;
-  readonly affirmed: true;
-}
-
-export interface MinimumAgeRegistrationBody {
-  readonly privy_access_token: string;
-  readonly minimum_age_attestation: MinimumAgeAffirmation;
-}
+export type IdentityRegistrationBody = PostAuthRegisterInput["body"];
 
 export class PrivyIdentityBootstrapRequired extends Error {
   constructor(readonly sourceUserId: string) {
@@ -272,7 +264,7 @@ export interface PrivySessionExchange {
   completeOAuth(provider: OAuthProvider, authorizationCode: string, returnedStateCode: string): Promise<void>;
   loginWithWallet(): Promise<void>;
   /** Complete first-time account provisioning after an exchange 401. */
-  register(affirmation: MinimumAgeAffirmation): Promise<void>;
+  register(): Promise<void>;
   clear(): void;
 }
 
@@ -426,7 +418,7 @@ export async function createPrivySessionExchange(
     ) => Promise<void>;
     readonly listPersonas?: () => Promise<GetPersonasResponse>;
     readonly listPendingWallets?: () => Promise<{ wallets: readonly { persona_id: string }[] }>;
-    readonly register?: (body: MinimumAgeRegistrationBody) => Promise<RegistrationResult | void>;
+    readonly register?: (body: IdentityRegistrationBody) => Promise<RegistrationResult | void>;
     readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
       readonly persona_id: string;
       readonly hd_wallet_index: number;
@@ -470,7 +462,7 @@ export async function createPrivySessionExchange(
   });
   const listPendingWallets = dependencies.listPendingWallets ?? (() => createSessionApiClient().get_personasWalletsEvmPending(undefined));
   const register = dependencies.register ?? (async (
-    body: MinimumAgeRegistrationBody,
+    body: IdentityRegistrationBody,
   ): Promise<RegistrationResult> => {
     return createSessionApiClient().post_authRegister({ body }, csrfRequestOptions());
   });
@@ -690,14 +682,13 @@ export async function createPrivySessionExchange(
         throw error;
       }
     },
-    async register(affirmation) {
+    async register() {
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
       const body = {
         privy_access_token: accessToken,
-        minimum_age_attestation: affirmation,
-      } satisfies MinimumAgeRegistrationBody;
+      } satisfies IdentityRegistrationBody;
       await completeRegistrationWalletSetup(accessToken, await register(body));
       // Wallet confirmation makes the persona product-ready. Replace the
       // narrow setup session with the ordinary application session only after
