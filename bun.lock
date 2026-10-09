@@ -511,7 +511,7 @@
 
     "@phosphor-icons/core": ["@phosphor-icons/core@2.1.1", "", {}, "sha512-v4ARvrip4qBCImOE5rmPUylOEK4iiED9ZyKjcvzuezqMaiRASCHKcRIuvvxL/twvLpkfnEODCOJp5dM4eZilxQ=="],
 
-    "@pirate/api-client": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.111.0-7dd2c126.tgz", {}, "sha512-OitkgmODE30AoQ/9c623XnKCIhjDa3lzTLzIozbscrRewaFhBLpa7vd1s22CJ04bKWp/HVVs1Id8hnOJQgQfKQ=="],
+    "@pirate/api-client": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.112.0-a734db3f.tgz", {}, "sha512-17fO7Mgtmav8ao4m5WmAa2awwJUT4qh00jywyQR5kPElQHPjV2oRGYf1IP5yEI+IVkk2J13ObnvT30sQ8+z+vw=="],
 
     "@pirate/web-solid-ui": ["@pirate/web-solid-ui@workspace:packages/solid-ui"],
 
