@@ -125,7 +125,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
         </Show>
       </div>
       <div class="min-w-0 flex-1">
-        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
+        <Type class="block truncate" variant="body-strong"><Show when={props.titleHref} fallback={props.post.mediaTitle ?? props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{props.post.mediaTitle ?? props.post.title}</a>}</Show></Type>
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
@@ -160,7 +160,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0">{props.post.title}</a>}</Show></Type>
+          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} aria-label={props.post.title.trim() ? undefined : props.post.body.trim().replace(/\s+/gu, " ").slice(0, 120) || "Open post"} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{props.post.title}</a>}</Show></Type>
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
