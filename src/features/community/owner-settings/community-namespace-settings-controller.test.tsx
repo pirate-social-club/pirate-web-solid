@@ -4,6 +4,8 @@ import { createRoot } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { CommunityNamespaceSettingsApiError, createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
 import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import { createSessionRecovery } from "../../auth/session-recovery";
+import type { NamespaceSettingsCommand } from "./owner-settings-model";
 
 const disposers: Array<() => void> = [];
 function render(ui: () => JSX.Element) {
@@ -20,7 +22,53 @@ afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.replaceChildren();
+});
+
+test("an expired owner Address action restores auth before preparing, retaining its selected root", async () => {
+  let authenticated = false;
+  const signIn = vi.fn(async () => false);
+  const ensureSession = createSessionRecovery({
+    account: async () => authenticated ? { status: "authenticated", userId: "owner" } : "anonymous",
+    csrfPresent: () => authenticated,
+    renew: async () => false,
+    signIn,
+    invalidate: () => {},
+    refresh: () => {},
+  });
+  const snapshot = { community_id: "community-1", family: "hns" as const, generation: 1,
+    root_label: "midnight", next_action: { kind: "start_verification" as const, family: "hns" as const, root_label: "midnight" } };
+  const api = { read: async () => snapshot, execute: vi.fn(async (_command: NamespaceSettingsCommand) => snapshot) };
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api}
+    ensureSession={() => ensureSession("owner", new AbortController().signal)}
+    communityId="community-1" communityPath="/c/community-1" />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Start verification"));
+  const start = () => [...container.querySelectorAll("button")].find(button => button.textContent === "Start verification")!;
+  start().click();
+  await vi.waitFor(() => expect(container.textContent).toContain("Your address setup is kept here."));
+  expect(api.execute).not.toHaveBeenCalled();
+  signIn.mockImplementation(async () => { authenticated = true; return true; });
+  start().click();
+  await vi.waitFor(() => expect(api.execute).toHaveBeenCalledTimes(1));
+  expect(api.execute.mock.calls[0]?.[0]).toMatchObject({ kind: "start_verification", expected_generation: 1 });
+  expect(snapshot.root_label).toBe("midnight");
+});
+
+test("failed session recovery prevents Bob signing and leaves the ownership proof on screen", async () => {
+  const connect = vi.fn();
+  vi.stubGlobal("bob3", { connect });
+  const proof = { kind: "sign_ownership" as const, root_label: "midnight", message: "exact ownership message", expires_at: "2099-09-11T00:00:00.000Z" };
+  const api = { read: async () => ({ community_id: "community-1", family: "hns" as const,
+    generation: 2, root_label: "midnight", next_action: proof }), execute: vi.fn() };
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api}
+    ensureSession={async () => false} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Sign ownership with Bob Wallet"));
+  [...container.querySelectorAll("button")].find(button => button.textContent === "Sign ownership with Bob Wallet")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("could not sign"));
+  expect(connect).not.toHaveBeenCalled();
+  expect(api.execute).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("exact ownership message");
 });
 
 const session = {

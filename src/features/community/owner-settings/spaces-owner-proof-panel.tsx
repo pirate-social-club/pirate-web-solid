@@ -1,9 +1,12 @@
-import { Button, Card, Type } from "@pirate/web-solid-ui";
+import { Button, Card, Type, FormFieldLabel, PrefixInput, Textarea } from "@pirate/web-solid-ui";
 import { ApiClientError } from "@pirate/api-client";
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, onCleanup, untrack } from "solid-js";
 
 import { createSpacesOwnerProofApi, type SpacesOwnerProofApi } from "./spaces-owner-proof-api";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
+import { useApplicationSession } from "../../shell/application-session";
+import { ensureApplicationSession } from "../../auth/session-recovery";
+import { resolveAccountSession } from "../../../api/session";
 
 type Challenge = Awaited<ReturnType<SpacesOwnerProofApi["start"]>>;
 type Assignment = NonNullable<Awaited<ReturnType<SpacesOwnerProofApi["assignment"]>>["candidate"]>;
@@ -14,19 +17,34 @@ function newKey(): string {
   return [...random].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; communityId: string }) {
+export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; communityId: string; onBusyChange?: (busy: boolean) => void }) {
   const api = props.api ?? createSpacesOwnerProofApi();
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
   const [challenge, setChallenge] = createSignal<Exclude<Challenge, { status: "verification_pending" }>>();
   const [pollKey, setPollKey] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
+  const [busy, setBusyState] = createSignal(false);
+  const setBusy = (value: boolean) => { setBusyState(value); props.onBusyChange?.(value); };
   const [message, setMessage] = createSignal("");
   const [verifiedUntil, setVerifiedUntil] = createSignal("");
   const [authority, setAuthority] = createSignal<{ reference: string; generation: number }>();
   const [candidate, setCandidate] = createSignal<Assignment>();
   const [confirmed, setConfirmed] = createSignal(false);
   const [authRequired, setAuthRequired] = createSignal(false);
+  const applicationSession = useApplicationSession();
+  const initialAccount = untrack(applicationSession);
+  let ownerAccountId = initialAccount !== undefined && typeof initialAccount === "object" ? initialAccount.userId : undefined;
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  const ensureSession = async () => {
+    if (props.api !== undefined) return true;
+    if (ownerAccountId === undefined) {
+      const account = await resolveAccountSession({ timeoutMs: 15_000 });
+      if (account === "anonymous" || controller.signal.aborted) return false;
+      ownerAccountId = account.userId;
+    }
+    return ensureApplicationSession(ownerAccountId, controller.signal);
+  };
   const reportFailure = (reason: unknown, message: string) => {
     if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
     else setMessage(message);
@@ -52,6 +70,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     setCandidate(undefined);
     setConfirmed(false);
     try {
+      if (!await ensureSession()) { setAuthRequired(true); return; }
       let idempotencyKey = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(storageKey(canonicalRoot));
       if (idempotencyKey === null) {
         idempotencyKey = newKey();
@@ -84,6 +103,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     setBusy(true);
     setMessage("");
     try {
+      if (!await ensureSession()) { setAuthRequired(true); return; }
       const result = await api.poll({ communityId: props.communityId, ceremonyId: current.ceremony_id,
         idempotencyKey: pollKey(), signatureHex });
       if (result.status === "verified") {
@@ -116,6 +136,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     if (busy() || authority() === undefined) return;
     setBusy(true);
     try {
+      if (!await ensureSession()) { setAuthRequired(true); return; }
       const response = await api.assignment({ communityId: props.communityId, root: root().replace(/^@/u, "") });
       setCandidate(response.candidate ?? undefined);
       setMessage(response.candidate === null
@@ -140,6 +161,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       if (typeof sessionStorage !== "undefined") sessionStorage.setItem(keyName, idempotencyKey);
     }
     try {
+      if (!await ensureSession()) { setAuthRequired(true); return; }
       const result = await api.confirmAssignment({ communityId: props.communityId, idempotencyKey,
         assignmentId: selected.operator_assignment_id, generation: selected.generation,
         authorityReference: proof.reference, authorityGeneration: proof.generation });
@@ -155,15 +177,15 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
   };
 
   return (
-    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard />}>
+    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard onAuthenticated={() => setAuthRequired(false)} />}>
     <Card class="space-y-4 p-5 md:p-6" data-spaces-owner-proof>
       <Type as="h2" variant="h3">Prove your Spaces root</Type>
-      <p class="text-sm text-muted-foreground">Use the Spaces wallet that owns the root. This check signs a message and sends no Bitcoin transaction.</p>
-      <label class="block space-y-1 text-sm" for="spaces-owner-root">
-        <span>Spaces root</span>
-        <input id="spaces-owner-root" class="w-full rounded-md border bg-background px-3 py-2" value={root()}
-          disabled={busy() || challenge() !== undefined} onInput={(event) => setRoot(event.currentTarget.value)} placeholder="@yahoo" />
-      </label>
+      <Type as="p" variant="body" class="text-muted-foreground">Use the Spaces wallet that owns the root. This check signs a message and sends no Bitcoin transaction.</Type>
+      <div class="space-y-2">
+        <FormFieldLabel htmlFor="spaces-owner-root" label="Spaces root" />
+        <PrefixInput id="spaces-owner-root" class="h-16" prefix="@" value={root().replace(/^@/u, "")}
+          disabled={busy() || challenge() !== undefined} onInput={(event) => setRoot(event.currentTarget.value)} placeholder="root" />
+      </div>
       <Show when={challenge() === undefined}>
         <Button type="button" disabled={busy()} onClick={() => void start()}>Get ownership message</Button>
       </Show>
@@ -173,11 +195,11 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
           <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-sm" data-spaces-challenge>{current().challenge_message}</pre>
           <p class="break-all font-mono text-sm" data-spaces-challenge-digest>Digest: {current().challenge_digest_hex}</p>
           <p class="text-xs text-muted-foreground">Challenge expires at {current().expires_at}.</p>
-          <label class="block space-y-1 text-sm" for="spaces-owner-signature">
-            <span>Message signature (hex)</span>
-            <textarea id="spaces-owner-signature" class="min-h-24 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
+          <div class="space-y-2">
+            <FormFieldLabel htmlFor="spaces-owner-signature" label="Message signature (hex)" />
+            <Textarea id="spaces-owner-signature" class="min-h-24 font-mono"
               value={signature()} disabled={busy()} onInput={(event) => setSignature(event.currentTarget.value)} />
-          </label>
+          </div>
           <div class="flex gap-2">
             <Button type="button" disabled={busy()} onClick={() => void checkSignature()}>Check signature</Button>
             <Button type="button" variant="secondary" disabled={busy()} onClick={() => { clearSavedKey(); setChallenge(undefined); setSignature(""); setMessage(""); }}>Start over</Button>

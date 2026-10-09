@@ -122,6 +122,10 @@
     "get_publicCommunitiesPopular",
     "get_usersMeModerationCommunities",
     "get_publicPersonasPersonaIdActivity",
+    "post_communitiesCommunityIdSpacesRouteAttachments",
+    "get_communitiesCommunityIdSpacesRouteAttachmentsCurrent",
+    "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdProve",
+    "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdCommit",
     "post_authRegister"
   ]
 }

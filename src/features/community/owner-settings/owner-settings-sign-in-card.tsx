@@ -2,11 +2,14 @@ import { Button, Card, Type } from "@pirate/web-solid-ui";
 import { onCleanup } from "solid-js";
 import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host";
 
-export function OwnerSettingsSignInCard() {
+export function OwnerSettingsSignInCard(props: { onAuthenticated?: () => void } = {}) {
   const controller = new AbortController();
   onCleanup(() => controller.abort());
   const signIn = async () => {
-    if (await requestGlobalSignInCompletion(controller.signal)) window.location.reload();
+    if (await requestGlobalSignInCompletion(controller.signal)) {
+      if (props.onAuthenticated !== undefined) props.onAuthenticated();
+      else window.location.reload();
+    }
   };
   return (
     <Card class="p-6" data-owner-settings-sign-in>

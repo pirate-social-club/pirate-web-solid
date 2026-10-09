@@ -4,6 +4,7 @@ import {
   type PostAuthRegisterResponse,
 } from "@pirate/api-client";
 import type { ExternalWallet } from "@privy-io/js-sdk-core";
+import type { BrowserIdentitySession } from "./browser-identity-session";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MemoryOnlyStorage,
@@ -13,6 +14,45 @@ import {
 
 
 const noPersonas = async (): Promise<GetPersonasResponse> => ({ personas: [] });
+
+it("transfers a successful provider session for same-account renewal and rejects cancellation or another identity", async () => {
+  const token = (subject: string) => `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
+  let proof = token("did:privy:owner");
+  let retained: BrowserIdentitySession | undefined;
+  let storage: MemoryOnlyStorage | undefined;
+  let csrf: string | undefined;
+  const exchange = vi.fn(async () => { csrf = "fresh-csrf"; });
+  const dispose = vi.fn();
+  const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+    createPrivy: async (_config, candidate) => {
+      // SAFETY: this factory receives the fresh MemoryOnlyStorage created by the exchange.
+      storage = candidate as MemoryOnlyStorage;
+      storage.put("privy:token", proof);
+      return {
+        auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => {} } },
+        initialize: async () => {}, getAccessToken: async () => proof, dispose,
+      };
+    },
+    exchange, listPendingWallets: async () => ({ wallets: [] }), listPersonas: noPersonas,
+    csrf: () => csrf, retainSession: session => { retained = session; },
+  });
+  await auth.loginWithCode("operator@example.test", "123456");
+  auth.clear();
+  expect(storage?.getKeys()).toContain("privy:token");
+  expect(dispose).toHaveBeenCalledTimes(1);
+  csrf = undefined;
+  expect(await retained?.renew(new AbortController().signal)).toBe(true);
+  expect(exchange).toHaveBeenCalledTimes(2);
+  proof = token("did:privy:another-account");
+  expect(await retained?.renew(new AbortController().signal)).toBe(false);
+  expect(exchange).toHaveBeenCalledTimes(2);
+  proof = token("did:privy:owner");
+  const cancelled = new AbortController(); cancelled.abort();
+  expect(await retained?.renew(cancelled.signal)).toBe(false);
+  expect(exchange).toHaveBeenCalledTimes(2);
+  retained?.clear();
+  expect(storage?.getKeys()).toEqual([]);
+});
 
 const sessionResponse = {
   user: {

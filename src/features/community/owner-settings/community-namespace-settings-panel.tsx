@@ -41,6 +41,7 @@ export interface CommunityNamespaceSettingsPanelProps {
   showHeading?: boolean;
   snapshot: NamespaceSettingsSnapshot;
   wallet?: CommunityHnsWallet;
+  onWalletBusyChange?: (busy: boolean) => void;
 }
 
 function command(
@@ -241,10 +242,11 @@ function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAct
   return action.kind === "ready_to_activate" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "publicationBlocked" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "publicationBlocked" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet" | "onWalletBusyChange">) {
   const action = () => props.snapshot.next_action;
   const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
-  const [walletBusy, setWalletBusy] = createSignal(false);
+  const [walletBusy, setWalletBusyState] = createSignal(false);
+  const setWalletBusy = (value: boolean) => { setWalletBusyState(value); props.onWalletBusyChange?.(value); };
   const [walletError, setWalletError] = createSignal<string | null>(null);
   const [manualSignature, setManualSignature] = createSignal("");
   const dispatch = (value: NamespaceSettingsCommandInput) => {
@@ -590,7 +592,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} publicationBlocked={props.publicationBlocked} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} publicationBlocked={props.publicationBlocked} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} onWalletBusyChange={props.onWalletBusyChange} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
             <FormNote>No import found for your account.</FormNote>

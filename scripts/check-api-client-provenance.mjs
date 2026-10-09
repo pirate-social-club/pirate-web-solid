@@ -11,6 +11,11 @@ const clients = [
     dependency: "@pirate/api-client",
     provenance: "vendor/api-client-provenance.json",
     expectedScope: [
+      "post_communitiesCommunityIdSpacesRouteAttachments",
+      "get_communitiesCommunityIdSpacesRouteAttachmentsCurrent",
+      "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdProve",
+      "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdCommit",
+
       "get_publicCommunitiesPopular",
       "get_usersMeModerationCommunities",
       "get_publicPersonasPersonaIdActivity",

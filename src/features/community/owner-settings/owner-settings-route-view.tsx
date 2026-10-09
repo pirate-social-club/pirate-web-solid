@@ -6,14 +6,14 @@ import { getRequestEvent } from "@solidjs/web";
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { CommunityTelegramSettingsController } from "./community-telegram-settings-controller";
-import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import { CommunityAddressSettings } from "./community-address-settings";
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
-import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
 import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
+import type { SpacesRouteAttachmentApi } from "./spaces-route-attachment-api";
 import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
@@ -33,6 +33,8 @@ export interface OwnerSettingsRouteViewProps {
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
+  /** Test fixture for the Spaces address screen; production uses the session API. */
+  spacesRouteAttachmentApi?: SpacesRouteAttachmentApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   /** `null` renders the management index instead of a section. */
   requestedSection: string | null;
@@ -229,15 +231,17 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 <CommunityNamesSettingsController
                   api={props.namesApi}
                   communityId={state().communityId}
+                  onReviewAddress={() => props.navigate(ownerSettingsSectionHref(state().communityPath, "namespace", currentSearch()))}
                 />
               </Show>
               <Show when={section() === "telegram" || section() === "assistant"}>
                 <CommunityTelegramSettingsController api={props.telegramApi} communityId={state().communityId} section={section() === "assistant" ? "assistant" : "telegram"} />
               </Show>
               <Show when={section() === "namespace"}>
-                <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
-                <CommunityNamespaceSettingsController
-                  api={props.namespaceApi}
+                <CommunityAddressSettings
+                  namespaceApi={props.namespaceApi}
+                  spacesApi={props.spacesOwnerProofApi}
+                  spacesRouteApi={props.spacesRouteAttachmentApi}
                   communityId={state().communityId}
                   communityPath={state().communityPath}
                 />

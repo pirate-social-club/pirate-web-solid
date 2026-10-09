@@ -1,6 +1,8 @@
 import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
+import { browserIdentitySession } from "./browser-identity-session.ts";
+import { SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
 import type { ApiFetch } from "./proxy.ts";
 
 export interface AuthenticatedSession {
@@ -315,6 +317,14 @@ export function onSessionCleared(listener: () => void): () => void {
 
 /** Clear account-private UI immediately after a successful host-session logout. */
 export function clearSession(): void {
+  browserIdentitySession.clear();
   clearWalletAuthorization();
   browserStore.clearSession();
 }
+
+/** A server refusal invalidates chrome without discarding recoverable identity. */
+export function invalidateSession(): void {
+  browserStore.clearSession();
+}
+
+if (typeof window !== "undefined") window.addEventListener(SESSION_REJECTED_EVENT, invalidateSession);

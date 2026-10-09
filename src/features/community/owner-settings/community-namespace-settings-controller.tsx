@@ -11,6 +11,9 @@ import {
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { namespaceIdempotencyKeys } from "./community-namespace-idempotency";
 import { useApplicationSession } from "../../shell/application-session";
+import { ensureApplicationSession } from "../../auth/session-recovery";
+import { resolveAccountSession } from "../../../api/session";
+import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 import type {
   CommunityNamespaceSettingsPort,
   NamespaceCommandIdempotencyKeys,
@@ -25,9 +28,11 @@ export interface CommunityNamespaceSettingsControllerProps {
   communityPath: string;
   fetchImpl?: ApiFetch;
   origin?: string | URL;
+  ensureSession?: () => Promise<boolean>;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-type LoadStatus = "loading" | "ready" | "denied" | "error";
+type LoadStatus = "loading" | "ready" | "denied" | "error" | "sign-in-required";
 
 const PREPARATION_RETRY_STORAGE_PREFIX = "pirate:hns-preparation-retry:";
 
@@ -132,11 +137,15 @@ export function CommunityNamespaceSettingsController(
     };
     return props.api ?? createCommunityNamespaceSettingsApi(apiOptions);
   });
-  const wallet = createBobCommunityHnsWallet();
+  const nativeWallet = createBobCommunityHnsWallet();
+  const authController = new AbortController();
+  onCleanup(() => authController.abort());
   const [status, setStatus] = createSignal<LoadStatus>("loading");
   const [snapshot, setSnapshot] = createSignal<NamespaceSettingsSnapshot>();
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
+  const [busy, setBusyState] = createSignal(false);
+  let walletBusy = false;
+  const setBusy = (value: boolean) => { setBusyState(value); props.onBusyChange?.(value || walletBusy); };
   const [message, setMessage] = createSignal("");
   const [messageReference, setMessageReference] = createSignal("");
   const [activeCommand, setActiveCommand] = createSignal<NamespaceSettingsCommand["kind"]>();
@@ -157,6 +166,25 @@ export function CommunityNamespaceSettingsController(
     return session !== undefined && session !== "resolving" && session !== "failed" && session !== "anonymous"
       ? session.userId
       : undefined;
+  };
+  let ownerAccountId = accountId();
+  const ensureSession = async () => {
+    if (props.ensureSession !== undefined) return props.ensureSession();
+    if (props.api !== undefined) return true;
+    ownerAccountId ??= accountId();
+    return ownerAccountId !== undefined
+      && await ensureApplicationSession(ownerAccountId, authController.signal);
+  };
+  const wallet = {
+    isAvailable: nativeWallet.isAvailable,
+    signRootOwnership: async (root: string, proof: string) => {
+      if (!await ensureSession()) throw new Error("Sign in to the same owner account before signing.");
+      return nativeWallet.signRootOwnership(root, proof);
+    },
+    publishCompleteResource: async (root: string, records: Parameters<typeof nativeWallet.publishCompleteResource>[1]) => {
+      if (!await ensureSession()) throw new Error("Sign in to the same owner account before publishing.");
+      return nativeWallet.publishCompleteResource(root, records);
+    },
   };
   const feedback = () => {
     if (busy() && activeCommand() === "poll") return "Checking verification status…";
@@ -236,6 +264,13 @@ export function CommunityNamespaceSettingsController(
     setStatus("loading");
     clearMessage();
     try {
+      if (props.api === undefined) {
+        const account = await resolveAccountSession({ timeoutMs: 15_000 });
+        if (!active || request !== requestGeneration) return;
+        if (account === "anonymous") { setStatus("sign-in-required"); return; }
+        if (ownerAccountId !== undefined && ownerAccountId !== account.userId) { setStatus("denied"); return; }
+        ownerAccountId = account.userId;
+      }
       const current = await api.read();
       if (!active || request !== requestGeneration) return;
       setSnapshot(current);
@@ -243,7 +278,9 @@ export function CommunityNamespaceSettingsController(
       setStatus("ready");
     } catch (error) {
       if (!active || request !== requestGeneration) return;
-      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setStatus("sign-in-required");
+      } else if (error instanceof ApiClientError && error.status === 404) {
         setStatus("denied");
       } else {
         showFailure("Community address settings could not be loaded.", error);
@@ -268,6 +305,11 @@ export function CommunityNamespaceSettingsController(
       setPollFailed(false);
     }
     try {
+      if (command.kind !== "select_namespace" && !await ensureSession()) {
+        setMessage("Sign in to the same owner account, then retry. Your address setup is kept here.");
+        return;
+      }
+      if (!active) return;
       const current = await api.execute(command);
       if (!active) return;
       const previous = snapshot();
@@ -402,6 +444,7 @@ export function CommunityNamespaceSettingsController(
   );
 
   return (
+    <Show when={status() !== "sign-in-required"} fallback={<OwnerSettingsSignInCard onAuthenticated={() => void load()} />}>
     <Show when={status() !== "loading"} fallback={(
       <Card class="grid min-h-64 place-items-center" role="status">
         <div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading community address…</Type></div>
@@ -437,6 +480,7 @@ export function CommunityNamespaceSettingsController(
                 showHeading={false}
                 snapshot={current()}
                 wallet={wallet}
+                onWalletBusyChange={value => { walletBusy = value; props.onBusyChange?.(busy() || value); }}
               />
               <div class="flex h-20 items-center gap-3 overflow-auto">
                 <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="muted">
@@ -456,6 +500,7 @@ export function CommunityNamespaceSettingsController(
           )}</Show>
         </Show>
       </Show>
+    </Show>
     </Show>
   );
 }
