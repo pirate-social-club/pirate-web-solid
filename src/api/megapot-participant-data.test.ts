@@ -1,7 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
 import { MegapotPoolUnavailableError } from "./megapot-pool-availability.ts";
 import { afterEach, expect, it, vi } from "vitest";
-import { createMegapotParticipantData } from "./megapot-participant-data.ts";
+import { createMegapotParticipantData, MegapotParticipantSignedOutError } from "./megapot-participant-data.ts";
 import { createPublicApiClient, createSessionApiClient } from "./client.ts";
 import { participantPool as pool, participantStanding as standing } from "../features/rewards/megapot-participant.fixtures.ts";
 const scope = { communityId: "community-1", postId: "post-1" };
@@ -286,4 +286,19 @@ it("does not build a session client for a card that only reads the public pool",
   const data = createMegapotParticipantData();
   expect(await data.pool(scope, new AbortController().signal)).toEqual(pool);
   expect(session).not.toHaveBeenCalled();
+});
+it("makes no private read for a viewer the page knows to be signed out", async () => {
+  const { publicClient, sessionClient, signal } = setup();
+  const data = createMegapotParticipantData(publicClient, sessionClient, async () => "anonymous");
+  await expect(data.standing(scope, pool, signal)).rejects.toBeInstanceOf(MegapotParticipantSignedOutError);
+  expect(sessionClient.get_usersMe).not.toHaveBeenCalled();
+  expect(sessionClient.get_rewardOfferLegsLegIdStanding).not.toHaveBeenCalled();
+});
+it("asks the page once for a known account and then reads standing as before", async () => {
+  const { publicClient, sessionClient, signal } = setup();
+  const account = vi.fn(async () => ({ status: "authenticated" as const, userId: "account-1" }));
+  const data = createMegapotParticipantData(publicClient, sessionClient, account);
+  expect(await data.standing(scope, pool, signal)).toEqual({ pool, standing });
+  expect(account).toHaveBeenCalledOnce();
+  expect(sessionClient.get_usersMe).toHaveBeenCalledTimes(2);
 });

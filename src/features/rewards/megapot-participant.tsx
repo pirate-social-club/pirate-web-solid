@@ -2,7 +2,7 @@ import { MegapotPoolUnavailableError } from "../../api/megapot-pool-availability
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { formatUnits } from "viem";
 import { Button } from "../../design-system.ts";
-import { createMegapotParticipantData, type MegapotParticipantData, type ParticipantPool, type ParticipantRewardSnapshot, type ParticipantScope } from "../../api/megapot-participant-data.ts";
+import { createMegapotParticipantData, MegapotParticipantSignedOutError, type MegapotParticipantData, type ParticipantPool, type ParticipantRewardSnapshot, type ParticipantScope } from "../../api/megapot-participant-data.ts";
 import { onSessionCleared, onSessionRefreshed } from "../../api/session.ts";
 import { poolStatus, participantMessage, rewardTime } from "./megapot-participant-model.ts";
 import { qualificationText } from "./reward-sponsor-terms.ts";
@@ -93,7 +93,8 @@ export function MegapotShareStatus(props: Props) {
   let expiry: ReturnType<typeof setTimeout> | undefined;
   let alive = true;
   // The song whose public pool this surface has seen. It is public knowledge,
-  // so it survives invalidation; private standing never does.
+  // so it survives invalidation; private standing never does. A signed-out
+  // viewer is shown no box at all, so signing out forgets it too.
   let observed: ParticipantScope | undefined;
   let inFlight = false;
   let resumeGuardUntil = 0;
@@ -128,6 +129,8 @@ export function MegapotShareStatus(props: Props) {
       // Do not leave account-private or drawing-specific claims visible indefinitely.
       expiry = setTimeout(() => { if (current()) setState({ scope, content: "Check again for your latest share status." }); }, 60_000);
     } catch (error) {
+      // Signing in announces a refresh, which loads the share.
+      if (error instanceof MegapotParticipantSignedOutError) { if (current()) { observed = undefined; setState(undefined); } return; }
       // While rewards are disabled the pool read answers unavailable for every
       // song. Without an observed pool a failed read renders nothing rather
       // than putting a rewards box on every completion.
@@ -140,13 +143,14 @@ export function MegapotShareStatus(props: Props) {
     queueMicrotask(() => { if (alive) void load(); });
   });
   createEffect(() => true, () => {
-    // The session store announces a cleared session to its clear listeners and
-    // then, in the same call, to its refresh listeners. A session read of ours
-    // that answers 401 clears the session, so reloading on that refresh would
-    // repeat the rejected read without end. A cleared session only takes the
-    // private standing down; a refresh on its own, as after sign-in, reloads.
+    // Signing out announces a clear and then, in the same call, a refresh. The
+    // clear takes the private standing down, and reloading on that refresh
+    // would only ask the store what it has just been told. A refusal by the
+    // server announces a refresh alone: the reload asks the store, finds no
+    // account and settles without a private read. A refresh on its own, as
+    // after sign-in, loads the share.
     let cleared = false;
-    const drop = () => { cleared = true; invalidate(); queueMicrotask(() => { cleared = false; }); };
+    const drop = () => { cleared = true; observed = undefined; invalidate(); queueMicrotask(() => { cleared = false; }); };
     const refresh = () => { if (!cleared) void load(); };
     // Returning to the page fires visibilitychange, focus or both. The first
     // reloads; the other finds that reload under way, or just started, and

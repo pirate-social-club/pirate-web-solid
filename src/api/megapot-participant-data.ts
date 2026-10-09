@@ -1,12 +1,17 @@
 import { pagePoolReadGate } from "./megapot-pool-availability.ts";
 import { ApiClientError, type GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse, type GetRewardOfferLegsLegIdStandingResponse } from "@pirate/api-client";
 import { createPublicApiClient, createSessionApiClient, type PirateApiClient } from "./client.ts";
+import { resolveAccountSession, type AccountSessionResolution } from "./session.ts";
 
 export type ParticipantPool = NonNullable<GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse["pool"]>;
 export type ParticipantStanding = GetRewardOfferLegsLegIdStandingResponse["standing"];
 export interface ParticipantScope { readonly communityId: string; readonly postId: string }
 /** `standing` is null when the server holds no standing for this account in the pool: it has no share. */
 export interface ParticipantRewardSnapshot { readonly pool: ParticipantPool; readonly standing: ParticipantStanding | null }
+/** The page already knows this viewer is signed out, so there is no standing to read. */
+export class MegapotParticipantSignedOutError extends Error {
+  constructor() { super("megapot_participant_signed_out"); }
+}
 export interface MegapotParticipantData {
   pool(scope: ParticipantScope, signal: AbortSignal): Promise<ParticipantPool | null>;
   standing(scope: ParticipantScope, pool: ParticipantPool, signal: AbortSignal): Promise<ParticipantRewardSnapshot>;
@@ -16,6 +21,8 @@ export interface MegapotParticipantData {
 export function createMegapotParticipantData(
   publicClient: Pick<PirateApiClient, "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool"> = createPublicApiClient(),
   suppliedSessionClient?: Pick<PirateApiClient, "get_usersMe" | "get_rewardOfferLegsLegIdStanding">,
+  // A supplied session client is its own authority; the page's own session is the shared store's.
+  resolveAccount: (() => Promise<AccountSessionResolution>) | undefined = suppliedSessionClient ? undefined : () => resolveAccountSession(),
 ): MegapotParticipantData {
   const availability = pagePoolReadGate();
   // Cards only read the public pool; the session client is built when standing is first asked for.
@@ -33,6 +40,10 @@ export function createMegapotParticipantData(
   return {
     pool,
     async standing(scope, initial, signal) {
+      // Ask what the page already knows before any private read: for a signed-out
+      // viewer the account read could only be refused.
+      if (resolveAccount && await resolveAccount() === "anonymous") throw new MegapotParticipantSignedOutError();
+      signal.throwIfAborted();
       const session = sessionClient ??= createSessionApiClient();
       const before = await session.get_usersMe(undefined, { signal });
       // The route answers 404 for an account that is neither the funder, a community

@@ -6,7 +6,7 @@ import { render, type JSX } from "@solidjs/web";
 import { createSignal } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
 import type { MegapotParticipantData, ParticipantRewardSnapshot, ParticipantScope } from "../../api/megapot-participant-data.ts";
-import { refreshSession } from "../../api/session.ts";
+import { clearSession, refreshSession } from "../../api/session.ts";
 import { MegapotPoolSummary, MegapotPoolView, MegapotShareStatus } from "./megapot-participant.tsx";
 import { poolStatus, participantMessage } from "./megapot-participant-model.ts";
 import { participantPool as pool, participantStanding as standing } from "./megapot-participant.fixtures.ts";
@@ -353,11 +353,10 @@ it("keeps the box in place while a known pool reloads", async () => {
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
 });
 
-it("settles after a rejected session without asking again, and loads the share after sign-in", async () => {
-  // The real data, client and session modules: only fetch is replaced. A 401 on
-  // the account read makes the client report a session rejection, the session
-  // store clears and notifies its refresh subscribers, and this surface is one.
-  let signedIn = false;
+// The real data, client and session modules: only fetch is replaced.
+function realSessionPath() {
+  clearSession(); refreshSession();
+  const session = { signedIn: false };
   const calls = { pool: 0, account: 0, standing: 0 };
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const path = new URL(input instanceof Request ? input.url : input.toString()).pathname;
@@ -366,8 +365,8 @@ it("settles after a rejected session without asking again, and loads the share a
     if (path === "/api/users/me") {
       calls.account += 1;
       // Past this, the surface is reloading itself: fail loudly instead of hanging the suite.
-      if (calls.account > 8) return new Response("loop", { status: 500 });
-      return signedIn
+      if (calls.account > 12) return new Response("loop", { status: 500 });
+      return session.signedIn
         ? Response.json({
           id: "account-1", object: "user", verification_state: "unverified", created: 1,
           verification_capabilities: Object.fromEntries(["unique_human", "age_over_18", "minimum_age", "nationality", "gender", "wallet_score"].map(name => [name, { state: "unverified" }])),
@@ -377,19 +376,57 @@ it("settles after a rejected session without asking again, and loads the share a
     }
     return new Response("unexpected", { status: 500 });
   }));
+  return { session, calls };
+}
+const settled = () => new Promise(resolve => setTimeout(resolve, 300));
+it("makes no private read for a signed-out viewer, and loads the share after sign-in", async () => {
+  const { session, calls } = realSessionPath();
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
   await vi.waitFor(() => expect(calls.account).toBeGreaterThanOrEqual(1));
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await settled();
+  // The public pool read, and the session store's own account read. The surface asks nothing private.
   expect(calls).toEqual({ pool: 1, account: 1, standing: 0 });
-  expect(host.textContent).not.toContain("You have a share");
-  expect(host.textContent).not.toContain("unavailable");
+  expect(host.querySelector("[data-megapot-share]")).toBeNull();
   // Still settled a moment later: nothing is repeating in the background.
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await settled();
   expect(calls).toEqual({ pool: 1, account: 1, standing: 0 });
-  signedIn = true;
+  session.signedIn = true;
   refreshSession();
   await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
-  expect(calls.standing).toBe(1);
-  expect(calls.account).toBe(3);
-  expect(calls.pool).toBe(3);
+  expect(calls).toEqual({ pool: 3, account: 4, standing: 1 });
+});
+it("takes the share down when the server refuses an established session, and does not ask again", async () => {
+  const { session, calls } = realSessionPath();
+  session.signedIn = true;
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  expect(calls).toEqual({ pool: 2, account: 3, standing: 1 });
+  // The server now refuses the session and nothing can renew it.
+  session.signedIn = false;
+  [...host.querySelectorAll("button")].find(button => button.textContent === "Check reward status")!.click();
+  await vi.waitFor(() => expect(calls.account).toBe(4));
+  await settled();
+  // The check read the pool and was refused on the account read. The refusal announced one
+  // refresh; that reload read the pool, asked the session store and stopped there.
+  expect(calls).toEqual({ pool: 4, account: 4, standing: 1 });
+  expect(host.querySelector("[data-megapot-share]")).toBeNull();
+  await settled();
+  expect(calls).toEqual({ pool: 4, account: 4, standing: 1 });
+});
+it("takes the share down on sign-out without another read, and asks nothing private on return", async () => {
+  const { session, calls } = realSessionPath();
+  session.signedIn = true;
+  const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
+  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  session.signedIn = false;
+  clearSession();
+  await vi.waitFor(() => expect(host.querySelector("[data-megapot-share]")).toBeNull());
+  await settled();
+  expect(calls).toEqual({ pool: 2, account: 3, standing: 1 });
+  // Returning to the page reads the public pool again and stops at the session store.
+  window.dispatchEvent(new Event("focus"));
+  await vi.waitFor(() => expect(calls.pool).toBe(3));
+  await settled();
+  expect(calls).toEqual({ pool: 3, account: 3, standing: 1 });
+  expect(host.querySelector("[data-megapot-share]")).toBeNull();
 });
