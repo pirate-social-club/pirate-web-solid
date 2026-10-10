@@ -107,6 +107,7 @@ export default defineConfig({
       "src/features/identity/community-profile-preparation.test.ts",
       "src/features/identity/community-profile-attempt.test.ts",
       "src/features/communities/community-join-name/*.test.ts",
+      "src/features/communities/community-join-name/*.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking.test.ts",
       "src/features/identity/telegram-linking/telegram-linking-page.test.tsx",
       "src/features/identity/community-persona-choice-sheet.test.tsx",

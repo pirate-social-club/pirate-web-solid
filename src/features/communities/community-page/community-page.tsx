@@ -18,7 +18,7 @@ import {
   Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
-import { useUiLocale } from "../../../lib/ui-locale.tsx";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
   loadCommunityPage,
@@ -282,6 +282,7 @@ function SuccessState(props: {
     if (props.navigate) props.navigate(href);
     else globalThis.location?.assign(href);
   };
+  const namingLocale = usePageUiLocale();
   const prepareCommunityProfile = createCommunityProfileAttempt();
   const engagement = createCommunityEngagementController({
     api: engagementApi,
@@ -293,11 +294,15 @@ function SuccessState(props: {
     returnTo: state.canonicalPath,
     continueJoinAfterSignIn: true,
     prepareProfile: async (session, choice, signal) => (await prepareCommunityProfile({ session, choice, communityId, preferredPersonaId: selectedPersonaId(), signal })).personaId,
-    onJoined: () => void naming.show(),
+    onJoined: () => showNaming(),
   });
   const naming = createCommunityNameController({ communityId, root: state.routeFamily === "hns" ? state.requestedPathSegment : undefined,
-    publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, ...props.nameClients });
-  const namingLocale = useUiLocale();
+    publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, locale: namingLocale, ...props.nameClients });
+  let nameReturnFocus: HTMLElement | undefined;
+  const showNaming = (returnFocus?: HTMLElement) => {
+    nameReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined);
+    void naming.show();
+  };
   const namingCopy = () => getLocaleMessages(namingLocale, "routes").communityJoinName;
   createEffect(() => [engagement.accountIdentity(), engagement.joined()] as const, ([accountId, joined]) => {
     if (typeof accountId !== "string" || !joined) return;
@@ -691,11 +696,11 @@ function SuccessState(props: {
       store.setTarget({
         communityId: targetCommunityId,
         personas,
-        title: "Profile in this community",
+        title: namingCopy().profileTitle,
         unavailable,
         loading,
         onRetry: () => void engagement.retryPersonas(),
-        ...(canName ? { nameAction: { label: namingCopy().getName, run: () => void naming.show() } } : {}),
+        ...(canName ? { nameAction: { label: namingCopy().getName, run: showNaming } } : {}),
       });
     },
   );
@@ -925,18 +930,18 @@ function SuccessState(props: {
               The retry control is not an outcome, so it stays on the page, in
               the Post action, which retries the required profile read. */}
           <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
-          <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
+          <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} returnFocus={() => nameReturnFocus} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
           <Show when={personaStore === undefined}>
             <Show when={personaOptions().length > 1 || engagement.personaRetryAvailable() || naming.available()}>
               <CommunityPersonaControl
                 label={engagement.personaRetryAvailable() ? "Retry profiles" : "Switch posting profile"}
                 opensPicker
                 persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
-                onClick={() => setLocalSwitcherOpen(true)}
+                onClick={() => { nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true); }}
               />
             </Show>
             <PersonaSwitcherSheet
-              title="Profile in this community"
+              title={namingCopy().profileTitle}
               open={localSwitcherOpen()}
               onOpenChange={setLocalSwitcherOpen}
               personas={personaOptions()}
@@ -945,7 +950,7 @@ function SuccessState(props: {
               loading={engagement.personaRetryBusy()}
               unavailable={engagement.personaRetryAvailable()}
               onRetry={() => void engagement.retryPersonas()}
-              footer={<Show when={naming.available()}><Button type="button" onClick={() => { setLocalSwitcherOpen(false); void naming.show(); }}>{namingCopy().getName}</Button></Show>}
+              footer={<Show when={naming.available()}><Button type="button" onClick={() => { setLocalSwitcherOpen(false); showNaming(nameReturnFocus); }}>{namingCopy().getName}</Button></Show>}
             />
           </Show>
       </div>

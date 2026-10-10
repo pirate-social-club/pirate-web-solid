@@ -3,7 +3,7 @@ import {
   Button, Input, Modal, ModalContent, ModalDescription, ModalHeader,
   ModalTitle, buttonVariants,
 } from "../../../design-system";
-import { useUiLocale } from "../../../lib/ui-locale";
+import { usePageUiLocale } from "../../../lib/ui-locale";
 import { getLocaleMessages, interpolateMessage } from "../../../locales";
 import {
   normalizeDesiredHandleLabel, offeringAppliesToLabel,
@@ -27,6 +27,7 @@ export interface CommunityJoinNameProps {
   readonly joined: boolean;
   readonly open: boolean;
   readonly forceMobile?: boolean;
+  readonly returnFocus?: () => HTMLElement | undefined;
   readonly onOpenChange: (open: boolean) => void;
   readonly onLabelChange: (label: string) => void;
   readonly onSubmit: () => void;
@@ -35,8 +36,9 @@ export interface CommunityJoinNameProps {
 
 /** Controlled real-app surface. Membership, identity and issuance authority stay with the caller. */
 export function CommunityJoinName(props: CommunityJoinNameProps) {
-  const copy = getLocaleMessages(useUiLocale(), "routes").communityJoinName;
+  const copy = getLocaleMessages(usePageUiLocale(), "routes").communityJoinName;
   const id = createUniqueId();
+  let openingFocus: HTMLElement | undefined;
   const state = () => props.state;
   const normalized = createMemo(() => normalizeDesiredHandleLabel(state().label));
   const valid = createMemo(() => {
@@ -75,6 +77,14 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
     <ModalContent
       aria-label={copy.title}
       mobileSide="bottom"
+      onOpenAutoFocus={() => { openingFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; }}
+      onCloseAutoFocus={event => {
+        const target = props.returnFocus?.() ?? openingFocus;
+        if (target?.isConnected && target.getClientRects().length > 0) {
+          event.preventDefault();
+          target.focus({ preventScroll: true });
+        }
+      }}
       class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-6 sm:max-w-md sm:rounded-[var(--radius-xl)] sm:p-8"
     >
       <div class="flex flex-col gap-6" data-community-join-name-state={state().kind}>

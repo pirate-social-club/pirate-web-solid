@@ -5,6 +5,8 @@ import { createCommunityNameController, type CommunityNameControllerOptions } fr
 import { readCommunityNameAttempt } from "./community-name-acquisition.ts";
 import { communityId, offering, personaId, label, confirmation, quote, reservation, claim } from "./community-name-test-fixtures.ts";
 import type { PublicHandleGrantApiClient, SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
+import { toast } from "../../../design-system.ts";
+import { getLocaleMessages } from "../../../locales/index.ts";
 
 const disposers: Array<() => void> = [];
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); sessionStorage.clear(); });
@@ -35,6 +37,17 @@ async function setup(input: { api?: SessionHandleSalesApiClient; grants?: GetPer
 }
 
 describe("connected community name ownership and recovery", () => {
+  it.each(["ar", "zh"] as const)("localizes recovery feedback without a Storybook provider: %s", async locale => {
+    const previous = document.documentElement.lang; document.documentElement.lang = locale;
+    const notify = vi.spyOn(toast, "error").mockImplementation(() => 12345);
+    try {
+      const { controller, api } = await setup();
+      api.post_handleClaims = vi.fn(async () => { throw new ApiClientError({ code: "conflict", name: "Conflict", status: 409, retryable: false },
+        { error: { code: "conflict", message: "expired", retryable: false, details: { reason: "reservation_expired" } } }); });
+      await controller.show(); controller.setLabel(label); await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
+      expect(notify).toHaveBeenCalledWith(getLocaleMessages(locale, "routes").communityJoinName.requestExpired);
+    } finally { notify.mockRestore(); document.documentElement.lang = previous; }
+  });
   it("recovers a submitted claim after its offer is withdrawn without CSRF or repeated writes", async () => {
     const first = await setup(); await first.controller.show(); first.controller.setLabel(label); await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
     for (const dispose of disposers.splice(0)) dispose();

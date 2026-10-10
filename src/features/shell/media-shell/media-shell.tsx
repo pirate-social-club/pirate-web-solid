@@ -2,6 +2,8 @@
 import type { JSX } from "@solidjs/web";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { ComposingSurfaceContext } from "../composing-surface.tsx";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 
 import {
   Button,
@@ -170,8 +172,15 @@ export function ApplicationChrome(props: MediaShellProps) {
     const target = switchTarget();
     return target === undefined ? selected() : target.personas.find(persona => persona.personaId === selectedSwitchPersonaId());
   };
+  const namingCopy = getLocaleMessages(usePageUiLocale(), "routes").communityJoinName;
+  let communityProfileTrigger: HTMLElement | undefined;
+  const openCommunityProfiles = () => {
+    communityProfileTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    personaStore?.openSwitcher();
+  };
   const footerProfileLabel = () => {
     const persona = footerPersona();
+    if (persona !== undefined && switchTarget()?.nameAction !== undefined) return interpolateMessage(namingCopy.profileControl, { name: persona.displayName });
     if (persona !== undefined) return `Profile, ${persona.displayName}`;
     if (switchTarget()?.unavailable) return "Retry profiles";
     if (switchTarget() !== undefined && switchable()) return "Choose a posting profile";
@@ -181,14 +190,14 @@ export function ApplicationChrome(props: MediaShellProps) {
     const persona = footerPersona();
     if (switchTarget()?.unavailable) return "Retry profiles";
     if (persona === undefined) return "Choose a posting profile";
-    if (switchTarget()?.nameAction !== undefined) return `Profile options, ${persona.displayName}`;
+    if (switchTarget()?.nameAction !== undefined) return interpolateMessage(namingCopy.profileOptions, { name: persona.displayName });
     return switchable() ? `Switch posting profile, ${persona.displayName}` : `Open posting profile, ${persona.displayName}`;
   };
   const openFooterProfile = () => {
     if (!signedIn()) { openOwnProfile(); return; }
     const persona = footerPersona();
     if (switchTarget() !== undefined) {
-      if (switchTarget()?.nameAction !== undefined) personaStore?.openSwitcher();
+      if (switchTarget()?.nameAction !== undefined) openCommunityProfiles();
       else if (persona !== undefined) go(profilePath(persona));
       else if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher();
       else openProfilePicker();
@@ -343,7 +352,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             label={desktopProfileLabel()}
             opensPicker={switchable() || switchTarget()?.unavailable === true || switchTarget()?.nameAction !== undefined}
             persona={footerPersona()}
-            onClick={() => { if (switchable() || switchTarget()?.unavailable || switchTarget()?.nameAction !== undefined) personaStore?.openSwitcher(); else openFooterProfile(); }}
+            onClick={() => { if (switchable() || switchTarget()?.unavailable || switchTarget()?.nameAction !== undefined) openCommunityProfiles(); else openFooterProfile(); }}
           />
         </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
@@ -361,7 +370,7 @@ export function ApplicationChrome(props: MediaShellProps) {
               personas={target().personas}
               selectedPersonaId={selectedSwitchPersonaId()}
               title={target().title ?? "Profile in this community"}
-              footer={<Show when={target().nameAction}>{action => <div class="mx-4 mt-4 flex flex-col gap-2"><Show when={footerPersona()}>{profile => <a class="rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={profilePath(profile())} onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); personaStore!.closeSwitcher(); requestAnimationFrame(() => go(profilePath(profile()))); }}>Open profile</a>}</Show><button type="button" class="rounded-lg px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { personaStore!.closeSwitcher(); action().run(); }}>{action().label}</button></div>}</Show>}
+              footer={<Show when={target().nameAction}>{action => <div class="mx-4 mt-4 flex flex-col gap-2"><Show when={footerPersona()}>{profile => <a class="rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={profilePath(profile())} onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); personaStore!.closeSwitcher(); requestAnimationFrame(() => go(profilePath(profile()))); }}>{namingCopy.openProfile}</a>}</Show><button type="button" class="rounded-lg px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { personaStore!.closeSwitcher(); action().run(communityProfileTrigger); }}>{action().label}</button></div>}</Show>}
             />
           )}
         </Show>

@@ -3,6 +3,8 @@ import { ApiClientError, type GetPersonasPersonaIdHandleGrantsResponse } from "@
 import { createPublicHandleSalesClient, createSessionHandleSalesClient, handleSalesMutationOptions, readHandleSalesCsrfCookie, type PublicHandleSalesApiClient, type PublicHandleGrantApiClient, type SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { resolveSession, refreshSession, sessionPersonasUnavailable, type AuthenticatedSession } from "../../../api/session.ts";
 import { toast } from "../../../design-system.ts";
+import { usePageUiLocale, type UiLocaleCode } from "../../../lib/ui-locale.tsx";
+import { getLocaleMessages } from "../../../locales/index.ts";
 import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityProfileAttempt } from "../../identity/community-profile-attempt.ts";
 import { isSupportedHandleOffering, normalizeDesiredHandleLabel, offeringAppliesToLabel, type SupportedHnsOffering } from "../handle-storefront/handle-storefront.model.ts";
@@ -25,10 +27,12 @@ export interface CommunityNameControllerOptions {
   readonly csrf?: typeof readHandleSalesCsrfCookie;
   readonly refresh?: typeof refreshSession;
   readonly claimPolling?: Pick<RunFreeHandleClaimInput, "maxPolls" | "sleep">;
+  readonly locale?: UiLocaleCode;
 }
 export type CommunityNameClients = Pick<CommunityNameControllerOptions, "claimClient" | "grantClient" | "csrf" | "claimPolling">;
 
 export function createCommunityNameController(options: CommunityNameControllerOptions) {
+  const copy = getLocaleMessages(options.locale ?? usePageUiLocale(), "routes").communityJoinName;
   const [offering, setOffering] = createSignal<SupportedHnsOffering>();
   const [open, setOpen] = createSignal(false);
   const [recoverable, setRecoverable] = createSignal(false);
@@ -128,7 +132,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         setState(issued === undefined ? { kind: "editing", label: "" } : { kind: "issued", label: issued.handle.handle_label, identifier: issued.display_identifier });
       }
       setOpen(true);
-    } catch { if (!signal.aborted) toast.error("Your community name could not be loaded. Retry from Profile."); }
+    } catch { if (!signal.aborted) toast.error(copy.loadFailed); }
     finally { if (request?.signal === signal) busy = false; }
   };
 
@@ -152,7 +156,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         if (attempt?.reservation === undefined && attempt?.claim === undefined) {
           sessionStorage.removeItem(communityNameStorageKey(session.userId, options.communityId)); setRecoverable(false);
           setOffering(currentOffering); setState({ kind: "editing", label });
-          toast.error("The name offer changed. Check its rules and press Get name again."); return;
+          toast.error(copy.offerChanged); return;
         }
         throw new Error("offering_changed");
       }
@@ -207,10 +211,10 @@ export function createCommunityNameController(options: CommunityNameControllerOp
           // Claim replay precedes reservation expiry checks on the server.
           // A new explicit Get name press supplies fresh consent after expiry.
           sessionStorage.removeItem(communityNameStorageKey(accountId, options.communityId)); setRecoverable(false);
-          setState({ kind: "editing", label }); toast.error("The name request expired. Press Get name to start again.");
+          setState({ kind: "editing", label }); toast.error(copy.requestExpired);
         } else {
           setState(retained === undefined ? { kind: "failed", label, joined: true } : { kind: "pending", label: retained.label, claimId: retained.claim?.claim.claim_id ?? "", unconfirmed: true });
-          if (error instanceof ApiClientError && error.status === 401) toast.error("Sign in again from Profile, then retry this name.");
+          if (error instanceof ApiClientError && error.status === 401) toast.error(copy.signInRetry);
         }
       }
     } finally { if (request?.signal === signal) busy = false; }

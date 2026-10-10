@@ -22,7 +22,7 @@ export interface PersonaSwitchTarget {
   readonly loading?: boolean;
   readonly unavailable?: boolean;
   readonly onRetry?: () => void;
-  readonly nameAction?: { readonly label: string; readonly run: () => void };
+  readonly nameAction?: { readonly label: string; readonly run: (returnFocus?: HTMLElement) => void };
 }
 
 export interface ActivePersonaStore {
