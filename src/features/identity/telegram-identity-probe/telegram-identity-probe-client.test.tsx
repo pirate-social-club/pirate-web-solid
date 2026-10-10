@@ -58,7 +58,7 @@ describe("identity-only headless client", () => {
     await expect(makeClient(new AbortController().signal)).rejects.toThrow("probe_unavailable");
     expect(sdk.initialize).not.toHaveBeenCalled();
   });
-  it("renders a same-tab sign-in action with no popup or account connection", async () => {
+  it("renders same-tab sign-in and clears a cached Back restoration without a popup or account connection", async () => {
     const values = new Map<string, string>();
     const tab = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
     const navigate = vi.fn(), container = document.createElement("div"); document.body.appendChild(container);
@@ -71,6 +71,10 @@ describe("identity-only headless client", () => {
       await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("https://oauth.telegram.org/auth"));
       expect(container.textContent).not.toContain("Connect account");
       expect(values.size).toBe(1);
+      const restored = new Event("pageshow"); Object.defineProperty(restored, "persisted", { value: true });
+      window.dispatchEvent(restored);
+      await vi.waitFor(() => expect(container.textContent).toContain("Previous login cancelled."));
+      expect(values.size).toBe(0); expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
     } finally { cleanup(); container.remove(); }
   });
 });

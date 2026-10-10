@@ -19,7 +19,11 @@ export function TelegramIdentityProbePage(props: { readonly callback?: boolean; 
       if (props.callback) void controller.resume(url);
       else controller.reset();
       const timer = window.setInterval(() => controller?.tick(), 500);
-      onCleanup(() => window.clearInterval(timer));
+      const restored = (event: PageTransitionEvent) => {
+        if (event.persisted && !props.callback) controller?.cancel("Previous login cancelled. You can start again.");
+      };
+      window.addEventListener("pageshow", restored);
+      onCleanup(() => { window.clearInterval(timer); window.removeEventListener("pageshow", restored); });
     } catch { setView({ phase: "error", message: "This browser cannot keep temporary login state. Open the test in your browser and try again." }); }
   });
   onCleanup(() => controller?.dispose());
