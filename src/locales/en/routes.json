@@ -223,5 +223,9 @@
     "signInToCreate": "Sign in to create",
     "submit": "Create",
     "tryAgain": "Try again"
+  },
+  "publicIdentity": {
+    "fallback": "User {suffix}",
+    "unavailable": "Unavailable profile"
   }
 }

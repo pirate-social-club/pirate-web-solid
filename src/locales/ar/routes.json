@@ -223,5 +223,9 @@
     "signInToCreate": "سجّل الدخول للإنشاء",
     "submit": "إنشاء",
     "tryAgain": "أعد المحاولة"
+  },
+  "publicIdentity": {
+    "fallback": "مستخدم {suffix}",
+    "unavailable": "الملف الشخصي غير متاح"
   }
 }

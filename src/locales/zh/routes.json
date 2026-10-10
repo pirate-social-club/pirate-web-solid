@@ -223,5 +223,9 @@
     "signInToCreate": "登录以创建",
     "submit": "创建",
     "tryAgain": "重试"
+  },
+  "publicIdentity": {
+    "fallback": "用户 {suffix}",
+    "unavailable": "个人资料不可用"
   }
 }

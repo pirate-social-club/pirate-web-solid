@@ -1,5 +1,7 @@
 import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
 import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
@@ -138,20 +140,20 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
 }
 
 export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
-  // The feed adapter always resolves a handle, including "Anonymous" and a
-  // generic public label. This covers a caller that supplied none, and says so
-  // rather than attributing the post to an invented account.
-  const author = () => props.post.authorHandle ?? "Unknown author";
+  const locale = usePageUiLocale();
+  const author = () => props.post.authorProfile !== undefined
+    ? publicProfileLabel(props.post.authorProfile, locale, props.post.authorPublicHandle)
+    : props.post.authorHandle ?? "Unknown author";
   return (
     <article class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
-          communityId={props.post.id}
+          communityId={props.post.authorPersonaId ?? props.post.id}
           displayName={author()}
           size="xs"
         />
-        <Type as="span" variant="label">{author()}</Type>
+        <Type as="span" variant="label"><Show when={publicProfileHref(props.post.authorPersonaId)} fallback={author()}>{href => <a href={href()} class="relative z-10 hover:underline">{author()}</a>}</Show></Type>
         <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
         <div class="relative z-10 ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
         <Show when={props.post.kind === "song" && props.communityId}>

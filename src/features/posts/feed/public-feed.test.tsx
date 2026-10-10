@@ -1,3 +1,4 @@
+import { publicProfileFragment } from "../../identity/public-profile-label.ts";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -76,6 +77,27 @@ const page: PublicFeedPage = {
 };
 
 describe("PublicFeed", () => {
+  test.each(["en", "ar", "zh"] as const)("unnamed public authors use the stable %s label, then their issued name", async locale => {
+    const personaId = "public-community-profile";
+    const publicPage: PublicFeedPage = { ...page, items: [{ ...page.items[0]!, identityMode: "public",
+      anonymousLabel: null, authorUser: "private-author-marker", authorPersonaId: personaId,
+      authorDisplayName: null, authorPrimaryPublicHandle: null, authorPublicHandle: null }] };
+    const container = render(() => <PublicFeed data={publicPage} locale={locale} />);
+    const label = `${locale === "ar" ? "مستخدم" : locale === "zh" ? "用户" : "User"} ${publicProfileFragment(personaId)}`;
+    await vi.waitFor(() => expect(container.textContent).toContain(label));
+    expect(container.textContent).not.toContain("Public creator");
+    expect(container.textContent).not.toContain("private-author-marker");
+    const named = render(() => <PublicFeed data={{ ...publicPage, items: [{ ...publicPage.items[0]!,
+      authorPrimaryPublicHandle: "nightowl.8s28", authorDisplayName: "Older display label" }] }} locale={locale} />);
+    await vi.waitFor(() => expect(named.textContent).toContain("nightowl.8s28"));
+    expect(named.textContent).not.toContain(label);
+    expect(named.textContent).not.toContain("Older display label");
+    const displayOnly = render(() => <PublicFeed data={{ ...publicPage, items: [{ ...publicPage.items[0]!,
+      authorPersonaId: null, authorDisplayName: "Chosen display label" }] }} locale={locale} />);
+    await vi.waitFor(() => expect(displayOnly.textContent).toContain("Chosen display label"));
+    expect(displayOnly.textContent).not.toContain("private-author-marker");
+  });
+
   test("accepts the sanitized staging shape through the generated client", async () => {
     let request: { readonly credentials: RequestCredentials | undefined; readonly cache: RequestCache | undefined; readonly url: string } | undefined;
     const result = await fetchPublicFeedPage({
