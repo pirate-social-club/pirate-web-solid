@@ -6,7 +6,7 @@ import {
 } from "@pirate/api-client";
 import { sameOrigin } from "./origin.ts";
 import type { ApiFetch } from "./proxy.ts";
-import { reportSessionRejection } from "./browser-session-events.ts";
+import { captureSessionAuthority, isCurrentSessionAuthority, reportSessionRejection } from "./browser-session-events.ts";
 import { browserIdentitySession } from "./browser-identity-session.ts";
 
 export type { PirateApiClient, PirateApiClientOptions, PirateApiRequestOptions } from "@pirate/api-client";
@@ -69,21 +69,29 @@ export function createGeneratedApiClient<Client>(
   const fetchImpl = options.fetchImpl ?? fetch;
   const rewriteFetchImplementation: ApiFetch = async (input, init) => {
     const rewritten = rewriteGeneratedClientUrl(input, origin);
+    const authority = captureSessionAuthority();
+    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
     if (rewritten.pathname === "/api/auth/session/logout") browserIdentitySession.clear();
     const response = await fetchImpl(rewritten, init);
     const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : requestOptions.credentials);
     if (response.status === 401 && requestOptions.credentials === "same-origin"
       && credentials === "same-origin"
-      && !rewritten.pathname.startsWith("/api/auth/")) {
+      && !rewritten.pathname.startsWith("/api/auth/")
+      && isCurrentSessionAuthority(authority)) {
       const method = init?.method ?? (input instanceof Request ? input.method : "GET");
       // Reads can be retried after a coalesced exchange. Unsafe requests and
       // wallet actions require their explicit continuation, never replay.
-      if ((method === "GET" || method === "HEAD") && await browserIdentitySession.renew() && !init?.signal?.aborted) {
-        const recovered = await fetchImpl(rewritten, init);
-        if (recovered.status === 401) reportSessionRejection();
-        return recovered;
+      if (signal?.aborted) return response;
+      if (method === "GET" || method === "HEAD") {
+        const renewed = await browserIdentitySession.renew();
+        if (signal?.aborted || !isCurrentSessionAuthority(authority)) return response;
+        if (renewed) {
+          const recovered = await fetchImpl(rewritten, init);
+          if (recovered.status === 401 && !signal?.aborted) reportSessionRejection(authority);
+          return recovered;
+        }
       }
-      reportSessionRejection();
+      reportSessionRejection(authority);
     }
     return response;
   };

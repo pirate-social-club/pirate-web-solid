@@ -1,3 +1,5 @@
+import { replaceSessionAuthority } from "./browser-session-events.ts";
+
 /** A page-local provider session, never a persisted Pirate bearer credential. */
 export interface BrowserIdentitySession {
   renew(signal: AbortSignal): Promise<boolean>;
@@ -54,4 +56,11 @@ export function createBrowserIdentitySessionStore(timeoutMs = 30_000) {
   };
 }
 
-export const browserIdentitySession = createBrowserIdentitySessionStore();
+const pageIdentitySession = createBrowserIdentitySessionStore();
+export const browserIdentitySession = {
+  ...pageIdentitySession,
+  retain(session: BrowserIdentitySession) {
+    pageIdentitySession.retain(session);
+    replaceSessionAuthority();
+  },
+};

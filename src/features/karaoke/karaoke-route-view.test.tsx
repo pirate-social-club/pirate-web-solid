@@ -4,8 +4,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { createSignal } from "solid-js";
 import type { AuthenticatedSession } from "../../api/session";
 import type { ActivityPersonaPreparationApi } from "../identity/activity-persona-preparation";
-import type { KaraokeApiClient } from "./karaoke-api";
-import { KaraokeSessionRouteView } from "./karaoke-route-view";
+import { createKaraokeApiClient, type KaraokeApiClient } from "./karaoke-api";
+import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "./karaoke-route-view";
+import { clearSession, refreshSession } from "../../api/session.ts";
 import { createRouter, memoryHistory } from "@solidjs/router";
 import type { UseKaraokeScoringOptions, UseKaraokeScoringResult } from "./scoring/use-karaoke-scoring-session";
 import type { KaraokeScoringState } from "./scoring/karaoke-scoring-controller";
@@ -63,6 +64,21 @@ async function start(host: HTMLElement) {
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
+});
+
+test.each(["karaoke", "leaderboard"] as const)("anonymous %s refusal settles without a session-refresh request loop", async activity => {
+  clearSession(); refreshSession();
+  const fetchImpl = vi.fn(async () => Response.json({ error: { code: "auth_error", message: "Not authenticated", retryable: false } }, { status: 401 }));
+  const client = createKaraokeApiClient({ origin: "https://pirate.sc", fetchImpl });
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const TestRouter = createRouter({ history: memoryHistory(), routes: [{ path: "/" }] });
+  const dispose = render(() => <TestRouter>{() => activity === "karaoke"
+    ? <KaraokeSessionRouteView postId="post-1" client={client} />
+    : <KaraokeLeaderboardRouteView postId="post-1" client={client} />}</TestRouter>, host);
+  disposers.push(() => { dispose(); host.remove(); });
+  await vi.waitFor(() => expect(host.textContent).toContain(activity === "karaoke" ? "Karaoke unavailable" : "Sign in"));
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(fetchImpl).toHaveBeenCalledOnce();
 });
 
 function failingScoring(code: string, microphone: boolean) {

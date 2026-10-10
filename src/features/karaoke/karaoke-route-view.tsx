@@ -1,3 +1,4 @@
+import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
 import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { KaraokeApiError } from "./karaoke-session-bridge.ts";
@@ -271,6 +272,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     >
       <Title>{props.payload.title ? `${props.payload.title} · Karaoke` : "Karaoke"}</Title>
       <KaraokePracticeSurface
+        rewardSlot={<Show when={communityId}><MegapotShareStatus communityId={communityId} postId={props.postId} /></Show>}
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
         lines={lines()}

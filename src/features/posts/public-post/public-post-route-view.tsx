@@ -1,6 +1,7 @@
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
+import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { ContentOverflowMenu } from "../shared-engagement/content-overflow-menu.tsx";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
@@ -139,6 +140,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
               {(controls, menuActions) => <CommunityPostCard post={songPost()} actions={controls} menuActions={menuActions} />}
             </PublicPostEngagement>
+            <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
             <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
             <Show when={route()}>
               {(songRoute) => (
@@ -246,8 +248,10 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     // Drop rendered content immediately; the new account must win its own read.
     setRefreshing(true);
     setRefreshed({ source, state: { kind: "unavailable", status: 502 } });
-    void Promise.resolve(prior).then(async current => {
-      if (!current || !("activity" in current)) return;
+    // The route source retains its activity while the rendered state is a
+    // loading placeholder. A second identity change must still reread it.
+    void Promise.resolve(source).then(async current => {
+      if (request.signal.aborted || source !== props.state || !current || !("activity" in current)) return;
       const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, request.signal);
       if (!request.signal.aborted && source === props.state) setRefreshed({ source, state: next });
     }).catch(() => undefined).finally(() => {

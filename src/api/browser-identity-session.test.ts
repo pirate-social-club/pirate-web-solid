@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, test, vi } from "vitest";
 import { createBrowserIdentitySessionStore, browserIdentitySession } from "./browser-identity-session";
 import { createGeneratedApiClient } from "./client";

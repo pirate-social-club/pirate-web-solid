@@ -1,3 +1,4 @@
+import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
@@ -171,6 +172,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
           <Type variant="body">{props.post.body}</Type>
         </Show>
         <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} />
+        <Show when={props.communityId}>{communityId => <MegapotPoolSummary communityId={communityId()} postId={props.post.id} compact />}</Show>
       </Show>
       <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
     </article>
