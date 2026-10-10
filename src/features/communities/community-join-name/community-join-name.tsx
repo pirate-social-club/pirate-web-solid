@@ -104,6 +104,7 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
                   id={`${id}-name`} class="min-w-0 border-0 px-0 shadow-none focus-visible:ring-0"
                   value={state().label} autocomplete="nickname" autocapitalize="none"
                   spellcheck={false} disabled={busy() || pending()}
+                  tabindex={busy() || pending() ? -1 : undefined}
                   aria-describedby={`${id}-hint`}
                   aria-invalid={invalid() || taken() ? "true" : undefined}
                   onInput={event => props.onLabelChange(event.currentTarget.value)}
@@ -122,7 +123,7 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
             </p>}</Show>
             <Show when={pending()}><p class="text-sm text-muted-foreground" role="status">{pendingCopy()}</p></Show>
             <Show when={pending()} fallback={
-              <Button class="w-full" type="submit" loading={busy()} disabled={disabled()}>
+              <Button class="w-full" type="submit" loading={busy()} disabled={disabled()} tabindex={disabled() ? -1 : undefined}>
                 {busy() ? progress() : failed() ? copy.retry : props.joined ? copy.getName : copy.join}
               </Button>
             }>

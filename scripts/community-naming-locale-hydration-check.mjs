@@ -14,13 +14,14 @@ const preview = { id: communityId, object: "community_preview", display_name: "L
 const mutations = [];
 const fixtureReads = new Set();
 const publicCredentialLeaks = [];
+let releaseConfirmation;
 const upstream = createServer((request, response) => {
   const path = new URL(request.url, "http://fixture").pathname;
   if (request.method === "GET") fixtureReads.add(path);
   const send = (status, body) => { response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); response.end(JSON.stringify(body)); };
   if (request.method === "POST") {
     mutations.push({ path, csrf: request.headers["x-csrf-token"] === "fixture-csrf" });
-    if (path === "/handle-persona-link-confirmations") return send(200, confirmation);
+    if (path === "/handle-persona-link-confirmations") { releaseConfirmation = () => send(200, confirmation); return; }
     if (path === "/handle-quotes") return send(200, quote);
     if (path === "/handle-reservations") return send(200, reservation);
     if (path === "/handle-claims") return send(409, { error: { code: "conflict", message: "Fixture expiry", retryable: false, details: { reason: "reservation_expired" } } });
@@ -66,6 +67,7 @@ try {
     const { communityJoinName: copy } = JSON.parse(await readFile(new URL(`../src/locales/${locale}/routes.json`, import.meta.url), "utf8"));
     for (const mobile of [false, true]) {
       mutations.length = 0;
+      releaseConfirmation = undefined;
       const context = await browser.newContext({ bypassCSP: true, locale: "en-US", extraHTTPHeaders: { "accept-language": locale }, viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 800 } });
       try {
         // Browser-only CSRF fixture; no real session or provider credentials.
@@ -99,6 +101,21 @@ try {
         await dialog.waitFor();
         await dialog.getByRole("textbox", { name: copy.label, exact: true }).fill(label);
         await dialog.getByRole("button", { name: copy.getName, exact: true }).click();
+        await page.locator('[data-community-join-name-state="submitting"]').waitFor();
+        await dialog.getByRole("textbox", { name: copy.label, exact: true }).evaluate(element => {
+          if (!element.disabled) throw new Error("Submitting fixture did not disable the field");
+        });
+        // The primitive refreshes its focusable set after the disabled/tabindex mutation.
+        await page.waitForTimeout(200);
+        await page.waitForFunction(element => element.contains(document.activeElement), await dialog.elementHandle());
+        for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 8; index += 1) {
+          await page.keyboard.press(key);
+          const focus = await dialog.evaluate(element => ({ inside: element.contains(document.activeElement), active: document.activeElement?.outerHTML,
+            controls: [...element.querySelectorAll('input,button')].map(control => ({ tag: control.tagName, disabled: control.disabled, tabIndex: control.tabIndex })) }));
+          assert(focus.inside, `${locale}: focus escaped submitting dialog ${JSON.stringify({ key, index, focus })}`);
+        }
+        assert(typeof releaseConfirmation === "function", "Confirmation fixture was not held");
+        releaseConfirmation();
         await page.getByText(copy.requestExpired, { exact: true }).waitFor();
         // Wait for the outgoing profile sheet's close transition to release its focus scope.
         await page.waitForTimeout(500);
@@ -118,7 +135,7 @@ try {
         await dialog.waitFor({ state: "hidden" });
         await page.waitForTimeout(350);
         assert(await profileControl.evaluate(element => element === document.activeElement), `${locale}: closing naming did not return focus to Profile`);
-        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, publicCredentialLeaks: 0 });
+        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, submittingFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, publicCredentialLeaks: 0 });
       } finally { await context.close(); }
     }
   }
