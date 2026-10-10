@@ -2,9 +2,10 @@ import { Show, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { createRewardClaimData } from "../../api/reward-claim";
 import { safeReturnPath } from "../../features/auth/sign-in-return";
-import { resolveSession, sessionPersonasUnavailable, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
-import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, PERSONA_CREATION_UNAVAILABLE, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
-import { CommunityPersonaChoiceDialog } from "../../features/identity/community-persona-choice-sheet";
+import { resolveSession, sessionPersonasUnavailable, refreshSession } from "../../api/session";
+import { toCommunityPersonaChoiceWire } from "../../features/identity/community-persona-choice";
+import { createCommunityProfileAttempt } from "../../features/identity/community-profile-attempt.ts";
+import { rememberJoinedNameContinuation } from "../../features/identity/community-join-continuation.ts";
 
 import {
   Button,
@@ -25,7 +26,7 @@ import {
   type VeryCreationTarget,
 } from "../../api/very.ts";
 
-type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "choosing" | "joining" | "joined" | "verified" | "error";
+type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "verified" | "error";
 
 type VeryWidget = Readonly<{
   open?: () => void;
@@ -159,9 +160,12 @@ export type VeryVerificationRouteProps = Readonly<{
   createCeremony?: typeof createVeryWebCeremony;
   resolveCommunityAction?: typeof resolveVeryCommunityAction;
   joinCommunity?: typeof joinVeryCommunity;
+  prepareProfile?: ReturnType<typeof createCommunityProfileAttempt>;
   issueRewardClaimIntent?: () => Promise<string>;
 }>;
 export default function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
+  const prepareProfile = props.prepareProfile ?? createCommunityProfileAttempt();
+  let profileRequest: AbortController | undefined;
   const [communityId, setCommunityId] = createSignal(initialCommunityId());
   const parsedCreationTarget = initialCreationTarget();
   const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
@@ -177,9 +181,6 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
   const [completion, setCompletion] = createSignal<VeryWebCompletion>();
   const [joinedCommunityId, setJoinedCommunityId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
-  const [joinCandidates, setJoinCandidates] = createSignal<ActivePersonaPublicProjection[]>([]);
-  const [personaChoiceOpen, setPersonaChoiceOpen] = createSignal(false);
-  const [personaChoice, setPersonaChoice] = createSignal<CommunityPersonaChoice>();
   let ceremony: VeryWebCeremony | undefined;
   let widget: VeryWidget | undefined;
   let widgetObserver: MutationObserver | undefined;
@@ -202,33 +203,26 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     if (session === "anonymous") throw new VeryWebClientError("join_failed");
     if (sessionPersonasUnavailable(session)) throw new VeryWebClientError("profiles_unavailable");
-    const candidates = communityJoinCandidates(session.personas, targetCommunityId);
-    setJoinCandidates(candidates);
-    const choice = defaultCommunityPersonaChoice(candidates);
-    if (choice === undefined || choice.kind === "create_new") {
-      setPersonaChoice(undefined);
-      setPhase("choosing");
-      setPersonaChoiceOpen(true);
-      return;
-    }
-    await commitPersonaJoin(targetCommunityId, epoch, choice);
+    await commitPersonaJoin(targetCommunityId, epoch);
   }
 
-  async function commitPersonaJoin(targetCommunityId: string, epoch: number, choice: CommunityPersonaChoice) {
+  async function commitPersonaJoin(targetCommunityId: string, epoch: number) {
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
-    if (choice.kind === "create_new") {
-      setMessage(PERSONA_CREATION_UNAVAILABLE);
-      setPhase("choosing");
-      setPersonaChoiceOpen(true);
-      return;
-    }
     setPhase("joining");
-    const joined = await (props.joinCommunity ?? joinVeryCommunity)({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire(choice) });
+    const session = await (props.resolveSession ?? resolveSession)();
+    if (!operationIsCurrent(epoch, targetCommunityId) || session === "anonymous" || sessionPersonasUnavailable(session)) throw new VeryWebClientError("profiles_unavailable");
+    profileRequest?.abort(); profileRequest = new AbortController();
+    const profile = await prepareProfile({ session, communityId: targetCommunityId, signal: profileRequest.signal });
+    if (!operationIsCurrent(epoch, targetCommunityId)) return;
+    const current = await (props.resolveSession ?? resolveSession)();
+    if (current === "anonymous" || current.userId !== session.userId || !operationIsCurrent(epoch, targetCommunityId)) throw new VeryWebClientError("join_failed");
+    const joined = await (props.joinCommunity ?? joinVeryCommunity)({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire({ kind: "existing", personaId: profile.personaId }) });
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     (props.refreshSession ?? refreshSession)();
     setJoinedCommunityId(joined.communityId);
     setMessage("");
     setPhase("joined");
+    try { rememberJoinedNameContinuation(session.userId, targetCommunityId); } catch { /* Membership is committed even if the return hint cannot be retained. */ }
   }
 
   async function finishVerification(result: VeryWebCompletion, target: string, epoch: number) {
@@ -252,6 +246,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
   }
 
   onCleanup(() => {
+    profileRequest?.abort();
     active = false;
     operationEpoch += 1;
     ceremony?.cancel();
@@ -469,7 +464,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
   function reset() {
     operationEpoch += 1;
-    setPersonaChoiceOpen(false);
+    profileRequest?.abort();
     ceremony?.cancel();
     ceremony = undefined;
     cleanupWidget();
@@ -484,22 +479,6 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
   return (
     <main data-route-path="/verify/very" class="mx-auto flex min-h-screen max-w-xl flex-col gap-6 p-6">
-      <CommunityPersonaChoiceDialog label="Joining as" personas={joinCandidates()}
-        choice={personaChoice()} open={personaChoiceOpen()}
-        createNewUnavailable
-        onOpenChange={open => { if (!open) reset(); }}
-        onChoose={choice => {
-          if (choice.kind === "existing" && !joinCandidates().some(persona => persona.personaId === choice.personaId)) return;
-          setPersonaChoiceOpen(false);
-          const target = operationTarget();
-          const epoch = operationEpoch;
-          void commitPersonaJoin(target, epoch, choice).catch(error => {
-            if (!operationIsCurrent(epoch, target)) return;
-            setMessage(safeMessage(error));
-            setPhase("error");
-          });
-        }}
-      />
       <h1 class="text-2xl font-semibold">Very palm verification</h1>
       <p>Scan the QR code with the Very app on desktop, or open it directly on your phone.</p>
 
@@ -561,10 +540,6 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
       <Show when={phase() === "polling"}>
         <p role="status">Waiting for the server to receive the palm-scan result…</p>
-      </Show>
-
-      <Show when={phase() === "choosing"}>
-        <p role="status">Choose your public identity before joining this community.</p>
       </Show>
 
       <Show when={phase() === "joining"}>

@@ -718,7 +718,7 @@ describe("CommunityPage", () => {
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
         resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [{
-          personaId: "persona_1", displayName: "Member", avatarRef: null, primaryPublicHandle: null, communityBinding: null,
+          personaId: "persona_1", displayName: "Member", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" },
         }] })}
       />
     ));

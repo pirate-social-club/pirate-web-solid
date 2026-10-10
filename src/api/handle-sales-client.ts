@@ -13,6 +13,7 @@ export type PublicHandleSalesApiClient = Pick<
 >;
 
 export type PublicPersonaApiClient = Pick<PirateApiClient, "get_publicPersonasPersonaId">;
+export type PublicHandleGrantApiClient = Pick<PirateApiClient, "get_personasPersonaIdHandleGrants" | "get_handlesFamilyNamespaceRootHandleLabel">;
 
 export type SessionHandleSalesApiClient = Pick<
   PirateApiClient,
@@ -74,7 +75,7 @@ function createHandleSalesClient(
 
 export function createPublicHandleSalesClient(
   options: HandleSalesClientFactoryOptions = {},
-): PublicHandleSalesApiClient & PublicPersonaApiClient {
+): PublicHandleSalesApiClient & PublicPersonaApiClient & PublicHandleGrantApiClient {
   return createHandleSalesClient(options, { credentials: "omit" });
 }
 

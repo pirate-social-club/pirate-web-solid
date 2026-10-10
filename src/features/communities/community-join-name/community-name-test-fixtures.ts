@@ -1,0 +1,131 @@
+import type { PostHandleClaimsResponse, PostHandlePersonaLinkConfirmationsResponse, PostHandleQuotesResponse, PostHandleReservationsResponse } from "@pirate/api-client";
+import type { SupportedHandleOffering } from "../handle-storefront/handle-storefront.model.ts";
+
+export const communityId = "community-public";
+export const offering = {
+  offering_id: "offering-1",
+  offering_revision: 1,
+  offering_hash: "offering-hash",
+  community_id: communityId,
+  family: "hns",
+  namespace_root: "charizard",
+  display_root: "charizard",
+  sale_namespace_activation_id: "activation-1",
+  sale_namespace_activation_generation: 3,
+  label_scope: {
+    kind: "label_rule_v2",
+    label_grammar_id: "hns_ascii_ldh_1_63_v1",
+    reserved_labels_id: "reserved-1",
+    reserved_labels_revision: 1,
+    reserved_labels_hash: "reserved-hash",
+    availability: { kind: "length_band_v1", min_label_length: 8, max_label_length: 32 },
+  },
+  allocation: { kind: "first_come_v1" },
+  max_active_grants_per_account: 1,
+  fulfillment: { kind: "hosted_persona_v1" },
+  qualification_policy: { kind: "none_v1", policy_id: "policy-1", policy_revision: 1, policy_hash: "policy-hash" },
+  pricing: { kind: "free_v1", pricing_id: "free-1", pricing_revision: 1, pricing_hash: "price-hash", atomic_amount: "0" },
+  issuance: { family: "hns", driver_id: "hosted-persona-local", driver_version: "1" },
+  quote_ttl_seconds: 120,
+  reservation_ttl_seconds: 300,
+  status: "active",
+  created_at: "2026-08-26T12:00:00.000Z",
+} as const satisfies SupportedHandleOffering;
+
+export const personaId = "persona-public-1";
+export const label = "longname";
+export const confirmation = {
+  confirmation_id: "confirmation-1",
+  confirmation_hash: "confirmation-hash",
+  persona_id: personaId,
+  offering_id: offering.offering_id,
+  target_community_id: communityId,
+  family: "hns",
+  namespace_root: "charizard",
+  public_linkage_generation: 4,
+  persona_public_identity_digest: "persona-digest",
+  status: "available",
+  confirmed_at: "2026-08-26T12:00:00.000Z",
+  expires_at: "2026-08-26T12:10:00.000Z",
+  replayed: false,
+} as const satisfies PostHandlePersonaLinkConfirmationsResponse;
+export const quote = {
+  kind: "quoted",
+  quote: {
+    quote_id: "quote-1",
+    quote_hash: "quote-hash",
+    offering_id: offering.offering_id,
+    offering_revision: 1,
+    offering_hash: offering.offering_hash,
+    sale_namespace_activation_id: offering.sale_namespace_activation_id,
+    sale_namespace_activation_generation: 3,
+    fulfillment: { kind: "hosted_persona_v1" },
+    owner_persona_id: personaId,
+    handle: { family: "hns", namespace_root: "charizard", handle_label: label },
+    display_identifier: `${label}.charizard`,
+    pricing: { kind: "free_v1", pricing_id: "free-1", pricing_revision: 1, pricing_hash: "price-hash", atomic_amount: "0" },
+    eligibility: { policy_revision: 1, policy_hash: "policy-hash", decision: "passed", evidence_use_ids: [], evaluated_at: "2026-08-26T12:00:00.000Z" },
+    status: "quoted",
+    quoted_at: "2026-08-26T12:00:00.000Z",
+    expires_at: "2026-08-26T12:02:00.000Z",
+  },
+  replayed: false,
+} as const satisfies PostHandleQuotesResponse;
+export const reservation = {
+  reservation: {
+    reservation_id: "reservation-1",
+    reservation_hash: "reservation-hash",
+    quote_id: "quote-1",
+    quote_hash: "quote-hash",
+    offering_id: offering.offering_id,
+    offering_hash: offering.offering_hash,
+    sale_namespace_activation_id: offering.sale_namespace_activation_id,
+    sale_namespace_activation_generation: 3,
+    fulfillment: { kind: "hosted_persona_v1" },
+    owner_persona_id: personaId,
+    handle: { family: "hns", namespace_root: "charizard", handle_label: label },
+    status: "reserved",
+    reserved_at: "2026-08-26T12:00:00.000Z",
+    expires_at: "2026-08-26T12:05:00.000Z",
+  },
+  replayed: false,
+} as const satisfies PostHandleReservationsResponse;
+
+export function claim(state: "issuance_pending" | "issued" | "blocked" = "issued"): Extract<PostHandleClaimsResponse["claim"], { fulfillment: { kind: "hosted_persona_v1" | "delegated_zone_v1" } }> {
+  const grant = state === "issued" ? {
+    grant_id: "grant-1",
+    grant_generation: 1,
+    community_id: communityId,
+    offering_id: offering.offering_id,
+    offering_hash: offering.offering_hash,
+    claim_id: "claim-1",
+    owner_persona_id: personaId,
+    sale_namespace_activation_id: offering.sale_namespace_activation_id,
+    sale_namespace_activation_generation: 3,
+    fulfillment: { kind: "hosted_persona_v1" as const },
+    handle: { family: "hns" as const, namespace_root: "charizard", handle_label: label },
+    display_identifier: `${label}.charizard`,
+    status: "active" as const,
+    issued_at: "2026-08-26T12:00:01.000Z",
+  } : null;
+  return {
+    claim_id: "claim-1",
+    owner_persona_id: personaId,
+    offering_id: offering.offering_id,
+    offering_hash: offering.offering_hash,
+    quote_id: "quote-1",
+    reservation_id: "reservation-1",
+    reservation_hash: "reservation-hash",
+    sale_namespace_activation_id: offering.sale_namespace_activation_id,
+    sale_namespace_activation_generation: 3,
+    fulfillment: { kind: "hosted_persona_v1" },
+    handle: { family: "hns", namespace_root: "charizard", handle_label: label },
+    display_identifier: `${label}.charizard`,
+    payment: { kind: "not_required_v1", pricing_revision: 1, pricing_hash: "price-hash", atomic_amount: "0", status: "not_applicable" },
+    state,
+    safe_reason: state === "blocked" ? "handle_unavailable" : null,
+    grant,
+    created_at: "2026-08-26T12:00:00.000Z",
+    updated_at: "2026-08-26T12:00:01.000Z",
+  };
+}

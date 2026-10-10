@@ -4,6 +4,31 @@ import { createBrowserIdentitySessionStore, browserIdentitySession } from "./bro
 import { createGeneratedApiClient } from "./client";
 
 describe("page-local identity recovery", () => {
+  test("retires profile activation promptly on account replacement even when the provider stalls", async () => {
+    const store = createBrowserIdentitySessionStore();
+    let activationSignal: AbortSignal | undefined;
+    const activatePersonaWallet = vi.fn((_account, _persona, _key, signal: AbortSignal) => { activationSignal = signal; return new Promise<void>(() => {}); });
+    store.retain({ renew: async () => true, clear: vi.fn(), activatePersonaWallet });
+    const result = store.activatePersonaWallet("account", "profile", "wallet-key", new AbortController().signal);
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    store.retain({ renew: async () => true, clear: vi.fn() });
+    await rejected;
+    expect(activationSignal?.aborted).toBe(true);
+    expect(await store.activatePersonaWallet("other", "other-profile", "key", new AbortController().signal)).toBe(false);
+    store.clear();
+  });
+  test("bounds a stalled profile wallet activation", async () => {
+    vi.useFakeTimers();
+    try {
+      const store = createBrowserIdentitySessionStore(30_000);
+      let signal: AbortSignal | undefined;
+      store.retain({ renew: async () => true, clear: vi.fn(), activatePersonaWallet: (_account, _profile, _key, value) => { signal = value; return new Promise(() => {}); } });
+      const result = store.activatePersonaWallet("account", "profile", "wallet-key", new AbortController().signal);
+      const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(30_000); await rejected;
+      expect(signal?.aborted).toBe(true); store.clear();
+    } finally { vi.useRealTimers(); }
+  });
   test("coalesces concurrent recovery and rejects completion after logout", async () => {
     const store = createBrowserIdentitySessionStore();
     let complete!: (value: boolean) => void;

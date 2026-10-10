@@ -419,14 +419,15 @@ export async function createPrivySessionExchange(
       signal?: AbortSignal,
     ) => Promise<void>;
     readonly listPersonas?: () => Promise<GetPersonasResponse>;
+    readonly readAccountId?: () => Promise<string>;
     readonly listPendingWallets?: () => Promise<{ wallets: readonly { persona_id: string }[] }>;
     readonly register?: (body: IdentityRegistrationBody) => Promise<RegistrationResult | void>;
-    readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
+    readonly prepareWallet?: (personaId: string, idempotencyKey: string, signal?: AbortSignal) => Promise<{
       readonly persona_id: string;
       readonly hd_wallet_index: number;
       readonly status: "pending" | "active";
     }>;
-    readonly confirmWallet?: (personaId: string, accessToken: string) => Promise<{
+    readonly confirmWallet?: (personaId: string, accessToken: string, signal?: AbortSignal) => Promise<{
       readonly hd_wallet_index: number;
     }>;
     readonly csrf?: () => string | undefined;
@@ -464,31 +465,35 @@ export async function createPrivySessionExchange(
     return createSessionApiClient().get_personas(undefined);
   });
   const listPendingWallets = dependencies.listPendingWallets ?? (() => createSessionApiClient().get_personasWalletsEvmPending(undefined));
+  const readAccountId = dependencies.readAccountId ?? (async () => (await createSessionApiClient().get_usersMe(undefined)).id);
   const register = dependencies.register ?? (async (
     body: IdentityRegistrationBody,
   ): Promise<RegistrationResult> => {
     return createSessionApiClient().post_authRegister({ body }, csrfRequestOptions());
   });
-  const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
+  const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey, signal) => {
     const csrf = readCsrfCookie();
     if (csrf === undefined) throw new Error("session_failed");
     return createSessionApiClient().post_personasPersonaIdWalletsEvmPrepare({
       body: { idempotency_key: idempotencyKey },
       path: { personaId },
-    }, sessionRequestOptions(csrf));
+    }, { ...sessionRequestOptions(csrf), ...(signal === undefined ? {} : { signal }) });
   });
-  const confirmWallet = dependencies.confirmWallet ?? (async (personaId, accessToken) => {
+  const confirmWallet = dependencies.confirmWallet ?? (async (personaId, accessToken, signal) => {
     const csrf = readCsrfCookie();
     if (csrf === undefined) throw new Error("session_failed");
     return createSessionApiClient().post_personasPersonaIdWalletsEvmConfirm({
       body: { proof: { type: "privy_access_token", privy_access_token: accessToken } },
       path: { personaId },
-    }, sessionRequestOptions(csrf));
+    }, { ...sessionRequestOptions(csrf), ...(signal === undefined ? {} : { signal }) });
   });
   const activatePreparedWallet = async (
     accessToken: string,
     prepared: Awaited<ReturnType<typeof prepareWallet>>,
+    signal?: AbortSignal,
+    accountId?: string,
   ) => {
+    signal?.throwIfAborted();
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
     if (prepared.status === "active") return;
 
@@ -497,11 +502,18 @@ export async function createPrivySessionExchange(
     const preparationKey = walletPreparationKeys.get(prepared.persona_id);
     if (preparationKey === undefined) throw new Error("wallet_creation_unavailable");
     await ensureWallet(prepared.hd_wallet_index, preparationKey);
+    signal?.throwIfAborted();
     const currentAccessToken = await client.getAccessToken();
     if (currentAccessToken === null || currentAccessToken.length === 0) {
       throw new Error("auth_failed");
     }
-    const confirmed = await confirmWallet(prepared.persona_id, currentAccessToken);
+    const subject = privyAccessTokenSubject(accessToken);
+    if ((subject !== undefined && privyAccessTokenSubject(currentAccessToken) !== subject)
+      || (accountId !== undefined && await readAccountId() !== accountId)) throw new Error("wallet_identity_mismatch");
+    signal?.throwIfAborted();
+    const confirmed = signal === undefined
+      ? await confirmWallet(prepared.persona_id, currentAccessToken)
+      : await confirmWallet(prepared.persona_id, currentAccessToken, signal);
     if (confirmed.hd_wallet_index !== prepared.hd_wallet_index) {
       throw new Error("wallet_index_mismatch");
     }
@@ -592,6 +604,8 @@ export async function createPrivySessionExchange(
     terminal = true;
     const subject = privyAccessTokenSubject(accessToken);
     if ((dependencies.retainSession !== undefined || (typeof window !== "undefined" && dependencies.createPrivy === undefined)) && subject !== undefined) {
+      // A failed account read disables activation without failing sign-in.
+      const signedInAccount = readAccountId().catch(() => undefined);
       const retain = dependencies.retainSession ?? (session => browserIdentitySession.retain(session));
       retain({
         renew: async signal => {
@@ -600,7 +614,19 @@ export async function createPrivySessionExchange(
           await exchange(proof, undefined, signal);
           return !signal.aborted && (dependencies.csrf ?? readCsrfCookie)() !== undefined;
         },
-        clear: () => storage.clear(),
+        activatePersonaWallet: async (accountId, personaId, idempotencyKey, signal) => {
+          signal.throwIfAborted();
+          if (await signedInAccount !== accountId || await readAccountId() !== accountId) throw new Error("wallet_identity_mismatch");
+          const proof = await client.getAccessToken();
+          signal.throwIfAborted();
+          if (proof === null || privyAccessTokenSubject(proof) !== subject) throw new Error("wallet_identity_mismatch");
+          walletPreparationKeys.set(personaId, idempotencyKey);
+          const prepared = await prepareWallet(personaId, idempotencyKey, signal);
+          signal.throwIfAborted();
+          if (prepared.persona_id !== personaId || await readAccountId() !== accountId) throw new Error("wallet_identity_mismatch");
+          await activatePreparedWallet(proof, prepared, signal, accountId);
+        },
+        clear: () => { storage.clear(); client.dispose?.(); },
       });
     } else storage.clear();
     client.dispose?.();

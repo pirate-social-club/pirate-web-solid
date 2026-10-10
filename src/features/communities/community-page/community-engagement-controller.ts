@@ -9,7 +9,7 @@ import {
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../../api/session.ts";
-import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
+import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../../shell/application-session.tsx";
 import {
   defaultCommunityPersonaChoice,
@@ -71,6 +71,9 @@ export interface CommunityEngagementControllerOptions {
   readonly navigate: (href: string) => void;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly returnTo: string;
+  readonly prepareProfile?: (session: AuthenticatedSession, choice: CommunityPersonaChoice | undefined, signal: AbortSignal) => Promise<string>;
+  readonly continueJoinAfterSignIn?: boolean;
+  readonly onJoined?: () => void;
 }
 
 export function createCommunityEngagementController(
@@ -78,6 +81,7 @@ export function createCommunityEngagementController(
 ): CommunityEngagementController {
   const applicationSession = useApplicationSession();
   let documentRequest: AbortController | undefined;
+  let profileRequest: AbortController | undefined;
   const [following, setFollowing] = createSignal(false);
   const [membership, setMembership] = createSignal<EngagementMembership>("unknown");
   const [followerCount, setFollowerCount] = createSignal(options.initialFollowerCount);
@@ -126,6 +130,7 @@ export function createCommunityEngagementController(
   };
 
   onCleanup(() => {
+    profileRequest?.abort();
     documentRequest?.abort();
     active = false;
     sessionRequest += 1;
@@ -160,6 +165,7 @@ export function createCommunityEngagementController(
   // and a second account inherited the first account's viewer state because
   // viewer readiness never fell back to false.
   const clearAccountScopedState = () => {
+    profileRequest?.abort();
     documentRequest?.abort();
     setMembership("unknown");
     setFollowing(false);
@@ -335,8 +341,20 @@ export function createCommunityEngagementController(
   const joinCommunity = async (persona?: CommunityPersonaChoice): Promise<void> => {
     if (actionInFlight || membership() === "member") return;
     actionInFlight = true;
-    const generation = actionGeneration;
+    let generation = actionGeneration;
     try {
+      if (options.continueJoinAfterSignIn && !accountAuthenticated()) {
+        profileRequest?.abort();
+        profileRequest = new AbortController();
+        const signal = profileRequest.signal;
+        if (!await requestGlobalSignInCompletion(signal) || !active) return;
+        const resolved = await (options.resolveSession ?? resolveApplicationSession)();
+        if (!active || resolved === "anonymous") return;
+        applyFullSession(resolved);
+        // The explicit sign-in continuation is now owned by this resolved account.
+        generation = actionGeneration;
+        actionInFlight = true;
+      }
       if (!await hasAuthenticatedAccount() || !actionOwns(generation) || membership() === "member") return;
       if (!viewerReady() && !await refreshViewerState()) return;
       if (!actionOwns(generation) || membership() === "member") return;
@@ -387,7 +405,15 @@ export function createCommunityEngagementController(
       // persona choice; a request-mode join never carries one because an
       // intent does not pre-bind identity.
       let choice = action.kind === "request" ? undefined : persona;
-      if (action.kind === "join") {
+      if (action.kind === "join" && options.prepareProfile !== undefined) {
+        const session = await resolvePersonaSession();
+        if (!actionOwns(generation) || session === undefined) return;
+        profileRequest?.abort();
+        profileRequest = new AbortController();
+        const personaId = await options.prepareProfile(session, choice, profileRequest.signal);
+        if (!actionOwns(generation)) return;
+        choice = { kind: "existing", personaId };
+      } else if (action.kind === "join") {
         if (choice?.kind === "create_new") {
           setError(PERSONA_CREATION_UNAVAILABLE);
           setJoinPersonaChoice(undefined);
@@ -426,6 +452,7 @@ export function createCommunityEngagementController(
         // The join result proves membership, not a subscription count.
         // A failed preview must not undo the committed membership.
         await refreshViewerState();
+        if (actionOwns(generation)) options.onJoined?.();
       } else {
         setMembership("pending");
         setMessage("Membership request sent.");
@@ -433,7 +460,7 @@ export function createCommunityEngagementController(
     } catch (error) {
       if (actionOwns(generation)) setError(error instanceof ApiClientError && error.status === 409
         ? "That persona is already active in another community. Choose a different persona or create a new one."
-        : "We couldn't complete the membership action. Nothing changed.");
+        : "We couldn't confirm the membership action. Retry Join to check your membership and continue.");
     } finally {
       if (actionOwns(generation)) {
         actionInFlight = false;

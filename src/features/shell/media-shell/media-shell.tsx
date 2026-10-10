@@ -181,13 +181,15 @@ export function ApplicationChrome(props: MediaShellProps) {
     const persona = footerPersona();
     if (switchTarget()?.unavailable) return "Retry profiles";
     if (persona === undefined) return "Choose a posting profile";
+    if (switchTarget()?.nameAction !== undefined) return `Profile options, ${persona.displayName}`;
     return switchable() ? `Switch posting profile, ${persona.displayName}` : `Open posting profile, ${persona.displayName}`;
   };
   const openFooterProfile = () => {
     if (!signedIn()) { openOwnProfile(); return; }
     const persona = footerPersona();
     if (switchTarget() !== undefined) {
-      if (persona !== undefined) go(profilePath(persona));
+      if (switchTarget()?.nameAction !== undefined) personaStore?.openSwitcher();
+      else if (persona !== undefined) go(profilePath(persona));
       else if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher();
       else openProfilePicker();
     } else openOwnProfile();
@@ -339,9 +341,9 @@ export function ApplicationChrome(props: MediaShellProps) {
           <CommunityPersonaControl
             desktopOnly
             label={desktopProfileLabel()}
-            opensPicker={switchable() || switchTarget()?.unavailable === true}
+            opensPicker={switchable() || switchTarget()?.unavailable === true || switchTarget()?.nameAction !== undefined}
             persona={footerPersona()}
-            onClick={() => { if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher(); else openFooterProfile(); }}
+            onClick={() => { if (switchable() || switchTarget()?.unavailable || switchTarget()?.nameAction !== undefined) personaStore?.openSwitcher(); else openFooterProfile(); }}
           />
         </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
@@ -359,6 +361,7 @@ export function ApplicationChrome(props: MediaShellProps) {
               personas={target().personas}
               selectedPersonaId={selectedSwitchPersonaId()}
               title={target().title ?? "Profile in this community"}
+              footer={<Show when={target().nameAction}>{action => <div class="mx-4 mt-4 flex flex-col gap-2"><Show when={footerPersona()}>{profile => <a class="rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={profilePath(profile())} onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); personaStore!.closeSwitcher(); requestAnimationFrame(() => go(profilePath(profile()))); }}>Open profile</a>}</Show><button type="button" class="rounded-lg px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { personaStore!.closeSwitcher(); action().run(); }}>{action().label}</button></div>}</Show>}
             />
           )}
         </Show>

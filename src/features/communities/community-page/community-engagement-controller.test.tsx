@@ -1,16 +1,17 @@
 import { ApiClientError } from "@pirate/api-client";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { AuthenticatedSession } from "../../../api/session.ts";
+import type { AuthenticatedSession, SessionResolution } from "../../../api/session.ts";
+import { GLOBAL_SIGN_IN_EVENT } from "../../auth/global-sign-in-host.tsx";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
-import { createCommunityEngagementController } from "./community-engagement-controller.ts";
+import { createCommunityEngagementController, type CommunityEngagementControllerOptions } from "./community-engagement-controller.ts";
 
 const disposers: Array<() => void> = [];
 const unboundPersona = { personaId: "persona-a", displayName: "Persona A", avatarRef: null,
   primaryPublicHandle: null, communityBinding: null };
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); });
 
-async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: AuthenticatedSession["personas"] = [], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-a", personas })) {
+async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: AuthenticatedSession["personas"] = [], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-a", personas }), integration: Pick<CommunityEngagementControllerOptions, "prepareProfile" | "onJoined"> = {}) {
   let committed = false;
   const api: CommunityEngagementApi = {
     readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: committed, followerCount: committed ? 7 : 0 })),
@@ -26,6 +27,7 @@ async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: 
       api, communityId: "community-a", initialFollowerCount: 0, membershipMode: "open",
       navigate: vi.fn(), returnTo: "/c/community-a",
       resolveSession,
+      ...integration,
     });
   });
   await vi.waitFor(() => expect(controller.postingSession() !== undefined || controller.error().includes("active personas")).toBe(true));
@@ -34,6 +36,56 @@ async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: 
 }
 
 describe("terminal community persona choice", () => {
+  test.each([true, false])("continues an anonymous Join only after successful shared sign-in: %s", async authenticated => {
+    let session: SessionResolution = "anonymous";
+    let committed = false;
+    let complete!: (authenticated: boolean) => void;
+    const handler = (event: Event) => {
+      // SAFETY: this test listens only for the completion event emitted by requestGlobalSignInCompletion.
+      complete = (event as CustomEvent<{ complete: typeof complete }>).detail.complete;
+    };
+    window.addEventListener(GLOBAL_SIGN_IN_EVENT, handler);
+    const prepareProfile = vi.fn(async () => "prepared-active");
+    const onJoined = vi.fn();
+    const api: CommunityEngagementApi = {
+      readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: false, followerCount: 0 })),
+      resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+      join: vi.fn(async () => { committed = true; return { status: "joined" as const, personaId: "prepared-active" }; }),
+      follow: vi.fn(async () => ({ following: true, followerCount: 0 })), unfollow: vi.fn(async () => ({ following: false, followerCount: 0 })),
+    };
+    const controller = createRoot(dispose => { disposers.push(dispose); return createCommunityEngagementController({ api, communityId: "community-a", initialFollowerCount: 0,
+      membershipMode: "open", navigate: vi.fn(), returnTo: "/c/community-a", continueJoinAfterSignIn: true, prepareProfile, onJoined, resolveSession: async () => session }); });
+    try {
+      const pending = controller.joinCommunity();
+      await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
+      expect(api.join).not.toHaveBeenCalled(); expect(prepareProfile).not.toHaveBeenCalled();
+      if (authenticated) session = { status: "authenticated", userId: "account-a", personas: [] };
+      complete(authenticated); await pending;
+      if (authenticated) { expect(api.join).toHaveBeenCalledWith("community-a", { kind: "existing", personaId: "prepared-active" }); expect(onJoined).toHaveBeenCalledOnce(); }
+      else { expect(api.join).not.toHaveBeenCalled(); expect(prepareProfile).not.toHaveBeenCalled(); expect(onJoined).not.toHaveBeenCalled(); }
+    } finally { window.removeEventListener(GLOBAL_SIGN_IN_EVENT, handler); }
+  });
+  test("prepares and activates a new member's profile before membership and opens naming only after join", async () => {
+    let finish!: (personaId: string) => void;
+    const prepareProfile = vi.fn(() => new Promise<string>(resolve => { finish = resolve; }));
+    const onJoined = vi.fn();
+    const { api, controller } = await setup({}, [], undefined, { prepareProfile, onJoined });
+    const pending = controller.joinCommunity();
+    await vi.waitFor(() => expect(prepareProfile).toHaveBeenCalledOnce());
+    expect(api.join).not.toHaveBeenCalled(); expect(onJoined).not.toHaveBeenCalled();
+    expect(controller.joinPersonaStep()).toBe(false);
+    finish("prepared-active"); await pending;
+    expect(api.join).toHaveBeenCalledWith("community-a", { kind: "existing", personaId: "prepared-active" });
+    expect(controller.joined()).toBe(true); expect(onJoined).toHaveBeenCalledOnce();
+  });
+
+  test.each(["request", "pending", "blocked"] as const)("does not prepare a profile or open naming for %s membership", async kind => {
+    const prepareProfile = vi.fn(async () => "prepared"); const onJoined = vi.fn();
+    const { controller } = await setup({ resolveJoinAction: async () => kind === "blocked" ? { kind, reason: "gate_failed" } : { kind },
+      join: async () => ({ status: "requested", personaId: null }) }, [], undefined, { prepareProfile, onJoined });
+    await controller.joinCommunity();
+    expect(prepareProfile).not.toHaveBeenCalled(); expect(onJoined).not.toHaveBeenCalled(); expect(controller.joined()).toBe(false);
+  });
   test("unavailable profiles block selection without claiming no eligible persona and allow retry", async () => {
     let unavailable = true;
     const { controller, api } = await setup({}, [], async () => ({ status: "authenticated", userId: "account-a",

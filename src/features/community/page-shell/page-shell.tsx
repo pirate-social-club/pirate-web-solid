@@ -364,7 +364,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         sortControl={props.composer || tab() === "about" ? undefined : sortControl()}
       />
 
-      <header class="relative bg-background px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-6">
+      <section aria-label="Community overview" class="relative bg-background px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-6">
         <div class="md:flex md:items-center md:gap-4">
           <div class="min-w-0 md:flex-1">
             {/* The avatar sits below the banner rather than overlapping it, and
@@ -441,7 +441,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </Show>
           </div>
         </div>
-      </header>
+      </section>
       </div>
 
       <Show when={!props.composer}>

@@ -16,7 +16,7 @@ export type CommunityJoinNameState = {
   | { readonly kind: "editing"; readonly issue?: "taken" | "invalid" }
   | { readonly kind: "submitting"; readonly stage: "profile" | "joining" | "issuing" }
   | { readonly kind: "failed"; readonly joined: boolean }
-  | { readonly kind: "pending"; readonly claimId: string }
+  | { readonly kind: "pending"; readonly claimId: string; readonly unconfirmed?: boolean }
   | { readonly kind: "issued"; readonly identifier: string }
 );
 
@@ -43,14 +43,16 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
     const label = normalized();
     return label !== null && offeringAppliesToLabel(props.offering, label);
   });
-  const invalid = createMemo(() => state().label !== "" && !valid());
+  const rejectedInvalid = () => { const current = state(); return current.kind === "editing" && current.issue === "invalid"; };
+  const invalid = createMemo(() => (state().label !== "" && !valid()) || rejectedInvalid());
   const busy = () => state().kind === "submitting";
   const pending = () => state().kind === "pending";
+  const pendingCopy = () => { const current = state(); return current.kind === "pending" && current.unconfirmed ? copy.failedAfterJoin : copy.pending; };
   const issued = () => state().kind === "issued";
   const issuedIdentifier = () => { const current = state(); return current.kind === "issued" ? current.identifier : ""; };
   const taken = () => { const current = state(); return current.kind === "editing" && current.issue === "taken"; };
   const failed = () => { const current = state(); return current.kind === "failed" ? current : undefined; };
-  const disabled = createMemo(() => busy() || pending() || !valid() || taken());
+  const disabled = createMemo(() => busy() || pending() || !valid() || taken() || invalid());
   const band = () => props.offering.label_scope.kind === "label_rule_v2"
     ? interpolateMessage(copy.length, {
         min: props.offering.label_scope.availability.min_label_length,
@@ -101,14 +103,14 @@ export function CommunityJoinName(props: CommunityJoinNameProps) {
               <p class={`min-h-10 text-sm leading-5 sm:min-h-5 ${invalid() || taken() ? "text-destructive-text" : "text-muted-foreground"}`} id={`${id}-hint`}
                 role={invalid() || taken() ? "alert" : undefined}>
                 {taken() ? props.joined ? copy.takenAfterJoin : copy.taken
-                  : invalid() && normalized() === null ? copy.invalid : band()}
+                  : invalid() && (normalized() === null || rejectedInvalid()) ? copy.invalid : band()}
               </p>
             </div>
 
             <Show when={failed()}>{failure => <p class="text-sm text-destructive-text" role="alert">
               {failure().joined ? copy.failedAfterJoin : copy.failedBeforeJoin}
             </p>}</Show>
-            <Show when={pending()}><p class="text-sm text-muted-foreground" role="status">{copy.pending}</p></Show>
+            <Show when={pending()}><p class="text-sm text-muted-foreground" role="status">{pendingCopy()}</p></Show>
             <Show when={pending()} fallback={
               <Button class="w-full" type="submit" loading={busy()} disabled={disabled()}>
                 {busy() ? progress() : failed() ? copy.retry : props.joined ? copy.getName : copy.join}
