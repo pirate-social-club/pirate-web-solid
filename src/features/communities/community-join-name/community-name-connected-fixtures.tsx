@@ -14,9 +14,9 @@ export function ConnectedJourney(props: { member?: boolean }) {
   const session: AuthenticatedSession = { status: "authenticated", userId: "connected-preview-account", personas: [{ personaId, displayName: "Member", avatarRef: null, primaryPublicHandle: null,
     communityBinding: { communityId, bindingSource: "first_membership" } }] };
   const storageKey = communityNameStorageKey(session.userId, communityId);
-  const previous = sessionStorage.getItem(storageKey);
-  sessionStorage.removeItem(storageKey);
-  onCleanup(() => { if (previous === null) sessionStorage.removeItem(storageKey); else sessionStorage.setItem(storageKey, previous); });
+  const previous = [localStorage, sessionStorage].map(storage => ({ storage, value: storage.getItem(storageKey) }));
+  for (const { storage } of previous) storage.removeItem(storageKey);
+  onCleanup(() => { for (const { storage, value } of previous) { if (value === null) storage.removeItem(storageKey); else storage.setItem(storageKey, value); } });
   const state: CommunityPageSuccess = { kind: "success", status: 200, requestedPathSegment: "charizard", canonicalPath: "/c/charizard", canonicalUrl: "/c/charizard",
     routeFamily: "hns", routeDisplay: "charizard", communityId, initialFeed: { kind: "ready", posts: [] },
     community: { displayName: "Night Shift", description: "Music, ideas, and people building after dark.", membershipMode: "open", memberCount: 1270, followerCount: 18400, rules: [] } };

@@ -42,6 +42,27 @@ export function saveCommunityNameAttempt(storage: Storage, attempt: CommunityNam
   storage.setItem(communityNameStorageKey(attempt.accountId, attempt.communityId), JSON.stringify(attempt));
 }
 
+/** Command correlation only. Authentication remains in the host-only cookie. */
+export function readRetainedCommunityNameAttempt(accountId: string, communityId: string): CommunityNameAttempt | undefined {
+  const retained = readCommunityNameAttempt(localStorage, accountId, communityId);
+  if (retained !== undefined) return retained;
+  const previous = readCommunityNameAttempt(sessionStorage, accountId, communityId);
+  if (previous !== undefined) {
+    saveCommunityNameAttempt(localStorage, previous);
+    sessionStorage.removeItem(communityNameStorageKey(accountId, communityId));
+  }
+  return previous;
+}
+
+export function saveRetainedCommunityNameAttempt(attempt: CommunityNameAttempt): void {
+  saveCommunityNameAttempt(localStorage, attempt);
+}
+
+export function removeRetainedCommunityNameAttempt(accountId: string, communityId: string): void {
+  localStorage.removeItem(communityNameStorageKey(accountId, communityId));
+  sessionStorage.removeItem(communityNameStorageKey(accountId, communityId));
+}
+
 /** Reuse confirmed steps, then read a submitted claim instead of issuing twice. */
 export async function runCommunityNameAcquisition(input: {
   readonly client: SessionHandleSalesApiClient;

@@ -2,14 +2,14 @@ import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError, type GetPersonasPersonaIdHandleGrantsResponse, type GetHandleClaimsClaimIdResponse } from "@pirate/api-client";
 import { createCommunityNameController, type CommunityNameControllerOptions } from "./community-name-controller.ts";
-import { readCommunityNameAttempt } from "./community-name-acquisition.ts";
+import { communityNameStorageKey, createCommunityNameAttempt, readCommunityNameAttempt, saveCommunityNameAttempt } from "./community-name-acquisition.ts";
 import { communityId, offering, personaId, label, confirmation, quote, reservation, claim } from "./community-name-test-fixtures.ts";
 import type { PublicHandleGrantApiClient, SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { toast } from "../../../design-system.ts";
 import { getLocaleMessages } from "../../../locales/index.ts";
 
 const disposers: Array<() => void> = [];
-afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); sessionStorage.clear(); });
+afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); localStorage.clear(); sessionStorage.clear(); });
 const publicGrant = (): Extract<GetPersonasPersonaIdHandleGrantsResponse["items"][number], { handle: { family: "hns" } }> => ({ grant_id: "grant-1", grant_generation: 1, community_id: communityId,
   owner_persona: { persona_id: personaId, object: "persona", display_name: null, avatar_ref: null, primary_public_handle: `${label}.charizard` },
   sale_namespace_activation_id: offering.sale_namespace_activation_id, sale_namespace_activation_generation: 3, fulfillment: { kind: "hosted_persona_v1" },
@@ -37,6 +37,30 @@ async function setup(input: { api?: SessionHandleSalesApiClient; grants?: GetPer
 }
 
 describe("connected community name ownership and recovery", () => {
+  it("retains another tab's original intent discovered during profile preparation", async () => {
+    const { controller, api, prepare } = await setup();
+    const retained = createCommunityNameAttempt({ accountId: "account", communityId, personaId, offering, label: "another-name" });
+    prepare.mockImplementationOnce(async () => {
+      saveCommunityNameAttempt(localStorage, retained);
+      return { personaId, displayName: null, avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" } };
+    });
+    await controller.show(); controller.setLabel(label);
+    await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
+    expect(controller.state()).toMatchObject({ kind: "pending", label: retained.label });
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)).toEqual(retained);
+    for (const method of [api.post_handlePersonaLinkConfirmations, api.post_handleQuotes, api.post_handleReservations, api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
+  });
+  it("fails before commands when persistent recovery cannot be saved", async () => {
+    const { controller, api } = await setup();
+    await controller.show(); controller.setLabel(label);
+    await vi.waitFor(() => expect(controller.state().label).toBe(label));
+    const unavailable = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("Storage unavailable", "QuotaExceededError"); });
+    try {
+      await controller.submit();
+      expect(controller.state().kind).toBe("failed");
+      for (const method of [api.post_handlePersonaLinkConfirmations, api.post_handleQuotes, api.post_handleReservations, api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
+    } finally { unavailable.mockRestore(); }
+  });
   it.each(["ar", "zh"] as const)("localizes recovery feedback without a Storybook provider: %s", async locale => {
     const previous = document.documentElement.lang; document.documentElement.lang = locale;
     const notify = vi.spyOn(toast, "error").mockImplementation(() => 12345);
@@ -65,7 +89,7 @@ describe("connected community name ownership and recovery", () => {
     const second = await setup({ publicClient: { get_communitiesCommunityIdHandleOfferings: async () => ({ items: [{ ...offering, offering_revision: 2, offering_hash: "new-hash" }], next_cursor: null }) } });
     await second.controller.show(); await second.controller.resume();
     expect(second.controller.state()).toMatchObject({ kind: "editing", label });
-    expect(readCommunityNameAttempt(sessionStorage, "account", communityId)).toBeUndefined();
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)).toBeUndefined();
     expect(second.api.post_handlePersonaLinkConfirmations).not.toHaveBeenCalled(); expect(second.api.post_handleClaims).not.toHaveBeenCalled();
   });
   it("offers a fresh explicit submission after the server proves a reservation expired", async () => {
@@ -74,7 +98,7 @@ describe("connected community name ownership and recovery", () => {
       { error: { code: "conflict", message: "expired", retryable: false, details: { reason: "reservation_expired" } } }); });
     await controller.show(); controller.setLabel(label); await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
     expect(controller.state()).toMatchObject({ kind: "editing", label });
-    expect(readCommunityNameAttempt(sessionStorage, "account", communityId)).toBeUndefined();
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)).toBeUndefined();
     expect(api.post_handleClaims).toHaveBeenCalledOnce(); expect(api.post_handlePersonaLinkConfirmations).toHaveBeenCalledOnce();
   });
   it("keeps a reservation-bound refusal recoverable before offering a different name", async () => {
@@ -83,7 +107,7 @@ describe("connected community name ownership and recovery", () => {
       { error: { code: "conflict", message: "unavailable", retryable: false, details: { reason: "handle_unavailable" } } }); });
     await controller.show(); controller.setLabel(label); await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
     expect(controller.state()).toMatchObject({ kind: "pending", label, unconfirmed: true });
-    const saved = readCommunityNameAttempt(sessionStorage, "account", communityId)!;
+    const saved = readCommunityNameAttempt(localStorage, "account", communityId)!;
     expect(saved.reservation).toBeDefined();
     controller.setLabel("different-name"); expect(controller.state().label).toBe(label);
   });
@@ -96,10 +120,11 @@ describe("connected community name ownership and recovery", () => {
     controller.setOpen(false); await vi.waitFor(() => expect(controller.open()).toBe(false)); expect(controller.available()).toBe(true);
     await controller.show(); expect(controller.open()).toBe(true);
   });
-  it("retains pending issuance through reload and reopens the same claim with no repeated writes", async () => {
+  it("retains pending issuance after tab closure and reopens the same claim with no repeated writes", async () => {
     const first = await setup(); await first.controller.show(); first.controller.setLabel(label); await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
     expect(first.controller.state()).toMatchObject({ kind: "pending", claimId: "claim-1", label });
     expect(first.controller.available()).toBe(true);
+    sessionStorage.clear();
     for (const dispose of disposers.splice(0)) dispose();
     const second = await setup(); expect(second.controller.open()).toBe(false);
     await second.controller.show(); expect(second.controller.state()).toMatchObject({ kind: "pending", claimId: "claim-1" });
@@ -111,6 +136,36 @@ describe("connected community name ownership and recovery", () => {
     const { controller, api, prepare } = await setup({ grants: [publicGrant()] });
     await controller.show(); expect(controller.state()).toMatchObject({ kind: "issued", identifier: `${label}.charizard` });
     expect(api.post_handlePersonaLinkConfirmations).not.toHaveBeenCalled(); expect(prepare).not.toHaveBeenCalled();
+  });
+  it("replays a lost claim response after tab closure using the original command key", async () => {
+    const first = await setup();
+    first.api.post_handleClaims = vi.fn(async () => { throw new TypeError("response_lost"); });
+    await first.controller.show(); first.controller.setLabel(label);
+    await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
+    const retained = readCommunityNameAttempt(localStorage, "account", communityId)!;
+    expect(retained.claim).toBeUndefined(); expect(retained.reservation).toBeDefined();
+    sessionStorage.clear();
+    for (const dispose of disposers.splice(0)) dispose();
+    const second = await setup(); await second.controller.show();
+    expect(second.controller.state()).toMatchObject({ kind: "pending", label, unconfirmed: true });
+    second.controller.setLabel("different-name"); expect(second.controller.state().label).toBe(label);
+    await second.controller.resume();
+    expect(second.api.post_handleClaims).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ idempotency_key: retained.keys.claim }) }), expect.anything());
+    for (const method of [second.api.post_handlePersonaLinkConfirmations, second.api.post_handleQuotes, second.api.post_handleReservations]) expect(method).not.toHaveBeenCalled();
+  });
+  it("migrates an old tab's pending command before that tab is closed", async () => {
+    const first = await setup(); await first.controller.show(); first.controller.setLabel(label);
+    await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
+    const key = communityNameStorageKey("account", communityId);
+    sessionStorage.setItem(key, localStorage.getItem(key)!); localStorage.removeItem(key);
+    for (const dispose of disposers.splice(0)) dispose();
+    const migrating = await setup(); await migrating.controller.show();
+    expect(localStorage.getItem(key)).not.toBeNull(); expect(sessionStorage.getItem(key)).toBeNull();
+    sessionStorage.clear();
+    for (const dispose of disposers.splice(0)) dispose();
+    const restarted = await setup(); await restarted.controller.show(); await restarted.controller.resume();
+    expect(restarted.controller.state()).toMatchObject({ kind: "issued", identifier: `${label}.charizard` });
+    expect(restarted.api.post_handleClaims).not.toHaveBeenCalled();
   });
   it("does not publish an issued link while the grant's host is unavailable", async () => {
     const blockedHost = { ...publicGrant(), host: { kind: "unavailable" as const, reason: "dns_or_gateway_unhealthy" as const } };
@@ -124,7 +179,7 @@ describe("connected community name ownership and recovery", () => {
     api.post_handleClaims = vi.fn(async () => { throw new TypeError("response_lost"); });
     await controller.show(); controller.setLabel(label); await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
     expect(controller.state().kind).toBe("pending");
-    const saved = readCommunityNameAttempt(sessionStorage, "account", communityId)!;
+    const saved = readCommunityNameAttempt(localStorage, "account", communityId)!;
     controller.setLabel("different-name"); expect(controller.state().label).toBe(label);
     api.post_handleClaims = vi.fn(async () => ({ claim: claim("issuance_pending"), replayed: false }));
     await controller.resume();
@@ -136,7 +191,7 @@ describe("connected community name ownership and recovery", () => {
     api.post_handleReservations = vi.fn(async () => { throw new ApiClientError({ code: "conflict", name: "Conflict", status: 409, retryable: false }, { error: { code: "conflict", message: "unavailable", retryable: false, details: { reason: "handle_unavailable" } } }); });
     await controller.show(); controller.setLabel(label); await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
     expect(controller.state()).toMatchObject({ kind: "editing", issue: "taken" });
-    expect(controller.available()).toBe(true); expect(readCommunityNameAttempt(sessionStorage, "account", communityId)).toBeUndefined();
+    expect(controller.available()).toBe(true); expect(readCommunityNameAttempt(localStorage, "account", communityId)).toBeUndefined();
     controller.setLabel("different-name"); await vi.waitFor(() => expect(controller.state().label).toBe("different-name")); expect(controller.state()).toEqual({ kind: "editing", label: "different-name" });
   });
   it("closes on account changes, retires late results, and preserves the original account's continuation", async () => {
@@ -148,7 +203,7 @@ describe("connected community name ownership and recovery", () => {
     setAccount("other-account"); await vi.waitFor(() => expect(controller.open()).toBe(false));
     finish(claim()); await submitting;
     expect(controller.state()).toEqual({ kind: "editing", label: "" });
-    expect(readCommunityNameAttempt(sessionStorage, "other-account", communityId)).toBeUndefined();
-    expect(readCommunityNameAttempt(sessionStorage, "account", communityId)?.keys.claim).toBeDefined();
+    expect(readCommunityNameAttempt(localStorage, "other-account", communityId)).toBeUndefined();
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)?.keys.claim).toBeDefined();
   });
 });

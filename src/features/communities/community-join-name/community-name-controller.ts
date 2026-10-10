@@ -8,7 +8,7 @@ import { getLocaleMessages } from "../../../locales/index.ts";
 import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityProfileAttempt } from "../../identity/community-profile-attempt.ts";
 import { isSupportedHandleOffering, normalizeDesiredHandleLabel, offeringAppliesToLabel, type SupportedHnsOffering } from "../handle-storefront/handle-storefront.model.ts";
-import { communityNameStorageKey, createCommunityNameAttempt, readCommunityNameAttempt, saveCommunityNameAttempt, runCommunityNameAcquisition, type CommunityNameAttempt } from "./community-name-acquisition.ts";
+import { createCommunityNameAttempt, readRetainedCommunityNameAttempt, saveRetainedCommunityNameAttempt, removeRetainedCommunityNameAttempt, runCommunityNameAcquisition, type CommunityNameAttempt } from "./community-name-acquisition.ts";
 import type { CommunityJoinNameState } from "./community-join-name.tsx";
 import type { RunFreeHandleClaimInput } from "../handle-storefront/handle-storefront.flow.ts";
 
@@ -76,7 +76,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     queueMicrotask(() => {
       if (!active || next === undefined || next === owner) return;
       request?.abort(); busy = false; setOpen(false); setState({ kind: "editing", label: "" });
-      try { setRecoverable(typeof next === "string" && readCommunityNameAttempt(sessionStorage, next, options.communityId) !== undefined); }
+      try { setRecoverable(typeof next === "string" && readRetainedCommunityNameAttempt(next, options.communityId) !== undefined); }
       catch { setRecoverable(false); }
       // Retain correlation keys under their original account. Another account
       // cannot access them, and signing back in can recover an uncertain write.
@@ -116,7 +116,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     const signal = start();
     try {
       const session = await ownSession(signal);
-      const attempt = readCommunityNameAttempt(sessionStorage, session.userId, options.communityId);
+      const attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId);
       if (attempt !== undefined) {
         // Old offering revisions cannot transfer intent. Their submitted claim
         // can still be checked after an offer is changed or withdrawn.
@@ -147,39 +147,41 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     setState({ kind: "submitting", stage: "profile", label });
     try {
       const session = await ownSession(signal);
-      let attempt = readCommunityNameAttempt(sessionStorage, session.userId, options.communityId);
+      let attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId);
       if (resume && attempt === undefined) throw new Error("name_attempt_unavailable");
       // A known reservation/claim stays bound to its original commands and
       // keys. A fresh offering is needed only before reaching that milestone.
       const currentOffering = attempt?.reservation !== undefined ? attempt.offering : await loadOffering(signal);
       if (!sameOffering(initialOffering, currentOffering)) {
         if (attempt?.reservation === undefined && attempt?.claim === undefined) {
-          sessionStorage.removeItem(communityNameStorageKey(session.userId, options.communityId)); setRecoverable(false);
+          removeRetainedCommunityNameAttempt(session.userId, options.communityId); setRecoverable(false);
           setOffering(currentOffering); setState({ kind: "editing", label });
           toast.error(copy.offerChanged); return;
         }
         throw new Error("offering_changed");
       }
+      let authority = session;
       if (attempt === undefined) {
         const issued = await findIssued(session, currentOffering, signal);
         await ownSession(signal);
         if (issued !== undefined) { setState({ kind: "issued", label: issued.handle.handle_label, identifier: issued.display_identifier }); return; }
         const profile = await prepare({ session, communityId: options.communityId, preferredPersonaId: options.preferredPersonaId(), signal });
-        await ownSession(signal);
-        attempt = createCommunityNameAttempt({ accountId: session.userId, communityId: options.communityId, personaId: profile.personaId, offering: currentOffering, label });
-      } else {
-        const savedPersonaId = attempt.personaId;
-        if (attempt.label !== label || !sameOffering(attempt.offering, currentOffering)
-          || attempt.offering.namespace_root !== options.root
-          || !communityOperationPersonas(session.personas, options.communityId).some(profile => profile.personaId === savedPersonaId)) throw new Error("name_attempt_changed");
+        authority = await ownSession(signal);
+        // Another tab may have retained intent while preparation was pending.
+        attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId)
+          ?? createCommunityNameAttempt({ accountId: session.userId, communityId: options.communityId, personaId: profile.personaId, offering: currentOffering, label });
       }
+      const savedPersonaId = attempt.personaId;
+      if (attempt.label !== label || !sameOffering(attempt.offering, currentOffering)
+        || attempt.offering.namespace_root !== options.root
+        || !communityOperationPersonas(authority.personas, options.communityId).some(profile => profile.personaId === savedPersonaId)) throw new Error("name_attempt_changed");
       const token = (options.csrf ?? readHandleSalesCsrfCookie)();
       const readOnlyClaim = attempt.claim !== undefined && attempt.confirmation !== undefined && attempt.quote !== undefined && attempt.reservation !== undefined;
       if (!readOnlyClaim && token === undefined) throw new Error("csrf_required");
       setState({ kind: "submitting", stage: "issuing", label });
       const result = await runCommunityNameAcquisition({ client: options.claimClient ?? createSessionHandleSalesClient(), attempt,
         requestOptions: readOnlyClaim ? { credentials: "same-origin", signal } : handleSalesMutationOptions(token!, { signal }), ...options.claimPolling,
-        save: value => { signal.throwIfAborted(); saveCommunityNameAttempt(sessionStorage, value); setRecoverable(true); } });
+        save: value => { signal.throwIfAborted(); saveRetainedCommunityNameAttempt(value); setRecoverable(true); } });
       await ownSession(signal);
       if (result.kind === "issued") {
         await verifyHost(attempt, signal, grantClient(), result.grant);
@@ -187,7 +189,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         (options.refresh ?? refreshSession)();
       } else if (result.kind === "pending") setState({ kind: "pending", label, claimId: result.claim.claim_id });
       else if (result.kind === "blocked" && result.claim.state === "blocked" && result.reason === "handle_unavailable") {
-        sessionStorage.removeItem(communityNameStorageKey(session.userId, options.communityId));
+        removeRetainedCommunityNameAttempt(session.userId, options.communityId);
         setRecoverable(false);
         setState({ kind: "editing", label, issue: "taken" });
       } else setState({ kind: "failed", label, joined: true });
@@ -196,11 +198,11 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         const reason = error instanceof ApiClientError ? error.details?.reason : undefined;
         const accountId = options.accountId();
         let retained: CommunityNameAttempt | undefined;
-        try { if (typeof accountId === "string") retained = readCommunityNameAttempt(sessionStorage, accountId, options.communityId); } catch { /* An unreadable attempt cannot prove an outcome. */ }
+        try { if (typeof accountId === "string") retained = readRetainedCommunityNameAttempt(accountId, options.communityId); } catch { /* An unreadable attempt cannot prove an outcome. */ }
         if ((reason === "handle_unavailable" || reason === "invalid_handle") && retained?.reservation === undefined && retained?.claim === undefined) {
           // A definitive pre-claim label refusal is safe to replace on a later explicit submission.
           if (typeof accountId === "string") {
-            sessionStorage.removeItem(communityNameStorageKey(accountId, options.communityId));
+            removeRetainedCommunityNameAttempt(accountId, options.communityId);
             setRecoverable(false);
           }
           setState({ kind: "editing", label, issue: reason === "handle_unavailable" ? "taken" : "invalid" });
@@ -210,7 +212,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
           // No claim command can run before the reservation is durably saved.
           // Claim replay precedes reservation expiry checks on the server.
           // A new explicit Get name press supplies fresh consent after expiry.
-          sessionStorage.removeItem(communityNameStorageKey(accountId, options.communityId)); setRecoverable(false);
+          removeRetainedCommunityNameAttempt(accountId, options.communityId); setRecoverable(false);
           setState({ kind: "editing", label }); toast.error(copy.requestExpired);
         } else {
           setState(retained === undefined ? { kind: "failed", label, joined: true } : { kind: "pending", label: retained.label, claimId: retained.claim?.claim.claim_id ?? "", unconfirmed: true });

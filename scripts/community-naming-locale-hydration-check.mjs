@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
-import { offering, communityId, personaId, label, confirmation, quote, reservation } from "../src/features/communities/community-join-name/community-name-test-fixtures.ts";
+import { offering, communityId, personaId, label, confirmation, quote, reservation, claim } from "../src/features/communities/community-join-name/community-name-test-fixtures.ts";
 
 const apiPort = 8794;
 const solidPort = 4189;
@@ -15,6 +15,8 @@ const mutations = [];
 const fixtureReads = new Set();
 const publicCredentialLeaks = [];
 let releaseConfirmation;
+let fixtureMode = "expiry";
+let claimReads = 0;
 const upstream = createServer((request, response) => {
   const path = new URL(request.url, "http://fixture").pathname;
   if (request.method === "GET") fixtureReads.add(path);
@@ -24,8 +26,11 @@ const upstream = createServer((request, response) => {
     if (path === "/handle-persona-link-confirmations") { releaseConfirmation = () => send(200, confirmation); return; }
     if (path === "/handle-quotes") return send(200, quote);
     if (path === "/handle-reservations") return send(200, reservation);
-    if (path === "/handle-claims") return send(409, { error: { code: "conflict", message: "Fixture expiry", retryable: false, details: { reason: "reservation_expired" } } });
+    if (path === "/handle-claims") return fixtureMode === "pending"
+      ? send(200, { claim: claim("issuance_pending"), replayed: false })
+      : send(409, { error: { code: "conflict", message: "Fixture expiry", retryable: false, details: { reason: "reservation_expired" } } });
   }
+  if (path === "/handle-claims/claim-1") { claimReads += 1; return send(200, claim("issuance_pending")); }
   if (path === "/c/charizard") return send(200, { community_id: communityId, canonical_route: {
     family: "hns", root_label: "charizard", root_label_display: "charizard", path_segment: "charizard", href: "/c/charizard", app_host: "app.charizard" } });
   if (path === `/communities/${communityId}/preview`) return send(200, preview);
@@ -75,7 +80,7 @@ try {
         await context.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
           ? route.continue({ headers: { ...route.request().headers(), "accept-language": locale } })
           : route.abort());
-        const page = await context.newPage();
+        let page = await context.newPage();
         const failures = [];
         page.on("pageerror", error => failures.push(error.message));
         page.on("console", message => { if (/hydration.*(mismatch|fail)|reactivity_halted|reactive_write_in_owned_scope/i.test(message.text())) failures.push(message.text()); });
@@ -87,16 +92,13 @@ try {
         await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30_000 });
         assert(await page.evaluate(() => navigator.language) === "en-US", "Browser language fixture was changed");
         assert(await page.locator("html").getAttribute("lang") === language, "Hydration changed request language");
-        const profileLabel = (mobile ? copy.profileControl : copy.profileOptions).replace("{name}", "Member");
+        const profileLabel = copy.profileControl.replace("{name}", "Member");
         const profileControl = page.getByRole("button", { name: profileLabel, exact: true });
         const profileElement = await profileControl.elementHandle();
         assert(profileElement !== null, "Profile control disappeared before naming");
         try { await profileControl.click({ timeout: 10_000 }); }
         catch (error) { console.error(JSON.stringify({ fixtureReads: [...fixtureReads], buttons: await page.getByRole("button").allTextContents(), buttonLabels: await page.getByRole("button").evaluateAll(elements => elements.map(element => element.getAttribute("aria-label"))) })); throw error; }
-        const profile = page.getByRole("dialog", { name: copy.profileTitle, exact: true });
-        await profile.waitFor();
-        assert(await profile.getByRole("link", { name: copy.openProfile, exact: true }).getAttribute("href") === `/p/${personaId}`, "Profile link lost full public ID");
-        await profile.getByRole("button", { name: copy.getName, exact: true }).click();
+        assert(await page.getByRole("dialog", { name: copy.profileTitle, exact: true }).count() === 0, "Naming opened a profile picker");
         const dialog = page.getByRole("dialog", { name: copy.title, exact: true });
         await dialog.waitFor();
         await dialog.getByRole("textbox", { name: copy.label, exact: true }).fill(label);
@@ -117,7 +119,7 @@ try {
         assert(typeof releaseConfirmation === "function", "Confirmation fixture was not held");
         releaseConfirmation();
         await page.getByText(copy.requestExpired, { exact: true }).waitFor();
-        // Wait for the outgoing profile sheet's close transition to release its focus scope.
+        // Allow the name sheet's focusable-set update to settle after the response.
         await page.waitForTimeout(500);
         assert(mutations.length === 4 && mutations.every(mutation => mutation.csrf), "Recovery fixture did not reach the four protected commands");
         for (const key of ["Tab", "Shift+Tab"]) for (let index = 0; index < 8; index += 1) {
@@ -135,8 +137,37 @@ try {
         await dialog.waitFor({ state: "hidden" });
         await page.waitForTimeout(350);
         assert(await profileControl.evaluate(element => element === document.activeElement), `${locale}: closing naming did not return focus to Profile`);
-        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, submittingFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, publicCredentialLeaks: 0 });
-      } finally { await context.close(); }
+        // Close a real browser tab while issuance is pending, then reopen the
+        // same origin. Session storage is gone; command correlation must remain.
+        mutations.length = 0; fixtureMode = "pending"; releaseConfirmation = undefined;
+        await profileControl.click();
+        await dialog.getByRole("textbox", { name: copy.label, exact: true }).fill(label);
+        await dialog.getByRole("button", { name: copy.getName, exact: true }).click();
+        for (let attempt = 0; attempt < 40 && releaseConfirmation === undefined; attempt += 1) await page.waitForTimeout(50);
+        assert(typeof releaseConfirmation === "function", "Pending confirmation fixture did not arrive"); releaseConfirmation();
+        const storageKey = `pirate:community-name:v1:locale-fixture-account:${encodeURIComponent(communityId)}`;
+        await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) ?? "null")?.claim?.claim?.claim_id === "claim-1", storageKey);
+        const originalKeys = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).keys, storageKey);
+        assert(mutations.length === 4, "Pending fixture did not reach all four commands");
+        await page.close();
+        page = await context.newPage();
+        page.on("pageerror", error => failures.push(error.message));
+        await page.goto(`${origin}/c/charizard`, { waitUntil: "domcontentloaded" });
+        await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30_000 });
+        assert(await page.evaluate(key => sessionStorage.getItem(key) === null, storageKey), "New tab inherited the old session storage");
+        await page.getByRole("button", { name: profileLabel, exact: true }).click();
+        const restored = page.getByRole("dialog", { name: copy.title, exact: true });
+        await page.locator('[data-community-join-name-state="pending"]').waitFor();
+        assert(await restored.getByRole("textbox", { name: copy.label, exact: true }).inputValue() === label, "Closed-tab recovery lost its original name");
+        assert(await restored.getByRole("textbox", { name: copy.label, exact: true }).isDisabled(), "Closed-tab recovery allowed a replacement name");
+        const readCount = claimReads;
+        await restored.getByRole("button", { name: copy.checkStatus, exact: true }).click();
+        for (let attempt = 0; attempt < 40 && claimReads === readCount; attempt += 1) await page.waitForTimeout(50);
+        assert(claimReads > readCount && mutations.length === 4, "Closed-tab recovery repeated a command instead of reading its claim");
+        assert(await page.evaluate(({ key, keys }) => JSON.stringify(JSON.parse(localStorage.getItem(key)).keys) === JSON.stringify(keys), { key: storageKey, keys: originalKeys }), "Closed-tab recovery replaced command keys");
+        assert(failures.length === 0, `${locale}: ${failures.join("; ")}`);
+        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, submittingFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, directNameReentry: true, closedTabRecovery: true, originalKeysRetained: true, noRepeatedCommands: true, publicCredentialLeaks: 0 });
+      } finally { await context.close(); fixtureMode = "expiry"; }
     }
   }
   console.log(JSON.stringify({ ok: true, evidence: "local SSR/browser/API fixtures, no live authentication or device acceptance", results }));

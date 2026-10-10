@@ -24,9 +24,9 @@ export const CloseAndReturnFromProfile: Story = { globals: { viewport: { value: 
   const dialog = await body.findByRole("dialog", { name: "Choose your name" });
   await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
   await waitFor(() => expect(body.queryByRole("dialog")).not.toBeInTheDocument());
-  await userEvent.click(await body.findByRole("button", { name: /^(Profile|Profile options), Member$/ }));
-  const profile = await body.findByRole("dialog", { name: "Profile in this community" });
-  await userEvent.click(within(profile).getByRole("button", { name: "Get name" }));
+  await userEvent.click(await body.findByRole("button", { name: "Profile, Member" }));
   await expect(await body.findByRole("dialog", { name: "Choose your name" })).toBeInTheDocument();
+  await expect(body.queryByRole("dialog", { name: "Profile in this community" })).not.toBeInTheDocument();
   await expect(within(canvasElement).queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
 } };
+export const DesktopCloseAndReturnFromProfile: Story = { ...CloseAndReturnFromProfile, globals: { viewport: { value: "reset", isRotated: false } } };
