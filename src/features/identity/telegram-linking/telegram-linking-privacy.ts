@@ -1,5 +1,6 @@
 export function isTelegramLinkPage(pathname: string): boolean {
-  return pathname === "/telegram/link" || pathname === "/telegram/link/callback" || pathname === "/telegram/link/account";
+  return pathname === "/telegram/link" || pathname === "/telegram/link/callback" || pathname === "/telegram/link/account" ||
+    pathname === "/internal/telegram-login-probe" || pathname === "/internal/telegram-login-probe/callback";
 }
 
 /** SSR must not serialize callbacks into router state, metadata or HTML. */
