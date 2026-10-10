@@ -60,7 +60,7 @@ export const Default: Story = {
   name: "Success",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: persona.primary_public_handle })).toBeInTheDocument();
     await expect(canvas.getByRole("list", { name: "Names" })).toBeInTheDocument();
   },
 };
@@ -140,7 +140,7 @@ export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: persona.primary_public_handle })).toBeInTheDocument();
     await expect(canvas.getByRole("list", { name: "Names" })).toBeInTheDocument();
     await expect(canvas.queryByRole("link", { name: "Pirate" })).toBeNull();
   },
