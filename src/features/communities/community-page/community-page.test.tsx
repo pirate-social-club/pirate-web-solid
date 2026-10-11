@@ -551,12 +551,16 @@ describe("CommunityPage", () => {
 
   test("profile failure does not open an empty composer and the Post action retries", async () => {
     let unavailable = true;
-    const resolveSession = vi.fn(async () => ({
-      status: "authenticated" as const,
-      userId: "account-one",
-      personas: [],
-      personasUnavailable: unavailable ? true as const : undefined,
-    }));
+    let sessionReadBarrier: Promise<void> | undefined;
+    const resolveSession = vi.fn(async () => {
+      await sessionReadBarrier;
+      return {
+        status: "authenticated" as const,
+        userId: "account-one",
+        personas: [],
+        personasUnavailable: unavailable ? true as const : undefined,
+      };
+    });
     const container = render(() => (
       <CommunityPage
         client={{
@@ -577,13 +581,18 @@ describe("CommunityPage", () => {
 
     const postHere = container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!;
     const readsBeforeFailedRetry = resolveSession.mock.calls.length;
+    let completeFailedRetry!: () => void;
+    sessionReadBarrier = new Promise<void>(resolve => { completeFailedRetry = resolve; });
     postHere.click();
-    expect(postHere.disabled).toBe(true);
-
-    await vi.waitFor(() => {
-      expect(resolveSession.mock.calls.length).toBeGreaterThan(readsBeforeFailedRetry);
-      expect(postHere.disabled).toBe(false);
-    });
+    try {
+      await vi.waitFor(() => {
+        expect(resolveSession.mock.calls.length).toBeGreaterThan(readsBeforeFailedRetry);
+        expect(postHere.disabled).toBe(true);
+      });
+    } finally {
+      completeFailedRetry();
+    }
+    await vi.waitFor(() => expect(postHere.disabled).toBe(false));
     expect(container.textContent).toContain("couldn't load your active personas");
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
