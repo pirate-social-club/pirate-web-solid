@@ -16,10 +16,10 @@ const publicGrant = (): Extract<GetPersonasPersonaIdHandleGrantsResponse["items"
   handle: { family: "hns", namespace_root: "charizard", handle_label: label }, display_identifier: `${label}.charizard`,
   host: { kind: "available", normalized_host: `${label}.charizard`, sale_namespace_activation_generation: 3, grant_generation: 1 }, issued_at: "2026-08-26T12:00:01Z" });
 
-async function setup(input: { api?: SessionHandleSalesApiClient; grants?: GetPersonasPersonaIdHandleGrantsResponse["items"]; host?: GetPersonasPersonaIdHandleGrantsResponse["items"][number]; publicClient?: CommunityNameControllerOptions["publicClient"]; csrf?: CommunityNameControllerOptions["csrf"] } = {}) {
+async function setup(input: { api?: SessionHandleSalesApiClient; grantClient?: PublicHandleGrantApiClient; grants?: GetPersonasPersonaIdHandleGrantsResponse["items"]; host?: GetPersonasPersonaIdHandleGrantsResponse["items"][number]; publicClient?: CommunityNameControllerOptions["publicClient"]; csrf?: CommunityNameControllerOptions["csrf"] } = {}) {
   const api: SessionHandleSalesApiClient = input.api ?? { get_personas: vi.fn(async () => ({ personas: [] })), get_handleClaimsClaimId: vi.fn(async () => claim()),
     post_handlePersonaLinkConfirmations: vi.fn(async () => confirmation), post_handleQuotes: vi.fn(async () => quote), post_handleReservations: vi.fn(async () => reservation), post_handleClaims: vi.fn(async () => ({ claim: claim("issuance_pending"), replayed: false })) };
-  const grantClient: PublicHandleGrantApiClient = { get_personasPersonaIdHandleGrants: vi.fn(async () => ({ items: input.grants ?? [], next_cursor: null })),
+  const grantClient: PublicHandleGrantApiClient = input.grantClient ?? { get_personasPersonaIdHandleGrants: vi.fn(async () => ({ items: input.grants ?? [], next_cursor: null })),
     get_handlesFamilyNamespaceRootHandleLabel: vi.fn(async () => input.host ?? publicGrant()) };
   const prepare = vi.fn(async () => ({ personaId, displayName: null, avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" as const } }));
   const refresh = vi.fn();
@@ -37,6 +37,19 @@ async function setup(input: { api?: SessionHandleSalesApiClient; grants?: GetPer
 }
 
 describe("connected community name ownership and recovery", () => {
+  it("keeps the same owner's entry visible while opening rechecks the offering", async () => {
+    const { controller, grantClient } = await setup({ publicClient: {
+      get_communitiesCommunityIdHandleOfferings: async () => ({ items: [{ ...offering }], next_cursor: null }),
+    } });
+    await vi.waitFor(() => expect(controller.entry()).toBe("new"));
+    const finishes: Array<(value: GetPersonasPersonaIdHandleGrantsResponse) => void> = [];
+    grantClient.get_personasPersonaIdHandleGrants = vi.fn(async () => new Promise<GetPersonasPersonaIdHandleGrantsResponse>(resolve => { finishes.push(resolve); }));
+    const opening = controller.show();
+    await vi.waitFor(() => expect(finishes.length).toBe(2));
+    try { expect(controller.entry()).toBe("new"); }
+    finally { for (const finish of finishes) finish({ items: [], next_cursor: null }); await opening; }
+    expect(controller.open()).toBe(true);
+  });
   it("offers a new name only after owned active-grant reads prove absence", async () => {
     const { controller, api, prepare } = await setup();
     await vi.waitFor(() => expect(controller.entry()).toBe("new"));
@@ -84,6 +97,53 @@ describe("connected community name ownership and recovery", () => {
     expect(second.controller.entry()).toBe("named");
     expect(second.api.post_handleClaims).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ idempotency_key: saved.keys.claim }) }), expect.anything());
     for (const method of [second.api.post_handlePersonaLinkConfirmations, second.api.post_handleQuotes, second.api.post_handleReservations]) expect(method).not.toHaveBeenCalled();
+  });
+  it.each(["unavailable", "wrong_grant", "wrong_generation"] as const)("keeps an issued attempt recoverable when its host is %s", async kind => {
+    const blockedHost = kind === "unavailable"
+      ? { ...publicGrant(), host: { kind: "unavailable" as const, reason: "dns_or_gateway_unhealthy" as const } }
+      : kind === "wrong_grant" ? { ...publicGrant(), grant_id: "another-grant" }
+      : { ...publicGrant(), grant_generation: 2 };
+    const saved = { ...createCommunityNameAttempt({ accountId: "account", communityId, personaId, offering, label }),
+      confirmation, quote, reservation, claim: { claim: claim(), replayed: false } };
+    saveCommunityNameAttempt(localStorage, saved);
+    const currentOffer = { ...offering, offering_revision: 2, offering_hash: "new-hash", sale_namespace_activation_generation: 4 };
+    const second = await setup({ grants: [{ ...publicGrant(), grant_id: "another-grant" }], host: blockedHost,
+      publicClient: { get_communitiesCommunityIdHandleOfferings: async () => ({ items: [currentOffer], next_cursor: null }) } });
+    await vi.waitFor(() => expect(second.controller.entry()).toBe("pending"));
+    await second.controller.restoreOnReturn();
+    expect(second.controller.state()).toMatchObject({ kind: "pending", label, claimId: "claim-1" });
+    await second.controller.resume();
+    expect(second.controller.entry()).toBe("pending");
+    expect(second.controller.state().kind).toBe("pending");
+    second.grantClient.get_handlesFamilyNamespaceRootHandleLabel = vi.fn(async () => publicGrant());
+    await second.controller.resume();
+    expect(second.controller.entry()).toBe("named");
+    expect(second.controller.state()).toMatchObject({ kind: "issued", identifier: `${label}.charizard` });
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)?.keys).toEqual(saved.keys);
+    for (const method of [second.api.post_handlePersonaLinkConfirmations, second.api.post_handleQuotes, second.api.post_handleReservations, second.api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
+    for (const dispose of disposers.splice(0)) dispose();
+    const verified = await setup({ grants: [publicGrant()],
+      publicClient: { get_communitiesCommunityIdHandleOfferings: async () => ({ items: [currentOffer], next_cursor: null }) } });
+    await vi.waitFor(() => expect(verified.controller.entry()).toBe("named"));
+    await verified.controller.restoreOnReturn(); expect(verified.controller.open()).toBe(false);
+    expect(verified.grantClient.get_handlesFamilyNamespaceRootHandleLabel).toHaveBeenCalled();
+    for (const method of [verified.api.post_handlePersonaLinkConfirmations, verified.api.post_handleQuotes, verified.api.post_handleReservations, verified.api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
+  });
+  it("recovers intent saved by another tab while the active-grant read is pending", async () => {
+    let finish!: (value: GetPersonasPersonaIdHandleGrantsResponse) => void;
+    const { controller, api } = await setup({ grantClient: {
+      get_personasPersonaIdHandleGrants: vi.fn(async () => new Promise<GetPersonasPersonaIdHandleGrantsResponse>(resolve => { finish = resolve; })),
+      get_handlesFamilyNamespaceRootHandleLabel: vi.fn(async () => publicGrant()),
+    } });
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    const saved = createCommunityNameAttempt({ accountId: "account", communityId, personaId, offering, label });
+    saveCommunityNameAttempt(localStorage, saved);
+    finish({ items: [publicGrant()], next_cursor: null });
+    await vi.waitFor(() => expect(controller.entry()).toBe("pending"));
+    await controller.restoreOnReturn();
+    expect(controller.state()).toMatchObject({ kind: "pending", label, unconfirmed: true });
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)?.keys).toEqual(saved.keys);
+    for (const method of [api.post_handlePersonaLinkConfirmations, api.post_handleQuotes, api.post_handleReservations, api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
   });
   it("retains another tab's original intent discovered during profile preparation", async () => {
     const { controller, api, prepare } = await setup();

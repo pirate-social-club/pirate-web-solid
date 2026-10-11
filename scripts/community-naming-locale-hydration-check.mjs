@@ -131,10 +131,11 @@ try {
           assert(await dialog.evaluate(element => element.contains(document.activeElement)), `${locale}: focus escaped name dialog`);
         }
         const background = await menuElement.evaluate(element => ({
+          connected: element.isConnected,
           hiddenFromAssistiveTechnology: element.closest('[aria-hidden="true"]') !== null,
           pointerEvents: getComputedStyle(element).pointerEvents,
         }));
-        assert(background.hiddenFromAssistiveTechnology && background.pointerEvents === "none", `${locale}: modal background remains interactive`);
+        assert(background.connected && background.hiddenFromAssistiveTechnology && background.pointerEvents === "none", `${locale}: modal background remains interactive ${JSON.stringify(background)}`);
         assert(failures.length === 0, `${locale}: ${failures.join("; ")}`);
         assert(publicCredentialLeaks.length === 0, "Public name reads forwarded private credentials");
         await page.keyboard.press("Escape");

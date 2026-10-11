@@ -117,6 +117,20 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     await verifyHost(intent, signal, grantClient(), grant);
     return grant;
   };
+  const inspectRetainedAttempt = async (attempt: CommunityNameAttempt, session: AuthenticatedSession, signal: AbortSignal) => {
+    if (!communityOperationPersonas(session.personas, options.communityId).some(profile => profile.personaId === attempt.personaId)
+      || attempt.offering.namespace_root !== options.root) throw new Error("saved_profile_unavailable");
+    // Neither another grant nor a changed offer settles retained intent.
+    // Only its exact issued grant and serving host can close recovery.
+    const claim = attempt.claim?.claim;
+    let verified = false;
+    if (claim?.state === "issued" && claim.grant !== null) {
+      try { await verifyHost(attempt, signal, grantClient(), claim.grant); verified = true; }
+      catch { signal.throwIfAborted(); }
+      await ownSession(signal);
+    }
+    setRecoverable(!verified); setEntry(verified ? "named" : "pending");
+  };
   // Offer a new name only after an owned session and the public active-grant
   // list prove absence. Host availability is not evidence of name absence.
   createEffect(() => [options.accountId(), options.joined(), offering()] as const, ([account, joined, currentOffering]) => {
@@ -124,23 +138,19 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     const inspection = new AbortController(); entryRequest = inspection;
     queueMicrotask(() => {
       if (!active || inspection.signal.aborted) return;
-      setEntry("checking");
+      // Keep the same owner's trigger mounted during read-only reinspection.
+      // Account changes clear it above; every action still resolves authority.
       if (typeof account !== "string" || !joined || options.root === undefined) { setEntry("unavailable"); return; }
       void (async () => {
         try {
           const session = await ownSession(inspection.signal);
           const attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId);
-          if (attempt !== undefined && (!communityOperationPersonas(session.personas, options.communityId).some(profile => profile.personaId === attempt.personaId)
-            || attempt.offering.namespace_root !== options.root)) throw new Error("saved_profile_unavailable");
-          // A grant may already exist after a claim response was lost. Keep
-          // that original command recoverable until its outcome is confirmed.
-          if (attempt !== undefined && attempt.claim?.claim.state !== "issued") {
-            setRecoverable(true); setEntry("pending"); return;
-          }
+          if (attempt !== undefined) { await inspectRetainedAttempt(attempt, session, inspection.signal); return; }
           const names = await readActiveNames(session, inspection.signal);
-          await ownSession(inspection.signal);
+          const authority = await ownSession(inspection.signal);
+          const latestAttempt = readRetainedCommunityNameAttempt(authority.userId, options.communityId);
+          if (latestAttempt !== undefined) { await inspectRetainedAttempt(latestAttempt, authority, inspection.signal); return; }
           if (names.length > 0) { setEntry("named"); return; }
-          if (attempt !== undefined || readRetainedCommunityNameAttempt(session.userId, options.communityId) !== undefined) { setRecoverable(true); setEntry("pending"); return; }
           setRecoverable(false); setEntry(currentOffering === undefined ? "unavailable" : "new");
         } catch { if (!inspection.signal.aborted) setEntry("unavailable"); }
       })();
