@@ -15,7 +15,7 @@ import {
   KaraokeRouteLoadingState,
 } from "./karaoke-route-states";
 import { createKaraokeApiClient, type ApiSongKaraokePayload, type KaraokeApiClient } from "./karaoke-api";
-import { isKaraokeAuthError, loadKaraokeLeaderboard, loadKaraokePayload, type LoadedKaraokeLeaderboard } from "./karaoke-route-model";
+import { isKaraokeAuthError, loadKaraokeLeaderboard, loadKaraokePayload, renewKaraokePlayback, type LoadedKaraokeLeaderboard } from "./karaoke-route-model";
 import { toScorableKaraokeLines } from "./karaoke-stage-bridge";
 import { toKaraokeStageLines } from "./lyric-transform";
 import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
@@ -275,6 +275,10 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         rewardSlot={<Show when={communityId}><MegapotShareStatus communityId={communityId} postId={props.postId} /></Show>}
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
+        playbackAccess={props.payload.playback_access ? {
+          grant: props.payload.playback_access.grant,
+          renew: (signal) => renewKaraokePlayback(props.client, props.payload, signal),
+        } : undefined}
         lines={lines()}
         onExit={() => navigate(props.exitPath ?? "/")}
         onFinish={(songMs) => scoring.controls.noteFinish(songMs)}
@@ -408,14 +412,18 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   const [loading, setLoading] = createSignal(true);
   let active = true;
   let generation = 0;
+  let loadController: AbortController | undefined;
   const load = async () => {
+    loadController?.abort();
+    const controller = new AbortController();
+    loadController = controller;
     const revision = ++generation;
     setLoading(true); setLoadError(null); setPayload(undefined);
-    try { const result = await loadKaraokePayload(client, props.postId); if (active && revision === generation) setPayload(result); }
+    try { const result = await loadKaraokePayload(client, props.postId, controller.signal); if (active && revision === generation) setPayload(result); }
     catch (error) { if (active && revision === generation) setLoadError(error); }
     finally { if (active && revision === generation) setLoading(false); }
   };
-  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(() => { active = false; generation += 1; loadController?.abort(); });
   onCleanup(onSessionRefreshed(() => { if (!isAgeLocked(loadError())) void load(); }));
   if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 

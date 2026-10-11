@@ -126,6 +126,143 @@ function response(body: object, status = 200): Response {
   });
 }
 
+const instrumentalPayload = {
+  ...readyPayload,
+  playback_kind: "instrumental",
+  playback_audio: { kind: "instrumental", ref: "media://immutable/song/instrumental/1" },
+};
+
+const instrumentalBinding = {
+  post_id: "pst_1",
+  community_id: "com_1",
+  karaoke_revision_id: "revision-1",
+  playback_audio: instrumentalPayload.playback_audio,
+};
+
+function instrumentalClient(payload: object = instrumentalPayload, grant: object = {}, status = 200) {
+  const requests: Request[] = [];
+  const client = createKaraokeApiClient({
+    origin: "https://web.test",
+    readCsrfToken: () => "csrf-1",
+    fetchImpl: async (input, init) => {
+      const request = new Request(input, init);
+      requests.push(request);
+      if (request.url.endsWith("/api/posts/pst_1")) return response(postDetail);
+      if (request.url.endsWith("/karaoke")) return response(payload);
+      if (!request.url.endsWith("/karaoke/playback-access")) throw new Error("Unexpected full-mix request");
+      return response({
+        ...instrumentalBinding,
+        kind: "instrumental",
+        playback_url: "https://media.test/signed/instrumental.mp3",
+        expires_at: Math.floor(Date.now() / 1000) + 900,
+        renew_after: Math.floor(Date.now() / 1000) + 840,
+        ...grant,
+      }, status);
+    },
+  });
+  return { client, requests };
+}
+
+describe("instrumental playback access", () => {
+  test.each(["media://immutable/song/instrumental/1", "https://media.test/ungranted.mp3"])(
+    "uses only the instrumental grant for readiness ref %s", async ref => {
+      const { client, requests } = instrumentalClient(
+        { ...instrumentalPayload, playback_audio: { kind: "instrumental", ref } },
+        { playback_audio: { kind: "instrumental", ref } },
+      );
+      const payload = await client.getPayload("pst_1");
+      expect(payload.instrumental_audio_url).toBe("https://media.test/signed/instrumental.mp3");
+      expect(payload.playback_access).toMatchObject({ kind: "instrumental", ref });
+      expect(requests.map(request => new URL(request.url).pathname)).toEqual([
+        "/api/posts/pst_1", "/api/communities/com_1/posts/pst_1/karaoke", "/api/posts/pst_1/karaoke/playback-access",
+      ]);
+      expect(requests[2]?.headers.get("x-csrf-token")).toBe("csrf-1");
+      await expect(requests[2]?.json()).resolves.toEqual({ community_id: "com_1", karaoke_revision_id: "revision-1", playback_ref: ref });
+    },
+  );
+
+  test.each([
+    { post_id: "another-post" },
+    { community_id: "another-community" },
+    { playback_audio: { kind: "full_mix", ref: "media://immutable/full-mix/1" } },
+    { playback_audio: { kind: "instrumental", ref: "" } },
+  ])("rejects inconsistent readiness before asking for access: %j", async overrides => {
+    const { client, requests } = instrumentalClient({ ...instrumentalPayload, ...overrides });
+    await expect(client.getPayload("pst_1")).rejects.toMatchObject({ code: "invalid_playback_grant" });
+    expect(requests).toHaveLength(2);
+  });
+
+  test.each([
+    { kind: "full_mix" },
+    { post_id: "another-post" },
+    { community_id: "another-community" },
+    { karaoke_revision_id: "revision-2" },
+    { playback_audio: { kind: "full_mix", ref: instrumentalPayload.playback_audio.ref } },
+    { playback_audio: { kind: "instrumental", ref: "media://immutable/song/other-instrumental" } },
+    { playback_audio: undefined },
+    { playback_url: "http://media.test/instrumental.mp3" },
+    { playback_url: "https://user:password@media.test/instrumental.mp3" },
+    { playback_url: "media://immutable/song/instrumental/1" },
+    { expires_at: 1, renew_after: 0 },
+    { expires_at: 2_000_000_000, renew_after: 2_000_000_001 },
+  ])("rejects a mismatched or invalid grant without a full-mix fallback: %j", async grant => {
+    const { client, requests } = instrumentalClient(instrumentalPayload, grant);
+    await expect(client.getPayload("pst_1")).rejects.toBeInstanceOf(Error);
+    expect(requests).toHaveLength(3);
+  });
+
+  test("preserves access refusal without requesting another endpoint", async () => {
+    const { client, requests } = instrumentalClient(instrumentalPayload, {
+      error: { code: "not_found", message: "Song not found", retryable: false },
+    }, 404);
+    await expect(client.getPayload("pst_1")).rejects.toMatchObject({ status: 404 });
+    expect(requests).toHaveLength(3);
+  });
+
+  test.each([
+    { karaoke_revision_id: "revision-2" },
+    { playback_audio: { kind: "instrumental", ref: "media://immutable/song/changed-instrumental" } },
+    { playback_kind: "full_mix", playback_audio: { kind: "full_mix", ref: "media://immutable/song/full-mix" } },
+  ])("renewal refuses changed readiness before minting a different source: %j", async patch => {
+    const { client, requests } = instrumentalClient({ ...instrumentalPayload, ...patch });
+    await expect(client.getPayload("pst_1", undefined, {
+      communityId: "com_1", revisionId: "revision-1", kind: "instrumental", ref: instrumentalPayload.playback_audio.ref,
+    })).rejects.toMatchObject({ code: "karaoke_source_changed" });
+    expect(requests).toHaveLength(2);
+  });
+
+  test("renewal pins the original admitted source in a fresh grant request", async () => {
+    const { client, requests } = instrumentalClient();
+    await client.getPayload("pst_1", undefined, {
+      communityId: "com_1", revisionId: "revision-1", kind: "instrumental", ref: instrumentalPayload.playback_audio.ref,
+    });
+    await expect(requests[2]?.json()).resolves.toEqual({
+      community_id: "com_1", karaoke_revision_id: "revision-1", playback_ref: instrumentalPayload.playback_audio.ref,
+    });
+  });
+
+  test("an interrupted grant request cannot return playable media", async () => {
+    const controller = new AbortController();
+    let release: ((value: Response) => void) | undefined;
+    const client = createKaraokeApiClient({
+      origin: "https://web.test",
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        if (request.url.endsWith("/api/posts/pst_1")) return response(postDetail);
+        if (request.url.endsWith("/karaoke")) return response(instrumentalPayload);
+        expect(init?.signal).toBe(controller.signal);
+        return new Promise<Response>(resolve => { release = resolve; });
+      },
+    });
+    const pending = client.getPayload("pst_1", controller.signal);
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(release).toBeDefined());
+    controller.abort();
+    release!(response({ ...instrumentalBinding, kind: "instrumental", playback_url: "https://media.test/signed/instrumental.mp3", expires_at: 2_000_000_000, renew_after: 1_999_999_000 }));
+    await rejected;
+  });
+});
+
 describe("createKaraokeApiClient", () => {
   test("resolves the post community and maps the current readiness payload", async () => {
     const requests: Array<{ credentials: RequestCredentials | undefined; request: Request }> = [];
@@ -133,7 +270,9 @@ describe("createKaraokeApiClient", () => {
       fetchImpl: async (input, init) => {
         const request = new Request(input, init);
         requests.push({ credentials: init?.credentials, request });
-        return response(request.url.endsWith("/api/posts/pst%2F1") ? postDetail : readyPayload);
+        return response(request.url.endsWith("/api/posts/pst%2F1")
+          ? { ...postDetail, post: { ...postDetail.post, id: "pst/1" } }
+          : { ...readyPayload, post_id: "pst/1" });
       },
       origin: "https://web.test/",
     });
@@ -144,7 +283,7 @@ describe("createKaraokeApiClient", () => {
       instrumental_audio_url: "https://media.test/full-mix.mp3",
       karaoke_lines: readyPayload.karaoke_lines,
       object: "song_karaoke_payload",
-      post: "pst_1",
+      post: "pst/1",
       title: "Song",
     });
     expect(requests.map(({ request }) => request.url)).toEqual([

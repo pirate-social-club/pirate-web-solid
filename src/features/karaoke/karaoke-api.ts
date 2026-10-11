@@ -19,6 +19,7 @@ import type {
   ApiKaraokeSession,
 } from "./runtime/api-contracts";
 import { KaraokeApiError } from "./karaoke-session-bridge";
+import type { KaraokePlaybackGrant } from "./karaoke-playback-renewal";
 
 export interface ApiSongKaraokeLine {
   id: string;
@@ -40,6 +41,11 @@ export interface ApiSongKaraokePayload {
   artist_name?: string | null;
   artwork_src?: string | null;
   instrumental_audio_url?: string | null;
+  playback_access?: {
+    kind: "instrumental" | "full_mix";
+    ref: string;
+    grant: KaraokePlaybackGrant;
+  };
   karaoke_lines?: ApiSongKaraokeLine[] | null;
   raw_lines?: unknown[] | null;
 }
@@ -76,8 +82,15 @@ export interface ApiKaraokeLeaderboard {
   viewer_eligible_attempt_count: number;
 }
 
+export interface KaraokePlaybackBinding {
+  communityId: string;
+  revisionId: string;
+  kind: "instrumental" | "full_mix";
+  ref: string;
+}
+
 export interface KaraokeApiClient {
-  getPayload(postId: string, signal?: AbortSignal): Promise<ApiSongKaraokePayload>;
+  getPayload(postId: string, signal?: AbortSignal, expectedPlayback?: KaraokePlaybackBinding): Promise<ApiSongKaraokePayload>;
   createSession(input: {
     communityId: string;
     postId: string;
@@ -106,6 +119,7 @@ type KaraokeGeneratedClient = Pick<
   | "get_communitiesCommunityIdPostsPostIdKaraokeLeaderboard"
   | "get_postsPostId"
   | "post_postsPostIdSongPlaybackAccess"
+  | "post_postsPostIdKaraokePlaybackAccess"
   | "post_communitiesCommunityIdPostsPostIdKaraokeAttempts"
 >;
 
@@ -169,8 +183,9 @@ async function callApi<T>(request: () => Promise<T>): Promise<T> {
 function mapPayload(
   response: Extract<GetCommunitiesCommunityIdPostsPostIdKaraokeResponse, { state: "ready" }>,
   playbackUrl: string,
+  grant?: KaraokePlaybackGrant,
 ): ApiSongKaraokePayload {
-  return {
+  const payload: ApiSongKaraokePayload = {
     community: response.community_id,
     id: response.karaoke_revision_id,
     instrumental_audio_url: playbackUrl,
@@ -191,6 +206,8 @@ function mapPayload(
     post: response.post_id,
     title: response.title,
   };
+  if (grant) payload.playback_access = { kind: response.playback_kind, ref: response.playback_audio.ref, grant };
+  return payload;
 }
 
 function mapSession(
@@ -363,7 +380,7 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
         },
         { signal },
       ))),
-    getPayload: async (postId, signal) => {
+    getPayload: async (postId, signal, expectedPlayback) => {
       const post = await callApi(() => client().get_postsPostId({ path: { postId } }, { signal }));
       if ("kind" in post) {
         throw new KaraokeApiError("age_locked", "Age verification is required for this song.", 403, false);
@@ -375,22 +392,54 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
       if (response.state !== "ready") {
         throw new KaraokeAvailabilityError(response.state, response.reason);
       }
-      let playbackUrl = response.playback_audio.ref;
-      if (playbackUrl.startsWith("media://")) {
-        const token = csrfToken();
-        const grant = await callApi(() => client().post_postsPostIdSongPlaybackAccess(
-          { path: { postId } },
-          token
-            ? sessionRequestOptions(token, { signal })
-            : { credentials: "same-origin", ...(signal ? { signal } : {}) },
-        ));
-        const url = new URL(grant.playback_url);
-        if (url.protocol !== "https:" || url.username || url.password) {
-          throw new KaraokeApiError("invalid_playback_grant", "Karaoke audio could not be loaded.", 502, false);
-        }
-        playbackUrl = url.href;
+      const invalidGrant = () => new KaraokeApiError("invalid_playback_grant", "Karaoke audio could not be loaded.", 502, false);
+      if (post.post.id !== postId || response.post_id !== postId
+        || response.community_id !== post.post.community
+        || response.playback_kind !== response.playback_audio.kind
+        || !response.playback_audio.ref.trim()) throw invalidGrant();
+      if (expectedPlayback && (response.community_id !== expectedPlayback.communityId
+        || response.karaoke_revision_id !== expectedPlayback.revisionId
+        || response.playback_kind !== expectedPlayback.kind || response.playback_audio.ref !== expectedPlayback.ref)) {
+        throw new KaraokeApiError("karaoke_source_changed", "The song changed. Reload Karaoke before starting another take.", 409, false);
       }
-      return mapPayload(response, playbackUrl);
+      let playbackUrl = response.playback_audio.ref;
+      let playbackGrant: KaraokePlaybackGrant | undefined;
+      if (response.playback_kind === "instrumental" || playbackUrl.startsWith("media://")) {
+        const token = csrfToken();
+        const grantOptions = token
+          ? sessionRequestOptions(token, { signal })
+          : { credentials: "same-origin" as const, signal };
+        const grant = await callApi(async () => response.playback_kind === "instrumental"
+          ? await client().post_postsPostIdKaraokePlaybackAccess({
+            path: { postId },
+            body: {
+              community_id: response.community_id,
+              karaoke_revision_id: response.karaoke_revision_id,
+              playback_ref: response.playback_audio.ref,
+            },
+          }, grantOptions)
+          : await client().post_postsPostIdSongPlaybackAccess(
+          { path: { postId } },
+          grantOptions,
+        ));
+        const expiresAtMs = finiteNumber(grant.expires_at, "playback expiration") * 1000;
+        const renewAtMs = finiteNumber(grant.renew_after, "playback renewal") * 1000;
+        if (grant.kind !== response.playback_kind || !Number.isSafeInteger(expiresAtMs)
+          || !Number.isSafeInteger(renewAtMs) || renewAtMs <= Date.now()
+          || expiresAtMs <= renewAtMs) throw invalidGrant();
+        if (grant.kind === "instrumental" && (grant.post_id !== response.post_id
+          || grant.community_id !== response.community_id
+          || grant.karaoke_revision_id !== response.karaoke_revision_id
+          || grant.playback_audio.kind !== response.playback_audio.kind
+          || grant.playback_audio.ref !== response.playback_audio.ref)) throw invalidGrant();
+        playbackUrl = grant.playback_url;
+        playbackGrant = { url: playbackUrl, expiresAtMs, renewAtMs };
+      }
+      let url: URL;
+      try { url = new URL(playbackUrl); } catch { throw invalidGrant(); }
+      if (url.protocol !== "https:" || url.username || url.password) throw invalidGrant();
+      signal?.throwIfAborted();
+      return mapPayload(response, url.href, playbackGrant);
     },
   };
 }

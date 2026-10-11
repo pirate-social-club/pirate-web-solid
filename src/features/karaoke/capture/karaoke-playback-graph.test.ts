@@ -50,7 +50,7 @@ test("suspension pauses shared playback immediately without a media waiting even
   f.transition("running"); f.element.paused = false;
   f.transition("suspended");
   expect(f.element.pause).toHaveBeenCalledOnce();
-  expect(f.interrupted).toHaveBeenCalledWith(12500, "suspended");
+  expect(f.interrupted).toHaveBeenCalledWith(12500, "suspended", false);
   f.graph.checkState();
   expect(f.interrupted).toHaveBeenCalledOnce();
   f.graph.dispose();
@@ -59,7 +59,7 @@ test("suspension pauses shared playback immediately without a media waiting even
 test("clock sampling catches a non-running context when no statechange was delivered", () => {
   const f = recoveryGraph(); f.transition("running"); f.element.paused = false;
   f.transition("suspended", false); f.graph.checkState();
-  expect(f.interrupted).toHaveBeenCalledWith(12500, "suspended");
+  expect(f.interrupted).toHaveBeenCalledWith(12500, "suspended", false);
   f.graph.dispose();
 });
 
@@ -101,7 +101,7 @@ test("unexpected context closure pauses playback and reports that it cannot resu
   const f = recoveryGraph(); f.transition("running"); f.element.paused = false;
   f.transition("closed");
   expect(f.element.paused).toBe(true);
-  expect(f.interrupted).toHaveBeenCalledWith(12500, "closed");
+  expect(f.interrupted).toHaveBeenCalledWith(12500, "closed", false);
   expect(await f.graph.resume()).toBe(false);
   expect(f.resume).not.toHaveBeenCalled();
   f.graph.dispose();
@@ -113,4 +113,20 @@ test("a failed media source releases the context and never silently falls back",
   graph.attach({} as HTMLAudioElement);
   expect(() => graph.acquire()).toThrow("cross-origin source");
   expect(closed).toBe(1);
+});
+
+test("context changes while media is already paused revoke recovery once per transition", () => {
+  const f = recoveryGraph();
+  f.transition("running");
+  f.transition("suspended");
+  f.graph.checkState();
+  expect(f.interrupted).toHaveBeenCalledOnce();
+  expect(f.interrupted).toHaveBeenLastCalledWith(12500, "suspended", true);
+  expect(f.element.pause).not.toHaveBeenCalled();
+  f.transition("running"); f.transition("suspended");
+  expect(f.interrupted).toHaveBeenCalledTimes(2);
+  f.transition("closed");
+  expect(f.interrupted).toHaveBeenLastCalledWith(12500, "closed", true);
+  expect(f.interrupted).toHaveBeenCalledTimes(3);
+  f.graph.dispose();
 });

@@ -163,8 +163,8 @@ export interface KaraokeScoringController {
   noteTime(songMs: number): void;
   /** The instrumental started/resumed playing at `songMs`. */
   notePlay(songMs: number): void;
-  /** The instrumental paused at `songMs`. */
-  notePause(songMs: number): void;
+  /** Resolves after the serialized capture tail is flushed at the paused song clock. */
+  notePause(songMs: number): Promise<void>;
   /** The instrumental was seeked to `songMs`. */
   noteSeek(songMs: number): void;
   /** The instrumental reached the end at `songMs`. */
@@ -404,11 +404,12 @@ export function createKaraokeScoringController(
     notePause: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
       isPlaying = false;
-      if (captureEnded || !handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || handle.getPhase() !== "live") return Promise.resolve();
       // Send the pause frame first, then stop folding paused capture-clock time
       // into song time (SPEC §4.3).
       handle.pause(songMs);
       localSuspend();
+      return localChain;
     },
     notePlay: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);

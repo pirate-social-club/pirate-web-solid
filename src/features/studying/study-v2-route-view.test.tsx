@@ -175,6 +175,21 @@ function routeSession(): StudySession {
 }
 
 describe("Study v2 production route", () => {
+  test("explains missing stems without offering to start or generate a lesson", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    const api = studyApi(createSession);
+    api.loadAvailability = async () => ({
+      availability: { state: "unavailable", reason: "stems_missing" }, communityId: "community-1",
+    });
+    const requestGeneration = vi.spyOn(api, "requestGeneration");
+    const container = render(() => <StudyV2RouteView api={api} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "account-1", personas: [] })} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("audio is still being prepared for Study"));
+    expect(createSession).not.toHaveBeenCalled();
+    expect(requestGeneration).not.toHaveBeenCalled();
+    expect(container.querySelector("form")).toBeNull();
+  });
+
   test("unavailable profiles offer retry instead of a false membership claim", async () => {
     let unavailable = true;
     const api = studyApi();
