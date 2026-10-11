@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
-import { createEffect, createRoot, createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal, flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
@@ -217,7 +217,44 @@ describe("Application navigation", () => {
     expect(run).not.toHaveBeenCalled();
     [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === "Get a name")!.click();
     await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(run).toHaveBeenCalledWith(menu);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test.each(["removed", "replaced", "navigated", "changed account", "unmounted"] as const)("cancels deferred naming when its original target is %s", async interruption => {
+    const run = vi.fn(); const replacementRun = vi.fn();
+    const [path, setPath] = createSignal("/c/community-1");
+    const [viewerId, setViewerId] = createSignal("account-1");
+    let store!: ReturnType<typeof useActivePersonaStore>;
+    const Register = communityTarget(1, captured => { store = captured; }, { label: "Get a name", run });
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn currentPath={path()} viewerId={viewerId()}>Route</ApplicationChrome></ActivePersonaProvider>);
+    const menu = container.querySelector<HTMLButtonElement>('nav button[aria-label="Profile menu"]')!;
+    menu.focus(); menu.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Get a name"));
+
+    const frames = new Map<number, FrameRequestCallback>(); let nextFrame = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frames.set(++nextFrame, callback); return nextFrame; });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => { frames.delete(id); });
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === "Get a name")!.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      expect(frames.size).toBeGreaterThan(0);
+    });
+    expect(run).not.toHaveBeenCalled();
+
+    if (interruption === "removed") store.setTarget({ ...store.target()!, nameAction: undefined });
+    else if (interruption === "replaced") store.setTarget({ ...store.target()!, communityId: "community-2", nameAction: { label: "Get a name", run: replacementRun } });
+    else if (interruption === "navigated") setPath("/songs");
+    else if (interruption === "changed account") setViewerId("account-2");
+    else disposers.pop()!();
+    await flush();
+
+    for (const [id, callback] of frames) {
+      frames.delete(id);
+      expect(() => callback(0)).not.toThrow();
+    }
+    expect(run).not.toHaveBeenCalled();
+    expect(replacementRun).not.toHaveBeenCalled();
   });
 
   test("naming leaves two-profile double-tap switching and desktop selection intact", async () => {

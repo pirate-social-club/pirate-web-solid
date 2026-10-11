@@ -83,10 +83,21 @@ export function ApplicationChrome(props: MediaShellProps) {
   let pendingNavigation: string | undefined;
   let profileMenuReturnFocus: HTMLElement | undefined;
   let pendingNameAction: (() => void) | undefined;
+  let nameActionFrame: number | undefined;
+  const cancelNameAction = () => {
+    pendingNameAction = undefined;
+    if (nameActionFrame !== undefined) cancelAnimationFrame(nameActionFrame);
+    nameActionFrame = undefined;
+  };
+  onCleanup(cancelNameAction);
   const afterNameMenuClose = () => {
     const run = pendingNameAction;
-    pendingNameAction = undefined;
-    if (run) requestAnimationFrame(run);
+    if (run) nameActionFrame = requestAnimationFrame(() => {
+      nameActionFrame = undefined;
+      if (pendingNameAction !== run) return;
+      pendingNameAction = undefined;
+      run();
+    });
   };
   const signedIn = () => props.signedIn === true;
   const scope = (): ApplicationNavigationScope => {
@@ -113,6 +124,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     else if (typeof window !== "undefined") window.location.assign(href);
   };
   const go = (href: string) => {
+    cancelNameAction();
     if (pickerOpen()) {
       pendingNavigation = href;
       setPickerOpen(false);
@@ -142,6 +154,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   const accountPending = () => props.sessionResolving === true || props.sessionUnavailable === true;
   /** The profile sheet: switching on desktop, and account recovery while the session check fails. */
   const openProfilePicker = () => {
+    cancelNameAction();
     profileMenuReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     setMenuOpen(false);
     if (signedIn() || accountPending()) setPickerOpen(true);
@@ -169,6 +182,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   // the account profile picker above.
   const personaStore = useActivePersonaStoreOptional();
   const switchTarget = () => personaStore?.target();
+  createEffect(() => [switchTarget(), signedIn(), props.viewerId, props.currentPath] as const, cancelNameAction);
   const switchable = () => (switchTarget()?.personas.length ?? 0) > 1;
   const selectedSwitchPersonaId = () => {
     const target = switchTarget();
@@ -183,13 +197,24 @@ export function ApplicationChrome(props: MediaShellProps) {
   };
   const namingCopy = getLocaleMessages(usePageUiLocale(), "routes").communityJoinName;
   const openCommunityProfiles = () => {
+    cancelNameAction();
     profileMenuReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     personaStore?.openSwitcher();
   };
   const nameMenuRow = () => <Show when={switchTarget()?.nameAction}>{action => <Button
     class="mx-4 mt-4 justify-start" variant="ghost" type="button"
     onClick={() => {
-      pendingNameAction = () => action().run(profileMenuReturnFocus);
+      const selectedAction = action();
+      const target = switchTarget();
+      const returnFocus = profileMenuReturnFocus;
+      const viewerId = props.viewerId;
+      const path = props.currentPath;
+      cancelNameAction();
+      pendingNameAction = () => {
+        // The menu can close after its page, account or naming entry changed.
+        if (signedIn() && switchTarget() === target && target?.nameAction === selectedAction
+          && props.viewerId === viewerId && props.currentPath === path) selectedAction.run(returnFocus);
+      };
       if (personaStore?.open()) personaStore.closeSwitcher();
       else setPickerOpen(false);
     }}>{action().label}</Button>}</Show>;
