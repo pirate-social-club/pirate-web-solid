@@ -253,7 +253,9 @@
     "profileTitle": "此社区中的个人资料",
     "profileControl": "个人资料，{name}",
     "profileOptions": "个人资料选项，{name}",
-    "openProfile": "打开个人资料"
+    "openProfile": "打开个人资料",
+    "getNameEntry": "获取名称",
+    "profileMenu": "个人资料菜单"
   },
   "publicIdentity": {
     "fallback": "用户 {suffix}",

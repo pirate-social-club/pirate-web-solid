@@ -57,6 +57,7 @@ import {
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
 import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
+import { profilePath } from "../../shell/navigation-model.ts";
 import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
@@ -299,16 +300,20 @@ function SuccessState(props: {
   const naming = createCommunityNameController({ communityId, root: state.routeFamily === "hns" ? state.requestedPathSegment : undefined,
     publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, locale: namingLocale, ...props.nameClients });
   let nameReturnFocus: HTMLElement | undefined;
+  let nameAfterLocalMenu = false;
   const showNaming = (returnFocus?: HTMLElement) => {
     nameReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined);
     void naming.show();
   };
   const namingCopy = () => getLocaleMessages(namingLocale, "routes").communityJoinName;
-  createEffect(() => [engagement.accountIdentity(), engagement.joined()] as const, ([accountId, joined]) => {
+  createEffect(() => [engagement.accountIdentity(), engagement.joined(), naming.entry()] as const, ([accountId, joined]) => {
     if (typeof accountId !== "string" || !joined) return;
     queueMicrotask(() => {
       if (!active) return;
-      try { if (consumeJoinedNameContinuation(accountId, communityId)) void naming.show(); } catch { /* The existing Profile action remains available. */ }
+      try {
+        if (consumeJoinedNameContinuation(accountId, communityId)) void naming.show();
+        else void naming.restoreOnReturn();
+      } catch { /* Unreadable intent never starts another request. */ }
     });
   });
   // deferStream holds the response open until the feed settles, so the HTML
@@ -690,8 +695,8 @@ function SuccessState(props: {
   // while the page owns an active persona, so no other surface can open a
   // switcher for a community the viewer is not looking at.
   createEffect(
-    () => [communityId, personaStore, personaOptions(), engagement.personaRetryAvailable(), engagement.personaRetryBusy(), naming.available()] as const,
-    ([targetCommunityId, store, personas, unavailable, loading, canName]) => {
+    () => [communityId, personaStore, personaOptions(), engagement.personaRetryAvailable(), engagement.personaRetryBusy(), naming.entry()] as const,
+    ([targetCommunityId, store, personas, unavailable, loading, nameEntry]) => {
       if (store === undefined) return;
       store.setTarget({
         communityId: targetCommunityId,
@@ -700,7 +705,7 @@ function SuccessState(props: {
         unavailable,
         loading,
         onRetry: () => void engagement.retryPersonas(),
-        ...(canName ? { nameAction: { label: namingCopy().getName, run: showNaming } } : {}),
+        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: showNaming } } : {}),
       });
     },
   );
@@ -932,12 +937,20 @@ function SuccessState(props: {
           <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
           <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} returnFocus={() => nameReturnFocus} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
           <Show when={personaStore === undefined}>
-            <Show when={personaOptions().length > 1 || engagement.personaRetryAvailable() || naming.available()}>
+            <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
               <CommunityPersonaControl
-                label={engagement.personaRetryAvailable() ? "Retry profiles" : "Switch posting profile"}
-                opensPicker
+                label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
+                opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
                 persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
-                onClick={() => { nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true); }}
+                onClick={() => {
+                  const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
+                  if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
+                  else navigate(profilePath(persona));
+                }}
+                menuLabel={namingCopy().profileMenu}
+                onMenuClick={naming.entry() === "new" || naming.entry() === "pending" ? () => {
+                  nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true);
+                } : undefined}
               />
             </Show>
             <PersonaSwitcherSheet
@@ -950,7 +963,8 @@ function SuccessState(props: {
               loading={engagement.personaRetryBusy()}
               unavailable={engagement.personaRetryAvailable()}
               onRetry={() => void engagement.retryPersonas()}
-              footer={<Show when={naming.available()}><Button type="button" onClick={() => { setLocalSwitcherOpen(false); showNaming(nameReturnFocus); }}>{namingCopy().getName}</Button></Show>}
+              footer={<Show when={naming.entry() === "new" || naming.entry() === "pending"}><Button class="mx-4 mt-4 justify-start" variant="ghost" type="button" onClick={() => { nameAfterLocalMenu = true; setLocalSwitcherOpen(false); }}>{naming.entry() === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus}</Button></Show>}
+              onAfterClose={() => { if (nameAfterLocalMenu) { nameAfterLocalMenu = false; requestAnimationFrame(() => showNaming(nameReturnFocus)); } }}
             />
           </Show>
       </div>

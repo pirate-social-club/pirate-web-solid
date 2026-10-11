@@ -180,7 +180,7 @@ describe("Application navigation", () => {
     expect(requested).toHaveBeenCalledOnce();
   });
 
-  function communityTarget(personaCount: number, capture: (store: ReturnType<typeof useActivePersonaStore>) => void) {
+  function communityTarget(personaCount: number, capture: (store: ReturnType<typeof useActivePersonaStore>) => void, nameAction?: { label: string; run: (returnFocus?: HTMLElement) => void }) {
     // Registers from an effect, exactly as the community page does.
     return function RegisterCommunityTarget() {
       const store = useActivePersonaStore();
@@ -189,11 +189,56 @@ describe("Application navigation", () => {
         communityId: "community-1",
         personas: [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }, { personaId: "three", displayName: "Studio" }].slice(0, personaCount),
         title: "Profile in this community",
+        nameAction,
       }));
       createEffect(() => true, () => store.selectPersona("community-1", "one"));
       return null;
     };
   }
+
+  test("naming never intercepts a single community profile's phone or desktop navigation", async () => {
+    const run = vi.fn(); const navigate = vi.fn();
+    const Register = communityTarget(1, () => {}, { label: "Get a name", run });
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn navigate={navigate}>Route</ApplicationChrome></ActivePersonaProvider>);
+    await vi.waitFor(() => expect(container.querySelector('button[aria-label="Profile, Harbor"]')).not.toBeNull());
+    container.querySelector<HTMLButtonElement>('nav button[aria-label="Profile, Harbor"]')!.click();
+    container.querySelector<HTMLButtonElement>('[data-community-profile-control]')!.click();
+    expect(navigate.mock.calls).toEqual([["/p/one"], ["/p/one"]]);
+    expect(run).not.toHaveBeenCalled(); expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("a separate menu opens naming deliberately after the profile sheet closes", async () => {
+    const run = vi.fn();
+    const Register = communityTarget(1, () => {}, { label: "Get a name", run });
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn>Route</ApplicationChrome></ActivePersonaProvider>);
+    const menu = container.querySelector<HTMLButtonElement>('nav button[aria-label="Profile menu"]')!;
+    menu.focus(); menu.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Get a name"));
+    expect(run).not.toHaveBeenCalled();
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === "Get a name")!.click();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("naming leaves two-profile double-tap switching and desktop selection intact", async () => {
+    const run = vi.fn(); let store!: ReturnType<typeof useActivePersonaStore>;
+    const Register = communityTarget(2, captured => { store = captured; }, { label: "Get a name", run });
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn>Route</ApplicationChrome></ActivePersonaProvider>);
+    const tab = container.querySelector<HTMLButtonElement>('nav button[aria-label="Profile, Harbor"]')!;
+    tab.click(); tab.click();
+    await vi.waitFor(() => expect(store.activePersonaId("community-1")).toBe("two"));
+    container.querySelector<HTMLButtonElement>('[data-community-profile-control]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    document.querySelector<HTMLInputElement>('input[value="one"]')!.click();
+    await vi.waitFor(() => expect(store.activePersonaId("community-1")).toBe("one"));
+    expect(run).not.toHaveBeenCalled();
+    store.setTarget({ ...store.target()!, nameAction: undefined });
+    await vi.waitFor(() => expect(container.querySelector('nav button[aria-label="Profile menu"]')).toBeNull());
+    container.querySelector<HTMLButtonElement>('[data-community-profile-control]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain("Get a name");
+    expect(document.querySelectorAll('[role="dialog"] input[type="radio"]')).toHaveLength(2);
+  });
 
   test("on a community page a double tap with two eligible profiles toggles the community profile", async () => {
     let store: ReturnType<typeof useActivePersonaStore> | undefined;

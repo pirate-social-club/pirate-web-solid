@@ -253,7 +253,9 @@
     "profileTitle": "الملف الشخصي في هذا المجتمع",
     "profileControl": "الملف الشخصي، {name}",
     "profileOptions": "خيارات الملف الشخصي، {name}",
-    "openProfile": "افتح الملف الشخصي"
+    "openProfile": "افتح الملف الشخصي",
+    "getNameEntry": "احصل على اسم",
+    "profileMenu": "قائمة الملف الشخصي"
   },
   "publicIdentity": {
     "fallback": "مستخدم {suffix}",

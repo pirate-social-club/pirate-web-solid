@@ -253,7 +253,9 @@
     "profileTitle": "Profile in this community",
     "profileControl": "Profile, {name}",
     "profileOptions": "Profile options, {name}",
-    "openProfile": "Open profile"
+    "openProfile": "Open profile",
+    "getNameEntry": "Get a name",
+    "profileMenu": "Profile menu"
   },
   "publicIdentity": {
     "fallback": "User {suffix}",

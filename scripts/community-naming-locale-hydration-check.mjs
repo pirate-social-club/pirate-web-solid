@@ -92,15 +92,19 @@ try {
         await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30_000 });
         assert(await page.evaluate(() => navigator.language) === "en-US", "Browser language fixture was changed");
         assert(await page.locator("html").getAttribute("lang") === language, "Hydration changed request language");
-        const profileLabel = copy.profileControl.replace("{name}", "Member");
-        const profileControl = page.getByRole("button", { name: profileLabel, exact: true });
-        const profileElement = await profileControl.elementHandle();
-        assert(profileElement !== null, "Profile control disappeared before naming");
-        try { await profileControl.click({ timeout: 10_000 }); }
-        catch (error) { console.error(JSON.stringify({ fixtureReads: [...fixtureReads], buttons: await page.getByRole("button").allTextContents(), buttonLabels: await page.getByRole("button").evaluateAll(elements => elements.map(element => element.getAttribute("aria-label"))) })); throw error; }
-        assert(await page.getByRole("dialog", { name: copy.profileTitle, exact: true }).count() === 0, "Naming opened a profile picker");
+        const menuControl = page.getByRole("button", { name: copy.profileMenu, exact: true });
+        const menuElement = await menuControl.elementHandle();
+        assert(menuElement !== null, "Profile menu disappeared before naming");
         const dialog = page.getByRole("dialog", { name: copy.title, exact: true });
-        await dialog.waitFor();
+        const openNaming = async () => {
+          try { await menuControl.click({ timeout: 10_000 }); }
+          catch (error) { console.error(JSON.stringify({ fixtureReads: [...fixtureReads], buttons: await page.getByRole("button").allTextContents(), buttonLabels: await page.getByRole("button").evaluateAll(elements => elements.map(element => element.getAttribute("aria-label"))) })); throw error; }
+          const profiles = page.getByRole("dialog", { name: copy.profileTitle, exact: true });
+          await profiles.getByRole("button", { name: copy.getNameEntry, exact: true }).click();
+          await profiles.waitFor({ state: "hidden" });
+          await dialog.waitFor();
+        };
+        await openNaming();
         await dialog.getByRole("textbox", { name: copy.label, exact: true }).fill(label);
         await dialog.getByRole("button", { name: copy.getName, exact: true }).click();
         await page.locator('[data-community-join-name-state="submitting"]').waitFor();
@@ -126,7 +130,7 @@ try {
           await page.keyboard.press(key);
           assert(await dialog.evaluate(element => element.contains(document.activeElement)), `${locale}: focus escaped name dialog`);
         }
-        const background = await profileElement.evaluate(element => ({
+        const background = await menuElement.evaluate(element => ({
           hiddenFromAssistiveTechnology: element.closest('[aria-hidden="true"]') !== null,
           pointerEvents: getComputedStyle(element).pointerEvents,
         }));
@@ -136,11 +140,11 @@ try {
         await page.keyboard.press("Escape");
         await dialog.waitFor({ state: "hidden" });
         await page.waitForTimeout(350);
-        assert(await profileControl.evaluate(element => element === document.activeElement), `${locale}: closing naming did not return focus to Profile`);
+        assert(await menuControl.evaluate(element => element === document.activeElement), `${locale}: closing naming did not return focus to the profile menu`);
         // Close a real browser tab while issuance is pending, then reopen the
         // same origin. Session storage is gone; command correlation must remain.
         mutations.length = 0; fixtureMode = "pending"; releaseConfirmation = undefined;
-        await profileControl.click();
+        await openNaming();
         await dialog.getByRole("textbox", { name: copy.label, exact: true }).fill(label);
         await dialog.getByRole("button", { name: copy.getName, exact: true }).click();
         for (let attempt = 0; attempt < 40 && releaseConfirmation === undefined; attempt += 1) await page.waitForTimeout(50);
@@ -155,18 +159,25 @@ try {
         await page.goto(`${origin}/c/charizard`, { waitUntil: "domcontentloaded" });
         await page.locator("#app-root[data-hydrated='true']").waitFor({ timeout: 30_000 });
         assert(await page.evaluate(key => sessionStorage.getItem(key) === null, storageKey), "New tab inherited the old session storage");
-        await page.getByRole("button", { name: profileLabel, exact: true }).click();
         const restored = page.getByRole("dialog", { name: copy.title, exact: true });
         await page.locator('[data-community-join-name-state="pending"]').waitFor();
         assert(await restored.getByRole("textbox", { name: copy.label, exact: true }).inputValue() === label, "Closed-tab recovery lost its original name");
         assert(await restored.getByRole("textbox", { name: copy.label, exact: true }).isDisabled(), "Closed-tab recovery allowed a replacement name");
+        await page.keyboard.press("Escape");
+        await restored.waitFor({ state: "hidden" });
+        await page.getByRole("button", { name: copy.profileMenu, exact: true }).click();
+        const profiles = page.getByRole("dialog", { name: copy.profileTitle, exact: true });
+        assert(await profiles.getByRole("button", { name: copy.getNameEntry, exact: true }).count() === 0, "Pending intent was offered as a new name");
+        await profiles.getByRole("button", { name: copy.checkStatus, exact: true }).click();
+        await profiles.waitFor({ state: "hidden" });
+        await restored.waitFor();
         const readCount = claimReads;
         await restored.getByRole("button", { name: copy.checkStatus, exact: true }).click();
         for (let attempt = 0; attempt < 40 && claimReads === readCount; attempt += 1) await page.waitForTimeout(50);
         assert(claimReads > readCount && mutations.length === 4, "Closed-tab recovery repeated a command instead of reading its claim");
         assert(await page.evaluate(({ key, keys }) => JSON.stringify(JSON.parse(localStorage.getItem(key)).keys) === JSON.stringify(keys), { key: storageKey, keys: originalKeys }), "Closed-tab recovery replaced command keys");
         assert(failures.length === 0, `${locale}: ${failures.join("; ")}`);
-        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, submittingFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, directNameReentry: true, closedTabRecovery: true, originalKeysRetained: true, noRepeatedCommands: true, publicCredentialLeaks: 0 });
+        results.push({ locale, viewport: mobile ? "phone" : "desktop", hydrationErrors: 0, recoveryCopy: true, keyboardFocusTrapped: true, submittingFocusTrapped: true, backgroundHiddenAndPointerBlocked: true, focusRestored: true, profileMenuReentry: true, pendingStatusReentry: true, automaticInterruptedRecovery: true, closedTabRecovery: true, originalKeysRetained: true, noRepeatedCommands: true, publicCredentialLeaks: 0 });
       } finally { await context.close(); fixtureMode = "expiry"; }
     }
   }

@@ -36,6 +36,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
   const [offering, setOffering] = createSignal<SupportedHnsOffering>();
   const [open, setOpen] = createSignal(false);
   const [recoverable, setRecoverable] = createSignal(false);
+  const [entry, setEntry] = createSignal<"checking" | "new" | "pending" | "named" | "unavailable">("checking");
   const [state, setState] = createSignal<CommunityJoinNameState>({ kind: "editing", label: "" });
   const prepare = options.prepare ?? createCommunityProfileAttempt();
   const grantClient = () => options.grantClient ?? createPublicHandleSalesClient();
@@ -43,6 +44,8 @@ export function createCommunityNameController(options: CommunityNameControllerOp
   let active = true;
   let busy = false;
   let owner: string | null | undefined;
+  let entryRequest: AbortController | undefined;
+  const restoredAttempts = new Set<string>();
   const ownSession = async (signal: AbortSignal): Promise<AuthenticatedSession> => {
     const accountId = options.accountId();
     if (typeof accountId !== "string" || !options.joined()) throw new Error("membership_required");
@@ -75,7 +78,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
   createEffect(() => options.accountId(), next => {
     queueMicrotask(() => {
       if (!active || next === undefined || next === owner) return;
-      request?.abort(); busy = false; setOpen(false); setState({ kind: "editing", label: "" });
+      request?.abort(); busy = false; setOpen(false); setEntry("checking"); setState({ kind: "editing", label: "" });
       try { setRecoverable(typeof next === "string" && readRetainedCommunityNameAttempt(next, options.communityId) !== undefined); }
       catch { setRecoverable(false); }
       // Retain correlation keys under their original account. Another account
@@ -83,10 +86,10 @@ export function createCommunityNameController(options: CommunityNameControllerOp
       owner = next;
     });
   });
-  onCleanup(() => { active = false; request?.abort(); publicRequest.abort(); });
+  onCleanup(() => { active = false; request?.abort(); publicRequest.abort(); entryRequest?.abort(); });
 
   const start = () => { request?.abort(); request = new AbortController(); return request.signal; };
-  const findIssued = async (session: AuthenticatedSession, currentOffering: SupportedHnsOffering, signal: AbortSignal) => {
+  const readActiveNames = async (session: AuthenticatedSession, signal: AbortSignal) => {
     const matches: GetPersonasPersonaIdHandleGrantsResponse["items"][number][] = [];
     for (const profile of communityOperationPersonas(session.personas, options.communityId)) {
       let cursor: string | undefined;
@@ -95,8 +98,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         const grants = await grantClient().get_personasPersonaIdHandleGrants({ path: { personaId: profile.personaId }, query: { limit: "100", ...(cursor === undefined ? {} : { cursor }) } }, { signal });
         signal.throwIfAborted();
         for (const grant of grants.items) if (grant.community_id === options.communityId && grant.owner_persona.persona_id === profile.personaId
-          && grant.handle.family === "hns" && grant.handle.namespace_root === currentOffering.namespace_root
-          && grant.sale_namespace_activation_id === currentOffering.sale_namespace_activation_id && grant.sale_namespace_activation_generation === currentOffering.sale_namespace_activation_generation
+          && grant.handle.family === "hns" && grant.handle.namespace_root === options.root
           && grant.fulfillment.kind === "hosted_persona_v1") matches.push(grant);
         if (grants.next_cursor === null) break;
         if (!grants.next_cursor || seen.has(grants.next_cursor) || page === 99) throw new Error("grant_pagination_invalid");
@@ -104,12 +106,46 @@ export function createCommunityNameController(options: CommunityNameControllerOp
       }
     }
     if (matches.length > 1) throw new Error("multiple_community_names");
-    const grant = matches[0];
+    return matches;
+  };
+  const findIssued = async (session: AuthenticatedSession, currentOffering: SupportedHnsOffering, signal: AbortSignal) => {
+    const grant = (await readActiveNames(session, signal))[0];
     if (grant === undefined) return undefined;
+    if (grant.sale_namespace_activation_id !== currentOffering.sale_namespace_activation_id
+      || grant.sale_namespace_activation_generation !== currentOffering.sale_namespace_activation_generation) throw new Error("issued_name_offering_changed");
     const intent = createCommunityNameAttempt({ accountId: session.userId, communityId: options.communityId, personaId: grant.owner_persona.persona_id, label: grant.handle.handle_label, offering: currentOffering });
     await verifyHost(intent, signal, grantClient(), grant);
     return grant;
   };
+  // Offer a new name only after an owned session and the public active-grant
+  // list prove absence. Host availability is not evidence of name absence.
+  createEffect(() => [options.accountId(), options.joined(), offering()] as const, ([account, joined, currentOffering]) => {
+    entryRequest?.abort();
+    const inspection = new AbortController(); entryRequest = inspection;
+    queueMicrotask(() => {
+      if (!active || inspection.signal.aborted) return;
+      setEntry("checking");
+      if (typeof account !== "string" || !joined || options.root === undefined) { setEntry("unavailable"); return; }
+      void (async () => {
+        try {
+          const session = await ownSession(inspection.signal);
+          const attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId);
+          if (attempt !== undefined && (!communityOperationPersonas(session.personas, options.communityId).some(profile => profile.personaId === attempt.personaId)
+            || attempt.offering.namespace_root !== options.root)) throw new Error("saved_profile_unavailable");
+          // A grant may already exist after a claim response was lost. Keep
+          // that original command recoverable until its outcome is confirmed.
+          if (attempt !== undefined && attempt.claim?.claim.state !== "issued") {
+            setRecoverable(true); setEntry("pending"); return;
+          }
+          const names = await readActiveNames(session, inspection.signal);
+          await ownSession(inspection.signal);
+          if (names.length > 0) { setEntry("named"); return; }
+          if (attempt !== undefined || readRetainedCommunityNameAttempt(session.userId, options.communityId) !== undefined) { setRecoverable(true); setEntry("pending"); return; }
+          setRecoverable(false); setEntry(currentOffering === undefined ? "unavailable" : "new");
+        } catch { if (!inspection.signal.aborted) setEntry("unavailable"); }
+      })();
+    });
+  });
   const show = async () => {
     if (busy || !options.joined() || options.root === undefined) return;
     busy = true;
@@ -118,11 +154,12 @@ export function createCommunityNameController(options: CommunityNameControllerOp
       const session = await ownSession(signal);
       const attempt = readRetainedCommunityNameAttempt(session.userId, options.communityId);
       if (attempt !== undefined) {
+        restoredAttempts.add(attempt.keys.claim);
         // Old offering revisions cannot transfer intent. Their submitted claim
         // can still be checked after an offer is changed or withdrawn.
         if (!communityOperationPersonas(session.personas, options.communityId).some(profile => profile.personaId === attempt.personaId)) throw new Error("saved_profile_unavailable");
         if (attempt.offering.namespace_root !== options.root) throw new Error("saved_namespace_changed");
-        setOffering(attempt.offering); setRecoverable(true);
+        setOffering(attempt.offering); setRecoverable(true); setEntry("pending");
         setState({ kind: "pending", label: attempt.label, claimId: attempt.claim?.claim.claim_id ?? "", unconfirmed: attempt.claim?.claim.state !== "issuance_pending" });
       } else {
         const currentOffering = await loadOffering(signal);
@@ -130,6 +167,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
         const issued = await findIssued(session, currentOffering, signal);
         await ownSession(signal);
         setState(issued === undefined ? { kind: "editing", label: "" } : { kind: "issued", label: issued.handle.handle_label, identifier: issued.display_identifier });
+        setEntry(issued === undefined ? "new" : "named");
       }
       setOpen(true);
     } catch { if (!signal.aborted) toast.error(copy.loadFailed); }
@@ -164,7 +202,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
       if (attempt === undefined) {
         const issued = await findIssued(session, currentOffering, signal);
         await ownSession(signal);
-        if (issued !== undefined) { setState({ kind: "issued", label: issued.handle.handle_label, identifier: issued.display_identifier }); return; }
+        if (issued !== undefined) { setEntry("named"); setState({ kind: "issued", label: issued.handle.handle_label, identifier: issued.display_identifier }); return; }
         const profile = await prepare({ session, communityId: options.communityId, preferredPersonaId: options.preferredPersonaId(), signal });
         authority = await ownSession(signal);
         // Another tab may have retained intent while preparation was pending.
@@ -175,22 +213,25 @@ export function createCommunityNameController(options: CommunityNameControllerOp
       if (attempt.label !== label || !sameOffering(attempt.offering, currentOffering)
         || attempt.offering.namespace_root !== options.root
         || !communityOperationPersonas(authority.personas, options.communityId).some(profile => profile.personaId === savedPersonaId)) throw new Error("name_attempt_changed");
+      restoredAttempts.add(attempt.keys.claim);
       const token = (options.csrf ?? readHandleSalesCsrfCookie)();
       const readOnlyClaim = attempt.claim !== undefined && attempt.confirmation !== undefined && attempt.quote !== undefined && attempt.reservation !== undefined;
       if (!readOnlyClaim && token === undefined) throw new Error("csrf_required");
       setState({ kind: "submitting", stage: "issuing", label });
       const result = await runCommunityNameAcquisition({ client: options.claimClient ?? createSessionHandleSalesClient(), attempt,
         requestOptions: readOnlyClaim ? { credentials: "same-origin", signal } : handleSalesMutationOptions(token!, { signal }), ...options.claimPolling,
-        save: value => { signal.throwIfAborted(); saveRetainedCommunityNameAttempt(value); setRecoverable(true); } });
+        save: value => { signal.throwIfAborted(); saveRetainedCommunityNameAttempt(value); setRecoverable(true); setEntry("pending"); } });
       await ownSession(signal);
       if (result.kind === "issued") {
         await verifyHost(attempt, signal, grantClient(), result.grant);
         setState({ kind: "issued", label, identifier: result.grant.display_identifier });
+        entryRequest?.abort(); setRecoverable(false); setEntry("named");
         (options.refresh ?? refreshSession)();
-      } else if (result.kind === "pending") setState({ kind: "pending", label, claimId: result.claim.claim_id });
+      } else if (result.kind === "pending") { setEntry("pending"); setState({ kind: "pending", label, claimId: result.claim.claim_id }); }
       else if (result.kind === "blocked" && result.claim.state === "blocked" && result.reason === "handle_unavailable") {
         removeRetainedCommunityNameAttempt(session.userId, options.communityId);
         setRecoverable(false);
+        setEntry("new");
         setState({ kind: "editing", label, issue: "taken" });
       } else setState({ kind: "failed", label, joined: true });
     } catch (error) {
@@ -204,6 +245,7 @@ export function createCommunityNameController(options: CommunityNameControllerOp
           if (typeof accountId === "string") {
             removeRetainedCommunityNameAttempt(accountId, options.communityId);
             setRecoverable(false);
+            setEntry("new");
           }
           setState({ kind: "editing", label, issue: reason === "handle_unavailable" ? "taken" : "invalid" });
         } else if (typeof accountId === "string" && retained?.claim === undefined
@@ -213,8 +255,10 @@ export function createCommunityNameController(options: CommunityNameControllerOp
           // Claim replay precedes reservation expiry checks on the server.
           // A new explicit Get name press supplies fresh consent after expiry.
           removeRetainedCommunityNameAttempt(accountId, options.communityId); setRecoverable(false);
+          setEntry("new");
           setState({ kind: "editing", label }); toast.error(copy.requestExpired);
         } else {
+          if (retained !== undefined) { setRecoverable(true); setEntry("pending"); }
           setState(retained === undefined ? { kind: "failed", label, joined: true } : { kind: "pending", label: retained.label, claimId: retained.claim?.claim.claim_id ?? "", unconfirmed: true });
           if (error instanceof ApiClientError && error.status === 401) toast.error(copy.signInRetry);
         }
@@ -222,7 +266,19 @@ export function createCommunityNameController(options: CommunityNameControllerOp
     } finally { if (request?.signal === signal) busy = false; }
   };
 
-  return { offering, state, open, available: () => options.root !== undefined && (offering() !== undefined || recoverable()) && options.joined() && typeof options.accountId() === "string",
+  const available = () => options.root !== undefined && (offering() !== undefined || recoverable()) && options.joined() && typeof options.accountId() === "string";
+  const restoreOnReturn = async () => {
+    if (!available() || entry() !== "pending" || busy) return;
+    const account = options.accountId();
+    if (typeof account !== "string") return;
+    try {
+      const attempt = readRetainedCommunityNameAttempt(account, options.communityId);
+      if (attempt === undefined || restoredAttempts.has(attempt.keys.claim)) return;
+      restoredAttempts.add(attempt.keys.claim);
+      await show();
+    } catch { /* Unreadable intent never starts a fresh request. */ }
+  };
+  return { offering, state, open, available, entry, restoreOnReturn,
     show, submit: () => submit(), resume: () => submit(true), setOpen: (next: boolean) => setOpen(next),
     setLabel: (label: string) => { if (!busy && state().kind !== "pending" && state().kind !== "issued") setState({ kind: "editing", label }); } };
 }

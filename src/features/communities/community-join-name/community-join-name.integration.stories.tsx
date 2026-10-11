@@ -18,15 +18,17 @@ export const JoinAndName: Story = { play: async ({ canvasElement }) => {
   await expect(await body.findByRole("link", { name: "Open my name" })).toHaveAttribute("href", `https://${label}.charizard/`);
 } };
 export const MobileJoinAndName: Story = { ...JoinAndName, globals: { viewport: { value: "mobile1", isRotated: false } } };
-export const CloseAndReturnFromProfile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, play: async ({ canvasElement }) => {
+export const CloseAndReturnFromProfileMenu: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, play: async ({ canvasElement }) => {
   const body = within(canvasElement.ownerDocument.body);
   await userEvent.click(await body.findByRole("button", { name: "Join" }));
   const dialog = await body.findByRole("dialog", { name: "Choose your name" });
   await userEvent.click(within(dialog).getByRole("button", { name: "Close" }));
   await waitFor(() => expect(body.queryByRole("dialog")).not.toBeInTheDocument());
-  await userEvent.click(await body.findByRole("button", { name: "Profile, Member" }));
+  await userEvent.click(await body.findByRole("button", { name: "Profile menu" }));
+  const profiles = await body.findByRole("dialog", { name: "Profile in this community" });
+  await userEvent.click(within(profiles).getByRole("button", { name: "Get a name" }));
   await expect(await body.findByRole("dialog", { name: "Choose your name" })).toBeInTheDocument();
   await expect(body.queryByRole("dialog", { name: "Profile in this community" })).not.toBeInTheDocument();
   await expect(within(canvasElement).queryByRole("button", { name: "Choose a name" })).not.toBeInTheDocument();
 } };
-export const DesktopCloseAndReturnFromProfile: Story = { ...CloseAndReturnFromProfile, globals: { viewport: { value: "reset", isRotated: false } } };
+export const DesktopCloseAndReturnFromProfileMenu: Story = { ...CloseAndReturnFromProfileMenu, globals: { viewport: { value: "reset", isRotated: false } } };

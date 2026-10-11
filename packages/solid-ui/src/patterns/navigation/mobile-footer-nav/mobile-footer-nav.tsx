@@ -3,7 +3,7 @@ import { Dynamic } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
-import { IconHouse, IconPlaylist, IconWallet } from "@/components/media/icons";
+import { IconDotsThree, IconHouse, IconPlaylist, IconWallet } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
 export type FooterNavItemId = "home" | "songs" | "wallet" | "profile" | "none";
@@ -18,6 +18,7 @@ export interface MobileFooterNavLabels {
   primaryNavAriaLabel?: string;
   profile?: string;
   profileAriaLabel?: string;
+  profileMenuAriaLabel?: string;
 }
 
 export interface MobileFooterNavIcons {
@@ -36,6 +37,7 @@ export interface MobileFooterNavProps {
   onSongsClick?: () => void;
   onWalletClick?: () => void;
   onProfileClick?: () => void;
+  onProfileMenuClick?: () => void;
   /**
    * Render at any width instead of only below md. The nav is display:none on a
    * wide viewport, which makes it untestable and unpreviewable there; the same
@@ -114,6 +116,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
             </button>
           )}
         </For>
+        <div class="flex h-full min-w-0 items-center">
         <button
           aria-current={active() === "profile" ? "page" : undefined}
           aria-label={labels().profileAriaLabel ?? profile()}
@@ -133,6 +136,11 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
           />
           <span class="sr-only">{profile()}</span>
         </button>
+        <Show when={props.onProfileMenuClick}><button type="button"
+          aria-label={labels().profileMenuAriaLabel ?? "Profile menu"} aria-haspopup="dialog"
+          class="flex h-full min-w-11 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          onClick={() => handleTap(props.onProfileMenuClick)}><IconDotsThree class="size-5" /></button></Show>
+        </div>
       </div>
     </nav>
   );

@@ -37,6 +37,54 @@ async function setup(input: { api?: SessionHandleSalesApiClient; grants?: GetPer
 }
 
 describe("connected community name ownership and recovery", () => {
+  it("offers a new name only after owned active-grant reads prove absence", async () => {
+    const { controller, api, prepare } = await setup();
+    await vi.waitFor(() => expect(controller.entry()).toBe("new"));
+    expect(controller.open()).toBe(false); expect(prepare).not.toHaveBeenCalled();
+    expect(api.post_handlePersonaLinkConfirmations).not.toHaveBeenCalled();
+  });
+  it.each(["unavailable", "changed_offering"] as const)("does not offer another name when an active grant has %s", async kind => {
+    const grant = kind === "unavailable" ? { ...publicGrant(), host: { kind: "unavailable" as const, reason: "dns_or_gateway_unhealthy" as const } }
+      : { ...publicGrant(), sale_namespace_activation_generation: 2 };
+    const { controller, api, prepare, grantClient } = await setup({ grants: [grant] });
+    await vi.waitFor(() => expect(controller.entry()).toBe("named"));
+    expect(controller.open()).toBe(false); expect(prepare).not.toHaveBeenCalled();
+    expect(grantClient.get_handlesFamilyNamespaceRootHandleLabel).not.toHaveBeenCalled();
+    expect(api.post_handleClaims).not.toHaveBeenCalled();
+  });
+  it("reopens a saved interrupted attempt once per return and suppresses new-name entry after issuance", async () => {
+    const first = await setup(); await first.controller.show(); first.controller.setLabel(label);
+    await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
+    const saved = readCommunityNameAttempt(localStorage, "account", communityId)!;
+    for (const dispose of disposers.splice(0)) dispose(); sessionStorage.clear();
+    const second = await setup(); await vi.waitFor(() => expect(second.controller.entry()).toBe("pending"));
+    await second.controller.restoreOnReturn(); expect(second.controller.open()).toBe(true);
+    expect(second.controller.state()).toMatchObject({ kind: "pending", label, claimId: "claim-1" });
+    second.controller.setOpen(false); await vi.waitFor(() => expect(second.controller.open()).toBe(false));
+    await second.controller.restoreOnReturn(); expect(second.controller.open()).toBe(false);
+    await second.controller.show(); await second.controller.resume();
+    expect(second.controller.entry()).toBe("named");
+    expect(readCommunityNameAttempt(localStorage, "account", communityId)?.keys).toEqual(saved.keys);
+    for (const method of [second.api.post_handlePersonaLinkConfirmations, second.api.post_handleQuotes, second.api.post_handleReservations, second.api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
+  });
+  it("recovers an interrupted claim even when its active grant already exists", async () => {
+    const first = await setup();
+    first.api.post_handleClaims = vi.fn(async () => { throw new TypeError("response_lost"); });
+    await first.controller.show(); first.controller.setLabel(label);
+    await vi.waitFor(() => expect(first.controller.state().label).toBe(label)); await first.controller.submit();
+    const saved = readCommunityNameAttempt(localStorage, "account", communityId)!;
+    for (const dispose of disposers.splice(0)) dispose(); sessionStorage.clear();
+    const second = await setup({ grants: [publicGrant()] });
+    await vi.waitFor(() => expect(second.controller.entry()).toBe("pending"));
+    await second.controller.restoreOnReturn();
+    expect(second.controller.state()).toMatchObject({ kind: "pending", label, unconfirmed: true });
+    second.api.post_handleClaims = vi.fn(async () => ({ claim: claim(), replayed: true }));
+    await second.controller.resume();
+    expect(second.controller.state()).toMatchObject({ kind: "issued", identifier: `${label}.charizard` });
+    expect(second.controller.entry()).toBe("named");
+    expect(second.api.post_handleClaims).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ idempotency_key: saved.keys.claim }) }), expect.anything());
+    for (const method of [second.api.post_handlePersonaLinkConfirmations, second.api.post_handleQuotes, second.api.post_handleReservations]) expect(method).not.toHaveBeenCalled();
+  });
   it("retains another tab's original intent discovered during profile preparation", async () => {
     const { controller, api, prepare } = await setup();
     const retained = createCommunityNameAttempt({ accountId: "account", communityId, personaId, offering, label: "another-name" });
@@ -47,6 +95,8 @@ describe("connected community name ownership and recovery", () => {
     await controller.show(); controller.setLabel(label);
     await vi.waitFor(() => expect(controller.state().label).toBe(label)); await controller.submit();
     expect(controller.state()).toMatchObject({ kind: "pending", label: retained.label });
+    expect(controller.entry()).toBe("pending");
+    expect(controller.available()).toBe(true);
     expect(readCommunityNameAttempt(localStorage, "account", communityId)).toEqual(retained);
     for (const method of [api.post_handlePersonaLinkConfirmations, api.post_handleQuotes, api.post_handleReservations, api.post_handleClaims]) expect(method).not.toHaveBeenCalled();
   });
