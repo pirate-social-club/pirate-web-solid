@@ -468,13 +468,15 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
-
-    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post")!;
+    const postHere = await vi.waitFor(() => {
+      const button = container.querySelector<HTMLButtonElement>("[data-community-post-slot]");
+      expect(button).not.toBeNull(); expect(button?.disabled).toBe(false); return button!;
+    });
+    expect(resolveSession).toHaveBeenCalled();
+    // Naming may inspect the same host-local session independently. Posting
+    // must still use its established profile authority rather than retry auth.
+    resolveSession.mockRejectedValue(new Error("Unexpected authentication retry for cached posting session"));
     postHere.click();
-
-    expect(resolveSession).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
   });
 
@@ -570,17 +572,26 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    expect(resolveSession).toHaveBeenCalled();
 
     const postHere = container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!;
+    const readsBeforeFailedRetry = resolveSession.mock.calls.length;
     postHere.click();
+    expect(postHere.disabled).toBe(true);
 
-    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    await vi.waitFor(() => {
+      expect(resolveSession.mock.calls.length).toBeGreaterThan(readsBeforeFailedRetry);
+      expect(postHere.disabled).toBe(false);
+    });
+    expect(container.textContent).toContain("couldn't load your active personas");
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
+    const readsBeforeRetry = resolveSession.mock.calls.length;
     unavailable = false;
     postHere.click();
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
+    expect(resolveSession.mock.calls.length).toBeGreaterThan(readsBeforeRetry);
     // The profile failure is over, which shows in the control it governs
     // rather than in an announcement that has its own lifetime.
     expect([...container.querySelectorAll("button")]
@@ -613,9 +624,9 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
-
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    expect(resolveSession).toHaveBeenCalled();
+
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     // This viewer is a member, so Spec 016 leaves them no follow to exercise
