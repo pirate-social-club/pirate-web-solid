@@ -76,3 +76,65 @@ Real video playback and deployed acceptance are distinct from fixtures and
 must be recorded honestly. Preserve exact source and evidence per tranche,
 use the sanctioned publication route, and keep the task open until the work
 and any genuine dependencies are correctly dispositioned.
+
+## Supplemental cloud direction published, 2026-10-13
+
+The full-scope implementation direction, resolved routine choices and a
+read-only frontend state-machine plan are published on
+handoff/storybook-implementation-20261013 at
+efb3cac362875f7d872853daa68d9461683b7c88,
+https://github.com/pirate-social-club/pirate-web-solid/tree/handoff/storybook-implementation-20261013/docs/design-reconciliation/2026-10-13.
+The commit adds five document/manifest files only, based on exact main
+45d07cb25b3267ad16f158aa40eff7d11ad49c5e. Public anonymous archive readback
+matches all five files byte for byte and all four listed checksums pass.
+The original reference branch, audit branch and main remain unchanged.
+Canonical Solid HEAD, index and working files remain unchanged. No app code,
+build, test, Storybook run, API change, release or device acceptance occurred.
+
+The new plan locates Spec 013 and the existing video-first coverage record,
+records the already landed text/song/video XState ownership, and drafts
+separate HNS member, Spaces owner and feed request/playback transition
+contracts. These are planning semantics bound to current source, not new wire
+enums or a concurrent source refactor. HNS/Spaces implementation custody stays
+with its existing lanes. The state-coverage registration remains separate.
+
+Local publication and registration receipts are under the staging package's
+delivery/implementation-direction-20261013. This task remains planned until
+actual cloud registration and worktree admission. The exported task record
+is the original registration snapshot at control commit
+8731b34be71edc902c8c7be21b75c599b2e0f901; this publication checkpoint does not
+claim cloud activation or source acceptance.
+
+## Reserved naming sheets and review correction, 2026-10-13
+
+Reserve Flows/Community/JoinAndName and Flows/Community/Address to the existing
+naming/Spaces integration lane before source work begins. The cloud Storybook
+writer may audit these exports but must mark their source changes as owned
+elsewhere, not edit their controllers, stories, copy or flow wiring without
+explicit custody handback recorded by that lane. The 95-sheet accounting
+still includes them; consuming that lane's accepted evidence can close their
+visual reconciliation rows without a competing implementation.
+
+JoinAndName is owned by the active solid-hns-names-page-member-journey and
+its naming/Karaoke integration. Address includes the separately registered
+solid-spaces-community-route-attachment and owner-recovery work. The former
+is parked; solid-spaces-owner-progress-recovery remains planned and blocked
+on solid-naming-karaoke-source-integration. Neither inactivity nor a planned
+record supplies source custody. Recheck live records at any handback.
+
+The separate solid-storybook-state-coverage-map record now names the
+workstation workspace_state_coverage_coordinator for posting-first coverage.
+It is not part of this exclusive cloud task. HNS/Spaces machine work stays
+reference-only in the cloud package; Specs 012 and 013 are not exported.
+
+The duplicate feed trace at exact Solid 45d07cb confirms HomeRoute renders
+HomeVideoFeed. HomeFeed and PublicFeed are only type imports from that route;
+public-feed.tsx imports home-feed-adapter.ts, not HomeFeed. Its internal
+FeedItemCard is not runtime-reachable from production route roots. No unused
+component or live adapter was deleted. Preserve their separate cleanup scope.
+
+The root-level handoff ZIP is inventory debt associated with this handoff,
+not an unrelated prior checker failure. It is indexed and retained without
+claiming byte identity with the present package. The loose error.log, the
+.cloudflare directory and fourteen unlisted archive directories are separate
+remaining findings. No cache, log, archive or protected evidence is deleted.

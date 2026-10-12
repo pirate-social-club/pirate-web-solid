@@ -4,7 +4,7 @@
 
 In response to the question about releasing implementation from the 2026-10-11 Paper-only instruction, the workspace_owner said: "it doesn't have access to paper, it should fully update storybook properly". This direction releases the full Storybook reconciliation, starting with card and profile. It is not limited to slices 1a and 1b. The exported screenshots, captions, tokens and exact layout references are the cloud agent's design source.
 
-This document records that direction on 2026-10-13. The original design export and independent audit remain unchanged. Existing shared component edits also change app source in the same commit. Storybook is the implementation review surface; there is no later duplicate implementation to copy into the app. Runtime rollout remains separately coordinated.
+This document records that direction on 2026-10-13. Its provenance is the coordinator session reply; no independently verifiable owner transcript is included in the repository. The original design export and independent audit remain unchanged. Existing shared component edits also change app source in the same commit. Storybook is the implementation review surface; there is no later duplicate implementation to copy into the app. Runtime rollout remains separately coordinated.
 
 ## Dispatch and ownership
 
@@ -14,7 +14,16 @@ Use a new `feat/paper-storybook-reconciliation` branch from published main, init
 
 Use the maintained cloud admission toolkit and the existing peer control root if it has already been initialized. The toolkit and verification procedure are published in [api-next issue 595](https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6123047308). Verify actual repository roots, normalized remotes, shared Git directories and writer custody, register the exported planned record, and open its lane with the maintained lifecycle command. Do not copy workstation capacity exceptions into cloud runtime metadata or treat downloaded tools as completed admission.
 
-The Storybook writer owns this feature branch. HNS/Spaces behavior planning proceeds separately and must not race the existing Naming or owner-recovery source lanes. Coordinate any later overlapping source change before editing it. Use the repository's sanctioned source-publication and review path. This task makes no production change, enables no Rewards and creates no credentials. API changes and runtime releases retain their own task ownership.
+The Storybook writer owns this feature branch, subject to the reserved-sheet boundaries below. Posting coverage belongs to the workstation `workspace_state_coverage_coordinator` under `solid-storybook-state-coverage-map`. This is a separate planned source lane. HNS/Spaces and feed-machine proposals in this package are reference material, not cloud dispatch; Specs 012 and 013 are not exported. Coordinate any later overlapping source change before editing it. Use the repository's sanctioned source-publication and review path. This task makes no production change, enables no Rewards and creates no credentials. API changes and runtime releases retain their own task ownership.
+
+## Reserved sheets before implementation
+
+| Design sheet | Source custody and treatment |
+| --- | --- |
+| `Flows/Community/JoinAndName` | Owned by `solid-hns-names-page-member-journey`, currently active, and its Naming/Karaoke integration. The capacity exception and review extend to 2026-10-16. Audit the export, mark source changes `owned_elsewhere`, and consume that lane's reviewed evidence. |
+| `Flows/Community/Address` | Reserved to the existing naming/Spaces integration and `solid-spaces-community-route-attachment`. That attachment task is parked; owner recovery is separately planned and blocked on `solid-naming-karaoke-source-integration`. Parked or blocked status does not transfer source custody. |
+
+Do not edit either flow's controllers, stories, strings or wiring in this exclusive Storybook lane until its owning lane records explicit handback. Keep both rows in the 95-sheet accounting with their owner and dependency. Audit-only review can proceed, and accepted evidence from the owning lane can close the corresponding reconciliation rows. Check shared primitive changes for effects on these flows and coordinate any overlapping source or behavioral change.
 
 ## Routine choices resolved
 
@@ -24,7 +33,7 @@ The Storybook writer owns this feature branch. HNS/Spaces behavior planning proc
 | Post age | Use the compact Paper format, such as `2h`, preserving the existing timestamp source and localization. |
 | Profile main label | Show the public handle first when available. Preserve an honest existing public-label fallback when absent; never expose an account identifier or fabricate a handle. |
 | Song artist | Omit the line when the feed has no artist. Record the missing source; do not add a new API dependency merely to reproduce fixture text. |
-| Duplicate card | Leave unreachable `FeedItemCard` and `HomeFeed` for a separate cleanup. Implement and review the actual shared card used by routes. |
+| Duplicate card | Leave `FeedItemCard` and `HomeFeed` for a separate cleanup. A type-aware source trace at 45d07cb confirms neither is rendered by production routes; keep their live adapters. See `REVIEW-CORRECTIONS.md`. Implement and review the actual shared card used by routes. |
 | Node | Configure the cloud task setup to use the CI-pinned Node 24.14.0, subject to checking current CI, and the repo-pinned browser tooling. Do not waive required acceptance because the initial container has Node 22. |
 
 Apply the measured card and profile styles in the audit unless a current runtime or accessibility constraint requires a documented difference. Keep Boost as the live sponsor entry point. Keep the reward pill in design-system fixtures until a real capability/count projection and an authorized live destination exist. Use a discriminated presentation model for text, song and video; avoid optional field combinations that permit impossible card states.
@@ -45,7 +54,7 @@ The current parity checker counts type-only imports as reachable. A green check 
 
 | Area | Required treatment |
 | --- | --- |
-| Feed video delivery | Both API feed queries currently exclude videos. Request a separate api-next slice. Its eligibility must match the existing authoritative public playable-video policy; do not expose processing or unknown media as playable. Review the exact ready predicate with that lane. Pending author submissions stay distinct. |
+| Feed video delivery | The profile-activity and public-community-thread queries at API `4a791f27fb7c983689fe75150953be67ed25f709` restrict post types to text and song. The separate Home query permits ready videos; its line 403 is not an all-video exclusion. Request a separate api-next slice. Its eligibility must match the existing authoritative public playable-video policy; do not expose processing or unknown media as playable. Review the exact ready predicate with that lane. Pending author submissions stay distinct. |
 | Video rollout | The video renderer must be serving and verified in an environment before that environment's API starts returning videos. Merge order alone is insufficient. Verify staging first through the separate release lane. |
 | Study answers | Correct answers advance automatically. Only incorrect answers pause for Continue. Review both spoken and choice paths. Result-page Continue is a different transition. |
 | Result sequence | Always show the activity result, then optional newly-earned Streak, then optional Rewards. `qualifiedToday` alone does not establish that this attempt newly earned the day. Resolve adapter data before asserting live routing. |

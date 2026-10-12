@@ -1,0 +1,375 @@
+{
+  "ref": "45d07cb25b3267ad16f158aa40eff7d11ad49c5e",
+  "method": "TypeScript syntax analysis, excluding type-only imports and test/story roots; no builds or tests executed",
+  "sourceFiles": 472,
+  "runtimeRoots": 38,
+  "routeReachability": [
+    {
+      "file": "src/features/posts/feed/home-feed.tsx",
+      "runtimeReachable": false,
+      "incoming": [
+        {
+          "from": "src/routes/index.tsx",
+          "to": "src/features/posts/feed/home-feed.tsx",
+          "typeOnly": true,
+          "line": 22
+        }
+      ]
+    },
+    {
+      "file": "src/features/posts/feed/public-feed.tsx",
+      "runtimeReachable": false,
+      "incoming": [
+        {
+          "from": "src/features/posts/feed/home-feed.tsx",
+          "to": "src/features/posts/feed/public-feed.tsx",
+          "typeOnly": false,
+          "line": 1
+        },
+        {
+          "from": "src/features/posts/video-feed/home-video-feed.tsx",
+          "to": "src/features/posts/feed/public-feed.tsx",
+          "typeOnly": true,
+          "line": 18
+        },
+        {
+          "from": "src/routes/index.tsx",
+          "to": "src/features/posts/feed/public-feed.tsx",
+          "typeOnly": true,
+          "line": 24
+        }
+      ]
+    },
+    {
+      "file": "src/features/posts/feed/home-feed-adapter.ts",
+      "runtimeReachable": true,
+      "incoming": [
+        {
+          "from": "src/features/posts/feed/home-feed.tsx",
+          "to": "src/features/posts/feed/home-feed-adapter.ts",
+          "typeOnly": false,
+          "line": 6
+        },
+        {
+          "from": "src/features/posts/feed/public-feed.tsx",
+          "to": "src/features/posts/feed/home-feed-adapter.ts",
+          "typeOnly": false,
+          "line": 5
+        },
+        {
+          "from": "src/routes/index.tsx",
+          "to": "src/features/posts/feed/home-feed-adapter.ts",
+          "typeOnly": false,
+          "line": 23
+        }
+      ]
+    },
+    {
+      "file": "src/features/posts/video-feed/home-video-feed.tsx",
+      "runtimeReachable": true,
+      "incoming": [
+        {
+          "from": "src/routes/index.tsx",
+          "to": "src/features/posts/video-feed/home-video-feed.tsx",
+          "typeOnly": false,
+          "line": 32
+        },
+        {
+          "from": "src/routes/index.tsx",
+          "to": "src/features/posts/video-feed/home-video-feed.tsx",
+          "typeOnly": true,
+          "line": 33
+        }
+      ]
+    }
+  ],
+  "machines": [
+    {
+      "file": "src/features/posts/video-submission/video-composer-machine.ts",
+      "states": [
+        {
+          "path": "restoring",
+          "line": 169
+        },
+        {
+          "path": "choosingSong",
+          "line": 176
+        },
+        {
+          "path": "checkingPlayback",
+          "line": 194
+        },
+        {
+          "path": "capture",
+          "line": 214
+        },
+        {
+          "path": "capture.idle",
+          "line": 223
+        },
+        {
+          "path": "capture.inspecting",
+          "line": 231
+        },
+        {
+          "path": "capture.preparingGuide",
+          "line": 236
+        },
+        {
+          "path": "capture.startingCapture",
+          "line": 243
+        },
+        {
+          "path": "capture.startingGuide",
+          "line": 250
+        },
+        {
+          "path": "capture.recording",
+          "line": 259
+        },
+        {
+          "path": "capture.interrupting",
+          "line": 263
+        },
+        {
+          "path": "capture.finalizing",
+          "line": 269
+        },
+        {
+          "path": "review",
+          "line": 282
+        },
+        {
+          "path": "submitting",
+          "line": 289
+        },
+        {
+          "path": "retained",
+          "line": 300
+        },
+        {
+          "path": "refreshing",
+          "line": 308
+        },
+        {
+          "path": "startingOver",
+          "line": 313
+        }
+      ]
+    },
+    {
+      "file": "src/features/posts/text-submission/text-submission-machine.ts",
+      "states": [
+        {
+          "path": "starting",
+          "line": 150
+        },
+        {
+          "path": "sending",
+          "line": 156
+        },
+        {
+          "path": "waiting",
+          "line": 196
+        },
+        {
+          "path": "signInRequired",
+          "line": 200
+        },
+        {
+          "path": "published",
+          "line": 203
+        },
+        {
+          "path": "rejected",
+          "line": 204
+        }
+      ]
+    },
+    {
+      "file": "src/features/posts/song-submission/song-observation-machine.ts",
+      "states": [
+        {
+          "path": "starting",
+          "line": 106
+        },
+        {
+          "path": "routing",
+          "line": 113
+        },
+        {
+          "path": "waiting",
+          "line": 120
+        },
+        {
+          "path": "reading",
+          "line": 129
+        },
+        {
+          "path": "waitingForAuthor",
+          "line": 150
+        },
+        {
+          "path": "bindingOriginal",
+          "line": 163
+        },
+        {
+          "path": "rerunning",
+          "line": 173
+        },
+        {
+          "path": "held",
+          "line": 185
+        },
+        {
+          "path": "settled",
+          "line": 188
+        }
+      ]
+    }
+  ],
+  "videoCoverage": {
+    "file": "src/features/posts/video-submission/video-composer-coverage.test.ts",
+    "entries": [
+      {
+        "state": "restoring",
+        "story": "SubmittedUploadResumes",
+        "test": "resumes on its own",
+        "line": 16,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "choosingSong",
+        "story": "ExcerptSelection",
+        "test": "the excerpt is chosen before any clip",
+        "line": 17,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "checkingPlayback",
+        "internal": "Transient playback check shown by Continue",
+        "test": "changing the song while playback is checked",
+        "line": 18,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture",
+        "story": "RecordingReady",
+        "test": "the camera shows on the capture screen",
+        "line": 19,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.idle",
+        "story": "RecordingReady",
+        "test": "the camera shows on the capture screen",
+        "line": 20,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.inspecting",
+        "internal": "File inspection has no stable screen",
+        "test": "an uploaded 16 second video is refused",
+        "line": 21,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.preparingGuide",
+        "internal": "Guide buffer wait has a loading notice",
+        "test": "the complete local guide precedes capture",
+        "line": 22,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.startingCapture",
+        "internal": "Camera permission is pending",
+        "test": "hiding the page while capture opens",
+        "line": 23,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.startingGuide",
+        "internal": "Guide startup is pending",
+        "test": "Stop during guide startup aborts the guide",
+        "line": 24,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.recording",
+        "story": "GuidedRecording",
+        "test": "recording plays the guide",
+        "line": 25,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.interrupting",
+        "story": "GuideInterrupted",
+        "test": "a real guide gap discards the take",
+        "line": 26,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "capture.finalizing",
+        "story": "RecordingStopped",
+        "test": "after Stop the capture screen says the take is being finished",
+        "line": 27,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "review",
+        "story": "ReviewPlayback",
+        "test": "review plays the intended soundtrack locally",
+        "line": 28,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "submitting",
+        "story": "UploadProgress",
+        "test": "reserves, uploads and finalizes",
+        "line": 29,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "retained",
+        "story": "SubmittedUploadNeedsAnotherTry",
+        "test": "a failed upload offers one retry action",
+        "line": 30,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "refreshing",
+        "story": "SubmittedUploadResumes",
+        "test": "an unconfirmed finalize goes Home",
+        "line": 31,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      },
+      {
+        "state": "startingOver",
+        "story": "SubmittedUploadExpired",
+        "test": "Start over cancels an expired upload",
+        "line": 32,
+        "storyExportFound": true,
+        "testFragmentFound": true
+      }
+    ],
+    "stateKeysMatch": true,
+    "allStoryExportsFound": true,
+    "allTestFragmentsFound": true
+  }
+}

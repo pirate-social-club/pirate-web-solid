@@ -1,20 +1,26 @@
 # Frontend state-machine review
 
+## Dispatch and workstation ownership
+
+Posting coverage is assigned to the workstation `workspace_state_coverage_coordinator` under [solid-storybook-state-coverage-map](solid-storybook-state-coverage-map.md), updated at control commit `e33885fd39839ae2830cf75bf11036c5bda2b368`. Its source task remains planned, with no admitted product worktree. This coordinator has completed the first read-only source inventory in [POSTING-COVERAGE-BASELINE.md](POSTING-COVERAGE-BASELINE.md). Any source edits require governed worktree admission first.
+
+The cloud Storybook implementer owns presentation reconciliation only. HNS/Spaces and feed-machine sections below are reference proposals, not dispatched work. Specs 012 and 013 are not in the cloud export. Keep their authoritative behavior review on the workstation and with the existing owning lanes.
+
 ## What already exists
 
 This is a read-only planning baseline against Solid `45d07cb25b3267ad16f158aa40eff7d11ad49c5e` and the current workstation task register. It proposes transition contracts, not new wire types or an approved replacement architecture. No app code, build, tests or Storybook run was performed for this plan. Refresh source and active task custody before implementation.
 
 The existing Markdown specification is `docs/specs/api-next/013-posting-state-machines.md` in the control plane. It defines shared server posting semantics, durable identities, ambiguous request recovery and projections. The local register carries accepted amendments ahead of control-plane origin/main, so an older remote copy is not the entire current contract. This supplement does not export that long specification. Obtain its current accepted contract and generated-client binding through the owning lane before implementation. Spec 010 owns moderation and comments. Spec 012 owns community naming and Spaces; its accepted amendments and generated client are the behavior authority.
 
-There is also `tasks/records/solid-storybook-state-coverage-map.md`, whose snapshot is in the design export. It is a planned, coordinator-owned video-composer-first coverage registration. It calls for a small typed state-to-story-to-transition-test map, not another framework. That local record is ahead of control-plane origin/main and is not a remotely admitted implementation lane. Do not reuse it as the full design reconciliation record.
+The posting coverage task is separate from the full design reconciliation record. It calls for a small state-to-story-to-transition-test map, not another framework. Its current snapshot accompanies this supplement; the older registration in the original export is historical. `video-composer-coverage.test.ts` already has an exhaustive 17-state map and state-key checks. Review and reuse that map before adding coverage elsewhere. Local task registration is not cloud admission or source activation.
 
 Solid main already uses XState 5.33.2 through its own Solid actor bridge. Text has a shell-owned submission actor, song has a shell-owned accepted-submission observer, and video has a composer actor. Song upload/terms and low-level video capture/media adapters are distinct from those actors. Do not claim that every posting phase is already owned by one machine or start another posting rewrite by default.
 
 | Priority | Scope | First deliverable |
 | --- | --- | --- |
-| 1 | HNS member naming and Spaces owner recovery | Separate transition tables bound to existing generated contracts, reviewed with the current source lane. |
-| 2 | Existing text, song and video machines | Actual visible-state inventory mapped to real stories and meaningful transition tests. |
-| 3 | Feed loading, refresh, pagination and identity | Request-lifetime contract and race/recovery coverage; keep playback ownership separate. |
+| 1, dispatched planning | Existing video map, then text and song actors | Workstation-owned review of real state/story/test links; reuse the existing video map. Source edits remain planned pending admission. |
+| Later, reference only | Feed loading, refresh, pagination and identity | Review request and playback lifetimes after coordinating with the profile source task. |
+| Later, owned elsewhere | HNS member naming and Spaces owner recovery | Review with existing naming/Spaces lanes and locally available Specs 012/013; no cloud refactor or competing writer. |
 | Later | Activity result routing and Wallet verification/return | Model after newly-earned streak, reward and verification contracts are settled. |
 | Blocked | New Dance review behavior | Resolve amendment A to F, ratification and independent review before implementation. |
 
@@ -82,4 +88,4 @@ Required traces are initial empty versus failed versus locked-only response; loa
 
 ## Next behavior review
 
-Begin with the member-naming transition contract above, comparing it to the current naming lane and generated client. Establish the state/story/test map without editing that lane. Then review Spaces owner recovery with its existing task. Storybook work can proceed on settled presentation while these behavior contracts are checked. Result routing and Wallet verification follow when their server facts and return contracts are known. Dance remains a separately blocked specification dependency.
+Begin with the existing 17-state video coverage map under the workstation posting task. Review internal-state reasons and actual transition assertions, then extend useful coverage to the six text states and nine song observer states. Keep HNS member naming and Spaces owner recovery as reference proposals for their current owners; their active source/dependency boundaries and local specification access make them unsuitable as a new first lane. Feed review follows after source coordination. Result routing and Wallet verification follow when their contracts are known. Dance remains a separately blocked specification dependency.
