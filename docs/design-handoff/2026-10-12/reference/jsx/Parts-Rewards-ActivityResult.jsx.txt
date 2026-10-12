@@ -1,0 +1,574 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '48px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          ActivityResult
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Under review, not yet approved. The end of every activity: Dance, Study, Karaoke.<br />Dance ends on one page. A mark, a title, one line naming the song and the day the take was sent, the rewards for that activity, and one footer button. Dance says Submitted, because the community's owner checks it later, and a dance joins the lottery of the day it passes, per the workspace_owner, so its lottery row says only what winning means: no amount, no count and no timer, because nothing is earned yet and the drawing it will join is not known. Its rows sit under "If your dance passes, you get". The page says nothing about whether the take will be public; the workspace_owner removed that line on 2026-10-12 as unnecessary, since the choice is made on Review just before.<br />The same pages are where the dancer looks later, by two routes, per the workspace_owner on 2026-10-12. From a notification (Screens/Shell/Notifications): the row "Your dance passed" opens Passed, "Your dance didn't pass" opens Not passed, and "Your dance wasn't reviewed" opens Not reviewed. And from the Your take row on the dance's own page (Flows/Dance/Take): In review opens Submitted, and the other three states open their result. No list of a person's takes is drawn. Passed shows what was earned, as the same cards the Rewards page uses, and one line giving the day that counts toward the streak; when the dance carried no reward, Passed shows the streak line alone. Not passed says so and offers Try again. Not reviewed is the fourth ending: nobody checked the take within seven days of upload, per the workspace_owner on 2026-09-30. It has a neutral mark, says plainly that it is not a fail, and offers Try again, which starts a new attempt. Withdraw take, proposed: a quiet action under Done on the waiting Submitted page, with a confirmation, drawn beside Submitted. It carries forward the withdrawn state in the 2026-09-30 draft; the placement is the reviewer's recommendation. It exists only while the take is waiting and never undoes an answer. Every date on these pages is written out, never "today", so an old result still reads true when reopened. The passed states and the song line were added on 2026-10-12 on the reviewer's recommendation. A dance counting toward the streak for the day it was sent was accepted by the workspace_owner that day.<br />Study and Karaoke end on up to three pages, one after another, as Duolingo does: Result, then Streak, then Rewards. Each page has one job and Continue moves on; the repeat action (Study again, Sing again) sits only on the last page, beside Done, because offering it earlier would skip the pages that follow.<br />Result always appears: the headline for the score band and the score as one large number, nothing else. Streak appears only when this activity earned today's streak day: the flame, the number, the words "day streak" (never a bare number) and the week. Rewards appears only when the person earned something: one separate card per reward, each with the same three lines (what it is, what they got, a short note), a colour bar for the kind (gold for the lottery, green for a cash bonus), then Study again and Done. The streak comes before the rewards so the page that most often applies is first and the surprise is last.<br />Lottery wording, the same for Dance, Study and Karaoke, confirmed by the workspace_owner on 2026-10-12. The card reads "Daily lottery", "You're entered", then "Drawing on 11 October. If the ticket wins, you get part of the prize." It never shows a count, because a person is entered in a drawing once and another qualifying attempt adds nothing. Rejected that day: "1 entry" (miscounts), "Share confirmed" (not coherent English, and "share" read as sharing the take), "You're in" (not understood by ordinary people). The word "share" is not used on these pages. Keep reward copy to one short sentence; the workspace_owner called a two-sentence row verbose.<br />Which rewards a passed dance can show is not settled: the 2026-09-30 rulings limit an owner-reviewed pass to rewards funded by that community or the song's owner, never platform-funded pools, and require the dancer's human verification; the Dance pages here draw the daily lottery and a bonus. That is for the Spec 021 amendment to reconcile, and the passed page promises nothing until it does.<br />Routing after the Result, proposed. While the lottery answer is loading the Result shows "Checking the lottery…" and Continue is held; this is a waiting state, never an ending. Nobody is made to wait: a close mark at the top left leaves at once. If the check fails or runs out of time, the Result says "Couldn't check the lottery. Try again." with Try again and Done. Try again repeats the status check only; it never sends the activity again. The app's status reader already gives up after 15 seconds (features/rewards/megapot-participant), which is the reference for "out of time". Unresolved: after leaving, or after Done on the failed state, there is no designed place to check later whether the person was entered. The Wallet shows winnings, not entries, and being entered and winning are different things. Whatever was earned is still recorded by the server; only the way to see an entry afterwards is missing. The code's own words for the wait are "Checking your share…". Once the answer is in: if a streak day or any reward was newly earned, Continue goes on to Streak and Rewards as usual. The Result is the final page, with Study again and Done, only when there is nothing further to show, and then it carries one quiet line. "No lottery reward from this attempt." when the song has a reward and this attempt earned none; it speaks of the attempt only and so cannot read as removing an entry already held. "You're already entered in the 11 October drawing." when an earlier attempt already entered the person and this one earned no new streak day and no cash reward. If the person is already entered but did earn a new streak day or a cash reward, those pages follow and the already-entered line is not an ending; how the Rewards page then words the lottery is not drawn. The server knows why nothing was earned (below the score floor, entries closed, or no drawing open); the page does not say which.<br />Streaks are per song and per community, counted by day in the account's own timezone, and a streak day is earned by a qualifying activity, not by finishing (Spec 015 section 7). The page shows the song streak.<br />Design change from the code: the app's ActivityResults shows the score and two or three tiles, then a reward slot, and its Study streak page replaces the score page. This keeps the score, drops the tiles, drops the song name on Study and Karaoke (Dance keeps it, because its result is read later, away from the song), and puts streak and rewards on their own pages.<br />Not drawn: the message when a withdrawal loses the race to an answer, the Rewards page for someone already entered who earned a cash reward, a place to check a lottery entry later, claiming a cash reward, a second line for the community streak, desktop.<br />Source: features/activity/activity-results, features/studying, features/karaoke, features/rewards/megapot-participant; Spec 015 sections 3 and 7; docs/design/rewards-ui.md; the pool fields in api-next rewards-song-offers.
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', width: '1704px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '24px', textTransform: 'uppercase', whiteSpace: 'pre-wrap' }}>
+          Phone: Dance submitted; the same with "Cancel review", and its confirmation (proposed); Dance passed (with rewards, then with none); Dance not passed; Dance not reviewed. The last three are opened from Notifications (Screens/Shell/Notifications): the row "Your dance passed" opens Passed, "Your dance didn't pass" opens Not passed, and "Your dance wasn't reviewed" opens Not reviewed.<br />Words, per the workspace_owner on 2026-10-12: no screen says "take"; most people won't understand it and it won't translate well. What a person sent is "your video", and what they cancel is the review, not the dance: "Cancel this dance" was tried and could read as removing the original dance. This wording is the reviewer's proposal and is not yet confirmed by the workspace_owner. Notes here still say take or attempt where they need to tell one recording from the dance it copies; those words are for builders only.<br />Cancelling a review: carried forward from the 2026-09-30 draft, which calls the state withdrawn; this placement is the reviewer's recommendation, not a ruling. A quiet "Cancel review" under Done on the waiting Submitted page, then a confirmation with Cancel review and Keep waiting. It exists only while the video is waiting. Nothing changes on screen until the server confirms: only then does the "Your video" row leave the dance's page and Do this dance come back. Three other outcomes, kept apart. A confirmed failure: the server says it did not happen, the video is still in review, and the person can try again. An unknown outcome: the request went out and no answer came back, so it may or may not be cancelled; another attempt stays unavailable, and the app reads the status again or sends the same request again, which must be safe to repeat, then shows whatever the server confirms: cancelled, still in review, or already answered. An answer that got there first: a pass, a fail or the seven-day expiry stands and its result is shown; cancelling never undoes an answer. Removing the row after a confirmed cancel is the design agent's choice, not a ruling: the server keeps the record, and the page must not then show an older attempt as if it were the latest. Not drawn: the confirmed failure with retry, the unknown outcome, and the message when the answer got there first.<br />Not reviewed: seven days from upload with no answer, per the workspace_owner on 2026-09-30. It is final, like a pass or a fail: it is never reviewed later and never restored. Try again, here and on Not passed, starts a new attempt at the same dance from the camera; it never reopens the old one
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px', width: '1704px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" />
+                <path d="M28 15 V28 H38" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Submitted
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                  Midnight Waves · sent 10 Oct<br />Harbor Collective's owner checks your dance.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '24px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                If your dance passes, you get
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  Daily lottery
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  If the ticket wins, you get part of the prize.
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  5 USDC
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" />
+                <path d="M28 15 V28 H38" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Submitted
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                  Midnight Waves · sent 10 Oct<br />Harbor Collective's owner checks your dance.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '24px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                If your dance passes, you get
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  Daily lottery
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  If the ticket wins, you get part of the prize.
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  5 USDC
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px', height: 'fit-content', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center', minHeight: '48px', width: '100%' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Cancel review
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ alignSelf: 'start', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', borderStyle: 'solid', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', height: 'fit-content', paddingBottom: '20px', paddingInline: '20px', paddingTop: '12px', width: '390px' }}>
+            <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-border)', borderRadius: '999px', boxSizing: 'border-box', flexShrink: '0', height: '6px', width: '48px' }} />
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Cancel review of this video?
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                This video won't be reviewed. You can record another.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-destructive)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-destructive-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Cancel review
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Keep waiting
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-success)" strokeWidth="4" />
+                <path d="M18 29 L25 36 L38 21" fill="none" stroke="var(--color-success)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Passed
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  Midnight Waves · sent 10 Oct
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '24px', width: '100%' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                You earned
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Daily lottery
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                    You're entered
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Drawing on 11 October. If the ticket wins, you get part of the prize.
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                <div style={{ backgroundColor: 'var(--color-success)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Bonus
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                    5 USDC
+                  </div>
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  10 Oct counts toward your streak.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-success)" strokeWidth="4" />
+                <path d="M18 29 L25 36 L38 21" fill="none" stroke="var(--color-success)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Passed
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  Midnight Waves · sent 10 Oct
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '24px', width: '100%' }}>
+              <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  10 Oct counts toward your streak.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-destructive-text)" strokeWidth="4" />
+                <path d="M28 16 V31" fill="none" stroke="var(--color-destructive-text)" strokeWidth="4" strokeLinecap="round" />
+                <circle cx="28" cy="39" r="2.5" fill="var(--color-destructive-text)" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Not passed
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                  Midnight Waves · sent 10 Oct<br />No reward this time.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Try again
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                Dance
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '40px', paddingTop: '48px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" />
+                <path d="M19 28 H37" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="4" strokeLinecap="round" />
+              </svg>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Not reviewed
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                  Midnight Waves · sent 3 Oct<br />Nobody checked it in 7 days. This isn't a fail.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1' }} />
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Try again
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Phone: Study and Karaoke, in order. Result; the same Result while the lottery answer is loading, with Continue held and a close mark to leave; the Result when the check failed, with Try again; then streak; then rewards. Streak and rewards each appear only when earned. Study again or Sing again sits on the last page. The last two screens are the Result as the final page: this attempt earned no lottery reward; an earlier attempt already entered the person and there is nothing new to show
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Great work!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                78%
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', width: '100%' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="var(--color-foreground)" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Great work!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                78%
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                Checking the lottery…
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', opacity: '0.5', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Great work!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                78%
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                Couldn't check the lottery. Try again.
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Try again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '4px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-warning) 15%, transparent)', borderRadius: '48px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '96px', justifyContent: 'center', marginBottom: '20px', width: '96px' }}>
+                <svg width="56" height="56" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M128 20c10 44 60 64 60 120a60 60 0 0 1-120 0c0-26 12-40 26-56 4 18 12 28 22 28-2-40-2-62 12-92z" fill="var(--color-warning)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                12
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                day streak
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', marginTop: '28px', maxWidth: '320px', width: '100%' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    M
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    T
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    W
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    T
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    F
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    S
+                  </div>
+                  <div style={{ borderColor: 'var(--color-border)', borderRadius: '14px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    S
+                  </div>
+                  <div style={{ borderColor: 'var(--color-border)', borderRadius: '14px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '24px', justifyContent: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                You earned
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Daily lottery
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                      You're entered
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Drawing on 11 October. If the ticket wins, you get part of the prize.
+                    </div>
+                  </div>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                  <div style={{ backgroundColor: 'var(--color-success)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Bonus
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                      5 USDC
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Study again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Nice effort!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                52%
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                No lottery reward from this attempt.
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Study again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Great work!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                81%
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                You're already entered in the 11 October drawing.
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Study again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )

@@ -1,0 +1,773 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '48px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          Practice
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Mirror of the Storybook flow Flows/Karaoke/Practice (src/features/karaoke/karaoke-practice-surface and karaoke-route-view), phone only, with design changes listed below.<br />Full screen: the shared activity header (a close mark and a progress bar that follows the song), a blurred artwork backdrop, and a centred lyric stage with the current line large and the next line smaller and muted. The one footer button says Start and nothing else. The first time a person records, a short notice says where the recording goes before the microphone is asked for. While the microphone and scoring session connect, the same Start button shows a spinner and is disabled. If the browser blocks the microphone or none is found, a notice sits above the footer and Start stays available to try again. While singing there is no footer; each sung word fills with the warning colour and a rating (a word and its points) appears just above the lyrics as an overlay that never moves them. If the music stops mid-take, the footer says Playback stopped with one button, Resume. If the music cannot start, it says it couldn't play with one button, Try again.<br />The close mark leaves at once before Start. While singing it asks "Stop singing?" first, with Keep singing and Stop, because leaving ends the take unscored (last group).<br />The group before the last is the end of a take, drawn as the pages in order: Result, Streak, Rewards, and the Result variant when the song has a reward and no lottery entry was earned. They are clones of the shared page on the Parts page, where the sequence and its rules are written. The code's Karaoke results carry no streak today; the streak page needs the take's qualification to report a streak day, as Study's does.<br />Design changes from the code, all unapproved: the header's exit is a close mark where the code draws a caret that goes back, and it asks before stopping a take; the button reads Start in every state (the code says Start karaoke, then Start singing while busy); the rating sits closer to the lyrics; the music messages and buttons are shorter and have no "backing track", "press play" or "tap to continue"; the recording notice is one sentence and says "both of us" where the code names Pirate and a 24 month retention, since a person on a community's own domain has no notion of Pirate. Spec 019 section 5.1 requires a first-use disclosure derived from the provider terms, so its final wording needs that review.<br />The production route supplies no reward badge, so none is drawn. The artwork is a placeholder gradient.<br />Not drawn: the no-scorable-lines state (lyrics only, no action), the empty stage, other capture errors ("Audio capture could not start", "Scoring could not connect"), and desktop.
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Phone: every state, in the order a person meets them
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px' }}>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              1. Ready
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <rect x="88" y="24" width="80" height="136" rx="40" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                    <path d="M48 128a80 80 0 0 0 160 0M128 208v24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              2. First time only: recording notice
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', position: 'relative', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <rect x="88" y="24" width="80" height="136" rx="40" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                    <path d="M48 128a80 80 0 0 0 160 0M128 208v24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+              <div style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-xl)', borderStyle: 'solid', borderWidth: '1px', bottom: '16px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', left: '16px', padding: '24px', position: 'absolute', width: '358px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  Before you record
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Your recording is sent to ElevenLabs to be scored, and both of us may keep it. You can delete it in Settings.
+                </div>
+                <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px', marginTop: '12px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                      Cancel
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                      Continue
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              3. Starting: microphone and scoring connecting
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center', opacity: '0.5' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="3" style={{ opacity: '0.3' }} />
+                    <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              4. Microphone blocked
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', position: 'relative', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <rect x="88" y="24" width="80" height="136" rx="40" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                    <path d="M48 128a80 80 0 0 0 160 0M128 208v24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', bottom: '96px', boxSizing: 'border-box', left: '16px', padding: '16px', position: 'absolute', textAlign: 'center', width: '358px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  Microphone access is blocked. Allow microphone access in your browser and try again.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              5. No microphone found
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', position: 'relative', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <rect x="88" y="24" width="80" height="136" rx="40" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                    <path d="M48 128a80 80 0 0 0 160 0M128 208v24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', bottom: '96px', boxSizing: 'border-box', left: '16px', padding: '16px', position: 'absolute', textAlign: 'center', width: '358px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  No microphone is available. Connect a microphone and try again.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              6. Singing, with a rating
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', position: 'relative', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', left: '0px', position: 'absolute', top: '300px', width: '388px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: '24px', textTransform: 'uppercase' }}>
+                    Perfect
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 700, lineHeight: '16px' }}>
+                    +50
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              7. Playback stopped mid-take
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', minHeight: '0px', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', marginBottom: '12px', textAlign: 'center' }}>
+                  Playback stopped.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '52px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Resume
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+              8. Music won't play at the start
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', minHeight: '0px', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '16px', paddingTop: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', marginBottom: '12px', textAlign: 'center' }}>
+                  The music couldn't play.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '52px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Try again
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase', whiteSpace: 'pre-wrap' }}>
+          Phone: finishing a take. Result, streak, rewards, then the result when this attempt earned no lottery reward (clones of Parts/Rewards/ActivityResult)<br />The streak screen appears only when this take is the one that made today count (Parts/Rewards/Streak). If today already counted, or the take fell short, the result goes straight to rewards or Done
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Great work!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                78%
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '4px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-warning) 15%, transparent)', borderRadius: '48px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '96px', justifyContent: 'center', marginBottom: '20px', width: '96px' }}>
+                <svg width="56" height="56" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M128 20c10 44 60 64 60 120a60 60 0 0 1-120 0c0-26 12-40 26-56 4 18 12 28 22 28-2-40-2-62 12-92z" fill="var(--color-warning)" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                12
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                day streak
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', marginTop: '28px', maxWidth: '320px', width: '100%' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    M
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    T
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    W
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    T
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    F
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '14px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    S
+                  </div>
+                  <div style={{ borderColor: 'var(--color-border)', borderRadius: '14px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                    S
+                  </div>
+                  <div style={{ borderColor: 'var(--color-border)', borderRadius: '14px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', flexShrink: '0', height: '28px', width: '28px' }} />
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '24px', justifyContent: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                You earned
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Daily lottery
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                      You're entered
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Drawing on 11 October. If the ticket wins, you get part of the prize.
+                    </div>
+                  </div>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '16px', padding: '16px' }}>
+                  <div style={{ backgroundColor: 'var(--color-success)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', width: '4px' }} />
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Bonus
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 700, lineHeight: '32px' }}>
+                      5 USDC
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Sing again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '16px', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, justifyContent: 'center', lineHeight: '32px', textAlign: 'center' }}>
+                Nice effort!
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '72px', fontWeight: 700, justifyContent: 'center', lineHeight: '72px', textAlign: 'center' }}>
+                52%
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', textAlign: 'center' }}>
+                No lottery reward from this attempt.
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Sing again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Done
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Phone: tapping the close mark while singing asks first. Before Start it leaves without asking
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', flexShrink: '0', height: '844px', overflow: 'clip', position: 'relative', width: '390px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '844px', overflow: 'clip', width: '390px' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', position: 'relative', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', left: '0px', position: 'absolute', top: '300px', width: '388px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: '24px', textTransform: 'uppercase' }}>
+                    Perfect
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 700, lineHeight: '16px' }}>
+                    +50
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+            <div style={{ backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border)', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', borderTopStyle: 'solid', borderTopWidth: '1px', bottom: '0px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px', left: '0px', paddingBlock: '24px', paddingInline: '20px', position: 'absolute', width: '390px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, justifyContent: 'center', lineHeight: '28px', textAlign: 'center' }}>
+                  Stop singing?
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  This take won't be scored.
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Keep singing
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-destructive-text)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Stop
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Desktop: the take fills the window. No sidebar; the lyrics stay in one column, 640 wide, centred
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '40px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '800px', justifyContent: 'center', overflow: 'clip', width: '1280px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'clip', width: '100%' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '336px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', position: 'relative', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', left: '0px', position: 'absolute', top: '262px', width: '100%' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 800, letterSpacing: '0.04em', lineHeight: '24px', textTransform: 'uppercase' }}>
+                    Perfect
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 700, lineHeight: '16px' }}>
+                    +50
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '800px', justifyContent: 'center', overflow: 'clip', width: '1280px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'clip', position: 'relative', width: '100%' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '336px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(0%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                  I don't know why
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  you left so early
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '336px', paddingTop: '16px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '8px', height: '52px', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <rect x="88" y="24" width="80" height="136" rx="40" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                    <path d="M48 128a80 80 0 0 0 160 0M128 208v24" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Start
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', bottom: '96px', boxSizing: 'border-box', left: '461px', padding: '16px', position: 'absolute', textAlign: 'center', width: '358px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                  Microphone access is blocked. Allow microphone access in your browser and try again.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '800px', justifyContent: 'center', overflow: 'clip', width: '1280px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'clip', width: '100%' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '336px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', minHeight: '0px', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '336px', paddingTop: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', marginBottom: '12px', textAlign: 'center' }}>
+                  Playback stopped.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '52px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Resume
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '800px', justifyContent: 'center', overflow: 'clip', width: '1280px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'clip', width: '100%' }}>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', minHeight: '56px', paddingBlock: '8px', paddingInline: '336px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '20px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexBasis: '0%', flexGrow: '1', height: '6px', overflow: 'clip' }}>
+                  <div style={{ backgroundColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', height: '6px', width: 'round(53%, 1px)' }} />
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, var(--color-primary-subtle) 0%, var(--color-background) 100%)', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '26px', justifyContent: 'center', minHeight: '0px', padding: '16px', textAlign: 'center' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    you
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    left
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    so
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '28px', fontWeight: 700, justifyContent: 'center', lineHeight: '35px', textAlign: 'center' }}>
+                    early
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 700, justifyContent: 'center', lineHeight: '28px', opacity: '0.82', textAlign: 'center' }}>
+                  and I still wait
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '24px', paddingInline: '336px', paddingTop: '16px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', justifyContent: 'center', lineHeight: '20px', marginBottom: '12px', textAlign: 'center' }}>
+                  The music couldn't play.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '52px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                    Try again
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '360px' }}>
+            Every state uses this frame. Drawn here: singing, microphone blocked, playback stopped mid-take, and music that won't play. The backdrop runs the full width; the words, notices and buttons keep to the 640 column. The close mark asks before leaving a take in progress, as on the phone, in a dialog. Carried by the phone drawing only: ready, the recording notice, starting, no microphone, and the result, streak and rewards screens.
+          </div>
+        </div>
+      </div>
+    </div>
+  )

@@ -1,0 +1,1221 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '40px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          Wallet / Claim a reward
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Claim a pool win from the Wallet (Spec 015 §5.2a). The Wallet shows one profile, so every win listed belongs to that profile and is paid to that profile's wallet; nothing is chosen or redirected.<br />A claim is one action on one win. With one win, the Rewards card's Claim opens it. With several, each win is its own row with its own Claim.<br />A palm scan is asked for only when the account's palm scan is missing or out of date. When it is current, Claim asks for nothing more. Each claim is checked by the server by itself; nothing claims several wins at once. The sheet says "You need a palm scan before you can claim." and the button is "Scan palm"; the verification page itself names the Very app, since that is where the person needs it.<br />Coming back from a palm scan opens the Wallet on the profile that earned the win, with that win in view, whichever profile was showing before. The app resumes the win but does not switch to its profile, so the result can be hidden; that is a defect to fix in code.<br />Claimed is not paid. After a claim is accepted the win shows Claimed while the profile's wallet is set up, while it is sending, and while a failed send is retried; it shows Paid only when the payment is confirmed. At Paid the wallet's balance is read again and the payment is in it; the reward amount is never added on top, which would count it twice. A stalled payment is retried against the same claim and never asks for another scan.<br />On hold means the claim could not be completed and the amount is held; it is never shown as a success. A claim refused for a missing or stale palm scan leaves the win unclaimed, with Claim still there.<br />Royalties, per the workspace_owner on 2026-10-12: they will need a palm scan like every other claim, but they are not relevant until paid songs or dances exist, so nothing is drawn or built for them now. When they arrive, Spec 015 §5.2a, which covers pool winnings only, needs amending.
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.05em', lineHeight: '16px', textTransform: 'uppercase' }}>
+          Phone: claim a reward. Something to claim; Claim with a current palm scan; the scan sheet when the scan is missing or out of date; waiting for Very; claimed and sending; on hold. Then several wins as separate rows, and one win's row in each state after claiming
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Royalties
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    18.20
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Rewards
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    5.00
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', position: 'relative', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Royalties
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    18.20
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Rewards
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    5.00
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+            <div style={{ backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border)', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderTopStyle: 'solid', borderTopWidth: '1px', bottom: '0px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', left: '0px', paddingBottom: '24px', paddingInline: '20px', paddingTop: '16px', position: 'absolute', width: '390px' }}>
+              <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-muted)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', height: '4px', width: '48px' }} />
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Claim 5.00 USDC
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Pays to harbor.8s28's wallet. Your palm check is still good, so there's nothing to scan.
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                    Claim
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                    Cancel
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', position: 'relative', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Royalties
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    18.20
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Rewards
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    5.00
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+            <div style={{ backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border)', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderTopStyle: 'solid', borderTopWidth: '1px', bottom: '0px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', left: '0px', paddingBottom: '24px', paddingInline: '20px', paddingTop: '16px', position: 'absolute', width: '390px' }}>
+              <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-muted)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', height: '4px', width: '48px' }} />
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Claim 5.00 USDC
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  You need a palm scan before you can claim. It takes about a minute.
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                    Scan palm
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                    Cancel
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', position: 'relative', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Royalties
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    18.20
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Rewards
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    5.00
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+            <div style={{ backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border)', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderTopStyle: 'solid', borderTopWidth: '1px', bottom: '0px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', left: '0px', paddingBottom: '24px', paddingInline: '20px', paddingTop: '16px', position: 'absolute', width: '390px' }}>
+              <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-muted)', borderRadius: '2px', boxSizing: 'border-box', flexShrink: '0', height: '4px', width: '48px' }} />
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Claim 5.00 USDC
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Waiting for Very. Come back here when you're done. You'll return to harbor.8s28 and this win.
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                  Cancel
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Royalties
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    18.20
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '12px', padding: '16px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                    Rewards
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                    0
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', opacity: '0.5' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Activity
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  5.00 USDC
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Claimed · sending
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '20px', height: '844px', paddingInline: '16px', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '40px', paddingLeft: '8px', paddingRight: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 600, lineHeight: '16px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '44px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '18px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Activity
+                </div>
+              </div>
+              <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', paddingBlock: '12px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    On hold
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  We couldn't complete this claim. The amount is held for you. Contact support.
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'none', flexShrink: '0', height: '844px', paddingInline: '16px', position: 'relative', width: '390px' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                Wallet
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Balance
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '40px', fontWeight: 700, lineHeight: '48px' }}>
+                  $18.70
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center' }}>
+                  <svg width="18" height="18" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M128 40v176m-72-72 72 72 72-72" fill="none" stroke="var(--color-primary-foreground)" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+                    Receive
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center' }}>
+                  <svg width="18" height="18" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M128 216V40m-72 72 72-72 72 72" fill="none" stroke="var(--color-foreground)" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+                    Send
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Assets
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-info)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    USD Coin
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    12.40 USDC
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $12.40
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ backgroundColor: 'var(--color-secondary)', borderRadius: '18px', boxSizing: 'border-box', flexShrink: '0', height: '36px', width: '36px' }} />
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Ether
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    0.0021 ETH
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  $6.30
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#00000099', boxSizing: 'border-box', height: '844px', left: '0px', position: 'absolute', top: '0px', width: '390px' }} />
+            <div style={{ backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border)', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', borderTopStyle: 'solid', borderTopWidth: '1px', bottom: '0px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', left: '0px', paddingBottom: '24px', paddingInline: '20px', paddingTop: '16px', position: 'absolute', width: '390px' }}>
+              <div style={{ backgroundColor: 'var(--color-muted)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexShrink: '0', height: '4px', marginLeft: 'auto', marginRight: 'auto', width: '48px' }} />
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Claim to
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px', paddingTop: '8px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                    <div style={{ alignItems: 'center', backgroundColor: '#183E46', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                        HC
+                      </div>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                      Harbor Collective
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '10px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                          H
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                          harbor.8s28
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                        5.00 USDC
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                    <div style={{ alignItems: 'center', backgroundColor: '#3D3052', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                        NR
+                      </div>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                      Night Shift Radio
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '10px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                          N
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                          nightowl.nsr
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                        2.00 USDC
+                      </div>
+                    </div>
+                    <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'none', paddingBlock: '10px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                          U
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                          User 4KQ7M2
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                        0 USDC
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', display: 'none' }}>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                    <div style={{ alignItems: 'center', backgroundColor: '#2A3D5D', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                        WS
+                      </div>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                      World of Sound
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '10px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                          T
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                          tidewalker.sound
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px' }}>
+                        0 USDC
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '12px', width: '390px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+              The Rewards part of the Wallet page when this profile has more than one win. Each win is its own row with its own Claim; nothing claims them together, and nothing here belongs to another profile.
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '16px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', paddingBottom: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Rewards
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Lottery win · Harbor Lights · 9 Oct
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '40px', paddingInline: '16px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    2.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Lottery win · Midnight Waves · 9 Oct
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '40px', paddingInline: '16px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Claim
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '12px', width: '390px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+              One win's Activity row after the claim is accepted, in each state. Claimed is not paid: the wallet's balance changes only when the payment is confirmed and the balance is read again. None of these asks for another scan.
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '4px', paddingInline: '20px' }}>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Claimed
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Setting up this profile's wallet.
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Claimed
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Sending.
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Claimed
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Sending didn't go through. We're trying again; there's nothing to do.
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-success)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    Paid
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  In your wallet.
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingBlock: '12px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    5.00 USDC
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    On hold
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  We couldn't complete this claim. The amount is held for you.
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+              Note for whoever builds this. Not part of the screen. The five rows above match these server states, top to bottom: recipient_pending; pending or submitted; failed_retrying; confirmed; subject_conflict. A claim refused for a missing or stale palm scan is none of these: the win stays unclaimed with Claim available.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Desktop: claim. The same dialog over the Wallet as Send. A palm check leaves for the verification page and comes back
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '40px' }}>
+          <div style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: '16px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', padding: '24px', width: '480px' }}>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Claim 5.00 USDC
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Pays to harbor.8s28's wallet. Your palm check is still good, so there's nothing to scan.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                  Claim
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                  Cancel
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: '16px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '24px', padding: '24px', width: '480px' }}>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Claim 5.00 USDC
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                You need a palm scan before you can claim. It takes about a minute.
+              </div>
+            </div>
+            <div style={{ alignSelf: 'center', backgroundColor: '#FFFFFF', borderRadius: '12px', boxSizing: 'border-box', display: 'none', flexShrink: '0', height: '240px', width: '240px' }}>
+              <div style={{ boxSizing: 'border-box', color: '#444444', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Code to scan
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'none', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', textAlign: 'center' }}>
+              Waiting for the scan.
+            </div>
+            <div style={{ backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'none', flexShrink: '0', height: '48px', width: '100%' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                Cancel
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                  Scan palm
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '20px' }}>
+                  Cancel
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', whiteSpace: 'pre-wrap', width: '360px' }}>
+            Built sequence, kept: Claim on a win that needs a palm check goes to the verification page. Very's own panel shows a code for the phone, then a processing state. Continue returns to the Wallet, and the claim for that same win carries on by itself. There is no second Claim press, and no other win is claimed.<br />The return must land on the profile that earned the win; today the app resumes the win without switching to its profile, which is the defect recorded on this sheet's caption.<br />After claiming, the dialog closes and the win is a row under Activity, with the same states as the phone. Several wins are separate rows, each with its own Claim.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', paddingTop: '24px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            Desktop: the verification page between the two. Very's panel is theirs; the states around it are ours
+          </div>
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', padding: '24px', width: '320px' }}>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+              Scan with the Very app
+            </div>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '12px', borderStyle: 'dashed', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '240px', justifyContent: 'center', padding: '16px', textAlign: 'center', width: '100%' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', textAlign: 'center' }}>
+                Very's own panel: a code for the phone, then Processing. Not ours to restyle.
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '8px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                Cancel
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+              Built
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '300px' }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+              <circle cx="20" cy="20" r="18" fill="none" stroke="var(--color-border)" strokeWidth="3" />
+              <path d="M20 2a18 18 0 0 1 18 18" fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Very is checking the scan
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Keep this page open.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Waiting. Built, with other words
+              </div>
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '300px' }}>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-success)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M4 9.5l3.5 3.5L14 6" fill="none" stroke="var(--color-success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Palm scan done
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Your claim carries on in the Wallet.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', paddingTop: '24px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Continue
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Done. Built; nothing is called Paid here
+              </div>
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '300px' }}>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '20px' }}>
+                !
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                That check ran out
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Start again for a new code. Nothing was claimed.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', paddingTop: '24px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Start again
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Recoverable: expired
+              </div>
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '300px' }}>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '20px' }}>
+                !
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Very didn't accept the scan
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                You can try again. Nothing was claimed.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', paddingTop: '24px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Try again
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Recoverable: rejected
+              </div>
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '360px' }}>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-warning)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-warning)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '20px' }}>
+                !
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                The check was closed
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Nothing was claimed. Your win is still in the Wallet.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '12px', paddingTop: '24px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                  Start again
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '8px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                  Back to Wallet
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Recoverable: dismissed. Back to Wallet is proposed
+              </div>
+            </div>
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '24px', width: '300px' }}>
+            <div style={{ alignItems: 'center', borderColor: 'var(--color-destructive-text)', borderRadius: '999px', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="var(--color-destructive-text)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                Very isn't available right now
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '8px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Your win is still in the Wallet. Try later.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', paddingTop: '24px' }}>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: '8px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', height: '44px', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-card-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  Back to Wallet
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', paddingTop: '16px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Failed from here: unavailable. Back to Wallet is proposed
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '420px' }}>
+            The app has all of these states on its verification page with other words ("ceremony"); these words are the proposal. A failed or closed check never claims anything and never loses the win. Proposed, not built: showing the code inside the Claim dialog, so the person never leaves the Wallet. It would need Very's panel embedded there and every state on this row inside the dialog; it is not drawn as a screen until that is decided to be worth building. The phone uses the same page; there the panel hands over to the Very app.
+          </div>
+        </div>
+      </div>
+    </div>
+  )

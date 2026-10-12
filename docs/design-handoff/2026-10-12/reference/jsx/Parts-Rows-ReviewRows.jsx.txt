@@ -1,0 +1,124 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '48px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          ReviewRows
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Under review. A list of label and value pairs. Two kinds share the alignment and nothing else.<br />Review rows are read-only: what a person is about to confirm, or what just happened. Nothing in the row can be tapped.<br />Settings rows do something: open an editor, flip a switch, or copy a value. The right end of the row shows which.<br />Shared: label at the left, value at the right, 16px type, 14px above and below, a hairline between rows and none after the last. No filled card behind the rows. A long value wraps under itself and stays right-aligned; an address or hash is shortened in the middle, never wrapped. The label never wraps: shorten the label.<br />Instances checked. Send review (Flows/Wallet/Send): matches. Assistant and Voice (Screens/Community/Management): match. Telegram and AI moderation there, phone and desktop: changed to match, the filled card removed and the rows given the shared spacing. Spaces Handles (Flows/Community/Address, group 16): still inside an outlined box, left as it is because that box is the page card. Spaces funding terms (group 13): not rechecked.
+        </div>
+      </div>
+      <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', gap: '48px' }}>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '390px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            Review: read-only
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingInline: '20px' }}>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Amount
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                5.00 USDC
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                From
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                harbor.8s28
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                To
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                0x9f2c...3a1c
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Network
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                Base
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Fee
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                Free
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '390px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            Review: a long value
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingInline: '20px' }}>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Community
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                The Very Long Name Songwriters and Singers Collective
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '16px', justifyContent: 'space-between', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Address
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'end', lineHeight: '24px', textAlign: 'right' }}>
+                0x7a3F...6B1c
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '390px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            Settings: opens, switches, copies
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingInline: '20px' }}>
+            <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Model
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Chosen
+              </div>
+              <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                <path d="M8 5l5 5-5 5" fill="none" stroke="var(--color-muted-foreground)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Post new content
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: '999px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '26px', justifyContent: 'end', padding: '3px', width: '44px' }}>
+                <div style={{ backgroundColor: 'var(--color-primary-foreground)', borderRadius: '999px', boxSizing: 'border-box', flexShrink: '0', height: '20px', width: '20px' }} />
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingBlock: '14px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                Address
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                0x7a3F...6B1c
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-text)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 600, lineHeight: '20px' }}>
+                Copy
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+            Here the label is in the text colour and the value is muted, the reverse of a review row, because the label is the thing being set. A caret means the row opens something; a switch acts in place; Copy copies and reads Copied after.
+          </div>
+        </div>
+      </div>
+    </div>
+  )

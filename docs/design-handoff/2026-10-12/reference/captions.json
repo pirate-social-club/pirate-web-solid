@@ -1,0 +1,779 @@
+[
+  {
+    "board": "Parts/Shell/AppSidebar",
+    "page": "Parts",
+    "nodeId": "25J-0",
+    "name": "Caption",
+    "text": "The desktop sidebar: 248px wide, 16px padding, a soft right border and no brand block. Five links (For You, Your Songs, Wallet, Notifications, Profile), a Communities section, a Moderator section when the viewer moderates something, and the account row pinned to the bottom behind a divider. The account row shows the profile in use and opens the account menu (Parts/Shell/AppShellChrome), per the workspace_owner on 2026-10-12; its second line, the profile's community, is the design agent's choice. Notifications carries a dot when something is unread, and never when signed out. The create-community plus belongs to the Communities header row, right-aligned and centred on the label; it is never a standalone button. Links are 40px rows with 12px radius; community rows are 44px with a 24px coloured avatar. There is no Post here: a post belongs to a community, so Post lives on the community page."
+  },
+  {
+    "board": "_Index",
+    "page": "Parts",
+    "nodeId": "2AD-0",
+    "name": "Caption",
+    "text": "The shared pieces that screens and flows are built from: each is drawn once here and cloned everywhere else. A filled circle is drawn, an open circle is to draw. A drawn master does not change its copies; each copy is edited and viewed when its flow is next touched."
+  },
+  {
+    "board": "Parts/Rewards/SongEarnSheet",
+    "page": "Parts",
+    "nodeId": "38Y-0",
+    "name": "Caption",
+    "text": "New design, not in the code. Tapping a reward pill in the feed opens this: a Modal on desktop and a bottom sheet on phone, built on the Modal pattern with no footer. Rewards belong to activities, so there is one Item row per activity and nothing else: the activity and the pills for exactly what it pays, in the same colours as the feed. Tapping a row starts the activity. Here Karaoke pays the lottery share, the bonus and the token; Study pays the lottery share and the token; Dance pays the token only. Pills stay on one line. Qualification (the score an activity needs) is deliberately not shown here, per the workspace_owner; it belongs inside the activity. Not drawn: claimed, exhausted, entry closed and blocked states, the streak strip, and the pool disclosures the spec requires one tap away. Source: docs/design/rewards-ui.md, Surface A, and Spec 015."
+  },
+  {
+    "board": "Parts/Posts/PostCard",
+    "page": "Parts",
+    "nodeId": "3E8-0",
+    "name": "Caption",
+    "text": "The one post card, used wherever a post is listed: the community page, a profile, a single post. Three kinds share one frame. The author row is the same on all: avatar, handle, age, and the overflow menu. The body is the kind: text shows a title and body, a song shows its tile with a play button, a video shows its poster. The action row is the same on all, built from the VotePill and CommentPill patterns, with a third pill for rewards when the post has a song (Parts/Rewards/RewardPill). The pill is deliberately minimal, per the workspace_owner: the gift mark and a number, in the same shape as the comment pill. The number is how many activities the song offers; it is not money and never says the viewer has earned anything. Tapping it opens Parts/Rewards/SongEarnSheet. A text post has no song, so no rewards pill. Design change from the code: the video kind and the rewards pill are new; the app's card handles text and song only, and puts a Boost button in the author row instead. Source: features/community/page-shell (CommunityPostCard) and features/posts/shared-engagement."
+  },
+  {
+    "board": "Parts/Verification/VerifySheet",
+    "page": "Parts",
+    "nodeId": "3QV-0",
+    "name": "Caption",
+    "text": "New design. One sheet for every identity check, so joining, viewing 18+ content and claiming winnings all work the same way: a Modal on desktop, a bottom sheet on phone, opened over the page the viewer is on. The title is what they are doing (\"Join Harbor Collective\", \"Claim 12 USDC\", \"Verify you're 18+\"); the one line under it is how. On desktop the body is a QR code to scan with the phone app. On phone there is no QR, only one button that opens the app. A check that accepts two apps (nationality and age: Self or ZKPassport) shows the two choices first. While the app is open the sheet waits; when the proof arrives the sheet closes and the action finishes by itself, with no second tap and no separate page. If the viewer has no public identity for the community yet, the same sheet asks \"Joining as\" before it closes. Design change from the code: today the palm scan leaves for a separate page that never returns to the community, the document check is a different modal that needs Join tapped again afterwards, and the phone shows a QR while the desktop does not. Source: routes/verify/very.tsx, features/verification/document-verification-host.tsx, features/rewards/wallet-winnings.tsx."
+  },
+  {
+    "board": "Parts/Verification/VerifySheet",
+    "page": "Parts",
+    "nodeId": "3QX-0",
+    "name": "Group label",
+    "text": "Desktop (Modal): palm scan, choose a document app"
+  },
+  {
+    "board": "Parts/Verification/VerifySheet",
+    "page": "Parts",
+    "nodeId": "3RO-0",
+    "name": "Group label",
+    "text": "Phone (bottom sheet): join, claim, waiting"
+  },
+  {
+    "board": "Parts/Rewards/ActivityResult",
+    "page": "Parts",
+    "nodeId": "5AB-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved. The end of every activity: Dance, Study, Karaoke.\nDance ends on one page. A mark, a title, one line naming the song and the day the take was sent, the rewards for that activity, and one footer button. Dance says Submitted, because the community's owner checks it later, and a dance joins the lottery of the day it passes, per the workspace_owner, so its lottery row says only what winning means: no amount, no count and no timer, because nothing is earned yet and the drawing it will join is not known. Its rows sit under \"If your dance passes, you get\". The page says nothing about whether the take will be public; the workspace_owner removed that line on 2026-10-12 as unnecessary, since the choice is made on Review just before.\nThe same pages are where the dancer looks later, by two routes, per the workspace_owner on 2026-10-12. From a notification (Screens/Shell/Notifications): the row \"Your dance passed\" opens Passed, \"Your dance didn't pass\" opens Not passed, and \"Your dance wasn't reviewed\" opens Not reviewed. And from the Your take row on the dance's own page (Flows/Dance/Take): In review opens Submitted, and the other three states open their result. No list of a person's takes is drawn. Passed shows what was earned, as the same cards the Rewards page uses, and one line giving the day that counts toward the streak; when the dance carried no reward, Passed shows the streak line alone. Not passed says so and offers Try again. Not reviewed is the fourth ending: nobody checked the take within seven days of upload, per the workspace_owner on 2026-09-30. It has a neutral mark, says plainly that it is not a fail, and offers Try again, which starts a new attempt. Withdraw take, proposed: a quiet action under Done on the waiting Submitted page, with a confirmation, drawn beside Submitted. It carries forward the withdrawn state in the 2026-09-30 draft; the placement is the reviewer's recommendation. It exists only while the take is waiting and never undoes an answer. Every date on these pages is written out, never \"today\", so an old result still reads true when reopened. The passed states and the song line were added on 2026-10-12 on the reviewer's recommendation. A dance counting toward the streak for the day it was sent was accepted by the workspace_owner that day.\nStudy and Karaoke end on up to three pages, one after another, as Duolingo does: Result, then Streak, then Rewards. Each page has one job and Continue moves on; the repeat action (Study again, Sing again) sits only on the last page, beside Done, because offering it earlier would skip the pages that follow.\nResult always appears: the headline for the score band and the score as one large number, nothing else. Streak appears only when this activity earned today's streak day: the flame, the number, the words \"day streak\" (never a bare number) and the week. Rewards appears only when the person earned something: one separate card per reward, each with the same three lines (what it is, what they got, a short note), a colour bar for the kind (gold for the lottery, green for a cash bonus), then Study again and Done. The streak comes before the rewards so the page that most often applies is first and the surprise is last.\nLottery wording, the same for Dance, Study and Karaoke, confirmed by the workspace_owner on 2026-10-12. The card reads \"Daily lottery\", \"You're entered\", then \"Drawing on 11 October. If the ticket wins, you get part of the prize.\" It never shows a count, because a person is entered in a drawing once and another qualifying attempt adds nothing. Rejected that day: \"1 entry\" (miscounts), \"Share confirmed\" (not coherent English, and \"share\" read as sharing the take), \"You're in\" (not understood by ordinary people). The word \"share\" is not used on these pages. Keep reward copy to one short sentence; the workspace_owner called a two-sentence row verbose.\nWhich rewards a passed dance can show is not settled: the 2026-09-30 rulings limit an owner-reviewed pass to rewards funded by that community or the song's owner, never platform-funded pools, and require the dancer's human verification; the Dance pages here draw the daily lottery and a bonus. That is for the Spec 021 amendment to reconcile, and the passed page promises nothing until it does.\nRouting after the Result, proposed. While the lottery answer is loading the Result shows \"Checking the lottery…\" and Continue is held; this is a waiting state, never an ending. Nobody is made to wait: a close mark at the top left leaves at once. If the check fails or runs out of time, the Result says \"Couldn't check the lottery. Try again.\" with Try again and Done. Try again repeats the status check only; it never sends the activity again. The app's status reader already gives up after 15 seconds (features/rewards/megapot-participant), which is the reference for \"out of time\". Unresolved: after leaving, or after Done on the failed state, there is no designed place to check later whether the person was entered. The Wallet shows winnings, not entries, and being entered and winning are different things. Whatever was earned is still recorded by the server; only the way to see an entry afterwards is missing. The code's own words for the wait are \"Checking your share…\". Once the answer is in: if a streak day or any reward was newly earned, Continue goes on to Streak and Rewards as usual. The Result is the final page, with Study again and Done, only when there is nothing further to show, and then it carries one quiet line. \"No lottery reward from this attempt.\" when the song has a reward and this attempt earned none; it speaks of the attempt only and so cannot read as removing an entry already held. \"You're already entered in the 11 October drawing.\" when an earlier attempt already entered the person and this one earned no new streak day and no cash reward. If the person is already entered but did earn a new streak day or a cash reward, those pages follow and the already-entered line is not an ending; how the Rewards page then words the lottery is not drawn. The server knows why nothing was earned (below the score floor, entries closed, or no drawing open); the page does not say which.\nStreaks are per song and per community, counted by day in the account's own timezone, and a streak day is earned by a qualifying activity, not by finishing (Spec 015 section 7). The page shows the song streak.\nDesign change from the code: the app's ActivityResults shows the score and two or three tiles, then a reward slot, and its Study streak page replaces the score page. This keeps the score, drops the tiles, drops the song name on Study and Karaoke (Dance keeps it, because its result is read later, away from the song), and puts streak and rewards on their own pages.\nNot drawn: the message when a withdrawal loses the race to an answer, the Rewards page for someone already entered who earned a cash reward, a place to check a lottery entry later, claiming a cash reward, a second line for the community streak, desktop.\nSource: features/activity/activity-results, features/studying, features/karaoke, features/rewards/megapot-participant; Spec 015 sections 3 and 7; docs/design/rewards-ui.md; the pool fields in api-next rewards-song-offers."
+  },
+  {
+    "board": "Parts/Rewards/ActivityResult",
+    "page": "Parts",
+    "nodeId": "5AD-0",
+    "name": "Group label",
+    "text": "Phone: Dance submitted; the same with \"Cancel review\", and its confirmation (proposed); Dance passed (with rewards, then with none); Dance not passed; Dance not reviewed. The last three are opened from Notifications (Screens/Shell/Notifications): the row \"Your dance passed\" opens Passed, \"Your dance didn't pass\" opens Not passed, and \"Your dance wasn't reviewed\" opens Not reviewed.\nWords, per the workspace_owner on 2026-10-12: no screen says \"take\"; most people won't understand it and it won't translate well. What a person sent is \"your video\", and what they cancel is the review, not the dance: \"Cancel this dance\" was tried and could read as removing the original dance. This wording is the reviewer's proposal and is not yet confirmed by the workspace_owner. Notes here still say take or attempt where they need to tell one recording from the dance it copies; those words are for builders only.\nCancelling a review: carried forward from the 2026-09-30 draft, which calls the state withdrawn; this placement is the reviewer's recommendation, not a ruling. A quiet \"Cancel review\" under Done on the waiting Submitted page, then a confirmation with Cancel review and Keep waiting. It exists only while the video is waiting. Nothing changes on screen until the server confirms: only then does the \"Your video\" row leave the dance's page and Do this dance come back. Three other outcomes, kept apart. A confirmed failure: the server says it did not happen, the video is still in review, and the person can try again. An unknown outcome: the request went out and no answer came back, so it may or may not be cancelled; another attempt stays unavailable, and the app reads the status again or sends the same request again, which must be safe to repeat, then shows whatever the server confirms: cancelled, still in review, or already answered. An answer that got there first: a pass, a fail or the seven-day expiry stands and its result is shown; cancelling never undoes an answer. Removing the row after a confirmed cancel is the design agent's choice, not a ruling: the server keeps the record, and the page must not then show an older attempt as if it were the latest. Not drawn: the confirmed failure with retry, the unknown outcome, and the message when the answer got there first.\nNot reviewed: seven days from upload with no answer, per the workspace_owner on 2026-09-30. It is final, like a pass or a fail: it is never reviewed later and never restored. Try again, here and on Not passed, starts a new attempt at the same dance from the camera; it never reopens the old one"
+  },
+  {
+    "board": "Parts/Rewards/ActivityResult",
+    "page": "Parts",
+    "nodeId": "9MY-0",
+    "name": "Group label",
+    "text": "Phone: Study and Karaoke, in order. Result; the same Result while the lottery answer is loading, with Continue held and a close mark to leave; the Result when the check failed, with Try again; then streak; then rewards. Streak and rewards each appear only when earned. Study again or Sing again sits on the last page. The last two screens are the Result as the final page: this attempt earned no lottery reward; an earlier attempt already entered the person and there is nothing new to show"
+  },
+  {
+    "board": "Parts/Payments/PayStep",
+    "page": "Parts",
+    "nodeId": "7BY-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved. New design, built from the Boost screens.\nOne payment step for everything the app sells or funds: Boost now, and handles, songs and videos later (Spec 012 keeps paid handles disabled for now).\nWhat each purchase supplies: the rows above From on Review, the amount, the address the server says to pay, and its own final message in place of Paid. Everything else is shared: Confirm, the From and Fee rows, the Pay button, Sending, and the two problem screens.\nHow it pays, from the code and Specs 004 and 014. The money moves from the persona's own wallet to platform custody as one USDC transfer that the wallet signs in the browser; the server only watches the chain. From names that persona and the short wallet address. Confirm appears only when the wallet is locked: a short sign-in, an email code in this sketch, unlocks it for five minutes, and then Review loads the balance and the fee.\nPaying from an external address is not in version one. A person who holds funds elsewhere sends them to this wallet's address first (Wallet, Receive), which is what Add USDC opens. Paying straight from an external wallet would need the server to accept another payer, and I read Spec 014 as treating a wallet that links a persona to something else as a privacy problem, so it is a later decision. The From row is where a choice would go.\nThe fee is paid in ETH from the same wallet, so a wallet with USDC and no ETH cannot pay. Can't pay the fee exists only if the app does not cover the fee. Covering it, as the winnings send does with its gas top-up, is the better answer and removes that screen and the Fee row; the workspace_owner has not decided.\nAfter Pay: Sending, then the purchase's own result. A failure that says nothing was sent offers another try. Not drawn: the wallet may have sent it and the status is unknown, the transfer reverted, and the five minutes running out; the code handles all three in text today.\nTestnet only today: the transfer is Base Sepolia test USDC. Mainnet is separate work.\nSource: api/reward-wallet-session.ts; features/rewards (reward-funding-panel, reward-sponsor-dialog); features/wallet (receive and send sheets); Specs 004, 012 §5.3.7 and 014."
+  },
+  {
+    "board": "Parts/Payments/PayStep",
+    "page": "Parts",
+    "nodeId": "7C0-0",
+    "name": "Group label",
+    "text": "Phone: confirm, review, sending, paid\nProblems: not enough USDC, cannot pay the fee"
+  },
+  {
+    "board": "Parts/Identity/YourProfiles",
+    "page": "Parts",
+    "nodeId": "AYP-0",
+    "name": "Caption",
+    "text": "Under review. One list of profiles, used in two places.\nOn the aggregate site the Profile tab opens it as a bottom sheet on phone and a modal on desktop: each community the person belongs to is a heading, with their profiles in it underneath, and tapping a profile opens it. A person with one profile in total never sees this; the tab opens that profile directly. On a community's own domain the tab shows only that community's profiles, with no heading.\nOn a community page the profile button in the banner opens the same list for that community only, and only when the person has several profiles there: a check marks the one in use, and tapping another switches to it. With one profile the button opens that profile.\nA profile is labelled by its handle if it has one, otherwise its name, otherwise \"User\" and six characters. Private: nobody else can see these profiles together.\nTo decide: whether Settings belongs here."
+  },
+  {
+    "board": "Parts/Rows/ReviewRows",
+    "page": "Parts",
+    "nodeId": "EYV-0",
+    "name": "Caption",
+    "text": "Under review. A list of label and value pairs. Two kinds share the alignment and nothing else.\nReview rows are read-only: what a person is about to confirm, or what just happened. Nothing in the row can be tapped.\nSettings rows do something: open an editor, flip a switch, or copy a value. The right end of the row shows which.\nShared: label at the left, value at the right, 16px type, 14px above and below, a hairline between rows and none after the last. No filled card behind the rows. A long value wraps under itself and stays right-aligned; an address or hash is shortened in the middle, never wrapped. The label never wraps: shorten the label.\nInstances checked. Send review (Flows/Wallet/Send): matches. Assistant and Voice (Screens/Community/Management): match. Telegram and AI moderation there, phone and desktop: changed to match, the filled card removed and the rows given the shared spacing. Spaces Handles (Flows/Community/Address, group 16): still inside an outlined box, left as it is because that box is the page card. Spaces funding terms (group 13): not rechecked."
+  },
+  {
+    "board": "Parts/Rewards/RewardPill",
+    "page": "Parts",
+    "nodeId": "F0D-0",
+    "name": "Caption",
+    "text": "Under review. The third pill on a song post, after votes and comments. It does one thing: opens that song's rewards sheet (Parts/Rewards/SongEarnSheet), which is where Study, Karaoke and Dance start. It is the only way into them from a post (workspace_owner, 2026-10-11).\nThe number is how many activities the song offers. It is not money, not a count of rewards, and never says the viewer has earned anything. Earning is shown only on the result screens (Parts/Rewards/ActivityResult) and in the Wallet.\nA post with no song has no pill; it is left out, not greyed.\nSame height, radius and outline as VotePill and CommentPill (Patterns/Engagement).\nLoading and unavailable looks are not drawn. The app has no reward pill on posts yet, so there is nothing built to support either; they are to design when the pill is built, not assumed here.\nInstances checked: the song post on the profile page, phone and desktop (Screens/Profiles/Profile); the song and video cards on Parts/Posts/PostCard, whose caption now gives the same meaning for the number; the community feed behind the join and sign-in sheets. All have the same look. Not rechecked: the post page's song post."
+  },
+  {
+    "board": "Parts/Songs/SongRow",
+    "page": "Parts",
+    "nodeId": "F1K-0",
+    "name": "Caption",
+    "text": "Under review. Three things show a song in a row. They share the left half and differ on purpose in the rest, so this is one shared piece and three rows, not one row with switches.\nShared: square artwork with the medium radius, then the title in the text colour at medium weight, then one muted line under it. The title is cut with an ellipsis; the muted line is too.\nSong list row (Screens/Songs/YourSongs): the muted line is the artist. The whole row opens the song's sheet. It carries the person's own progress on that song.\nSong tile on a post (Parts/Posts/PostCard): an outlined box inside the post. The muted line is the artist. Its one action is Play, at the right. Tapping the rest does nothing here; activities start from the reward pill below the post.\nModeration row (Screens/Community/Management, Queue): this is a submission, not a song. The artwork slot is the dancer's video still, taller than wide. The title is the song; the muted line is the dancer's handle, then how long it has waited. The row opens the review.\nData gap for the moderation row: the moderation contract today lists text posts, comments and replies, and gives the author's profile id, not a public handle. It has no dance queue. The row is design; its data source is not built.\nWhat must not be merged: Play belongs only to the tile; progress belongs only to the list row; waiting time and the dancer belong only to the moderation row.\nInstances looked at: the three below, copied from those sheets. All six Queue rows on Screens/Community/Management carry the dancer. Not rechecked: the song picker in Flows/Posts/Song and Flows/Posts/Video."
+  },
+  {
+    "board": "Parts/Rewards/Streak",
+    "page": "Parts",
+    "nodeId": "F2N-0",
+    "name": "Caption",
+    "text": "Under review. How many days in a row a person has done enough. Four forms of the same thing.\nCompact: a flame and the number, with the week beside it. Used at the top of a song's sheet (Screens/Songs/YourSongs).\nCompletion: the flame large, the number, \"day streak\", and the week under it. Its own screen after an activity's result (Parts/Rewards/ActivityResult).\nWeek strip: seven marks, Monday to Sunday, filled for days that counted. Today is outlined until it counts.\nLeaderboard: rank, profile and current streak, with the viewer's own place as the last row. One list serves a song and a community, and it has its own page, drawn in the last group.\nWhere each leaderboard opens from, approved by the workspace_owner on 2026-10-12: on a song, a Leaderboard action on a line under the song streak; on a community, a line above the feed with the viewer's community streak and a Leaderboard action. Both are drawn here and in place on their own sheets.\nOne streak for every activity, per the workspace_owner on 2026-10-12: Study, Karaoke and Dance all feed the same streak. The completion screen follows Study and Karaoke; both flows draw it on the phone. Dance has no completion screen, because its result comes later. Not built: the server's streak writer takes Study and Karaoke only, and Dance is reserved and not wired.\nTwo facts that must stay apart. \"Qualified today\" says the day already counts, whenever that happened. \"This completion newly earned today\" says the activity just finished is the one that made it count. The compact form and the week strip follow the first. The completion screen follows only the second: a person who qualified this morning and finishes another activity tonight sees the result and no streak screen. Do not light today because an activity ended.\nAccepted by the workspace_owner on 2026-10-12, loosely (\"sound reasonable\"): an attempt that finishes below the target does not count, as today, so no streak screen follows one. A dance counts for the day it was sent, once it passes: a waiting take earns nothing yet, and passing fills in the original day.\nScope: the server stores two streaks, one per song and one per community, both kept against the account, and has a leaderboard for each (top 100 by current streak, plus the viewer's own place). The workspace_owner wants both levels working, as a ranking inside a community. The app calls neither leaderboard. They are separate from the Karaoke score leaderboard the app already has.\nMissing support, kept apart from the design. The app's current Study screen does not hand the display any streak fields; the older Study display had the count and qualified-today. The contracts read in this pass do not carry seven daily marks, so the week strip has no data behind it. Nothing read reports \"newly earned\" as its own field.\nInstances looked at: the compact and completion forms below, copied from their sheets. Not rechecked: Flows/Studying/Session and Flows/Karaoke/Practice. Not drawn: either leaderboard entry on desktop, the leaderboard page on desktop, and its empty, loading and failed states."
+  },
+  {
+    "board": "Parts/States/StatusState",
+    "page": "Parts",
+    "nodeId": "F4P-0",
+    "name": "Caption",
+    "text": "Under review. The block that says where something stands: a mark, a heading, an explanation, and what can be done. It shares spacing and order, not length. A simple state is a heading and a line; a recovery state may carry evidence, a deadline and two actions, and that is right when both actions are real.\nOrder, top to bottom: mark (40px), 16px, heading (20px, semibold), 8px, explanation (16px, muted), then any evidence as rows (Parts/Rows/ReviewRows), then any deadline as its own line, 24px, then actions, the main one first.\nSix states that must stay apart, by mark and by words, never by colour alone.\nWaiting: we are doing something or watching for something. A ring. It never looks finished.\nUncertain: we cannot tell what happened, such as a wallet send with no answer. A question mark. It says what is being checked and never guesses.\nHeld: nothing is moving; something is kept safe until a condition is met. A pause mark. A hold can have a problem behind it, so the block says why when it is known.\nRecoverable: something needs the person to act, and acting can still fix this same attempt. An exclamation mark. It carries the action, and any evidence or deadline that bears on it. It is never worded as a failure.\nFailed: this attempt ended. A cross. It says so without claiming more than is known, and it may offer a way on, including starting another valid attempt.\nDone: it worked. A tick.\n\"Sent\" and \"Paid\" are both Done and are different facts: Sent is an outgoing transfer, Paid is a confirmed reward payment. Sharing this layout does not make the words interchangeable. Nothing is called Paid before the payment is confirmed.\nTwo forms. The block form above is for a dialog, a sheet or a whole screen. The page-card form is for a settings page holding several at once: no mark, a small line naming the subject, the same order of heading, explanation, evidence and deadline, and actions at the right with the main one last.\nInstances checked. Block form: Sent (Flows/Wallet/Send), Dance submitted (Parts/Rewards/ActivityResult), the claim rows and the verification page states (Flows/Wallet/Claim), the handle and Spaces dialogs (Flows/Community/JoinAndName). Page-card form: the Address cards in groups 2, 3, 5 and 10 (Flows/Community/Address) were viewed against this and keep that order, with their evidence and actions unchanged; the other Address groups were not re-viewed."
+  },
+  {
+    "board": "Parts/Shell/AppShellChrome",
+    "page": "Parts",
+    "nodeId": "F72-0",
+    "name": "Caption",
+    "text": "Under review. The frame around a page: the desktop sidebar (Parts/Shell/AppSidebar), the phone footer (Patterns/Navigation/MobileFooterNav) and the phone page header (Patterns/Navigation/MobilePageHeader). Those sheets draw each piece. This sheet says which pages get which, and nothing here redraws them, with one exception: the account menu and Settings below.\nDestinations. Five on the phone: Home, Your Songs, Wallet, Notifications, Profile. The app has four, with a bell in the header in place of the Notifications tab, so the app's shell needs the tab added. On 2026-10-12 the tab was taken out of Paper for a few hours and then put back: the workspace_owner expected Notifications in the footer. No header bell is drawn. Neither a tab nor a bell supplies what is missing behind it: the app's Notifications page reads \"Notifications are unavailable\" and the server stores none.\nAccount row, per the workspace_owner on 2026-10-12: the sidebar's bottom row shows the profile in use and opens one menu: the person's profiles, Settings, Sign out. The second line of the row, the profile's community, is the design agent's choice and not part of the ruling. The row on Parts/Shell/AppSidebar and the sidebar copies on other sheets show the same row.\nOn a phone, approved by the workspace_owner the same day: the More button on your own profile opens the menu as a sheet, keeping Share, and Settings is a plain page reached from either menu, with Telegram, Recordings, Terms and Privacy. Both are drawn below, with the Recordings page and its confirmation. Not drawn: Settings on desktop.\nFixed chrome and content. The phone header is fixed at the top and the footer at the bottom, so a page's content starts below the header and ends above the footer, each with the device's safe area added; the app does this with the top and bottom safe-area insets. A page with an action bar puts the bar above the safe area and the footer is gone. A sheet's own bottom padding includes the safe area. Toasts sit above the footer. Check on every new phone page that the last item can scroll clear of whatever is fixed at the bottom.\nInstances looked at in this pass: the Wallet, the profile page, the post page, Management and its section pages, the Address phone route. The Paper frames do not draw a status bar or a home indicator, so safe areas are stated here and not visible in the drawings."
+  },
+  {
+    "board": "_Index",
+    "page": "Flows",
+    "nodeId": "7HR-0",
+    "name": "Caption",
+    "text": "Journeys that cross screens, in reading order, built from clones of the Screens and Parts sheets. Sheets are named Flows/Area/Name and sit left to right in that order. A filled circle is drawn, an open circle is to draw. Every flow is phone first; desktop is still to draw where the sheet says so."
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "7HX-0",
+    "name": "Caption",
+    "text": "Words: the address a person gets under the community's name space is a handle; the display name on a profile is a name. Every string here says handle. A Spaces community gives name@community instead and says name.\nJoin makes the person a member and a follower at once, with no handle needed. The handle sheet opens right after, on the community's own host: one field ending in the community's root, a length hint, and Get handle, disabled until the input is valid. Pressing Get handle is the confirmation that the handle is public; there is no checkbox and no notice.\nClosing the sheet keeps membership. A missing, pending or failed handle never blocks posting, Study or Karaoke, and a returning member is never prompted. Until a handle is chosen the member shows everywhere as \"User\" and six characters, for example User 4KQ7M2.\nA profile is labelled by its handle if it has one, otherwise its name, otherwise that User label.\nOne handle per member in a community, to start, and it cannot be replaced once issued, per the workspace_owner on 2026-10-12 (for now). The owner's offer must say one; today it sends no limit, which is a known defect.\nThe sheet exists only when the community's address is on, handles are on and requests are open (Flows/Community/Address, group 8).\nIssued and working are separate: a handle can be issued while its page is not opening. The old \"unfinished\" sheet is replaced by that state. The journey branch still refuses to show a handle as issued until its page opens; that is a defect in its controller, not only in the words.\nHow long issuing takes is not promised.\nSpaces: members only; the name is held by a Bitcoin key we make for the profile, set up by an email code, and an unclear setup checks the one already there before making another. A pending name is a request, not a name: it can end without the name, so no sheet says it is yours until it is written and settled, and a failed one does not say the name is free again. No time is promised. Staging only today.\nComing back is not all restored. The last group says what each return relies on, checked against code, and marks the two that nothing built covers.\nTo draw: the profile picker for Handshake handles; getting a first profile ready; failing before joining; desktop."
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "7HZ-0",
+    "name": "Group label",
+    "text": "Phone: community, choose a handle, taken, issued"
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "7I2-0",
+    "name": "Group label",
+    "text": "Phone: finishing, issued but its page isn't opening (this replaced \"unfinished\"), still being issued"
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "91I-0",
+    "name": "Group label",
+    "text": "Phone: later. Profile on the community page reopens the same sheet"
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "D2Z-0",
+    "name": "Phone, the handle sh…",
+    "text": "Phone, the handle sheet alone: issued but its page isn't opening, not eligible, already have one, the request ran out, checking after no answer"
+  },
+  {
+    "board": "Flows/Community/JoinAndName",
+    "page": "Flows",
+    "nodeId": "D3W-0",
+    "name": "Phone, a Spaces comm…",
+    "text": "Phone, a Spaces community, name@harbor: members only, the email code, what you're agreeing to, pending, still pending, ended without the name, written; then which profile (only with several), getting ready (before anything is agreed), name taken"
+  },
+  {
+    "board": "Flows/Auth/SignIn",
+    "page": "Flows",
+    "nodeId": "84M-0",
+    "name": "Caption",
+    "text": "Mirror of the Storybook flow Flows/Auth/SignIn (src/features/auth/sign-in-modal, sign-in-view), phone only. Not a redesign.\nA bottom sheet over wherever the person was. One screen offers Google, X and email; email continues to a six-digit code on the same sheet. There is no second step for new accounts: the terms line under the buttons is the whole declaration.\nDrawn from the code, one look per state: choose, code, signing in, failed return (back on the method list with the error), unavailable. Dropped: the injected-wallet button and its note, which only appears when a browser wallet is present, and the loading skeleton.\nDesign questions for the workspace_owner: the wallet note says \"your Pirate persona wallet\", which names Pirate on a screen that also shows on community domains. The Google and X marks are placeholders here; the app draws the real marks."
+  },
+  {
+    "board": "Flows/Auth/SignIn",
+    "page": "Flows",
+    "nodeId": "84O-0",
+    "name": "Group label",
+    "text": "Phone: choose, code, signing in, failed return, unavailable"
+  },
+  {
+    "board": "Flows/Auth/SignIn",
+    "page": "Flows",
+    "nodeId": "FJ2-0",
+    "name": "Group label",
+    "text": "Desktop: the sheet is a dialog, 440 wide, centred over the page it was opened from. Same five states"
+  },
+  {
+    "board": "Flows/Community/Create",
+    "page": "Flows",
+    "nodeId": "8O1-0",
+    "name": "Caption",
+    "text": "Three pages in the shared header, body, footer shell: details (avatar, name), join policy, then your profile. Close on the first page, back arrow on later pages, nothing at the top right. The one forward button is in the footer: Next, Next, then Create.\nJoin policy is its own page because gates will keep growing. One line at the top says joining is pseudonymous, so the cards do not repeat it. One choice today: Palm scan, checked with Very, or Nationality, checked with zkPassport or Self. Nationality reveals one search field; a chosen country becomes a chip in the field, and Next stays disabled until one is chosen. A new gate is a new card on this page.\nYour profile is always a new profile made for this community: a name, prefilled, and a generated image the owner may replace. There is no choice here.\nWords: the noun is \"profile\" everywhere and \"persona\" never appears on a screen. No string names the platform, because the person may be on a community's own domain.\nTo decide: whether gates can stack or stay one choice (drawn as one); whether the line saying a profile cannot be linked elsewhere is true as written.\nTo draw: loading, failure and retry, signed out, desktop."
+  },
+  {
+    "board": "Flows/Community/Create",
+    "page": "Flows",
+    "nodeId": "8O3-0",
+    "name": "Group label",
+    "text": "Phone: details, join policy, nationality empty, nationality search, your profile, name required"
+  },
+  {
+    "board": "Flows/Community/Create",
+    "page": "Flows",
+    "nodeId": "FMW-0",
+    "name": "Group label",
+    "text": "Desktop: the same three pages as one card in the main column, 544 wide, sidebar staying. Details, join policy, your profile"
+  },
+  {
+    "board": "Flows/Studying/Session",
+    "page": "Flows",
+    "nodeId": "960-0",
+    "name": "Caption",
+    "text": "Mirror of the Storybook flow Flows/Studying/Session (src/features/studying/studying-surface), phone only, with design changes listed below.\nOne card at a time under the shared activity header: a close mark and a progress bar. The mark is a close, not a back arrow, because cards cannot be revisited: there is no previous screen to go back to. It leaves at once with no confirmation, because leaving loses nothing: the lesson's session is kept for 24 hours and opening the song's Study again in the same browser continues at the same card (Spec 019 section 4.1; the start coordinator reuses a session that is still active). There is no resume screen, per the no-drafts rule. Say it back asks the learner to record the line; the footer button is the only control and changes with the phase: Record, Stop, Checking, then the result. Multiple choice has four option cards and no footer until an answer is given.\nBoth card types end the same way: one result box under the card content, a coloured border and tint. Correct is green with a check and says Correct. Incorrect is red with a cross and says Incorrect; in say it back, a line under it, the full width of the box, says \"You said: ...\" with what was heard, and it may run to two lines. In multiple choice the chosen option also turns green or red and the right answer is shown.\nWhat happens next. The workspace_owner said on 2026-10-12: \"our study shows a continue button - this is wrong, if right, it just goes to the next exercise. incorrect should pause so they can see what's wrong.\" Incorrect pausing is plainly ruled. Correct going on by itself with no Continue is the design agent's reading of the first half. Drawn so: a correct answer shows Correct and the next card follows without a button; an incorrect answer stops and waits for Continue, in say it back and in multiple choice alike. The app already behaves close to this: a correct spoken answer moves on at once, a correct choice after 700 milliseconds, and a spoken miss is final for that appearance, with the card coming back later if the server chooses. So there is no Record-again on a miss; an earlier drawing offered one and it was removed.\nDesign changes from the code, per the workspace_owner: the code's incorrect box also carries a diff of crossed-out and substituted words and a line saying the card comes back later, which are dropped; multiple choice gets the same Correct and Incorrect box as say it back, where the code shows only colours and marks on the options; the header's exit control is a close mark, where the code draws a caret that goes back.\nA session that sits unused for 24 hours expires; its progress is kept but a new visit starts a new session, and only a finished session can earn a streak day or a lottery entry. Resume works through this browser's saved session key, so another device starts fresh.\nThe last group is the end of the lesson, drawn as the pages in order: Result (headline and score), Streak, Rewards, and the Result variant when the song has a reward and this attempt earned none. They are clones of the shared page on the Parts page, where the sequence and its rules are written. Streak and Rewards each appear only when earned.\nThe production client supplies no reward badge for the header, so none is drawn. The code colours the selected, correct and wrong states with literal hex values; they are drawn here with the closest tokens (primary, success, destructive).\nNot drawn: the locked state, the submit-error line under the options, the selected-before-answer state, the lottery waiting and failed-check states (drawn on the Parts page only), and desktop for most cards."
+  },
+  {
+    "board": "Flows/Studying/Session",
+    "page": "Flows",
+    "nodeId": "962-0",
+    "name": "Group label",
+    "text": "Phone: say it back — ready, listening, checking, correct, incorrect. Correct goes on by itself; incorrect waits for Continue"
+  },
+  {
+    "board": "Flows/Studying/Session",
+    "page": "Flows",
+    "nodeId": "965-0",
+    "name": "Group label",
+    "text": "Phone: multiple choice — ready, correct, wrong"
+  },
+  {
+    "board": "Flows/Studying/Session",
+    "page": "Flows",
+    "nodeId": "9IS-0",
+    "name": "Group label",
+    "text": "Phone: finishing the lesson. Result, streak, rewards, then the result when this attempt earned no lottery reward (clones of Parts/Rewards/ActivityResult)\nThe streak screen appears only when this lesson is the one that made today count (Parts/Rewards/Streak). If today already counted, or the lesson fell short, the result goes straight to rewards or Done"
+  },
+  {
+    "board": "Flows/Studying/Session",
+    "page": "Flows",
+    "nodeId": "FQ4-0",
+    "name": "Group label",
+    "text": "Desktop: the lesson fills the window. No sidebar; one column, 640 wide; the button stays at the bottom of the window"
+  },
+  {
+    "board": "Flows/Karaoke/Practice",
+    "page": "Flows",
+    "nodeId": "9CX-0",
+    "name": "Caption",
+    "text": "Mirror of the Storybook flow Flows/Karaoke/Practice (src/features/karaoke/karaoke-practice-surface and karaoke-route-view), phone only, with design changes listed below.\nFull screen: the shared activity header (a close mark and a progress bar that follows the song), a blurred artwork backdrop, and a centred lyric stage with the current line large and the next line smaller and muted. The one footer button says Start and nothing else. The first time a person records, a short notice says where the recording goes before the microphone is asked for. While the microphone and scoring session connect, the same Start button shows a spinner and is disabled. If the browser blocks the microphone or none is found, a notice sits above the footer and Start stays available to try again. While singing there is no footer; each sung word fills with the warning colour and a rating (a word and its points) appears just above the lyrics as an overlay that never moves them. If the music stops mid-take, the footer says Playback stopped with one button, Resume. If the music cannot start, it says it couldn't play with one button, Try again.\nThe close mark leaves at once before Start. While singing it asks \"Stop singing?\" first, with Keep singing and Stop, because leaving ends the take unscored (last group).\nThe group before the last is the end of a take, drawn as the pages in order: Result, Streak, Rewards, and the Result variant when the song has a reward and no lottery entry was earned. They are clones of the shared page on the Parts page, where the sequence and its rules are written. The code's Karaoke results carry no streak today; the streak page needs the take's qualification to report a streak day, as Study's does.\nDesign changes from the code, all unapproved: the header's exit is a close mark where the code draws a caret that goes back, and it asks before stopping a take; the button reads Start in every state (the code says Start karaoke, then Start singing while busy); the rating sits closer to the lyrics; the music messages and buttons are shorter and have no \"backing track\", \"press play\" or \"tap to continue\"; the recording notice is one sentence and says \"both of us\" where the code names Pirate and a 24 month retention, since a person on a community's own domain has no notion of Pirate. Spec 019 section 5.1 requires a first-use disclosure derived from the provider terms, so its final wording needs that review.\nThe production route supplies no reward badge, so none is drawn. The artwork is a placeholder gradient.\nNot drawn: the no-scorable-lines state (lyrics only, no action), the empty stage, other capture errors (\"Audio capture could not start\", \"Scoring could not connect\"), and desktop."
+  },
+  {
+    "board": "Flows/Karaoke/Practice",
+    "page": "Flows",
+    "nodeId": "9CZ-0",
+    "name": "Group label",
+    "text": "Phone: every state, in the order a person meets them"
+  },
+  {
+    "board": "Flows/Karaoke/Practice",
+    "page": "Flows",
+    "nodeId": "9KX-0",
+    "name": "Group label",
+    "text": "Phone: finishing a take. Result, streak, rewards, then the result when this attempt earned no lottery reward (clones of Parts/Rewards/ActivityResult)\nThe streak screen appears only when this take is the one that made today count (Parts/Rewards/Streak). If today already counted, or the take fell short, the result goes straight to rewards or Done"
+  },
+  {
+    "board": "Flows/Karaoke/Practice",
+    "page": "Flows",
+    "nodeId": "A2V-0",
+    "name": "Group label",
+    "text": "Phone: tapping the close mark while singing asks first. Before Start it leaves without asking"
+  },
+  {
+    "board": "Flows/Karaoke/Practice",
+    "page": "Flows",
+    "nodeId": "FQR-0",
+    "name": "Group label",
+    "text": "Desktop: the take fills the window. No sidebar; the lyrics stay in one column, 640 wide, centred"
+  },
+  {
+    "board": "Flows/Wallet/Send",
+    "page": "Flows",
+    "nodeId": "AOB-0",
+    "name": "Send from the Wallet…",
+    "text": "Send from the Wallet: details, review, sent.\nA send comes from the profile the Wallet is showing, named in its header. There is no step to pick a profile: switching is done on the Wallet page before starting. The details screen shows that profile's balance, and Review names it in From.\nPalm check, per the workspace_owner on 2026-10-12: nobody sends money out of the wallet before a palm scan. Pressing Send without a current check shows the same step as Claim and leaves for the same verification page (Flows/Wallet/Claim); the details screen opens on return. Proposed and dashed: the send route has no palm check today, in the app or the API, and the API has to refuse an unverified send for the rule to hold. Receive needs no check.\nReceive is a sheet on the Wallet page (Screens/Wallet/Portfolio).\nDesktop: the same three steps in a dialog over the Wallet page. Changing profile closes it."
+  },
+  {
+    "board": "Flows/Wallet/Send",
+    "page": "Flows",
+    "nodeId": "AGV-0",
+    "name": "Group label",
+    "text": "Phone: send. Details, review, sent; then Send with no current palm check (dashed: not enforced in the app or API yet)"
+  },
+  {
+    "board": "Flows/Wallet/Send",
+    "page": "Flows",
+    "nodeId": "FDK-0",
+    "name": "Group label",
+    "text": "Desktop: send. The phone sheet becomes a dialog over the Wallet, 480 wide; same three steps, and the palm check dialog (dashed)"
+  },
+  {
+    "board": "Flows/Wallet/Claim",
+    "page": "Flows",
+    "nodeId": "AOF-0",
+    "name": "Claim a pool win fro…",
+    "text": "Claim a pool win from the Wallet (Spec 015 §5.2a). The Wallet shows one profile, so every win listed belongs to that profile and is paid to that profile's wallet; nothing is chosen or redirected.\nA claim is one action on one win. With one win, the Rewards card's Claim opens it. With several, each win is its own row with its own Claim.\nA palm scan is asked for only when the account's palm scan is missing or out of date. When it is current, Claim asks for nothing more. Each claim is checked by the server by itself; nothing claims several wins at once. The sheet says \"You need a palm scan before you can claim.\" and the button is \"Scan palm\"; the verification page itself names the Very app, since that is where the person needs it.\nComing back from a palm scan opens the Wallet on the profile that earned the win, with that win in view, whichever profile was showing before. The app resumes the win but does not switch to its profile, so the result can be hidden; that is a defect to fix in code.\nClaimed is not paid. After a claim is accepted the win shows Claimed while the profile's wallet is set up, while it is sending, and while a failed send is retried; it shows Paid only when the payment is confirmed. At Paid the wallet's balance is read again and the payment is in it; the reward amount is never added on top, which would count it twice. A stalled payment is retried against the same claim and never asks for another scan.\nOn hold means the claim could not be completed and the amount is held; it is never shown as a success. A claim refused for a missing or stale palm scan leaves the win unclaimed, with Claim still there.\nRoyalties, per the workspace_owner on 2026-10-12: they will need a palm scan like every other claim, but they are not relevant until paid songs or dances exist, so nothing is drawn or built for them now. When they arrive, Spec 015 §5.2a, which covers pool winnings only, needs amending."
+  },
+  {
+    "board": "Flows/Wallet/Claim",
+    "page": "Flows",
+    "nodeId": "AKG-0",
+    "name": "Group label",
+    "text": "Phone: claim a reward. Something to claim; Claim with a current palm scan; the scan sheet when the scan is missing or out of date; waiting for Very; claimed and sending; on hold. Then several wins as separate rows, and one win's row in each state after claiming"
+  },
+  {
+    "board": "Flows/Wallet/Claim",
+    "page": "Flows",
+    "nodeId": "FIF-0",
+    "name": "Group label",
+    "text": "Desktop: claim. The same dialog over the Wallet as Send. A palm check leaves for the verification page and comes back"
+  },
+  {
+    "board": "Flows/Posts/Text",
+    "page": "Flows",
+    "nodeId": "3YH-0",
+    "name": "Caption",
+    "text": "Post in a member's community header opens this form, so the community is already known and there is no picker. Text is the default; Song and Video open their own flows, each on its own sheet. A text post publishes instantly.\nOn desktop the form replaces the feed in the main column as a card. The sidebar, banner, community name and About card stay; the tabs and header button are hidden while composing. On phone the banner, header and bottom navigation are hidden.\nOne page structure for every stepped or full-screen task (song, video, create community, Study, Karaoke): a header with the way out at the top left and the name of where you are, a body that scrolls, and a footer that holds the one forward button. The way out is a close on the first screen and a back arrow on later steps. This is the ActionFooterShell pattern.\nDesign changes from the code, per the workspace_owner: no permanent \"Create a post\" heading, Cancel or bottom-left Back; the phone forward button is in the footer and labelled; required fields carry an asterisk and nothing is labelled optional; the Title is required.\nNot drawn yet: a member with no profile chosen for this community.\nSource: features/posts/text-submission, features/posts/post-composer."
+  },
+  {
+    "board": "Flows/Posts/Text",
+    "page": "Flows",
+    "nodeId": "3YJ-0",
+    "name": "Group label",
+    "text": "Desktop: text post, in the community page"
+  },
+  {
+    "board": "Flows/Posts/Text",
+    "page": "Flows",
+    "nodeId": "3YL-0",
+    "name": "Group label",
+    "text": "Phone: text post, empty and written"
+  },
+  {
+    "board": "Flows/Posts/Song",
+    "page": "Flows",
+    "nodeId": "4U9-0",
+    "name": "Caption",
+    "text": "Three steps, Song, Royalties and Review, with no step counter. The page structure is on the Text sheet.\nSong takes four required things: the audio, an instrumental, a vocals file and a title. Lyrics are not required. The instrumental and vocals are required because Karaoke and Study need them; separating them automatically comes later. Next uploads the files and checks the audio for a match: Uploading, then Checking, then either Royalties or Matched, which names the song and offers Replace audio.\nRoyalties has the remix cut and the earnings split, which starts as You 100%. The collaborator sheet only finds a person by handle or wallet; a result is added with half of what You hold, and shares are edited in the list.\nAfter Post there is one centred state on the same page, not a card in the feed: processing, published, failed, or waiting for review.\nTo draw: the collaborator sheet and the after-Post states on desktop."
+  },
+  {
+    "board": "Flows/Posts/Song",
+    "page": "Flows",
+    "nodeId": "464-0",
+    "name": "Group label",
+    "text": "Desktop: the same steps as the card in the main column\nRow 1: Song, matched, Royalties\nRow 2: Royalties with a collaborator, Review"
+  },
+  {
+    "board": "Flows/Posts/Song",
+    "page": "Flows",
+    "nodeId": "48U-0",
+    "name": "Group label",
+    "text": "Phone: the song flow in order, four to a row\nRow 1: Song, uploading, checking, matched (the flow stops here on a match)\nRow 2: Royalties, find a collaborator, the split, Review\nRow 3: after Post: processing, published, failed, waiting for review"
+  },
+  {
+    "board": "Flows/Posts/Video",
+    "page": "Flows",
+    "nodeId": "4UD-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved. Phone and desktop.\nA video always uses a song and lasts 3 to 15 seconds. The steps are Song, Start, the camera, Review. There is no caption, cover or 18+ control, per the workspace_owner.\nStart: the bracket is the 15 seconds and never changes size. The author drags the song under it and hears it from there. Recording stops when the bracket ends, or sooner if the author stops; a 9-second take uses 9 seconds of song.\nThe camera is the one screen outside the page structure on phone: full-bleed, close at the top left, the song in a pill, the record button, Upload on the left. Review is full screen.\nOn desktop the same four steps are cards in the main column, like the song flow (above the phone screens). The camera is the computer's webcam in the same 9:16 frame, with Upload and Flip under it; that is my proposal, since the code's camera is built for phones.\nAfter Post the upload shows on this screen, then the composer closes and the author lands on the community page they posted in, per the workspace_owner. The ratified Spec 024 says Home, so it needs amending. The video appears in that feed once it is ready. There are no processing or published screens (Spec 024: no drafts, no status pages), and a failure or a guideline block arrives as a notification (Screens/Shell/Notifications).\n\"Use this song\" on a song post opens this same flow at Start with that song already chosen, and posts to the song's own community, so there is no destination page. It is not shown to someone who cannot post in that community. This is my proposal; the code asks for a destination today.\nThis flow only posts a public video. Dancing for a reward is a separate flow (Flows/Dance/Take).\nDesign changes from the code, not yet approved:\n1. Choosing a song is tap a row, then Next. The code has a Use button on the row.\n2. The start point is its own step, with the waveform bracket. The code has a slider on the song screen.\n3. The camera shows the time left and a Flip button. The code uses the front camera only and shows no time.\n4. The buttons read Next and Post, not \"Continue to video\" and \"Publish video\".\nNot drawn yet: the song and camera failure states, and recording and uploading on desktop (they match the phone).\nSource: features/posts/video-submission; specs 013 and 024."
+  },
+  {
+    "board": "Flows/Posts/Video",
+    "page": "Flows",
+    "nodeId": "73C-0",
+    "name": "Group label",
+    "text": "Desktop: the same steps as cards in the main column, in order. Under review, not yet approved."
+  },
+  {
+    "board": "Flows/Posts/Video",
+    "page": "Flows",
+    "nodeId": "4N9-0",
+    "name": "Group label",
+    "text": "Phone: the video flow in order. Under review, not yet approved\nRow 1: choose a song, the part of the song, camera, recording\nRow 2: Review (full screen), uploading (then the community page)"
+  },
+  {
+    "board": "Flows/Dance/Take",
+    "page": "Flows",
+    "nodeId": "4WD-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved. New design: nothing here is in the app. Phone and desktop. Dance with a pass or fail from the community's owner is part of launch, per the workspace_owner on 2026-10-12, so everything on this sheet is launch work.\nGetting here: a song's sheet has a Dance row beside Study and Karaoke, in Your songs (Screens/Songs/YourSongs) and in the rewards sheet opened from a post's pill (Parts/Rewards/SongEarnSheet). The row opens the song's dances.\nChoosing an existing dance: a song has a page of its dances, a grid of videos, two across, that scrolls. The first tile is a plus, which starts a new dance. Tiles carry no handle, per the workspace_owner: people choose a dance for what it pays. A dance that pays has one pill in the feed's colours; one that pays nothing has none, and those come last. When a dance pays both a cash bonus and the lottery, the tile shows the cash bonus, which is the amount that tells dances apart; the lottery appears on the dance page. Two across, not three, because a pill does not fit on a three-across tile. A funder can attach a reward to any dance of a song or to one exact dance (Spec 021), so tiles can differ.\nTapping a dance opens it full screen and plays it, so the person watches a dance before deciding. This is its own page, not the Home feed: no bottom navigation and no action rail, only the video, who made it, all the dance's rewards, the arrow back to the grid, and one button, \"Do this dance\". A dance can only be chosen from here, after it has been watched. The next and previous dances are a swipe away. Tapping a pill would open the rewards sheet, as in the feed.\nThe camera is the same camera as a video post, with Upload at the bottom left.\nReview is full screen and has one choice and one button. The choice is a switch, \"Show publicly if it passes\", on by default, per the workspace_owner on 2026-10-12, because public dances are what grows the site. Inside the same card, under the label, a second line says \"Same rewards either way.\"; the workspace_owner asked for it to sit with the switch, not apart from it. The button is \"Submit for review\"; it sends the take and saves the choice. The switch stood on the Submitted page until that day, where a switch followed by Done read as if Done posted the take; the workspace_owner questioned it and it was moved here.\nOn desktop the same steps are cards in the main column, in order, above the phone screens: the dances grid (still two across), one dance with its rewards and \"Do this dance\", the camera, Review and Submitted. As on the video flow, the camera is the computer's webcam; that is my proposal.\nThe flow ends at Submitted, the page the dancer sees while the take is checked (Parts/Rewards/ActivityResult). It names the song and shows the rewards. It says nothing about whether the take will be public: the workspace_owner found that line unnecessary on 2026-10-12, the choice having just been made on Review. Done only closes the page.\nWho checks, and for how long, per the workspace_owner on 2026-09-30: the owner of the dance's community checks the take privately, because there is no moderator role; the answer is pass or fail and is final; a take nobody checks within seven days of upload ends as not reviewed, which is not a fail. If it passes, the dancer qualifies for the reward either way, and the take is shown publicly only when the switch was on. If it does not pass, or is not reviewed, it is not shown, so a song only ever shows takes that really are its dance. That a private take earns the same is the intended rule, not built behaviour.\nAutomatic grading is deferred. A dance joins the lottery of the day it passes, and counts toward the streak for the day it was sent.\nA new dance: the plus tile opens the same camera for that song. Its screens are not drawn again here; it ends in an ordinary public post (the Video sheet).\nLearning the answer, two ways, per the workspace_owner on 2026-10-12, who kept the 2026-09-30 ruling and Notifications both. On the dance's own page a row above the button, \"Your take\", shows the state of the dancer's latest attempt at that dance: In review, Passed, Not passed or Not reviewed. Only that dancer sees it. It is drawn in the last group of this sheet. And a row in Notifications (Screens/Shell/Notifications) arrives when the answer does. Both open the same page (Parts/Rewards/ActivityResult): Submitted while in review, otherwise the result. The server keeps each take's status, visibility choice and rewards; neither route owns it. A passed, public take appears as a normal video post, in the feed and on the profile like any other.\nRuled on 2026-10-12: submission tracking does not go on the profile, and only real dance videos appear in a feed, as normal posts. The row shows the latest attempt only; no list or history of takes is drawn.\nTo reconcile before building, with the planned task records for the Spec 021 amendment and its implementation: the 2026-09-30 rulings let a dancer post without submitting and said passing does not control publication, where this sheet publishes only after a pass; they said there is no verdict screen, where the result page now exists by the 2026-10-12 ruling; they limit an owner-reviewed pass to rewards funded by that community or the song's owner, never platform-funded pools, where the result pages draw the daily lottery and a bonus; and a pass can satisfy a reward only for a dancer who has done their human verification, which no screen here asks for. The amendment must be ratified before implementation starts.\nNot designed yet: whether Do this dance is offered while a take is in review; the Your take row on desktop; changing a take's visibility after sending; a dancer who is not a member of the dance's community; empty states.\nDiffers from the specs: Spec 021 describes automatic scoring, and the Spec 024 draft asks \"just a video, my new dance, or a take\" at Post. Both need amending.\nSource: specs 021 and 024."
+  },
+  {
+    "board": "Flows/Dance/Take",
+    "page": "Flows",
+    "nodeId": "78J-0",
+    "name": "Group label",
+    "text": "Desktop: the same steps as cards in the main column, in order. Under review, not yet approved."
+  },
+  {
+    "board": "Flows/Dance/Take",
+    "page": "Flows",
+    "nodeId": "4WF-0",
+    "name": "Group label",
+    "text": "Doing an existing dance\nRow 1: the song's dances, one dance opened full screen to watch, camera, Review\nRow 2: submitted with the rewards\nStreak: a dance feeds the same streak as Study and Karaoke, per the workspace_owner on 2026-10-12. No streak screen follows the take, because the result comes later, when the community's owner passes it. A dance counts for the day it was sent, once it passes, accepted by the workspace_owner that day. A waiting take earns nothing yet, and passing fills in the original day, so a slow review cannot break a streak. Not built: the server does not count Dance at all yet. Whether the dancer is told the day counted is to decide"
+  },
+  {
+    "board": "Flows/Dance/Take",
+    "page": "Flows",
+    "nodeId": "H1Y-0",
+    "name": "Group label",
+    "text": "Your latest attempt, shown only to you on the dance's page, as a row reading \"Your video\". While it is being checked: no Do this dance button. Once answered: the button is back, for the next attempt"
+  },
+  {
+    "board": "Flows/Rewards/Boost",
+    "page": "Flows",
+    "nodeId": "659-0",
+    "name": "Group label",
+    "text": "Phone: what to reward, how much, review\nThen after paying: sending, live, not enough USDC\nIf it cannot be used: a lottery is already running"
+  },
+  {
+    "board": "Flows/Rewards/Boost",
+    "page": "Flows",
+    "nodeId": "6YR-0",
+    "name": "Group label",
+    "text": "Desktop: the same three steps as one dialog that opens over the feed, with the same scrim as the Report dialog. Under review, not yet approved."
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CCI-0",
+    "name": "Caption",
+    "text": "Under review. Handshake groups 1 to 11, Spaces groups 12 and 13, a register of every state in group 14, phone layouts in group 15, the phone route in group 16.\nOne Address page, in Management. It never has steps of its own: the server holds the state and the page shows it. Each card is that one page in one state, drawn as desktop content; group 15 draws the long and awkward ones on a phone, and group 16 shows how an owner reaches Address and Handles on a phone and comes back to something under way. Opening either section reads and shows what exists and never starts anything.\nHandshake (Spec 012, amendments of 2026-09-06 and 2026-09-09): type the name; get one complete update for it; publish it from any Handshake wallet or service, by hand as the normal way; we watch the chain; when everything checks out the owner turns it on. A new connection has no signing step and names no wallet. A connection begun before the change keeps its signing step; that older path is noted in group 1 and kept out of the drawing.\nClocks: 14 days to publish; once seen on chain, a day for Handshake to settle it (usually about 8 hours); checks are good for thirty minutes. A missed clock never tears anything down.\nThings that differ on purpose: an unclear wallet send is not a record mismatch; a mismatch is described from what was just read on chain; trouble before it is on (group 5) is not trouble after it is on (group 6). The address being on, handles being on, requests being open and members' pages working are separate facts (groups 8 and 10); pausing requests leaves issued pages working, and pages can be down while requests are open.\nSpaces is two separate owner procedures. The address is one pasted signature. Names follow the spec's order: prove; prepare the space once with operate, or skip it if already prepared; wait for Spaces to record it, which is not a timer; prove again under the changed record; confirm the address; hand over; have the handover seen on Bitcoin; then agree the funding terms and open. Preparing does not open requests, confirming the address does not prove the handover, and the handover alone does not open names; only the last step does. Unused fee balance comes back on completing operator exit, not on pausing. No schedule or time is promised anywhere.\nReload: the Handshake page and the Spaces address read their state back when opened. Spaces names do not; see the dashed card in group 13.\nGroup 14 gives, per state, the server status, the owner's command, the evidence needed, where it leads including failures, and whether it is built, a candidate, a defect or proposed. Nothing promises a notification: none are wired.\nRenewal: there is no renewal warning, per the workspace_owner. Keeping the Handshake name renewed is the owner's job; the live card says so once.\nUnresolved, on purpose: the Spaces commands are illustrative and none is verified against a wallet, version and network, so none can count as executable; ending an open connection has no server command.\nTo draw: the verified Spaces commands, once they exist."
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CHI-0",
+    "name": "Group label",
+    "text": "1. Connecting, in order. One Address page; its content is whatever the server says the state is"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CKE-0",
+    "name": "2. Publishing from a…",
+    "text": "2. Publishing from a wallet extension: one send, and what happens when its result is unclear"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CL5-0",
+    "name": "3. What is on harbor…",
+    "text": "3. What is on harbor is not the update. Always from what was just read on chain, never from the stored plan"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CME-0",
+    "name": "4. Turn on, when the…",
+    "text": "4. Turn on, when the checks are more than thirty minutes old: they run again, then Turn on is pressed again"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CMS-0",
+    "name": "5. Before it is on: …",
+    "text": "5. Before it is on: a deadline passed or the update was replaced. What was set up is kept; nothing is torn down"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CNG-0",
+    "name": "6. After it is on: t…",
+    "text": "6. After it is on: the address stopped. Restoring the same address is its own short flow, not a new connection"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CO5-0",
+    "name": "7. When starting is …",
+    "text": "7. When starting is refused"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "COL-0",
+    "name": "8. Handles, once the…",
+    "text": "8. Handles, once the address is on. Three things that can differ: handles on or off, taking requests or paused, members' sites up or down"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CPY-0",
+    "name": "9. Where the buttons…",
+    "text": "9. Where the buttons lead, and the states between: the full update, a reader outage, going backwards, a lost response, the failed ending"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CTH-0",
+    "name": "10. Two different th…",
+    "text": "10. Two different things can lapse. Each has its own cause, wording and remedy. Renewing the name is the owner's job and gets no warning here, per the workspace_owner"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CU7-0",
+    "name": "11. Opening the page…",
+    "text": "11. Opening the page: loading, signed out, not allowed, can't load, and ending an open connection (unresolved)"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CUY-0",
+    "name": "12. Spaces, procedur…",
+    "text": "12. Spaces, procedure one: the address. Finishing it does not allow names to be issued"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CWN-0",
+    "name": "13. Spaces, procedur…",
+    "text": "13. Spaces, procedure two: letting members get name@harbor. Separate from the address, with its own finish"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "CZO-0",
+    "name": "14. Register: each s…",
+    "text": "14. Register: each state, what the server calls it, where it leads, and whether it exists today"
+  },
+  {
+    "board": "Flows/Community/Address",
+    "page": "Flows",
+    "nodeId": "D5B-0",
+    "name": "15. The same page on…",
+    "text": "15. The same page on a phone: the update with long records, a partial mismatch, an unclear send, a missed deadline, the Spaces handover address, ready to turn on, restoring, restored, access, handles, and both Spaces procedures. Nothing here needs a computer unless the chosen wallet does"
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "2VB-0",
+    "name": "Caption",
+    "text": "The home screen: one video fills the screen and the next is a swipe away. Desktop is the sidebar plus a centred 9:16 card with its action rail beside it. Phone is full-bleed with a transparent header (the menu on the left) and the four-tab footer. There is no wordmark anywhere, and no avatar in the phone header: Profile is already the last tab, per the workspace_owner. Mute is not a button of its own, per the workspace_owner: a More button, three dots at the top right of the video, opens a sheet on phone and a menu on desktop with Boost, Mute and Report. Only the phone sheet is drawn, below, with the Report reasons. Design change from the code, per the workspace_owner: there is no Post on this screen. A post belongs to a community and the home feed cannot know which one is meant; the app's phone header has a Post that sends you to pick a community, and that goes. Post lives on the community page. States below: signed out, signed in, loading, empty, error. Design change from the code, not yet approved: the empty and error wording is my proposal. The code shows \"No videos yet\" with \"Published community videos will appear here.\" and \"Video feed unavailable\" with \"Try again in a moment.\" Source: features/posts/video-feed and the shell."
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "2VD-0",
+    "name": "Group label",
+    "text": "Signed out"
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "2YF-0",
+    "name": "Group label",
+    "text": "Signed in"
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "60Y-0",
+    "name": "Group label",
+    "text": "More: three dots at the top right of the video. The sheet has Boost, Mute and Report. Report opens one sheet of reasons, and a tap sends it. Phone only.\nBoost is the app's existing way to add rewards to a song: a share of the daily Megapot lottery, or a cash bonus in an admitted token (coming soon). Feed items already carry a boostEligibility of eligible or unavailable, so the row shows only on eligible videos, and it is hidden while a lottery is already running on the song. The reward goes on the song, not on this video, so the form names the song. The form is on Screens/Boost.\nMute is the video's sound, nothing else, and reads Unmute while muted.\nReport sends the video to the community's moderator, privately, with one of the seven reasons the spec allows: spam, harassment, hate, sexual content, graphic content, misleading, other. A report alone never hides anything. The API only lets members of the community report, so the row is hidden for signed-out viewers and for people who are not members; this is an edge case and the workspace_owner left it to me. Letting anyone report needs an API change.\nSource: Spec 010 (reports); Solid features/rewards (Boost, reward sponsor); rewards brief Surface B; api-next community moderation contracts."
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "6D6-0",
+    "name": "Group label",
+    "text": "Desktop More: a menu under the three dots, and Report in a dialog. Under review, not yet approved.\nPhone shows the same three rows as a sheet (above). The menu holds Boost, Mute and Report with the same rules: Boost only on eligible videos, Report only for members. Boost opens a dialog with the same steps as the phone form (Screens/Boost). The sidebar gains a Notifications link between Wallet and Profile, the desktop twin of the phone's fifth tab; it is not drawn on the other desktop screens yet."
+  },
+  {
+    "board": "Screens/Posts/Feed",
+    "page": "Screens",
+    "nodeId": "31O-0",
+    "name": "Group label",
+    "text": "Loading, empty, error (phone; desktop shows the same content in the main column)"
+  },
+  {
+    "board": "_Index",
+    "page": "Screens",
+    "nodeId": "33X-0",
+    "name": "Caption",
+    "text": "One sheet per route, with its states: signed out, signed in, member and owner where they differ, then loading, empty and error. Desktop and phone are drawn together. A journey that crosses screens is on the Flows page. Sheets are named Screens/Area/Name and sit left to right in that order. A filled circle is drawn, an open circle is to draw."
+  },
+  {
+    "board": "_Index",
+    "page": "Screens",
+    "nodeId": "33Z-0",
+    "name": "● Community/Communit…",
+    "text": "● Community/CommunityPage\n● Community/Management (the shell and Queue; the other sections are to draw)\n● Posts/Feed\n● Posts/Post\n● Profiles/Profile\n● Shell/Notifications\n● Songs/YourSongs\n● Wallet/Portfolio\n○ Community/YourCommunities\n○ Shell/Menu (the phone menu)"
+  },
+  {
+    "board": "Screens/Community/CommunityPage",
+    "page": "Screens",
+    "nodeId": "3H8-0",
+    "name": "Caption",
+    "text": "A community's page: banner, identity, actions, tabs, and the feed as post cards (Parts/Posts/PostCard). A post starts only here, so Post sits on this page and nowhere in the shell.\nHeader actions: a visitor sees Follow and Join. Once they follow, Join takes the full width. Once they are a member, the one button is Post. Joining also follows. An account that cannot join sees Follow only. There is no request to join: a community is open or gated, and the gate is shown in the sheet Join opens (Parts/Verification/VerifySheet).\nYour profile here: a member sees their profile for this community as a round button in the banner, beside More. With one profile it opens that profile, where a handle can be chosen. With several it opens the list to switch (Parts/Identity/YourProfiles). A visitor has no profile here and sees no button.\nMore is always at the top right: Share, plus Unfollow, Leave, and Manage for an owner. A dropdown on desktop, a sheet on phone.\nTabs: on desktop they sit at the left at their own width; on phone they share the width. About is a card beside the feed on desktop and a third tab on phone.\nA member with no handle and no name shows as \"User\" and six characters, as the second post does.\nTo draw: the sort control, loading, empty and error."
+  },
+  {
+    "board": "Screens/Community/CommunityPage",
+    "page": "Screens",
+    "nodeId": "3T3-0",
+    "name": "Group label",
+    "text": "Header actions by viewer"
+  },
+  {
+    "board": "Screens/Community/CommunityPage",
+    "page": "Screens",
+    "nodeId": "3HA-0",
+    "name": "Group label",
+    "text": "Desktop: a member"
+  },
+  {
+    "board": "Screens/Community/CommunityPage",
+    "page": "Screens",
+    "nodeId": "3MB-0",
+    "name": "Group label",
+    "text": "Phone: a visitor, a member, and a follower on the About tab"
+  },
+  {
+    "board": "Screens/Songs/YourSongs",
+    "page": "Screens",
+    "nodeId": "5HY-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved.\nThe Your Songs tab, one of the five phone tabs and a link in the desktop sidebar. Each song is one card: the song, and its streak as a flame with the number of days, as in Study's streak page. There is nothing else on the card.\nTapping a card opens a bottom sheet on phone and a dialog on desktop, the same pattern as the rewards sheet (Parts/Rewards/SongEarnSheet). It shows the song, its streak with the days of this week, a line with a Leaderboard action that opens the song's leaderboard (Parts/Rewards/Streak), and a row for each activity the song offers with what it pays. Tapping a row starts that activity; Dance opens the song's dances (Flows/Dance/Take). A reward pill in the feed would open the same sheet, so there is one sheet with two ways in. On desktop the list sits in the main column and the dialog opens over it with a close button at the top right.\nSongs differ in what they offer. The first sheet is a song with all three activities; the second offers Karaoke only, and so has one row. Both have the Leaderboard line.\nThe streak is the one for that song. Any activity on the song earns the day, so doing a dance twice in a day, or a dance and then a study, is still one day. A song with no streak yet shows no flame on its card. The community's streak sits above the community's feed (Screens/Community/CommunityPage).\nNo pass or fail here. A streak is the sum of many takes, so the result of one take is shown with that take, not on the song. A dancer reads a take's result on its result page (Parts/Rewards/ActivityResult), opened from Notifications; no list of takes is drawn.\nDesign change from the code: the app's card has Study and Karaoke buttons, no streak and no sheet. A list of every song with its streak needs a new read from the API; today a viewer's streak is only returned one song at a time.\nNot drawn yet: empty and error states, a song with no streak in the sheet, the Songs to learn section, the desktop dialog for a song with one activity, and the Leaderboard line on desktop.\nSource: features/songs/your-songs-page; docs/design/rewards-ui.md Surface D; rewards-qualification contracts."
+  },
+  {
+    "board": "Screens/Songs/YourSongs",
+    "page": "Screens",
+    "nodeId": "5I0-0",
+    "name": "Group label",
+    "text": "Phone"
+  },
+  {
+    "board": "Screens/Songs/YourSongs",
+    "page": "Screens",
+    "nodeId": "6NK-0",
+    "name": "Group label",
+    "text": "Desktop: the list in the main column, and the song's modal over it. Under review, not yet approved."
+  },
+  {
+    "board": "Screens/Shell/Notifications",
+    "page": "Screens",
+    "nodeId": "5W6-0",
+    "name": "Caption",
+    "text": "Under review, not yet approved.\nA fifth tab in the footer, a bell, between Wallet and Profile, with a dot when something is unread. It opens a plain list. The tab is active (filled) on the list page. This changes the four tabs the app has today (For You, Your Songs, Wallet, Profile); the /activity page that would hold it is a placeholder that says notifications are unavailable. On desktop it is a fifth sidebar link between Wallet and Profile, and the same list fills the main column. Every footer and sidebar on the Screens page shows the tab, and since 2026-10-12 so do the footer masters on the Patterns and Parts pages (Patterns/Navigation/MobileFooterNav, Parts/Shell/AppShellChrome): five destinations everywhere.\nFor now the list holds only the answers to things the person submitted: a dance passed, did not pass, or was not reviewed within seven days, and a video that could not be posted or did not meet the guidelines. Each row is the answer and its age, nothing more, per the workspace_owner. Tapping a row opens what it is about: a dance answer opens its result page (Parts/Rewards/ActivityResult), which names the song and has passed, not-passed and not-reviewed states; a failed video opens a fresh composer on the same song. The not-reviewed row has a neutral mark, because it is not a fail.\nThe one-time notice on Home for a failed video, which Spec 024 ratifies, becomes a row here so it cannot be lost.\nWith nothing to show the page says \"Nothing yet.\" and no more.\nDesign change from the code: the tab, the sidebar link and the list are new, and need a notifications read from the API that does not exist yet.\nNot drawn yet: on desktop, the not-reviewed row and the empty page, both drawn on the phone only; any other kind of notification; loading and a failed read. The unread dot is drawn on the desktop sidebars (not the signed-out one), on the phone Home screen of this sheet and on Parts/Identity/YourProfiles; the other phone footers show the bell without it.\nSource: shell navigation model; features/posts/video-outcomes; Spec 024."
+  },
+  {
+    "board": "Screens/Shell/Notifications",
+    "page": "Screens",
+    "nodeId": "5W8-0",
+    "name": "Group label",
+    "text": "Phone: the footer on Home with an unread dot, the list"
+  },
+  {
+    "board": "Screens/Shell/Notifications",
+    "page": "Screens",
+    "nodeId": "6JM-0",
+    "name": "Group label",
+    "text": "Desktop: the same list in the main column, with Notifications as a sidebar link. Under review, not yet approved."
+  },
+  {
+    "board": "Screens/Wallet/Portfolio",
+    "page": "Screens",
+    "nodeId": "A3T-0",
+    "name": "Caption",
+    "text": "The Wallet shows one profile at a time. The profile is chosen once, in the header: its avatar and label open Switch profile, the same list as Your profiles. With one profile there is nothing to switch. Everything on the page belongs to that profile: its balance, its royalties and rewards, its assets and its activity. Nothing is added up across profiles.\nOn a community's own address the Wallet is the same page: the whole wallet of the profile in use, not only what relates to that community. Accepted by the workspace_owner on 2026-10-12, loosely.\nSwitching profile closes an open Send or Receive sheet, as the app does, so a sheet never shows one profile's address or balance under another's name.\nTop to bottom: Balance with Receive and Send, then Royalties and Rewards side by side (label, amount, Claim), then Assets, then Activity. The two claim cards are always there; with nothing to claim they read 0 and Claim is disabled. Sending and claiming cross screens, so they are Flows/Wallet/Send and Flows/Wallet/Claim. Nothing is claimed or sent before a palm scan, per the workspace_owner on 2026-10-12.\nAssets lists what the wallet holds on the app's three networks: USD Coin and Ether on Ethereum and Base, and DATA on DATA Network. Refresh at the right of the Assets heading reads the balances again. A balance that could not be read is never shown as 0. Keeping the last amounts on screen while it runs and after it fails is proposed; the app's loader replaces them with \"Loading…\" today.\nReceive is a sheet: choose the network (Ethereum, DATA Network or Base), then that profile's address on that network, Copy address (it reads Copied after), Done. The sheet never says to send only one token.\nBalance is read from the wallet. Nothing is added to it by the page: after a reward is paid, the balance is read again and the payment is in it.\nThe app's Mainnet and Testnet switch is drawn as a staging-only variant. Hiding it from members is a proposal and needs Send and Claim to work on Mainnet first, since the app offers both only in Testnet mode today.\nDesktop: the sidebar stays, there is no footer, and the page is one column 640 wide. Receive, Send and Claim open as dialogs over it.\nFollow-up, not a decision: Spec 014 §6.1 describes one portfolio added up across profiles and should be brought into line with this.\nTo draw: loading and error. A code to scan on Receive is optional."
+  },
+  {
+    "board": "Screens/Wallet/Portfolio",
+    "page": "Screens",
+    "nodeId": "A3V-0",
+    "name": "Group label",
+    "text": "Phone: nothing to claim (with DATA under Assets), something to claim, claimed and paid, empty. Then Switch profile, Receive, and Refresh with the staging-only network switch"
+  },
+  {
+    "board": "Screens/Wallet/Portfolio",
+    "page": "Screens",
+    "nodeId": "FA4-0",
+    "name": "Group label",
+    "text": "Desktop: the Wallet. Sidebar stays, no footer; one column, 640 wide"
+  },
+  {
+    "board": "Screens/Profiles/Profile",
+    "page": "Screens",
+    "nodeId": "BC3-0",
+    "name": "Caption",
+    "text": "Under review. One profile's page. It is reached from Your profiles, from the profile button on a community page, from the Profile tab on a community's own domain, and from any author's name.\nTop to bottom: cover, avatar, the profile's label, the community it belongs to, the bio, then one feed of everything the profile has posted, newest first: songs, videos and text together. There are no tabs. Comments are not listed here; they live on the posts. When songs can be bought, a Songs tab is added for that.\nThe feed is the same component as a community's feed and uses the one post card (Parts/Posts/PostCard) for every kind, per the workspace_owner on 2026-10-12. Every profile screen here, phone and desktop, shows all three kinds: a song post, a video post and a text post.\nDance takes, per the workspace_owner on 2026-10-12: a passed, public dance is an ordinary video post and appears here in the feed like any other, with the ordinary video card and no caption. Tracking a submission is not a profile matter, so the profile has no button, list or status for takes that are waiting or did not pass. A \"Your takes\" button and page were drawn here the same day and removed.\nThe label is the handle if there is one, otherwise the name, otherwise \"User\" and six characters. The community line is always there, because a profile belongs to exactly one community.\nYour own profile has Edit. Until it has a handle it also has Get handle, which opens the handle sheet (Flows/Community/JoinAndName). Someone else's profile has no button. More holds Share.\nA profile cannot be followed, per the workspace_owner on 2026-10-12. Only communities can.\nEdit is one page in the shared task shell: close at the top left, Save in the footer. The cover and avatar are shown as they appear on the profile, each with a camera button; tapping one picks a new image. Below them, name and bio. Nothing is required. The handle is not edited here.\nA profile with several handles lists them under the bio.\nDesktop: the app sidebar stays, the cover runs the width of the page, and everything else sits in one 640 column. The sidebar's bottom row shows the profile in use and opens the account menu (Parts/Shell/AppShellChrome).\nTo draw: desktop Edit, several handles, an empty cover on Edit, saving and a failed save, loading, empty, a profile that is gone."
+  },
+  {
+    "board": "Screens/Profiles/Profile",
+    "page": "Screens",
+    "nodeId": "BC5-0",
+    "name": "Group label",
+    "text": "Phone: your profile, your profile with no handle yet, someone else's profile. Each feed shows all three post kinds: song, video (a passed, public dance is one of these) and text"
+  },
+  {
+    "board": "Screens/Profiles/Profile",
+    "page": "Screens",
+    "nodeId": "BLM-0",
+    "name": "Group label",
+    "text": "Phone: Edit"
+  },
+  {
+    "board": "Screens/Profiles/Profile",
+    "page": "Screens",
+    "nodeId": "EJN-0",
+    "name": "Group label",
+    "text": "Desktop: your profile. The app sidebar stays; the cover runs the width of the page and the rest sits in one 640 column, the same feed as the phone."
+  },
+  {
+    "board": "Screens/Posts/Post",
+    "page": "Screens",
+    "nodeId": "BOK-0",
+    "name": "Caption",
+    "text": "Under review. One post and its comments. It is reached from a post's title or comment pill, from a notification, and from a shared link.\nHeader: the standard phone page header (Patterns/Navigation/MobilePageHeader). Back at the left, and centred, the community the post belongs to, its avatar and name. Tapping the community opens it.\nThen the post in full, as the same post card used in feeds, then the comments, then the comment box fixed at the bottom. There is no bottom navigation on this page.\nThe comment box starts with the member's profile avatar for this community, so they see who they are commenting as where they type. With several profiles here, tapping it opens the list to switch (Parts/Identity/YourProfiles).\nA song post is the same card as in a feed, with the same three pills: votes, comments, rewards. Study, Karaoke and Dance are not listed on this page; the rewards pill opens the rewards sheet (Parts/Rewards/SongEarnSheet), which is where an activity starts.\nComments: author, age, text, then a vote pill and a Reply pill. A reply is indented under its comment with a line at its left, and has a vote pill only. Comments publish at once.\nOrder and depth, per the workspace_owner on 2026-10-12 (for now): replies sit one level under a comment and go no deeper; comments are newest first and replies oldest first; there is no sort control. The app, the contract and the server allow eight levels today, and the server returns comments oldest first, so both are changes.\nA reply has no Reply button. With one level, a reply can only be made to the top comment, so the button on a reply had nowhere to lead. This is the design agent's choice following that ruling, not a ruling itself; the alternative, which the reviewer prefers, is a button that adds a reply under the same top comment and names whom it answers.\nOlder threads that go deeper are flattened under their top comment, keeping their text, their author and a \"Replying to\" line above the text; accepted by the workspace_owner on 2026-10-12, loosely. This is drawn in its own group below the phone screens.\nOnly members can comment or reply. A visitor sees Join to comment in place of the comment box, and Reply asks them to join.\nDesktop: the app sidebar stays and the post sits in one 640 column. Back and the community are at the top left of the column, not centred, because there is no phone header. The comment box is directly under the post, not fixed to the bottom, and the comments follow.\nTo draw: a video post, writing a reply, a long thread, a removed comment, loading, empty (no comments yet), a post that is gone."
+  },
+  {
+    "board": "Screens/Posts/Post",
+    "page": "Screens",
+    "nodeId": "BOM-0",
+    "name": "Group label",
+    "text": "Phone: a text post as a member, a song post, a visitor"
+  },
+  {
+    "board": "Screens/Posts/Post",
+    "page": "Screens",
+    "nodeId": "GR3-0",
+    "name": "Group label",
+    "text": "An older thread that went deeper: the third comment was a reply to a reply, and is shown one level down with a \"Replying to\" line"
+  },
+  {
+    "board": "Screens/Posts/Post",
+    "page": "Screens",
+    "nodeId": "ENP-0",
+    "name": "Group label",
+    "text": "Desktop: a text post as a member. The app sidebar stays; the post sits in one 640 column with the back arrow and the community above it. The comment box is directly under the post, not pinned to the bottom, and comments follow."
+  },
+  {
+    "board": "Screens/Community/Management",
+    "page": "Screens",
+    "nodeId": "C1J-0",
+    "name": "Caption",
+    "text": "Under review. Where a community is run. At launch that is its owner alone: Spec 010 section 7 gives both seeing and acting on moderation to the active community owner, and moderators who are not the owner are deferred. Wording on this sheet that says \"moderators\", and the Moderator section of the app sidebar, describe that later role and at launch mean the owner. It takes over the whole page: the app's own sidebar and bottom navigation are gone while it is open, and a close mark leaves it and returns to the community. It is opened from the community's More menu (Manage) and from the Moderator section of the app sidebar.\nSections, in this order. Moderation: Queue. Community: Profile, Address, Handles, Rules, Links. Safety: AI moderation, Telegram, Assistant. A person sees only the sections they are allowed to use.\nOn desktop the sections are a sidebar that stays in view, with the close mark and the community at its top, and the chosen section fills the page. On phone the first screen is the list of sections with the close mark; a section opens as its own page with a back arrow and its name centred. A page that opens from a section on the phone is a second column on desktop.\nQueue: two lists, Dances and Reports, oldest first, both the owner's alone at launch. For a dance, per the workspace_owner on 2026-09-30: only the community's owner passes or fails it, never the dancer themselves, and the server checks that authority again when the answer is saved. A dance opens full screen, laid out like a feed video with the dancer and song at the bottom left, the dance it is meant to match in the top right corner, and Fail and Pass. The next one opens after a decision and the dancer is told in Notifications. A dance leaves the list unanswered seven days after upload, and the dancer is told it was not reviewed. A report shows the post, what it was reported for and how many times, and Keep and Hide.\nAI moderation: every post is checked before it publishes. Six kinds, each set to Allow, Review or Block; a row opens the three choices and the change saves at once. Review sends the post to the Queue. One line lists what is always blocked and cannot be changed.\nTelegram: before connecting, one field for the bot's token and Connect. After, the bot, the channel (tap to change), a switch to post new content, a button to share the latest 20 posts, and Disconnect.\nAssistant: saving is as built. Every change is a draft and nothing is kept until Save; the page shows Saving, saved, a failure, and the case where the settings changed in another session. Each key saves apart from the draft with its own Check and save. Every built setting is kept: voice replies, the ElevenLabs key, the voice, the voice model, when to reply with voice and the speech characters a day sit on a Voice page. Remembering chats for a day is ours; what OpenRouter, the model's provider and ElevenLabs keep is theirs and is said separately.\nProfile, Rules and Links are proposed: the server holds and shows these, with no command to change them. A rule has a title, a body, a report reason, a position and an active or archived status, so its editor has all four fields, moving up and down, and Remove meaning archive. Links are loose data on the server, so name and address are assumed.\nArchive is not drawn. The workspace_owner said on 2026-10-12 to do whatever is easiest on the existing API, and the API has no way to archive a community, so the section is left out. That is the design agent's choice and does not settle what archiving would mean. The app still lists Archive with no page.\nAddress and Handles are on Flows/Community/Address.\nThe dance check follows the workspace_owner's rulings of 2026-09-30 and 2026-10-09 and is part of launch as of 2026-10-12. The written spec says the first release has no dance grading and no moderator queue for ordinary videos, so the Spec 021 amendment must be ratified before this is built. Ordinary posts still publish by themselves.\nTo decide: whether a failed dancer may be told why (the 2026-09-30 draft says there is no reviewer note); what a hidden post's author sees; whether six kinds is enough (the app has thirteen, the extra seven being the severe forms); whether Telegram needs the list of what was sent.\nTo draw: choosing a model and a voice; choosing a Telegram channel; empty lists; hidden posts and restoring one; what someone who is not the owner sees on reaching this page by a link (access denied); a dance nearing its seven days."
+  },
+  {
+    "board": "Screens/Community/Management",
+    "page": "Screens",
+    "nodeId": "C1L-0",
+    "name": "Group label",
+    "text": "Phone: all sections; Queue (dances, one dance, reports, one report); AI moderation; Telegram before and after connecting; Profile; Rules; Links; Assistant, what Save shows, Voice, a key, instructions; editing a rule; editing a link. Dashed means proposed.\nThe dance rows in Queue show the dancer's handle. That is design only: the moderation contract today lists text posts, comments and replies with an author's profile id, not a public handle, and has no dance queue. The data for these rows is not built."
+  },
+  {
+    "board": "Screens/Community/Management",
+    "page": "Screens",
+    "nodeId": "C7R-0",
+    "name": "Group label",
+    "text": "Desktop: management takes over the page, with its own sidebar. The close mark leaves it"
+  }
+]

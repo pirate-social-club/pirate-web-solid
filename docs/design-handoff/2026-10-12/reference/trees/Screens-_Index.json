@@ -1,0 +1,12 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"file\": {\n    \"id\": \"01M4DWHDEJ6WVWRH6FVX7E3017\",\n    \"name\": \"Pirate Design System\"\n  },\n  \"contentHash\": {\n    \"tokens\": \"6d78f570\"\n  }\n}"
+    },
+    {
+      "type": "text",
+      "text": "{\n  \"summary\": \"Frame \\\"_Index\\\" (33U-0) 1280×?\\n  Frame \\\"Header\\\" (33V-0) ?×?\\n    Text \\\"Title\\\" (33W-0) ?×? \\\"Screens\\\"\\n    Text \\\"Caption\\\" (33X-0) 820×? \\\"One sheet per route, with its states: signed out, signed in,\\\"\\n  Frame \\\"List\\\" (33Y-0) ?×?\\n    Text \\\"● Community/Communit…\\\" (33Z-0) ?×? \\\"● Community/CommunityPage\\n● Community/Management (the shell \\\"\",\n  \"nodeId\": \"33U-0\",\n  \"depth\": 10\n}"
+    }
+  ]
+}

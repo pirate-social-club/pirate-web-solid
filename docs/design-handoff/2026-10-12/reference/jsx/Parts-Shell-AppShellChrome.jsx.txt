@@ -1,0 +1,330 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '48px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          AppShellChrome
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Under review. The frame around a page: the desktop sidebar (Parts/Shell/AppSidebar), the phone footer (Patterns/Navigation/MobileFooterNav) and the phone page header (Patterns/Navigation/MobilePageHeader). Those sheets draw each piece. This sheet says which pages get which, and nothing here redraws them, with one exception: the account menu and Settings below.<br />Destinations. Five on the phone: Home, Your Songs, Wallet, Notifications, Profile. The app has four, with a bell in the header in place of the Notifications tab, so the app's shell needs the tab added. On 2026-10-12 the tab was taken out of Paper for a few hours and then put back: the workspace_owner expected Notifications in the footer. No header bell is drawn. Neither a tab nor a bell supplies what is missing behind it: the app's Notifications page reads "Notifications are unavailable" and the server stores none.<br />Account row, per the workspace_owner on 2026-10-12: the sidebar's bottom row shows the profile in use and opens one menu: the person's profiles, Settings, Sign out. The second line of the row, the profile's community, is the design agent's choice and not part of the ruling. The row on Parts/Shell/AppSidebar and the sidebar copies on other sheets show the same row.<br />On a phone, approved by the workspace_owner the same day: the More button on your own profile opens the menu as a sheet, keeping Share, and Settings is a plain page reached from either menu, with Telegram, Recordings, Terms and Privacy. Both are drawn below, with the Recordings page and its confirmation. Not drawn: Settings on desktop.<br />Fixed chrome and content. The phone header is fixed at the top and the footer at the bottom, so a page's content starts below the header and ends above the footer, each with the device's safe area added; the app does this with the top and bottom safe-area insets. A page with an action bar puts the bar above the safe area and the footer is gone. A sheet's own bottom padding includes the safe area. Toasts sit above the footer. Check on every new phone page that the last item can scroll clear of whatever is fixed at the bottom.<br />Instances looked at in this pass: the Wallet, the profile page, the post page, Management and its section pages, the Address phone route. The Paper frames do not draw a status bar or a home indicator, so safe areas are stated here and not visible in the drawings.
+        </div>
+      </div>
+      <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '48px' }}>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '1000px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            Which page gets which
+          </div>
+          <div style={{ borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '12px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '220px' }}>
+                Kind of page
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '230px' }}>
+                Phone top
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '200px' }}>
+                Phone bottom
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                Desktop
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Ordinary tab page
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                Large title at the left, or the menu mark on Home
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                Footer
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                App sidebar, page in the main column
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Pushed page
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                Back at the left, title centred; on a community's page the community's avatar and name
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                No footer; an action or comment bar if the page has one
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                App sidebar stays; back and title at the top left of the column
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Profile and community pages
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                Back and More over the cover
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                Footer
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                App sidebar; cover the width of the page
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Management
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                Close on the section list; back and the section name centred inside a section
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                No footer; a Save bar where the section saves
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                No app sidebar; Management's own sidebar with close and the community at its top
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Activity or task
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                Close or back at the left, the step name centred, progress where the activity has it
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                No footer; the action bar
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                No app sidebar while it runs
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', gap: '16px', paddingBlock: '14px', paddingInline: '20px' }}>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: '220px' }}>
+                Sheet or dialog
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '230px' }}>
+                The page underneath is dimmed and keeps its header
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '200px' }}>
+                The sheet covers the footer
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                A centred dialog, or a panel at the right for Wallet sheets as the app does
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+            "No app sidebar while it runs" for activities is how the flow sheets are drawn on the phone; their desktop versions are not drawn yet, so that row's desktop cell is a proposal.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '390px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+            The footer: five
+          </div>
+          <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '64px', paddingInline: '12px', width: '100%' }}>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" fill="var(--color-muted-foreground)" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H160a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm72,48H40a8,8,0,0,0,0,16h72a8,8,0,0,0,0-16Zm135.66-57.7a8,8,0,0,1-10,5.36L208,122.75V192a32.05,32.05,0,1,1-16-27.69V112a8,8,0,0,1,10.3-7.66l40,12A8,8,0,0,1,247.66,126.3ZM192,192a16,16,0,1,0-16,16A16,16,0,0,0,192,192Z" fill="var(--color-muted-foreground)" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" fill="var(--color-muted-foreground)" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" fill="var(--color-muted-foreground)" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                <path d="M230.93,220a8,8,0,0,1-6.93,4H32a8,8,0,0,1-6.92-12c15.23-26.33,38.7-45.21,66.09-54.16a72,72,0,1,1,73.66,0c27.39,8.95,50.86,27.83,66.09,54.16A8,8,0,0,1,230.93,220Z" fill="var(--color-foreground)" />
+              </svg>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+            Home, Your Songs, Wallet, Notifications, Profile. The app's footer has four, with no Notifications tab; it needs the fifth added.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '8px', width: '300px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '20px', textTransform: 'uppercase' }}>
+            Account menu
+          </div>
+          <div style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: '12px', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px', width: '248px' }}>
+            <div style={{ alignItems: 'center', backgroundColor: 'var(--color-sidebar-accent)', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '10px', height: '40px', paddingInline: '10px' }}>
+              <div style={{ backgroundColor: '#2B3440', borderRadius: '12px', boxSizing: 'border-box', flexShrink: '0', height: '24px', width: '24px' }} />
+              <div style={{ boxSizing: 'border-box', color: '#EDEDED', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '15px', fontWeight: 500, lineHeight: '18px' }}>
+                harbor.8s28
+              </div>
+              <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                <path d="M3 8.5l3.2 3.2L13 5" fill="none" stroke="var(--color-primary-text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div style={{ alignItems: 'center', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '10px', height: '40px', paddingInline: '10px' }}>
+              <div style={{ backgroundColor: '#2B3440', borderRadius: '12px', boxSizing: 'border-box', flexShrink: '0', height: '24px', width: '24px' }} />
+              <div style={{ boxSizing: 'border-box', color: '#EDEDED', flexBasis: '0%', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '15px', fontWeight: 500, lineHeight: '18px' }}>
+                nightshift
+              </div>
+            </div>
+            <div style={{ alignSelf: 'stretch', backgroundColor: 'var(--color-border)', boxSizing: 'border-box', flexShrink: '0', height: '1px' }} />
+            <div style={{ alignItems: 'center', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', paddingInline: '10px' }}>
+              <div style={{ boxSizing: 'border-box', color: '#EDEDED', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '15px', fontWeight: 500, lineHeight: '18px' }}>
+                Settings
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', borderRadius: '8px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', paddingInline: '10px' }}>
+              <div style={{ boxSizing: 'border-box', color: '#EDEDED', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '15px', fontWeight: 500, lineHeight: '18px' }}>
+                Sign out
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTopColor: 'var(--color-sidebar-border)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', marginTop: '16px', paddingTop: '16px', width: '248px' }}>
+            <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-surface-skeleton)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '36px', justifyContent: 'center', overflow: 'clip', width: '36px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  H
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                  harbor.8s28
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+                  Harbor Collective
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '248px' }}>
+            Per the workspace_owner on 2026-10-12. The row at the foot of the desktop sidebar shows the profile in use and opens this one menu above it: the person's profiles, with the one in use ticked, then Settings and Sign out. Choosing a profile switches and closes. The second line of the row, the profile's community, is my choice. On a phone the same menu opens from the person's own profile page; that is not drawn. Settings has no page drawn. The sidebar copies on other sheets show the same row.
+          </div>
+        </div>
+        <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', width: '1704px' }}>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', letterSpacing: '0.02em', lineHeight: '24px', textTransform: 'uppercase' }}>
+            Phone: the account menu, from More on your own profile; Settings; Recordings and its confirmation
+          </div>
+          <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '32px' }}>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', borderStyle: 'solid', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', paddingBottom: '20px', paddingInline: '20px', paddingTop: '12px', width: '390px' }}>
+              <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-border)', borderRadius: '999px', boxSizing: 'border-box', flexShrink: '0', height: '6px', width: '48px' }} />
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', paddingTop: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Share
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Switch profile
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Settings
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Sign out
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '520px', width: '390px' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M20 12 H5 M11 6 L5 12 L11 18" fill="none" stroke="var(--color-foreground)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  Settings
+                </div>
+                <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', paddingInline: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Telegram
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Not connected
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Recordings
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Terms
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Privacy
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '520px', width: '390px' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'space-between', paddingInline: '16px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                    <path d="M20 12 H5 M11 6 L5 12 L11 18" fill="none" stroke="var(--color-foreground)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '18px', fontWeight: 600, lineHeight: '28px' }}>
+                  Recordings
+                </div>
+                <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '44px', width: '44px' }} />
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '20px', paddingInline: '20px', paddingTop: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Study and Karaoke keep your microphone recordings private, for up to 24 months.
+                </div>
+                <div style={{ alignItems: 'center', alignSelf: 'start', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', paddingInline: '20px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Delete my recordings
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Deleted 14 recordings.
+                </div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', borderStyle: 'solid', borderTopLeftRadius: 'var(--radius-sheet)', borderTopRightRadius: 'var(--radius-sheet)', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', gap: '16px', paddingBottom: '20px', paddingInline: '20px', paddingTop: '12px', width: '390px' }}>
+              <div style={{ alignSelf: 'center', backgroundColor: 'var(--color-border)', borderRadius: '999px', boxSizing: 'border-box', flexShrink: '0', height: '6px', width: '48px' }} />
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Delete your recordings?
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  This can't be undone. A copy held by the speech provider follows its own policy.
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-destructive)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-destructive-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Delete recordings
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '48px', justifyContent: 'center' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    Keep them
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px', width: '820px' }}>
+            Placement approved by the workspace_owner on 2026-10-12. On a phone the More button on your own profile opens this sheet: Share, as before, then Switch profile, Settings and Sign out. Someone else's profile keeps Share alone. Settings is one plain page, reached from this sheet and from the desktop account menu. Its rows are what the app's account page offers today that the menu does not: Telegram, Recordings, Terms and Privacy. Recordings must stay reachable here, because Study and Karaoke send people to Settings to delete their recordings. Its page says what is kept, has one button, and shows the answer under it: "Deleted 14 recordings.", "You have no stored recordings.", or, when some remain, how many are still stored and to delete again. Failures are shown in the same place in red: sign in again, storage unavailable, or could not be deleted. The confirmation is the app's own, shortened. Switch profile opens the list of profiles (Parts/Identity/YourProfiles). The page's contents follow the app's code and are not a ruling. Not drawn: Settings on desktop, the Telegram page, and the failure and partial results as screens.
+          </div>
+        </div>
+      </div>
+    </div>
+  )

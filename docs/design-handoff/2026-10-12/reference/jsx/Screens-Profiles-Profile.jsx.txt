@@ -1,0 +1,1235 @@
+(
+    <div style={{ backgroundColor: 'var(--color-background)', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontSize: '12px', fontSynthesis: 'none', gap: '40px', height: 'fit-content', lineHeight: '16px', MozOsxFontSmoothing: 'grayscale', overflow: 'clip', overflowWrap: 'anywhere', padding: '48px', WebkitFontSmoothing: 'antialiased', width: '1800px' }}>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '30px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '36px' }}>
+          Profile
+        </div>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', whiteSpace: 'pre-wrap', width: '900px' }}>
+          Under review. One profile's page. It is reached from Your profiles, from the profile button on a community page, from the Profile tab on a community's own domain, and from any author's name.<br />Top to bottom: cover, avatar, the profile's label, the community it belongs to, the bio, then one feed of everything the profile has posted, newest first: songs, videos and text together. There are no tabs. Comments are not listed here; they live on the posts. When songs can be bought, a Songs tab is added for that.<br />The feed is the same component as a community's feed and uses the one post card (Parts/Posts/PostCard) for every kind, per the workspace_owner on 2026-10-12. Every profile screen here, phone and desktop, shows all three kinds: a song post, a video post and a text post.<br />Dance takes, per the workspace_owner on 2026-10-12: a passed, public dance is an ordinary video post and appears here in the feed like any other, with the ordinary video card and no caption. Tracking a submission is not a profile matter, so the profile has no button, list or status for takes that are waiting or did not pass. A "Your takes" button and page were drawn here the same day and removed.<br />The label is the handle if there is one, otherwise the name, otherwise "User" and six characters. The community line is always there, because a profile belongs to exactly one community.<br />Your own profile has Edit. Until it has a handle it also has Get handle, which opens the handle sheet (Flows/Community/JoinAndName). Someone else's profile has no button. More holds Share.<br />A profile cannot be followed, per the workspace_owner on 2026-10-12. Only communities can.<br />Edit is one page in the shared task shell: close at the top left, Save in the footer. The cover and avatar are shown as they appear on the profile, each with a camera button; tapping one picks a new image. Below them, name and bio. Nothing is required. The handle is not edited here.<br />A profile with several handles lists them under the bio.<br />Desktop: the app sidebar stays, the cover runs the width of the page, and everything else sits in one 640 column. The sidebar's bottom row shows the profile in use and opens the account menu (Parts/Shell/AppShellChrome).<br />To draw: desktop Edit, several handles, an empty cover on Edit, saving and a failed save, loading, empty, a profile that is gone.
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Phone: your profile, your profile with no handle yet, someone else's profile. Each feed shows all three post kinds: song, video (a passed, public dance is one of these) and text
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', width: '390px' }}>
+            <div style={{ backgroundImage: 'linear-gradient(in oklab 120deg, oklab(24% 0.020 -0.040) 0%, oklab(38% 0.030 -0.050) 55%, oklab(52% 0.050 -0.020) 100%)', boxSizing: 'border-box', flexShrink: '0', height: '144px', position: 'relative' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', height: '40px', justifyContent: 'center', left: '12px', position: 'absolute', top: '12px', width: '40px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', position: 'absolute', right: '12px', top: 12 }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '20px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '80px', justifyContent: 'center', width: '80px' }}>
+                <div style={{ boxSizing: 'border-box', color: '#D9F0F2', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '24px' }}>
+                  H
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '4px', minWidth: '0px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '32px' }}>
+                  harbor.8s28
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Harbor Collective
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '100%', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '100%' }}>
+                Songs from the harbor, mostly at night.
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingInline: '20px' }}>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                  Edit
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: 'fit-content', paddingInline: '20px' }}>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      H
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    harbor.8s28
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    2h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Late-night loop, take two.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-xl)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', padding: '12px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="28" height="28" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                      Harbor Lights
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      The Tidewater
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="var(--color-primary-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      H
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    harbor.8s28
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    5h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, oklab(52% 0.006 0.010) 0%, oklab(34% 0.023 0.019) 100%)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '448px', justifyContent: 'center', overflow: 'clip', position: 'relative', width: '252px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#00000073', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+                  <div style={{ bottom: '12px', boxSizing: 'border-box', color: '#FFFFFFD9', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', left: '12px', lineHeight: '20px', position: 'absolute', right: '12px' }}>
+                    Harbor Lights - The Tidewater
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      H
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    harbor.8s28
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    1d
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Weekly listening thread
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  What have you had on repeat this week?
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '64px', paddingInline: '12px', width: '100%' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H160a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm72,48H40a8,8,0,0,0,0,16h72a8,8,0,0,0,0-16Zm135.66-57.7a8,8,0,0,1-10,5.36L208,122.75V192a32.05,32.05,0,1,1-16-27.69V112a8,8,0,0,1,10.3-7.66l40,12A8,8,0,0,1,247.66,126.3ZM192,192a16,16,0,1,0-16,16A16,16,0,0,0,192,192Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M230.93,220a8,8,0,0,1-6.93,4H32a8,8,0,0,1-6.92-12c15.23-26.33,38.7-45.21,66.09-54.16a72,72,0,1,1,73.66,0c27.39,8.95,50.86,27.83,66.09,54.16A8,8,0,0,1,230.93,220Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', width: '390px' }}>
+            <div style={{ backgroundColor: 'var(--color-muted)', boxSizing: 'border-box', flexShrink: '0', height: '144px', position: 'relative' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', height: '40px', justifyContent: 'center', left: '12px', position: 'absolute', top: '12px', width: '40px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', position: 'absolute', right: '12px', top: 12 }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '20px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '80px', justifyContent: 'center', width: '80px' }}>
+                <div style={{ boxSizing: 'border-box', color: '#D9F0F2', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '24px' }}>
+                  U
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '4px', minWidth: '0px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '32px' }}>
+                  User 4KQ7M2
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Harbor Collective
+                </div>
+              </div>
+            </div>
+            <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingInline: '20px' }}>
+              <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                  Edit
+                </div>
+              </div>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxShadow: '#0000000F 0px 8px 22px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center', paddingInline: '20px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                  Get handle
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: 'fit-content', paddingInline: '20px' }}>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      U
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    User 4KQ7M2
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    2h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Late-night loop, take two.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-xl)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', padding: '12px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="28" height="28" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                      Harbor Lights
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      The Tidewater
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="var(--color-primary-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      U
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    User 4KQ7M2
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    2h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Weekly listening thread
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  What have you had on repeat this week?
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      U
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    User 4KQ7M2
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    1d
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, oklab(52% 0.006 0.010) 0%, oklab(34% 0.023 0.019) 100%)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '448px', justifyContent: 'center', overflow: 'clip', position: 'relative', width: '252px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#00000073', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+                  <div style={{ bottom: '12px', boxSizing: 'border-box', color: '#FFFFFFD9', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', left: '12px', lineHeight: '20px', position: 'absolute', right: '12px' }}>
+                    Harbor Lights - The Tidewater
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '64px', paddingInline: '12px', width: '100%' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H160a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm72,48H40a8,8,0,0,0,0,16h72a8,8,0,0,0,0-16Zm135.66-57.7a8,8,0,0,1-10,5.36L208,122.75V192a32.05,32.05,0,1,1-16-27.69V112a8,8,0,0,1,10.3-7.66l40,12A8,8,0,0,1,247.66,126.3ZM192,192a16,16,0,1,0-16,16A16,16,0,0,0,192,192Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M230.93,220a8,8,0,0,1-6.93,4H32a8,8,0,0,1-6.92-12c15.23-26.33,38.7-45.21,66.09-54.16a72,72,0,1,1,73.66,0c27.39,8.95,50.86,27.83,66.09,54.16A8,8,0,0,1,230.93,220Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', width: '390px' }}>
+            <div style={{ backgroundImage: 'linear-gradient(in oklab 120deg, oklab(26% -0.030 0.020) 0%, oklab(40% -0.040 0.040) 55%, oklab(55% -0.020 0.070) 100%)', boxSizing: 'border-box', flexShrink: '0', height: '144px', position: 'relative' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', height: '40px', justifyContent: 'center', left: '12px', position: 'absolute', top: '12px', width: '40px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', position: 'absolute', right: '12px', top: 12 }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px', paddingInline: '20px', paddingTop: '20px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '80px', justifyContent: 'center', width: '80px' }}>
+                <div style={{ boxSizing: 'border-box', color: '#D9F0F2', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '24px' }}>
+                  W
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '4px', minWidth: '0px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '32px' }}>
+                  wavemaker
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                  Harbor Collective
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '100%', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '100%' }}>
+                Late-night loops.
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: 'fit-content', paddingInline: '20px' }}>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      W
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    wavemaker
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    2h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  Late-night loop, take two.
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-xl)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', padding: '12px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="28" height="28" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                      Harbor Lights
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      The Tidewater
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="var(--color-primary-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      W
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    wavemaker
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    2h
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                  Weekly listening thread
+                </div>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                  What have you had on repeat this week?
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                      W
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                    wavemaker
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                    1d
+                  </div>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                    <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, oklab(52% 0.006 0.010) 0%, oklab(34% 0.023 0.019) 100%)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '448px', justifyContent: 'center', overflow: 'clip', position: 'relative', width: '252px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: '#00000073', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                    <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+                  <div style={{ bottom: '12px', boxSizing: 'border-box', color: '#FFFFFFD9', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', left: '12px', lineHeight: '20px', position: 'absolute', right: '12px' }}>
+                    Harbor Lights - The Tidewater
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                      18
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                      <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                      <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                      24
+                    </div>
+                  </div>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                    <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                      <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                    </svg>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      3
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '64px', paddingInline: '12px', width: '100%' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H160a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm72,48H40a8,8,0,0,0,0,16h72a8,8,0,0,0,0-16Zm135.66-57.7a8,8,0,0,1-10,5.36L208,122.75V192a32.05,32.05,0,1,1-16-27.69V112a8,8,0,0,1,10.3-7.66l40,12A8,8,0,0,1,247.66,126.3ZM192,192a16,16,0,1,0-16,16A16,16,0,0,0,192,192Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexGrow: '1', height: '100%', justifyContent: 'center' }}>
+                <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                  <path d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56,56,0,0,1,72,96Z" fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, letterSpacing: '0.03em', lineHeight: '20px', textTransform: 'uppercase' }}>
+          Phone: Edit
+        </div>
+        <div style={{ alignItems: 'start', boxSizing: 'border-box', display: 'flex', gap: '32px' }}>
+          <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '844px', width: '390px' }}>
+            <div style={{ alignItems: 'center', borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '12px', height: '56px', paddingInline: '20px' }}>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M200 56 56 200M56 56l144 144" fill="none" stroke="var(--color-foreground)" strokeWidth="16" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', flexBasis: '0%', flexGrow: '1', flexWrap: 'wrap', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, justifyContent: 'center', lineHeight: '24px', textAlign: 'center' }}>
+                Edit profile
+              </div>
+              <div style={{ boxSizing: 'border-box', flexShrink: '0', height: '40px', width: '40px' }} />
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '20px', padding: '20px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: '172px', position: 'relative', width: '100%' }}>
+                <div style={{ backgroundImage: 'linear-gradient(in oklab 120deg, oklab(24% 0.020 -0.040) 0%, oklab(38% 0.030 -0.050) 55%, oklab(52% 0.050 -0.020) 100%)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', height: '128px', left: '0px', position: 'absolute', top: '0px', width: '100%' }} />
+                <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', height: '36px', justifyContent: 'center', position: 'absolute', right: '12px', top: '80px', width: '36px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderColor: 'var(--color-background)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '4px', boxSizing: 'border-box', display: 'flex', height: '84px', justifyContent: 'center', left: '16px', position: 'absolute', top: '84px', width: '84px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-secondary-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '32px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderColor: 'var(--color-background)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '2px', boxSizing: 'border-box', display: 'flex', height: '32px', justifyContent: 'center', left: '74px', position: 'absolute', top: '140px', width: '32px' }}>
+                  <svg width="16" height="16" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Name
+                </div>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-card)', borderColor: 'var(--color-input)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', paddingInline: '12px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Harbor
+                  </div>
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Bio
+                </div>
+                <div style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-input)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '112px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Songs from the harbor, mostly at night.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-border-soft)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', flexShrink: '0', paddingBottom: '16px', paddingInline: '20px', paddingTop: '12px' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', height: '44px', justifyContent: 'center' }}>
+                <div style={{ boxSizing: 'border-box', color: 'var(--color-primary-foreground)', display: 'flex', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                  Save
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+          Desktop: your profile. The app sidebar stays; the cover runs the width of the page and the rest sits in one 640 column, the same feed as the phone.
+        </div>
+        <div style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', width: '1280px' }}>
+          <div style={{ alignSelf: 'stretch', backgroundColor: 'var(--color-sidebar)', borderRightColor: 'var(--color-sidebar-border)', borderRightStyle: 'solid', borderRightWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', padding: '16px', width: '248px' }}>
+            <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', gap: '20px', minHeight: '0px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" fill="var(--color-sidebar-accent-foreground)" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-accent-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    For You
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72H160a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm72,48H40a8,8,0,0,0,0,16h72a8,8,0,0,0,0-16Zm135.66-57.7a8,8,0,0,1-10,5.36L208,122.75V192a32.05,32.05,0,1,1-16-27.69V112a8,8,0,0,1,10.3-7.66l40,12A8,8,0,0,1,247.66,126.3ZM192,192a16,16,0,1,0-16,16A16,16,0,0,0,192,192Z" fill="var(--color-sidebar-foreground)" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Your Songs
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z" fill="var(--color-sidebar-foreground)" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Wallet
+                  </div>
+                </div>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" fill="var(--color-sidebar-foreground)" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Notifications
+                  </div>
+                  <div style={{ backgroundColor: 'var(--color-primary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', flexShrink: '0', height: '8px', width: '8px' }} />
+                </div>
+                <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56,56,0,0,1,72,96Z" fill="var(--color-sidebar-foreground)" />
+                  </svg>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                    Profile
+                  </div>
+                </div>
+              </div>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '4px', justifyContent: 'space-between', minHeight: '44px', paddingLeft: '12px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '12px', fontWeight: 500, letterSpacing: '0.025em', lineHeight: '16px', textTransform: 'uppercase' }}>
+                      Communities
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                      <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                        <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z" fill="var(--color-foreground)" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ alignItems: 'center', backgroundColor: 'var(--color-sidebar-accent)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', minHeight: '44px', paddingBlock: '8px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#243F46', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', overflow: 'clip', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#D9F0F2', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                          HC
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                        Harbor Collective
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', minHeight: '44px', paddingBlock: '8px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#3F3A5F', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', overflow: 'clip', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#ECE8FF', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                          NR
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                        Night Shift Radio
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', minHeight: '44px', paddingBlock: '8px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', overflow: 'clip', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#E6EEF8', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                          WS
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                        World of Sound
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', minHeight: '44px', paddingBlock: '8px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#4B4555', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', overflow: 'clip', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#F0EAF6', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                          LL
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                        Late Night Lo-Fi
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', minHeight: '44px', paddingBlock: '8px', paddingInline: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#314936', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', overflow: 'clip', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#E2F3DE', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '10px', fontWeight: 600, lineHeight: '12px' }}>
+                          SC
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                        Songwriters Circle
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style={{ borderTopColor: 'var(--color-sidebar-border)', borderTopStyle: 'solid', borderTopWidth: '1px', boxSizing: 'border-box', marginTop: '16px', paddingTop: '16px' }}>
+              <div style={{ alignItems: 'center', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBlock: '8px', paddingInline: '12px' }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'var(--color-surface-skeleton)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '36px', justifyContent: 'center', overflow: 'clip', width: '36px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    H
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-sidebar-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                    harbor.8s28
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '20px' }}>
+                    Harbor Collective
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+            <div style={{ backgroundImage: 'linear-gradient(in oklab 120deg, oklab(24% 0.020 -0.040) 0%, oklab(38% 0.030 -0.050) 55%, oklab(52% 0.050 -0.020) 100%)', boxSizing: 'border-box', flexShrink: '0', height: '200px', position: 'relative' }}>
+              <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', height: '40px', justifyContent: 'center', left: '12px', position: 'absolute', top: '12px', width: '40px' }}>
+                <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                  <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" fill="var(--color-foreground)" />
+                </svg>
+              </div>
+              <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', position: 'absolute', right: '12px', top: 12 }}>
+                <div style={{ alignItems: 'center', backgroundColor: 'color-mix(var(--color-background) 75%, transparent)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                  <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                    <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-foreground)" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div style={{ boxSizing: 'border-box', display: 'flex', height: 'fit-content', justifyContent: 'center', paddingBottom: '48px' }}>
+              <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', flexShrink: '0', height: 'fit-content', width: '640px' }}>
+                <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '20px' }}>
+                  <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '80px', justifyContent: 'center', width: '80px' }}>
+                    <div style={{ boxSizing: 'border-box', color: '#D9F0F2', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, lineHeight: '24px' }}>
+                      H
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0px', flexDirection: 'column', flexGrow: '1', gap: '4px', minWidth: '0px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.025em', lineHeight: '32px' }}>
+                      harbor.8s28
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                      Harbor Collective
+                    </div>
+                  </div>
+                  <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', flexBasis: '100%', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px', width: '100%' }}>
+                    Songs from the harbor, mostly at night.
+                  </div>
+                </div>
+                <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', paddingBottom: '16px', paddingInline: '20px' }}>
+                  <div style={{ alignItems: 'center', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexGrow: '1', gap: '8px', height: '44px', justifyContent: 'center', paddingInline: '20px' }}>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                      Edit
+                    </div>
+                  </div>
+                </div>
+                <div style={{ boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: 'fit-content', paddingInline: '20px' }}>
+                  <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                          H
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                        harbor.8s28
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                        2h
+                      </div>
+                      <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                        <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                      Late-night loop, take two.
+                    </div>
+                    <div style={{ alignItems: 'center', backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-xl)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', gap: '12px', padding: '12px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-secondary)', borderRadius: 'var(--radius-lg)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                        <svg width="28" height="28" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M210.3,56.34l-80-24A8,8,0,0,0,120,40V148.26A48,48,0,1,0,136,184V98.75l69.7,20.91A8,8,0,0,0,216,112V64A8,8,0,0,0,210.3,56.34ZM88,216a32,32,0,1,1,32-32A32,32,0,0,1,88,216ZM200,101.25l-64-19.2V50.75L200,70Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', display: 'flex', flexBasis: '0%', flexDirection: 'column', flexGrow: '1', minWidth: '0px' }}>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px' }}>
+                          Harbor Lights
+                        </div>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                          The Tidewater
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-primary)', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', justifyContent: 'center', width: '44px' }}>
+                        <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="var(--color-primary-foreground)" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                          18
+                        </div>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                        <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                          <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                          24
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                        <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                        </svg>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                          3
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                          H
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                        harbor.8s28
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                        2h
+                      </div>
+                      <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                        <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '20px', fontWeight: 600, lineHeight: '28px' }}>
+                      Weekly listening thread
+                    </div>
+                    <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', lineHeight: '24px' }}>
+                      What have you had on repeat this week?
+                    </div>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                          18
+                        </div>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                        <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                          <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                          24
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ borderBottomColor: 'var(--color-border-soft)', borderBottomStyle: 'solid', borderBottomWidth: '1px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px', paddingBlock: '20px' }}>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#33465F', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '24px', justifyContent: 'center', width: '24px' }}>
+                        <div style={{ boxSizing: 'border-box', color: '#E6EEF8', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '9px', fontWeight: 600, lineHeight: '9px' }}>
+                          H
+                        </div>
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 500, lineHeight: '20px' }}>
+                        harbor.8s28
+                      </div>
+                      <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', flexGrow: '1', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', lineHeight: '20px' }}>
+                        1d
+                      </div>
+                      <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '32px', justifyContent: 'center', marginLeft: 'auto', width: '32px' }}>
+                        <svg width="20" height="20" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', backgroundImage: 'linear-gradient(in oklab 180deg, oklab(52% 0.006 0.010) 0%, oklab(34% 0.023 0.019) 100%)', borderRadius: 'var(--radius-xl)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '448px', justifyContent: 'center', overflow: 'clip', position: 'relative', width: '252px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: '#00000073', borderRadius: 'calc(infinity * 1px)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '56px', justifyContent: 'center', width: '56px' }}>
+                        <svg width="24" height="24" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z" fill="#FFFFFF" />
+                        </svg>
+                      </div>
+                      <div style={{ bottom: '12px', boxSizing: 'border-box', color: '#FFFFFFD9', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '14px', left: '12px', lineHeight: '20px', position: 'absolute', right: '12px' }}>
+                        Harbor Lights - The Tidewater
+                      </div>
+                    </div>
+                    <div style={{ alignItems: 'center', boxSizing: 'border-box', display: 'flex', gap: '8px', paddingTop: '4px' }}>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '44px', paddingInline: '4px' }}>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', flexShrink: '0', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', textAlign: 'center', width: '32px' }}>
+                          18
+                        </div>
+                        <div style={{ alignItems: 'center', borderRadius: 'var(--radius-full)', boxSizing: 'border-box', display: 'flex', flexShrink: '0', height: '40px', justifyContent: 'center', width: '40px' }}>
+                          <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                            <path d="M205.66,149.66l-72,72a8,8,0,0,1-11.32,0l-72-72a8,8,0,0,1,11.32-11.32L120,196.69V40a8,8,0,0,1,16,0V196.69l58.34-58.35a8,8,0,0,1,11.32,11.32Z" fill="var(--color-muted-foreground)" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'var(--radius-full)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '16px', width: 'fit-content' }}>
+                        <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: '0', display: 'inline-block' }}>
+                          <path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z" fill="var(--color-muted-foreground)" />
+                        </svg>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-muted-foreground)', display: 'inline-block', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 500, lineHeight: '24px', width: 'max-content' }}>
+                          24
+                        </div>
+                      </div>
+                      <div style={{ alignItems: 'center', backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border-soft)', borderRadius: 'calc(infinity * 1px)', borderStyle: 'solid', borderWidth: '1px', boxSizing: 'border-box', display: 'flex', flexShrink: '0', gap: '8px', height: '44px', paddingInline: '14px' }}>
+                        <svg width="23" height="23" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ display: 'inline-block', flexShrink: '0' }}>
+                          <path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z" fill="var(--color-warning)" />
+                        </svg>
+                        <div style={{ boxSizing: 'border-box', color: 'var(--color-foreground)', fontFamily: '"Inter", system-ui, sans-serif', fontSize: '16px', fontWeight: 600, lineHeight: '24px', width: 'max-content' }}>
+                          3
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )

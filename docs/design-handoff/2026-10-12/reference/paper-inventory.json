@@ -1,0 +1,3233 @@
+[
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Parts",
+    "pageId": "p-4-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-4-0",
+    "rootNodeId": "root_node_p-4-0",
+    "nodeCount": 1677,
+    "artboardCount": 14,
+    "artboards": [
+      {
+        "id": "25G-0",
+        "name": "Parts/Shell/AppSidebar",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 888
+      },
+      {
+        "id": "2AA-0",
+        "name": "_Index",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "38V-0",
+        "name": "Parts/Rewards/SongEarnSheet",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 3518
+      },
+      {
+        "id": "3E5-0",
+        "name": "Parts/Posts/PostCard",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 2248
+      },
+      {
+        "id": "3QS-0",
+        "name": "Parts/Verification/VerifySheet",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 5218
+      },
+      {
+        "id": "5A8-0",
+        "name": "Parts/Rewards/ActivityResult",
+        "childCount": 3,
+        "width": 1800,
+        "height": null,
+        "worldX": 2473,
+        "worldY": 3518
+      },
+      {
+        "id": "7BV-0",
+        "name": "Parts/Payments/PayStep",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 0,
+        "worldY": 6618
+      },
+      {
+        "id": "AYM-0",
+        "name": "Parts/Identity/YourProfiles",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 888
+      },
+      {
+        "id": "EYS-0",
+        "name": "Parts/Rows/ReviewRows",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 3240,
+        "worldY": 888
+      },
+      {
+        "id": "F06-0",
+        "name": "Parts/Rewards/RewardPill",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 0
+      },
+      {
+        "id": "F07-0",
+        "name": "Parts/Songs/SongRow",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 0
+      },
+      {
+        "id": "F08-0",
+        "name": "Parts/Rewards/Streak",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 4600,
+        "worldY": 0
+      },
+      {
+        "id": "F09-0",
+        "name": "Parts/States/StatusState",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 6480,
+        "worldY": 0
+      },
+      {
+        "id": "F0A-0",
+        "name": "Parts/Shell/AppShellChrome",
+        "childCount": 2,
+        "width": 1800,
+        "height": null,
+        "worldX": 8360,
+        "worldY": 0
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  },
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Foundations",
+    "pageId": "p-1-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-1-0",
+    "rootNodeId": "root_node_p-1-0",
+    "nodeCount": 414,
+    "artboardCount": 6,
+    "artboards": [
+      {
+        "id": "1-0",
+        "name": "Foundations/Color",
+        "childCount": 6,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 1248
+      },
+      {
+        "id": "4K-0",
+        "name": "Foundations/Typography",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 1248
+      },
+      {
+        "id": "65-0",
+        "name": "Foundations/Radius & Elevation",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 1248
+      },
+      {
+        "id": "7U-0",
+        "name": "Foundations/Spacing & Sizing",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 1248
+      },
+      {
+        "id": "95-0",
+        "name": "_Index",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "1IW-0",
+        "name": "Foundations/Motion",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 1248
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  },
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Flows",
+    "pageId": "p-6-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-6-0",
+    "rootNodeId": "root_node_p-6-0",
+    "nodeCount": 7181,
+    "artboardCount": 14,
+    "artboards": [
+      {
+        "id": "7HO-0",
+        "name": "_Index",
+        "childCount": 2,
+        "width": 1280,
+        "height": 672,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "7HU-0",
+        "name": "Flows/Community/JoinAndName",
+        "childCount": 9,
+        "width": 1800,
+        "height": 9061,
+        "worldX": 5640,
+        "worldY": 624
+      },
+      {
+        "id": "84J-0",
+        "name": "Flows/Auth/SignIn",
+        "childCount": 3,
+        "width": 1800,
+        "height": 3366,
+        "worldX": 0,
+        "worldY": 624
+      },
+      {
+        "id": "8NY-0",
+        "name": "Flows/Community/Create",
+        "childCount": 3,
+        "width": 1800,
+        "height": 3406,
+        "worldX": 3759.999,
+        "worldY": 624
+      },
+      {
+        "id": "95W-0",
+        "name": "Flows/Studying/Session",
+        "childCount": 5,
+        "width": 1800,
+        "height": 9132,
+        "worldX": 18800.001,
+        "worldY": 624
+      },
+      {
+        "id": "95X-0",
+        "name": "Flows/Karaoke/Practice",
+        "childCount": 5,
+        "width": 1800,
+        "height": 7916,
+        "worldX": 9400.001,
+        "worldY": 624
+      },
+      {
+        "id": "AO7-0",
+        "name": "Flows/Wallet/Send",
+        "childCount": 3,
+        "width": 1800,
+        "height": 3078,
+        "worldX": 22559.999,
+        "worldY": 624
+      },
+      {
+        "id": "AO8-0",
+        "name": "Flows/Wallet/Claim",
+        "childCount": 3,
+        "width": 1800,
+        "height": 3640,
+        "worldX": 20679.999,
+        "worldY": 624
+      },
+      {
+        "id": "3YE-0",
+        "name": "Flows/Posts/Text",
+        "childCount": 3,
+        "width": 1800,
+        "height": 2473,
+        "worldX": 13160,
+        "worldY": 624
+      },
+      {
+        "id": "4U5-0",
+        "name": "Flows/Posts/Song",
+        "childCount": 3,
+        "width": 1800,
+        "height": 4574,
+        "worldX": 11280,
+        "worldY": 624
+      },
+      {
+        "id": "4U6-0",
+        "name": "Flows/Posts/Video",
+        "childCount": 3,
+        "width": 1800,
+        "height": 4177,
+        "worldX": 15040,
+        "worldY": 624
+      },
+      {
+        "id": "4WA-0",
+        "name": "Flows/Dance/Take",
+        "childCount": 4,
+        "width": 1800,
+        "height": 6963,
+        "worldX": 7520,
+        "worldY": 624
+      },
+      {
+        "id": "654-0",
+        "name": "Flows/Rewards/Boost",
+        "childCount": 3,
+        "width": 1800,
+        "height": 3515,
+        "worldX": 16920.001,
+        "worldY": 624
+      },
+      {
+        "id": "CCF-0",
+        "name": "Flows/Community/Address",
+        "childCount": 17,
+        "width": 1800,
+        "height": 18016,
+        "worldX": 1880,
+        "worldY": 624
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  },
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Screens",
+    "pageId": "p-5-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-5-0",
+    "rootNodeId": "root_node_p-5-0",
+    "nodeCount": 4987,
+    "artboardCount": 9,
+    "artboards": [
+      {
+        "id": "2V8-0",
+        "name": "Screens/Posts/Feed",
+        "childCount": 6,
+        "width": 1800,
+        "height": null,
+        "worldX": 3760,
+        "worldY": 624
+      },
+      {
+        "id": "33U-0",
+        "name": "_Index",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "3H5-0",
+        "name": "Screens/Community/CommunityPage",
+        "childCount": 4,
+        "width": 1800,
+        "height": null,
+        "worldX": 0,
+        "worldY": 624
+      },
+      {
+        "id": "5HV-0",
+        "name": "Screens/Songs/YourSongs",
+        "childCount": 3,
+        "width": 1800,
+        "height": null,
+        "worldX": 11280,
+        "worldY": 624
+      },
+      {
+        "id": "5W3-0",
+        "name": "Screens/Shell/Notifications",
+        "childCount": 3,
+        "width": 1800,
+        "height": null,
+        "worldX": 9400,
+        "worldY": 624
+      },
+      {
+        "id": "A3Q-0",
+        "name": "Screens/Wallet/Portfolio",
+        "childCount": 3,
+        "width": 1800,
+        "height": null,
+        "worldX": 13160,
+        "worldY": 624
+      },
+      {
+        "id": "BC0-0",
+        "name": "Screens/Profiles/Profile",
+        "childCount": 4,
+        "width": 1800,
+        "height": null,
+        "worldX": 7520,
+        "worldY": 624
+      },
+      {
+        "id": "BOH-0",
+        "name": "Screens/Posts/Post",
+        "childCount": 4,
+        "width": 1800,
+        "height": null,
+        "worldX": 5640,
+        "worldY": 624
+      },
+      {
+        "id": "C1G-0",
+        "name": "Screens/Community/Management",
+        "childCount": 3,
+        "width": 1800,
+        "height": null,
+        "worldX": 1880,
+        "worldY": 624
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  },
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Patterns",
+    "pageId": "p-3-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-3-0",
+    "rootNodeId": "root_node_p-3-0",
+    "nodeCount": 787,
+    "artboardCount": 20,
+    "artboards": [
+      {
+        "id": "1JX-0",
+        "name": "Patterns/Engagement/CommentPill",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 729
+      },
+      {
+        "id": "1JY-0",
+        "name": "Patterns/Engagement/VotePill",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 729
+      },
+      {
+        "id": "1K2-0",
+        "name": "Patterns/Identity/PirateBrandMark",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 3559
+      },
+      {
+        "id": "1QE-0",
+        "name": "_Index",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "1R6-0",
+        "name": "Patterns/Navigation/MobileFooterNav",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 6609
+      },
+      {
+        "id": "1R7-0",
+        "name": "Patterns/Navigation/MobilePageHeader",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 6609
+      },
+      {
+        "id": "1R8-0",
+        "name": "Patterns/Navigation/FlatTabs",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 6609
+      },
+      {
+        "id": "206-0",
+        "name": "Patterns/Layout/ActionFooterShell",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 4269
+      },
+      {
+        "id": "207-0",
+        "name": "Patterns/Layout/LayoutShell",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 4269
+      },
+      {
+        "id": "2CR-0",
+        "name": "Patterns/Forms/CheckboxCard",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 2309
+      },
+      {
+        "id": "2DQ-0",
+        "name": "Patterns/Forms/CopyField",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 2309
+      },
+      {
+        "id": "2EH-0",
+        "name": "Patterns/Forms/FormLayout",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 2309
+      },
+      {
+        "id": "2FP-0",
+        "name": "Patterns/Forms/OptionCard",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 2309
+      },
+      {
+        "id": "2JH-0",
+        "name": "Patterns/Forms/FormattedTextarea",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 2309
+      },
+      {
+        "id": "2JI-0",
+        "name": "Patterns/Forms/ResponsiveOptionSelect",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 6800,
+        "worldY": 2309
+      },
+      {
+        "id": "2OI-0",
+        "name": "Patterns/Overlays/ConfirmDialog",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 7419
+      },
+      {
+        "id": "2OJ-0",
+        "name": "Patterns/Overlays/Modal",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 7419
+      },
+      {
+        "id": "2OK-0",
+        "name": "Patterns/Overlays/ActionMenu",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 7419
+      },
+      {
+        "id": "2T2-0",
+        "name": "Patterns/Engagement/VerticalFeed",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 729
+      },
+      {
+        "id": "2T3-0",
+        "name": "Patterns/Engagement/CommunityAvatar",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 729
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  },
+  {
+    "fileName": "Pirate Design System",
+    "pageName": "Components",
+    "pageId": "p-2-0",
+    "url": "https://app.paper.design/file/01M4DWHDEJ6WVWRH6FVX7E3017/p-2-0",
+    "rootNodeId": "root_node_p-2-0",
+    "nodeCount": 1491,
+    "artboardCount": 38,
+    "artboards": [
+      {
+        "id": "AV-0",
+        "name": "Components/Actions/Button",
+        "childCount": 7,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 880
+      },
+      {
+        "id": "D0-0",
+        "name": "_Index",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 0
+      },
+      {
+        "id": "DR-0",
+        "name": "Components/Actions/Chip",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 880
+      },
+      {
+        "id": "DS-0",
+        "name": "Components/Actions/IconButton",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 880
+      },
+      {
+        "id": "DT-0",
+        "name": "Components/Actions/PillButton",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 880
+      },
+      {
+        "id": "H2-0",
+        "name": "Components/Forms/Label",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 8160,
+        "worldY": 5740
+      },
+      {
+        "id": "H3-0",
+        "name": "Components/Forms/Input",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 5740
+      },
+      {
+        "id": "H4-0",
+        "name": "Components/Forms/TextField",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 8160,
+        "worldY": 7220
+      },
+      {
+        "id": "H5-0",
+        "name": "Components/Forms/Textarea",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 6800,
+        "worldY": 7220
+      },
+      {
+        "id": "H6-0",
+        "name": "Components/Forms/Checkbox",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 5740
+      },
+      {
+        "id": "H7-0",
+        "name": "Components/Forms/Switch",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 7220
+      },
+      {
+        "id": "L5-0",
+        "name": "Components/Forms/Select",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 7220
+      },
+      {
+        "id": "L6-0",
+        "name": "Components/Forms/RadioGroup",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 7220
+      },
+      {
+        "id": "L7-0",
+        "name": "Components/Forms/RadioIndicator",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 7220
+      },
+      {
+        "id": "L8-0",
+        "name": "Components/Forms/PrefixInput",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 7220
+      },
+      {
+        "id": "L9-0",
+        "name": "Components/Forms/InputOTP",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 6800,
+        "worldY": 5740
+      },
+      {
+        "id": "PK-0",
+        "name": "Components/Forms/AutoResizeTextarea",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 5740
+      },
+      {
+        "id": "PL-0",
+        "name": "Components/Forms/EditableNumberInput",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 5740
+      },
+      {
+        "id": "PM-0",
+        "name": "Components/Forms/Combobox",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 5740
+      },
+      {
+        "id": "PN-0",
+        "name": "Components/Forms/MultiCombobox",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 9520,
+        "worldY": 5740
+      },
+      {
+        "id": "TH-0",
+        "name": "Components/Data Display/Card",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 1980
+      },
+      {
+        "id": "TI-0",
+        "name": "Components/Data Display/Avatar",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 1980
+      },
+      {
+        "id": "TJ-0",
+        "name": "Components/Data Display/Separator",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 6800,
+        "worldY": 1980
+      },
+      {
+        "id": "TK-0",
+        "name": "Components/Feedback/Skeleton",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 4920
+      },
+      {
+        "id": "TL-0",
+        "name": "Components/Feedback/Spinner",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 4920
+      },
+      {
+        "id": "TM-0",
+        "name": "Components/Data Display/BadgedCircle",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 1980
+      },
+      {
+        "id": "XT-0",
+        "name": "Components/Data Display/Item",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 1980
+      },
+      {
+        "id": "XU-0",
+        "name": "Components/Data Display/FormattedText",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 1980
+      },
+      {
+        "id": "XV-0",
+        "name": "Components/Overlays/Dialog",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 9460
+      },
+      {
+        "id": "XW-0",
+        "name": "Components/Overlays/AlertDialog",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 9460
+      },
+      {
+        "id": "XX-0",
+        "name": "Components/Overlays/DropdownMenu",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 9460
+      },
+      {
+        "id": "XY-0",
+        "name": "Components/Overlays/Sheet",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 4080,
+        "worldY": 9460
+      },
+      {
+        "id": "XZ-0",
+        "name": "Components/Overlays/Toast",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 5440,
+        "worldY": 9460
+      },
+      {
+        "id": "Y0-0",
+        "name": "Components/Overlays/Tooltip",
+        "childCount": 2,
+        "width": 1280,
+        "height": null,
+        "worldX": 6800,
+        "worldY": 9460
+      },
+      {
+        "id": "18P-0",
+        "name": "Components/Disclosure/Accordion",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 3210
+      },
+      {
+        "id": "18R-0",
+        "name": "Components/Media/MediaControlButton",
+        "childCount": 5,
+        "width": 1280,
+        "height": null,
+        "worldX": 0,
+        "worldY": 8550
+      },
+      {
+        "id": "18S-0",
+        "name": "Components/Media/Scrubber",
+        "childCount": 4,
+        "width": 1280,
+        "height": null,
+        "worldX": 1360,
+        "worldY": 8550
+      },
+      {
+        "id": "18T-0",
+        "name": "Components/Media/Waveform",
+        "childCount": 3,
+        "width": 1280,
+        "height": null,
+        "worldX": 2720,
+        "worldY": 8550
+      }
+    ],
+    "pages": [
+      {
+        "id": "p-1-0",
+        "name": "Foundations",
+        "isActive": false
+      },
+      {
+        "id": "p-6-0",
+        "name": "Flows",
+        "isActive": true
+      },
+      {
+        "id": "p-5-0",
+        "name": "Screens",
+        "isActive": false
+      },
+      {
+        "id": "p-4-0",
+        "name": "Parts",
+        "isActive": false
+      },
+      {
+        "id": "p-3-0",
+        "name": "Patterns",
+        "isActive": false
+      },
+      {
+        "id": "p-2-0",
+        "name": "Components",
+        "isActive": false
+      }
+    ],
+    "fontFamilies": [
+      "Inter",
+      "JetBrains Mono"
+    ],
+    "tokens": {
+      "items": [
+        {
+          "name": "--color-background",
+          "value": "oklch(14.5% 0 0)"
+        },
+        {
+          "name": "--color-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-card",
+          "value": "oklch(20.5% 0 0)"
+        },
+        {
+          "name": "--color-card-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-card-hover",
+          "value": "oklch(30.5% .0006 250)"
+        },
+        {
+          "name": "--color-popover",
+          "value": "oklch(23.5% 0 0)"
+        },
+        {
+          "name": "--color-popover-foreground",
+          "value": "oklch(87% 0.004 250)"
+        },
+        {
+          "name": "--color-muted",
+          "value": "oklch(17.5% 0 0)"
+        },
+        {
+          "name": "--color-muted-foreground",
+          "value": "oklch(65% 0.010 250)"
+        },
+        {
+          "name": "--color-secondary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-secondary-foreground",
+          "value": "oklch(90% 0.004 250)"
+        },
+        {
+          "name": "--color-border",
+          "value": "oklch(30% 0.004 250)"
+        },
+        {
+          "name": "--color-border-soft",
+          "value": "oklch(26% 0 0)"
+        },
+        {
+          "name": "--color-input",
+          "value": "oklch(36% 0.004 250)"
+        },
+        {
+          "name": "--color-surface-skeleton",
+          "value": "oklch(25% 0 0)"
+        },
+        {
+          "name": "--color-primary",
+          "value": "oklch(54.6% 0.245 262.9)"
+        },
+        {
+          "name": "--color-primary-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-primary-hover",
+          "value": "oklch(48.8% 0.243 264.4)"
+        },
+        {
+          "name": "--color-primary-text",
+          "value": "oklch(70.7% 0.165 254.6)"
+        },
+        {
+          "name": "--color-primary-subtle",
+          "value": "oklch(23.2% 0.020 262.9)"
+        },
+        {
+          "name": "--color-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--color-destructive",
+          "value": "oklch(58% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-foreground",
+          "value": "oklch(100% 0 0)"
+        },
+        {
+          "name": "--color-destructive-hover",
+          "value": "oklch(50% 0.210 25)"
+        },
+        {
+          "name": "--color-destructive-text",
+          "value": "oklch(70% 0.170 25)"
+        },
+        {
+          "name": "--color-warning",
+          "value": "oklch(75% 0.140 85)"
+        },
+        {
+          "name": "--color-success",
+          "value": "oklch(70% 0.150 145)"
+        },
+        {
+          "name": "--color-info",
+          "value": "oklch(70% 0.150 250)"
+        },
+        {
+          "name": "--color-sidebar",
+          "value": "oklch(12.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-primary",
+          "value": "oklch(30% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-primary-foreground",
+          "value": "oklch(92% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-accent",
+          "value": "oklch(9.5% 0 0)"
+        },
+        {
+          "name": "--color-sidebar-accent-foreground",
+          "value": "oklch(80% 0.004 250)"
+        },
+        {
+          "name": "--color-sidebar-border",
+          "value": "oklch(28% 0.003 250)"
+        },
+        {
+          "name": "--color-sidebar-ring",
+          "value": "var(--color-primary)"
+        },
+        {
+          "name": "--font-sans",
+          "value": "Inter"
+        },
+        {
+          "name": "--text-base",
+          "value": "16px"
+        },
+        {
+          "name": "--text-lg",
+          "value": "18px"
+        },
+        {
+          "name": "--text-xl",
+          "value": "20px"
+        },
+        {
+          "name": "--text-2xl",
+          "value": "24px"
+        },
+        {
+          "name": "--text-3xl",
+          "value": "30px"
+        },
+        {
+          "name": "--text-4xl",
+          "value": "36px"
+        },
+        {
+          "name": "--text-5xl",
+          "value": "48px"
+        },
+        {
+          "name": "--font-weight-normal",
+          "value": "400"
+        },
+        {
+          "name": "--font-weight-medium",
+          "value": "500"
+        },
+        {
+          "name": "--font-weight-semibold",
+          "value": "600"
+        },
+        {
+          "name": "--font-weight-bold",
+          "value": "700"
+        },
+        {
+          "name": "--tracking-tight",
+          "value": "-0.025em"
+        },
+        {
+          "name": "--tracking-overline",
+          "value": "0.03em"
+        },
+        {
+          "name": "--leading-caption",
+          "value": "20px"
+        },
+        {
+          "name": "--leading-body",
+          "value": "24px"
+        },
+        {
+          "name": "--leading-h4",
+          "value": "28px"
+        },
+        {
+          "name": "--leading-h2",
+          "value": "32px"
+        },
+        {
+          "name": "--leading-h1",
+          "value": "36px"
+        },
+        {
+          "name": "--leading-display",
+          "value": "40px"
+        },
+        {
+          "name": "--opacity-disabled",
+          "value": "50%"
+        },
+        {
+          "name": "--breakpoint-sm",
+          "value": "640px"
+        },
+        {
+          "name": "--breakpoint-md",
+          "value": "768px"
+        },
+        {
+          "name": "--breakpoint-lg",
+          "value": "1024px"
+        },
+        {
+          "name": "--breakpoint-xl",
+          "value": "1280px"
+        },
+        {
+          "name": "--container-5xl",
+          "value": "1024px"
+        },
+        {
+          "name": "--spacing-1",
+          "value": "4px"
+        },
+        {
+          "name": "--spacing-2",
+          "value": "8px"
+        },
+        {
+          "name": "--spacing-3",
+          "value": "12px"
+        },
+        {
+          "name": "--spacing-4",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-5",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-6",
+          "value": "24px"
+        },
+        {
+          "name": "--spacing-8",
+          "value": "32px"
+        },
+        {
+          "name": "--spacing-9",
+          "value": "36px"
+        },
+        {
+          "name": "--spacing-11",
+          "value": "44px"
+        },
+        {
+          "name": "--spacing-12",
+          "value": "48px"
+        },
+        {
+          "name": "--spacing-header",
+          "value": "64px"
+        },
+        {
+          "name": "--spacing-gutter",
+          "value": "16px"
+        },
+        {
+          "name": "--spacing-gutter-md",
+          "value": "20px"
+        },
+        {
+          "name": "--spacing-gutter-lg",
+          "value": "32px"
+        },
+        {
+          "name": "--radius-sm",
+          "value": "4px"
+        },
+        {
+          "name": "--radius-md",
+          "value": "8px"
+        },
+        {
+          "name": "--radius-lg",
+          "value": "12px"
+        },
+        {
+          "name": "--radius-xl",
+          "value": "14px"
+        },
+        {
+          "name": "--radius-2xl",
+          "value": "16px"
+        },
+        {
+          "name": "--radius-sheet",
+          "value": "20px"
+        },
+        {
+          "name": "--radius-3xl",
+          "value": "24px"
+        },
+        {
+          "name": "--radius-full",
+          "value": "9999px"
+        }
+      ]
+    }
+  }
+]

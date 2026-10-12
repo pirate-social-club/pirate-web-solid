@@ -1,0 +1,12 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"file\": {\n    \"id\": \"01M4DWHDEJ6WVWRH6FVX7E3017\",\n    \"name\": \"Pirate Design System\"\n  },\n  \"contentHash\": {\n    \"tokens\": \"6d78f570\"\n  }\n}"
+    },
+    {
+      "type": "text",
+      "text": "{\n  \"summary\": \"Frame \\\"_Index\\\" (7HO-0) 1280×672\\n  Frame \\\"Header\\\" (7HP-0) 1184×116\\n    Text \\\"Title\\\" (7HQ-0) 1184×36 \\\"Flows\\\"\\n    Text \\\"Caption\\\" (7HR-0) 820×72 \\\"Journeys that cross screens, in reading order, built from cl\\\"\\n  Text \\\"List\\\" (7HS-0) 1184×420 \\\"● Auth/SignIn\\n● Community/Address (Handshake and Spaces, wit\\\"\",\n  \"nodeId\": \"7HO-0\",\n  \"depth\": 10\n}"
+    }
+  ]
+}

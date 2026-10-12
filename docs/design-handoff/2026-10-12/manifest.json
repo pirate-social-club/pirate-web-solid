@@ -1,0 +1,86 @@
+{
+  "format_version": 1,
+  "title": "Pirate design export for a cloud Storybook agent",
+  "capture_started_utc": "2026-10-12 18:22:26 UTC",
+  "capture_finished_utc": "2026-10-12 18:32:37 UTC",
+  "paper": {
+    "file_id": "01M4DWHDEJ6WVWRH6FVX7E3017",
+    "file_name": "Pirate Design System",
+    "token_hash_at_start": "6d78f570",
+    "token_hash_at_finish": "6d78f570",
+    "atomic_snapshot_claimed": false,
+    "notes": "Each PNG is a native Paper export. Tokens remained unchanged during capture. Files are fixed and individually checksum-bound; no atomic multi-page snapshot is claimed."
+  },
+  "sources": {
+    "solid_reference_sha": "45d07cb25b3267ad16f158aa40eff7d11ad49c5e",
+    "solid_local_checkout_sha": "0801168a8344e66fdccdb8fc3298251e6abb69cc",
+    "api_origin_main_sha": "e8628c82d7d3827e69e13641538e2ba7c08bfd80",
+    "api_client_at_solid_reference": "0.114.0-a2eb47a5",
+    "task_and_spec_source": "Local authoritative control-plane files at capture; snapshots do not replace live dispatch authority."
+  },
+  "coverage": {
+    "overview_sheets": 95,
+    "individual_states": 232,
+    "full_caption_and_group_label_records": 111,
+    "main_sheet_jsx_references": 34,
+    "tree_reference_files": 37,
+    "all_design_pages_included": [
+      "Foundations",
+      "Components",
+      "Patterns",
+      "Parts",
+      "Screens",
+      "Flows"
+    ],
+    "omitted": "Six _Index navigation artboards are omitted from overview images. Individual states were selected from Parts, Flows and Screens; this is not a claim that every leaf component instance has a separate PNG."
+  },
+  "implementation": {
+    "status": "proposed first slice; export only",
+    "first_slice": [
+      "Shared text/song/video post card",
+      "Single profile posts feed",
+      "Stateless reward pill with explicit design-system fixtures"
+    ],
+    "paper_only_instruction": "Reported 2026-10-11 restriction is not superseded by the export request. A scoped owner instruction and authoritative task registration are required before implementation dispatch.",
+    "rewards": "Disabled everywhere in supplied handoff; reward pill and reward result states remain fixture references.",
+    "dance": "Resolve amendment A-F, ratification and required second independent review before any Dance code; eligibility and verification timing remain open."
+  },
+  "verification": {
+    "reference_revision_app_story_files": 62,
+    "reference_revision_parity_check_run": false,
+    "historical_local_parity_check": {
+      "sha": "0801168a8344e66fdccdb8fc3298251e6abb69cc",
+      "files": 60,
+      "result": "passed during preceding audit only"
+    },
+    "png_decode_verification": "All exported PNGs decoded and verified using Pillow.",
+    "visual_spot_check": [
+      "Song post card",
+      "Own profile on phone",
+      "Earlier audit: result, reward and video-card references"
+    ],
+    "storybook_build_run": false,
+    "application_tests_run": false,
+    "browser_interaction_sweep_run": false,
+    "device_wallet_chain_checks_run": false,
+    "staging_index_check_exit_code": 1,
+    "staging_index_check_details": "Omitted from public package; local inventory check recorded unrelated pre-existing discrepancies.",
+    "staging_index_check_notes": "New package is indexed. Existing unrelated root/archive/handoff inventory discrepancies remain unchanged."
+  },
+  "integrity": {
+    "hash_file": "SHA256SUMS",
+    "algorithm": "SHA-256",
+    "verification_command": "sha256sum -c SHA256SUMS",
+    "zip_checksum": "No ZIP in this branch; SHA256SUMS verifies the extracted package."
+  },
+  "publication": {
+    "repository": "pirate-social-club/pirate-web-solid",
+    "branch": "handoff/paper-storybook-20261012",
+    "package_path": "docs/design-handoff/2026-10-12",
+    "authorized": "workspace_owner explicitly preferred a dedicated branch and allowed public distribution",
+    "artifact_only": true,
+    "workstation_instruction_snapshots_omitted": true,
+    "workstation_path_prefixes_replaced": true,
+    "source_export_sha256sums_sha256": "fdb20b4434a610db813420e34e417c2638aab4de6690fc4c0b5d9d8a06548f0b"
+  }
+}
