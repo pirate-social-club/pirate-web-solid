@@ -1,0 +1,395 @@
+
+T  Building storybook v10.6.0
+|
+o  Cleaning outputDir:
+|  ../../../../..<scratchpad>/final/design-system-storybook-static
+|
+o  Loading presets
+|
+o  Building manager..
+|
+•  Building open services..
+|
+•  Building preview..
+|  Vite vite v8.3.1 building client environment for production...
+transforming...
+✓ 446 modules transformed.
+rendering chunks...
+computing gzip size...
+|  Vite
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/poster-3-CZoA022h.jpg
+|  4.19 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/poster-2-CmYipMLZ.jpg
+|  5.17 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/clip-1-CAImlZFY.mp4
+|  12.52 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/poster-1-CZOgKDDx.jpg
+|  14.96 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/iframe.html
+|  19.74 kB │ gzip:   5.52 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/logo_ghost_sm-D1_cTyok.png
+|  26.47 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/iframe-Bxlx-0vc.css
+|  83.73 kB │ gzip:  14.16 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/iframe-Clj7wBON.js
+|  0.04 kB │ gzip:   0.06 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/BLTiiqMx-BcNxz9z0.js
+|  0.14 kB │ gzip:   0.13 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/DocsRenderer-JROSPFPF-v5a5DcLR.js
+|  0.16 kB │ gzip:   0.15 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/controlled-xmvS9aNd.js
+|  0.22 kB │ gzip:   0.18 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/5-BHfdGI-BgjSSDF2.js
+|  0.23 kB │ gzip:   0.19 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/formatter-L2YTDE3Q-CPKqwo3q.js
+|  0.24 kB │ gzip:   0.21 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chunk-QQBDHPVZ-DC5n6Pix.js
+|  0.32 kB │ gzip:   0.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/D6_aBB9R-CsuVxlLy.js
+|  0.33 kB │ gzip:   0.25 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/fixtures-BdzlpU07.js
+|  0.33 kB │ gzip:   0.24 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/combineProps-Bk2xCflC.js
+|  0.35 kB │ gzip:   0.26 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/sidebar.shared-edZJwD02.js
+|  0.38 kB │ gzip:   0.27 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/polymorphic-B1gFTYLF.js
+|  0.40 kB │ gzip:   0.29 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/CF70_KE4-BzmISClk.js
+|  0.41 kB │ gzip:   0.25 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/DV_ixT98-DKIvUAYP.js
+|  0.42 kB │ gzip:   0.29 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/react-Bl2r1tuC.js
+|  0.58 kB │ gzip:   0.34 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/eventListener-CWDu2Ci5.js
+|  0.61 kB │ gzip:   0.36 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/media-query-hiFK150g.js
+|  0.63 kB │ gzip:   0.37 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/BBjsoOtd-CofGqwMk.js
+|  0.63 kB │ gzip:   0.41 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/QhqEt4aD-CVvlJKmG.js
+|  0.66 kB │ gzip:   0.40 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chunk-UAWMPV5J-_VQykhfG.js
+|  0.74 kB │ gzip:   0.45 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/separator-D3rv_tUU.js
+|  0.93 kB │ gzip:   0.52 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/label-DHVHSAk1.js
+|  0.99 kB │ gzip:   0.56 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dist-BGBAKTcx.js
+|  1.03 kB │ gzip:   0.50 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/story-layout-Bmz3fEY6.js
+|  1.06 kB │ gzip:   0.47 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/DUp9FXTP-DScrNTff.js
+|  1.08 kB │ gzip:   0.55 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dialog-Dk2VbUY2.js
+|  1.09 kB │ gzip:   0.50 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dist-CMtSCnxP.js
+|  1.10 kB │ gzip:   0.59 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/rolldown-runtime-DkW27tQK.js
+|  1.19 kB │ gzip:   0.67 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dist-Slubx1uB.js
+|  1.20 kB │ gzip:   0.62 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/preload-helper-VEOc_cSF.js
+|  1.33 kB │ gzip:   0.75 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/alert-dialog-Crsva95R.js
+|  1.34 kB │ gzip:   0.62 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/comment-pill-D3owGrri.js
+|  1.36 kB │ gzip:   0.73 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/pill-button-BUHmHJmP.js
+|  1.38 kB │ gzip:   0.73 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/skeleton-CotfIy8E.js
+|  1.46 kB │ gzip:   0.81 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/DvspU6cJ-QgWIMyN-.js
+|  1.50 kB │ gzip:   0.77 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dialog-footer-tfmUUPLH.js
+|  1.52 kB │ gzip:   0.68 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chip-DyT6mI97.js
+|  1.79 kB │ gzip:   0.85 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/icon-button-Dqi2hobe.js
+|  1.89 kB │ gzip:   0.84 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/OK7882aq-Cxc66jdn.js
+|  1.90 kB │ gzip:   0.98 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/label.stories-CkBWg3k_.js
+|  2.00 kB │ gzip:   0.90 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Motion-aXACRL-p.js
+|  2.02 kB │ gzip:   0.88 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/comment-pill.stories-CiQdAFyV.js
+|  2.09 kB │ gzip:   0.91 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/badged-circle-CSfu5GR5.js
+|  2.22 kB │ gzip:   0.88 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/BlSoAAAV-BAQJID8I.js
+|  2.22 kB │ gzip:   0.97 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/sheet-BT1ubXAv.js
+|  2.24 kB │ gzip:   0.94 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dist-D3bYipDW.js
+|  2.53 kB │ gzip:   1.32 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/status-card-BFPI6ZuR.js
+|  2.59 kB │ gzip:   1.15 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Cai1J0En-DV9eSyJz.js
+|  2.61 kB │ gzip:   0.93 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/tooltip.stories-BEAXOqKM.js
+|  2.96 kB │ gzip:   1.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/layout-shell-C_2Q_mqg.js
+|  3.02 kB │ gzip:   1.08 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/spinner.stories-P0_488p5.js
+|  3.02 kB │ gzip:   1.09 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/form-reset-listener-4aK4bY9d.js
+|  3.27 kB │ gzip:   1.39 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/form-layout.stories-C4yW285W.js
+|  3.30 kB │ gzip:   1.21 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/button-CRKs9C7T.js
+|  3.35 kB │ gzip:   1.28 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/status-card.stories-C8pyYA_m.js
+|  3.36 kB │ gzip:   1.04 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Spacing-Bdm5cQaM.js
+|  3.39 kB │ gzip:   1.06 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/skeleton.stories-CfwoWJUF.js
+|  3.40 kB │ gzip:   1.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/separator.stories-B5iWFHyF.js
+|  3.42 kB │ gzip:   1.23 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/pill-button.stories-CJaKshue.js
+|  3.56 kB │ gzip:   1.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/badged-circle.stories-D7ckj9bc.js
+|  3.60 kB │ gzip:   1.26 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/form-layout-Dbq3bF7P.js
+|  3.60 kB │ gzip:   1.21 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/avatar-Bpqad4FR.js
+|  3.68 kB │ gzip:   1.58 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chunk-242VQQM5-BWWCB-oT.js
+|  3.77 kB │ gzip:   1.46 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/layout-shell.stories-BjIZn99D.js
+|  3.80 kB │ gzip:   1.29 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/type.stories-BmG4v0Zm.js
+|  3.86 kB │ gzip:   1.30 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/checkbox.stories-CHeq7tpv.js
+|  3.93 kB │ gzip:   1.50 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/vote-pill.stories-S9omeJ3j.js
+|  4.29 kB │ gzip:   1.39 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/avatar.stories-yGf8g7te.js
+|  4.38 kB │ gzip:   1.31 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/i18n-DcGbNLWr.js
+|  4.41 kB │ gzip:   1.81 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Typography-95qOO12f.js
+|  4.44 kB │ gzip:   1.18 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/textarea.stories-CnU9w3go.js
+|  4.49 kB │ gzip:   1.41 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/input.stories-ClVx0ZW6.js
+|  4.56 kB │ gzip:   1.38 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/combobox.stories-BYC9sinC.js
+|  4.57 kB │ gzip:   1.60 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/vote-pill-D_oJSYeQ.js
+|  4.58 kB │ gzip:   1.61 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/select.stories-vWmoZlDX.js
+|  4.63 kB │ gzip:   1.63 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/sheet.stories-CpLKiGxK.js
+|  4.64 kB │ gzip:   1.46 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/RadiusElevation-DFw7Go5_.js
+|  4.84 kB │ gzip:   1.15 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/card.stories-LJnD9Osm.js
+|  4.91 kB │ gzip:   1.63 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chunk-DRQKCCAG-BYxd_8uq.js
+|  4.92 kB │ gzip:   2.10 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/spinner-Bi5A85nI.js
+|  4.99 kB │ gzip:   1.45 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/stack-page-shell.stories-Baspq-Ye.js
+|  5.18 kB │ gzip:   1.69 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/type-DydrdB-0.js
+|  5.26 kB │ gzip:   1.57 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/pirate-brand-mark.stories-D_QF6MG4.js
+|  5.56 kB │ gzip:   1.52 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/waveform.stories-CIyZlB68.js
+|  5.59 kB │ gzip:   2.13 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Bpz3OGAn-CntqNJ_y.js
+|  5.71 kB │ gzip:   2.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/icon-button.stories-BGylaKj1.js
+|  5.75 kB │ gzip:   1.54 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chip.stories-aZyw_Iy2.js
+|  5.78 kB │ gzip:   1.62 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/reward-pill.stories-C7-QJaw0.js
+|  5.93 kB │ gzip:   2.10 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dropdown-menu.stories-CaaEQO5s.js
+|  6.01 kB │ gzip:   1.91 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/input-otp.stories-Ic_fwb1C.js
+|  6.08 kB │ gzip:   2.50 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/preventScroll-CbOKBSPw.js
+|  6.11 kB │ gzip:   2.42 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/community-avatar.stories-DzaNrsLx.js
+|  6.18 kB │ gzip:   2.06 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/alert-dialog.stories-BX-4xxVT.js
+|  6.28 kB │ gzip:   1.73 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/stacked-section-nav.stories-oTw8t1ow.js
+|  6.47 kB │ gzip:   2.36 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/tooltip-BTAOfQyj.js
+|  6.53 kB │ gzip:   2.63 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/textarea-CRw88mBa.js
+|  6.69 kB │ gzip:   1.67 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dialog-presentation-Ba0TsQOH.js
+|  6.83 kB │ gzip:   2.73 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/confirm-dialog.stories-zL7ydJ2t.js
+|  6.96 kB │ gzip:   1.98 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/button.stories-B6xwVyGL.js
+|  6.97 kB │ gzip:   1.77 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/illustrated-state.stories-mTrWdMFn.js
+|  7.04 kB │ gzip:   2.22 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/input-B4pe3D4-.js
+|  7.08 kB │ gzip:   1.79 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/action-banner.stories-DO7dp7Fp.js
+|  7.34 kB │ gzip:   2.13 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/RyRdwdaj-Of-QiSp7.js
+|  7.40 kB │ gzip:   3.02 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/react-BZJXY1be.js
+|  7.53 kB │ gzip:   2.88 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/media-control-button.stories-BB7qsmOf.js
+|  7.56 kB │ gzip:   2.04 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/pirate-brand-mark-CeDV8REx.js
+|  7.66 kB │ gzip:   2.13 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/tabs.stories-C0DtFHw6.js
+|  7.66 kB │ gzip:   1.76 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/mobile-page-header.stories-DQherht0.js
+|  7.86 kB │ gzip:   2.39 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/flat-tabs.stories-Qesg73xx.js
+|  7.91 kB │ gzip:   2.41 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/checkbox-card.stories-BZuh0Qao.js
+|  8.03 kB │ gzip:   2.44 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/action-footer-shell.stories-41DBqfTl.js
+|  8.09 kB │ gzip:   2.49 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/radio-indicator.stories-DvHlu26B.js
+|  8.53 kB │ gzip:   2.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/jSgZ_i04-BO-fRU4D.js
+|  8.70 kB │ gzip:   3.07 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/auto-resize-textarea.stories-CoteUq1E.js
+|  8.81 kB │ gzip:   2.51 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Color-ziVD-qL6.js
+|  9.31 kB │ gzip:   2.34 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Icons-CPMkzm7D.js
+|  9.41 kB │ gzip:   1.91 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/editable-number-input.stories-B0jk0iHV.js
+|  9.90 kB │ gzip:   2.64 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/copy-field.stories-D7IfXMlW.js
+|  10.04 kB │ gzip:   2.92 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/media-upload-field.stories-BpW8eIc6.js
+|  10.16 kB │ gzip:   3.04 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/mobile-footer-nav.stories-CDOAC-E9.js
+|  10.51 kB │ gzip:   3.13 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/option-card.stories-NhKMU_pQ.js
+|  10.51 kB │ gzip:   3.00 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/prefix-input.stories-gmj9yv2C.js
+|  10.62 kB │ gzip:   2.95 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/tabs-DZXn5xW8.js
+|  10.93 kB │ gzip:   3.81 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/multi-combobox.stories-h53Gg6ed.js
+|  11.32 kB │ gzip:   3.26 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/action-menu.stories-Buz7mwL-.js
+|  11.43 kB │ gzip:   3.09 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/responsive-option-select.stories-DqIaem8I.js
+|  11.53 kB │ gzip:   3.54 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dialog.stories-DtnFMQE8.js
+|  11.67 kB │ gzip:   2.53 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/checkbox-B4NBVW6w.js
+|  11.74 kB │ gzip:   3.58 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/formatted-text.stories-lmmOv85E.js
+|  11.97 kB │ gzip:   3.89 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/radio-group.stories-BGCbcM2T.js
+|  12.69 kB │ gzip:   3.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/item.stories-BZFPe3nB.js
+|  12.82 kB │ gzip:   2.75 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/list-row.stories-CbW6qzy2.js
+|  13.22 kB │ gzip:   3.51 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/text-field.stories-Bgu0ogS3.js
+|  13.94 kB │ gzip:   3.69 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/avatar-badge.stories-BYIBmWSd.js
+|  14.31 kB │ gzip:   3.43 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/CgkAj-2j-ZvmpGYJI.js
+|  16.06 kB │ gzip:   5.30 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/modal.stories-Rzwg7xMB.js
+|  16.36 kB │ gzip:   3.79 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/switch.stories-2bdadTq4.js
+|  16.39 kB │ gzip:   4.55 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/formatted-textarea.stories-BYXudJ5z.js
+|  16.60 kB │ gzip:   4.39 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/select-WNHwvA8N.js
+|  19.04 kB │ gzip:   6.09 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/toast.stories-DK1S5zga.js
+|  19.65 kB │ gzip:   6.46 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/app-header.stories-BhPzGsBx.js
+|  20.68 kB │ gzip:   5.20 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/scrubber.stories-IHtSFSc2.js
+|  20.83 kB │ gzip:   6.87 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/sidebar.stories-B_mEJhaE.js
+|  21.56 kB │ gzip:   5.76 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/chunk-W22LQPXL-CBQiKiD6.js
+|  23.08 kB │ gzip:   7.77 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/BzGqGM_d-CBfDT7UR.js
+|  23.37 kB │ gzip:   9.24 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/combobox-kyePvHAr.js
+|  23.50 kB │ gzip:   7.82 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/dropdown-menu-B9_LwLf4.js
+|  23.53 kB │ gzip:   7.09 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/accordion.stories-D6aP1VNi.js
+|  26.37 kB │ gzip:   5.66 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/cn-C1qs17db.js
+|  27.48 kB │ gzip:   8.89 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/vite-inject-mocker-entry.js
+|  27.84 kB │ gzip:   9.66 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/matchers-JIUQ3HVY-C789_MAK.js
+|  28.79 kB │ gzip:   9.68 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/Color-6AOWCN3U-kuYakDST.js
+|  30.41 kB │ gzip:  11.50 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/WithTooltip-CDUNV5IS-DN0dB9vs.js
+|  32.67 kB │ gzip:  11.45 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/icons-Blm9UeYo.js
+|  38.68 kB │ gzip:   5.73 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/theming-ulvtejBp.js
+|  55.36 kB │ gzip:  21.32 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/vertical-feed.stories-DIfIwL53.js
+|  59.88 kB │ gzip:  16.08 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/syntaxhighlighter-4REYKNEV-ieisMWou.js
+|  75.84 kB │ gzip:  27.23 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/blocks-BEIPEFKF.js
+|  451.23 kB │ gzip: 145.79 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/components-wRVlou4R.js
+|  479.73 kB │ gzip: 151.37 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/axe-pQGJbW0T.js
+|  586.90 kB │ gzip: 160.19 kB
+|  ../../../../..<scratchpad>/final/design-system-storybook-static/assets/iframe-CJ88vXvH.js
+|  1,114.81 kB │ gzip: 324.36 kB
+
+|
+!  Vite [plugin builtin:vite-reporter]
+|  (!) Some chunks are larger than 500 kB after minification. Consider:
+|  - Using dynamic import() to code-split the application
+|  - Use build.rolldownOptions.output.codeSplitting to improve chunking:
+|  ]8;;https://rolldown.rs/reference/OutputOptions.codeSplittinghttps://rolldown.rs/reference/OutputOptions.codeSplitting]8;;
+|  - Adjust chunk size limit for this warning via
+|  build.chunkSizeWarningLimit.
+|  Vite ✓ built in 52.06s
+|
+!  Vite [PLUGIN_TIMINGS] JavaScript callbacks ran for 50.8s of this 52.0s
+|  build (98%).
+|  The slowest callbacks, timed inside each callback (the wait before a
+|  callback starts is excluded, the time it awaits is included):
+|  - plugin storybook:solid-component-meta transform (94%, 48.7s, 446
+|  calls)
+|  - plugin @tailwindcss/vite:generate:build transform (31%, 16.3s, 2
+|  calls)
+|  These rows add up to more than the total. Callbacks can overlap, so
+|  the same time counts for more than one row.
+|  2 callbacks are listed without a time. Their calls overlapped, so the
+|  time inside one call includes work from other calls. To find their
+|  cost, profile the build with `node --cpu-prof`:
+|  - plugin plugin-csf transform (446 calls)
+|  - plugin vite:asset load (7 calls)
+|  See ]8;;https://rolldown.rs/reference/InputOptions.checks#bundlertimingshttps://rolldown.rs/reference/InputOptions.checks#bundlertimings]8;;
+|  for more details.
+
+|
+o  Output directory:
+|  <scratchpad>/final/design-system-storybook-static
+|
+—  Storybook build completed successfully
+
+
+real	0m59.393s
+user	1m8.493s
+sys	0m9.400s
+design-system build exit=0

@@ -147,6 +147,12 @@ Run on Node 24.21.0 for each slice:
 
 For 1a, the naming-locale hydration, text-post and song-post checks also passed.
 
-At 1b, `song-feed-playback-check` timed out once on its spawned Storybook's cold start straight after a production build. It passed at both widths on an immediate rerun.
+At 1b, `song-feed-playback-check` timed out once on its spawned Storybook's first story. An immediate rerun passed. Four deliberate reproductions of the original sequence also passed, with and without a second dev server, so **the cause is not established**. See `evidence/final/EVIDENCE.md`.
+
+**Final acceptance evidence for `f7bd144`** is in `evidence/final/`:
+- both Storybook production builds;
+- the full-catalog sweep against the production build: 760 stories, 0 axe violations, and 88 of 88 touched stories passing;
+- the 9 pre-existing `VideoPost/Authoring` failures, shown identical at `45d07cb` and caused by the missing H.264 encoder;
+- phone and desktop captures with Paper comparisons.
 
 **Not verifiable here:** real Stream video playback, staging data, and devices.
