@@ -310,21 +310,20 @@ describe("Very verification route", () => {
     expect(veryApi.joinVeryCommunity).toHaveBeenCalledOnce();
   });
 
-  it("blocks a zero-candidate join and explains persona creation is coming soon", async () => {
+  it("prepares an active community profile before a first-time verified join", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     vi.mocked(sessionApi.resolveSession).mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
-    const container = render(() => <VeryVerificationRoute />);
+    let finish: ((profile: sessionApi.ActivePersonaPublicProjection) => void) | undefined;
+    const prepareProfile = vi.fn(() => new Promise<sessionApi.ActivePersonaPublicProjection>(resolve => { finish = resolve; }));
+    const container = render(() => <VeryVerificationRoute prepareProfile={prepareProfile} />);
     container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
-    expect(container.textContent).toContain("Choose your public identity");
-    expect(container.textContent).not.toContain("Joining the community…");
+    await vi.waitFor(() => expect(prepareProfile).toHaveBeenCalledOnce());
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
-    const confirm = Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Create persona and join"));
-    expect(confirm).toBeUndefined();
-    expect(document.body.textContent).toContain("coming soon");
-    expect(document.querySelector('input[value="__create_new_persona__"]')).toBeNull();
-    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+    finish!({ personaId: "prepared-active", displayName: null, primaryPublicHandle: null, avatarRef: null, communityBinding: { communityId: "community-gated-1", bindingSource: "activity_participation" } });
+    await vi.waitFor(() => expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "prepared-active" } }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
   });
 
   it("waits on a server-reported pending ceremony without issuing another intent", async () => {

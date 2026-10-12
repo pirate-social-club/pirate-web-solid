@@ -636,9 +636,10 @@ describe("what a community offers each viewer", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain(harbor.displayName));
     // The canonical link still carries it; the page body does not.
-    const header = container.querySelector("header");
-    expect(header?.textContent).not.toContain(harbor.communityId);
-    expect(header?.textContent).not.toContain("c/community_");
+    const overview = container.querySelector('[aria-label="Community overview"]');
+    expect(overview).not.toBeNull();
+    expect(overview?.textContent).not.toContain(harbor.communityId);
+    expect(overview?.textContent).not.toContain("c/community_");
     expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href") ?? "")
       .toContain(harbor.communityId);
   });

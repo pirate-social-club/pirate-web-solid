@@ -2,6 +2,8 @@
 import type { JSX } from "@solidjs/web";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { ComposingSurfaceContext } from "../composing-surface.tsx";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 
 import {
   Button,
@@ -79,6 +81,24 @@ export function ApplicationChrome(props: MediaShellProps) {
   const surfaceChildren = () => <ComposingSurfaceContext value={surface}>{props.children}</ComposingSurfaceContext>;
   let menuTrigger: HTMLButtonElement | undefined;
   let pendingNavigation: string | undefined;
+  let profileMenuReturnFocus: HTMLElement | undefined;
+  let pendingNameAction: (() => void) | undefined;
+  let nameActionFrame: number | undefined;
+  const cancelNameAction = () => {
+    pendingNameAction = undefined;
+    if (nameActionFrame !== undefined) cancelAnimationFrame(nameActionFrame);
+    nameActionFrame = undefined;
+  };
+  onCleanup(cancelNameAction);
+  const afterNameMenuClose = () => {
+    const run = pendingNameAction;
+    if (run) nameActionFrame = requestAnimationFrame(() => {
+      nameActionFrame = undefined;
+      if (pendingNameAction !== run) return;
+      pendingNameAction = undefined;
+      run();
+    });
+  };
   const signedIn = () => props.signedIn === true;
   const scope = (): ApplicationNavigationScope => {
     const current = props.navigationScope ?? platformNavigationScope;
@@ -104,6 +124,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     else if (typeof window !== "undefined") window.location.assign(href);
   };
   const go = (href: string) => {
+    cancelNameAction();
     if (pickerOpen()) {
       pendingNavigation = href;
       setPickerOpen(false);
@@ -128,10 +149,13 @@ export function ApplicationChrome(props: MediaShellProps) {
     const href = pendingNavigation;
     pendingNavigation = undefined;
     if (href) requestAnimationFrame(() => navigateTo(href));
+    afterNameMenuClose();
   };
   const accountPending = () => props.sessionResolving === true || props.sessionUnavailable === true;
   /** The profile sheet: switching on desktop, and account recovery while the session check fails. */
   const openProfilePicker = () => {
+    cancelNameAction();
+    profileMenuReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     setMenuOpen(false);
     if (signedIn() || accountPending()) setPickerOpen(true);
     else requestGlobalSignIn();
@@ -158,6 +182,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   // the account profile picker above.
   const personaStore = useActivePersonaStoreOptional();
   const switchTarget = () => personaStore?.target();
+  createEffect(() => [switchTarget(), signedIn(), props.viewerId, props.currentPath] as const, cancelNameAction);
   const switchable = () => (switchTarget()?.personas.length ?? 0) > 1;
   const selectedSwitchPersonaId = () => {
     const target = switchTarget();
@@ -170,8 +195,32 @@ export function ApplicationChrome(props: MediaShellProps) {
     const target = switchTarget();
     return target === undefined ? selected() : target.personas.find(persona => persona.personaId === selectedSwitchPersonaId());
   };
+  const namingCopy = getLocaleMessages(usePageUiLocale(), "routes").communityJoinName;
+  const openCommunityProfiles = () => {
+    cancelNameAction();
+    profileMenuReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    personaStore?.openSwitcher();
+  };
+  const nameMenuRow = () => <Show when={switchTarget()?.nameAction}>{action => <Button
+    class="mx-4 mt-4 justify-start" variant="ghost" type="button"
+    onClick={() => {
+      const selectedAction = action();
+      const target = switchTarget();
+      const returnFocus = profileMenuReturnFocus;
+      const viewerId = props.viewerId;
+      const path = props.currentPath;
+      cancelNameAction();
+      pendingNameAction = () => {
+        // The menu can close after its page, account or naming entry changed.
+        if (signedIn() && switchTarget() === target && target?.nameAction === selectedAction
+          && props.viewerId === viewerId && props.currentPath === path) selectedAction.run(returnFocus);
+      };
+      if (personaStore?.open()) personaStore.closeSwitcher();
+      else setPickerOpen(false);
+    }}>{action().label}</Button>}</Show>;
   const footerProfileLabel = () => {
     const persona = footerPersona();
+    if (persona !== undefined && switchTarget() !== undefined) return interpolateMessage(namingCopy.profileControl, { name: persona.displayName });
     if (persona !== undefined) return `Profile, ${persona.displayName}`;
     if (switchTarget()?.unavailable) return "Retry profiles";
     if (switchTarget() !== undefined && switchable()) return "Choose a posting profile";
@@ -332,6 +381,8 @@ export function ApplicationChrome(props: MediaShellProps) {
           onWalletClick={() => go("/wallet")}
           onProfileClick={openFooterProfile}
           onProfileDoubleTap={canSwitchProfile() ? doubleTapSwitch : undefined}
+          onProfileMenuClick={switchTarget()?.nameAction ? openCommunityProfiles : undefined}
+          profileMenuAriaLabel={namingCopy.profileMenu}
           userAvatarSeed={footerPersona()?.avatarSeed ?? footerPersona()?.publicHandle ?? undefined}
           userAvatarSrc={footerPersona()?.avatarSrc ?? undefined}
         />
@@ -341,7 +392,9 @@ export function ApplicationChrome(props: MediaShellProps) {
             label={desktopProfileLabel()}
             opensPicker={switchable() || switchTarget()?.unavailable === true}
             persona={footerPersona()}
-            onClick={() => { if (switchable() || switchTarget()?.unavailable) personaStore?.openSwitcher(); else openFooterProfile(); }}
+            onClick={() => { if (switchable() || switchTarget()?.unavailable) openCommunityProfiles(); else openFooterProfile(); }}
+            onMenuClick={switchTarget()?.nameAction ? openCommunityProfiles : undefined}
+            menuLabel={namingCopy.profileMenu}
           />
         </Show>
         <Show when={personaStore === undefined ? undefined : switchTarget()}>
@@ -359,13 +412,15 @@ export function ApplicationChrome(props: MediaShellProps) {
               personas={target().personas}
               selectedPersonaId={selectedSwitchPersonaId()}
               title={target().title ?? "Profile in this community"}
+              footer={nameMenuRow()}
+              onAfterClose={afterNameMenuClose}
             />
           )}
         </Show>
         <span aria-live="polite" class="sr-only">{switchAnnouncement()}</span>
       </SidebarContent>
     </div>
-    <PersonaSwitcherSheet footer={<Show when={signedIn() && !selected()}><a href="/settings" class="mx-4 mt-4 rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go("/settings"); }}>Settings</a></Show>} title="Your profiles" onAfterClose={afterPickerClose} open={pickerOpen()} onOpenChange={setPickerOpen} personas={props.personas ?? []} selectedPersonaId={props.selectedPersonaId ?? ""} onSelect={id => { props.onPersonaSelect?.(id); setPickerOpen(false); }} loading={props.sessionResolving || props.personasLoading || (props.sessionUnavailable && props.sessionPending)} unavailable={props.sessionUnavailable || props.personasUnavailable} onRetry={props.sessionUnavailable ? props.onSessionRetry : props.onPersonasRetry} />
+    <PersonaSwitcherSheet footer={<>{nameMenuRow()}<Show when={signedIn() && !selected()}><a href="/settings" class="mx-4 mt-4 rounded-lg px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); go("/settings"); }}>Settings</a></Show></>} title="Your profiles" onAfterClose={afterPickerClose} open={pickerOpen()} onOpenChange={setPickerOpen} personas={props.personas ?? []} selectedPersonaId={props.selectedPersonaId ?? ""} onSelect={id => { props.onPersonaSelect?.(id); setPickerOpen(false); }} loading={props.sessionResolving || props.personasLoading || (props.sessionUnavailable && props.sessionPending)} unavailable={props.sessionUnavailable || props.personasUnavailable} onRetry={props.sessionUnavailable ? props.onSessionRetry : props.onPersonasRetry} />
   </div></Show>;
 }
 

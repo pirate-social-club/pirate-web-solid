@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { KaraokeApiClient } from "./karaoke-api";
-import { isKaraokeAuthError, loadKaraokeLeaderboard } from "./karaoke-route-model";
+import type { ApiSongKaraokePayload, KaraokeApiClient } from "./karaoke-api";
+import { isKaraokeAuthError, loadKaraokeLeaderboard, renewKaraokePlayback } from "./karaoke-route-model";
 
 const client = (overrides: Partial<KaraokeApiClient> = {}): KaraokeApiClient => ({
   createSession: async () => { throw new Error("unused"); },
@@ -24,5 +24,44 @@ describe("karaoke route model", () => {
   test("identifies the signed-out leaderboard state", () => {
     expect(isKaraokeAuthError({ status: 401 })).toBe(true);
     expect(isKaraokeAuthError({ status: 403 })).toBe(false);
+  });
+});
+
+const admittedPayload: ApiSongKaraokePayload = {
+  id: "revision-1", post: "pst-1", community: "com-1", object: "song_karaoke_payload",
+  playback_access: {
+    kind: "instrumental", ref: "media://instrumental/1",
+    grant: { url: "https://media.test/first", expiresAtMs: 2000, renewAtMs: 1000 },
+  },
+};
+
+describe("karaoke access renewal", () => {
+  test("accepts a renewed URL for the same recording without creating a scored session", async () => {
+    let starts = 0;
+    const next = { ...admittedPayload, playback_access: {
+      ...admittedPayload.playback_access!, grant: { url: "https://media.test/renewed", expiresAtMs: 4000, renewAtMs: 3000 },
+    } };
+    const api = client({
+      getPayload: async () => next,
+      createSession: async () => { starts += 1; throw new Error("must not start"); },
+    });
+    expect(await renewKaraokePlayback(api, admittedPayload, new AbortController().signal)).toEqual(next.playback_access.grant);
+    expect(starts).toBe(0);
+  });
+
+  test.each([
+    { id: "revision-2" }, { post: "pst-2" }, { community: "com-2" },
+    { playback_access: { ...admittedPayload.playback_access!, kind: "full_mix" as const } },
+    { playback_access: { ...admittedPayload.playback_access!, ref: "media://instrumental/2" } },
+    { playback_access: undefined },
+  ])("refuses a changed admitted binding: %j", async patch => {
+    const api = client({ getPayload: async () => ({ ...admittedPayload, ...patch }) });
+    await expect(renewKaraokePlayback(api, admittedPayload, new AbortController().signal)).rejects.toThrow("The song changed");
+  });
+
+  test("an interrupted renewal cannot revive the route", async () => {
+    const controller = new AbortController();
+    const api = client({ getPayload: async () => { controller.abort(); return admittedPayload; } });
+    await expect(renewKaraokePlayback(api, admittedPayload, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
   });
 });

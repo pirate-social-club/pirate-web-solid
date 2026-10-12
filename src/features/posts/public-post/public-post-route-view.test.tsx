@@ -1,3 +1,4 @@
+import { publicProfileFragment } from "../../identity/public-profile-label.ts";
 import userEvent from "@testing-library/user-event";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -74,6 +75,19 @@ function contentState(canonical: boolean): PublicPostRouteState {
 }
 
 describe("public post route view", () => {
+  it("hydrates public labels using the server document language, not the browser language", () => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("Expected fixture content");
+    const profile = { object: "persona" as const, persona_id: "public-community-profile", primary_public_handle: null, display_name: null, avatar_ref: null };
+    document.documentElement.lang = "ar";
+    try {
+      const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+        post: { ...state.response.content.post, identity_mode: "public", author_persona: profile } } } });
+      expect(container.textContent).toContain(`مستخدم ${publicProfileFragment(profile.persona_id)}`);
+      expect(container.querySelector('a[href="/p/public-community-profile"]')).not.toBeNull();
+    } finally { document.documentElement.lang = ""; }
+  });
+
   it("keeps rendered public content through anonymous account and persona refusals", async () => {
     clearSession();
     const reload = vi.fn(async () => contentState(true));

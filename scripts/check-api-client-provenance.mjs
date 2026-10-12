@@ -71,6 +71,8 @@ const clients = [
       "get_publicCommunitiesCommunityRefFeed",
       "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
       "get_communitiesCommunityIdPostsPostIdKaraoke",
+      "post_postsPostIdKaraokePlaybackAccess",
+      "post_postsPostIdSongPlaybackAccess",
       "get_communitiesCommunityIdKaraokeAttemptsAttemptId",
       "get_communitiesCommunityIdPostsPostIdKaraokeLeaderboard",
       "delete_usersMeLearnerAudio",

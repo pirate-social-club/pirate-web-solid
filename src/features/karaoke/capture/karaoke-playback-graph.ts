@@ -1,15 +1,18 @@
+export type KaraokePlaybackInterruption = (songMs: number, state: AudioContextState, alreadyPaused: boolean) => void;
+
 /** Playback owns this context; individual takes borrow it and release only their mic graph. */
 export class KaraokePlaybackGraph {
   private element: HTMLAudioElement | null = null;
   private context: AudioContext | null = null;
   private source: MediaElementAudioSourceNode | null = null;
   private hasRun = false;
+  private interruptedState: AudioContextState | null = null;
   private readonly pendingResumes = new Set<() => void>();
   private readonly onStateChange = () => this.checkState();
 
   constructor(
     private readonly createContext: () => AudioContext = () => new AudioContext(),
-    private readonly onInterrupted?: (songMs: number, state: AudioContextState) => void,
+    private readonly onInterrupted?: KaraokePlaybackInterruption,
   ) {}
 
   attach(element: HTMLAudioElement | null): void {
@@ -40,12 +43,17 @@ export class KaraokePlaybackGraph {
   checkState(): void {
     if (this.context?.state === "running") {
       this.hasRun = true;
+      this.interruptedState = null;
       return;
     }
-    if (!this.context || !this.hasRun || !this.element || this.element.paused) return;
+    if (!this.context || !this.hasRun || !this.element || this.interruptedState === this.context.state) return;
+    this.interruptedState = this.context.state;
     const songMs = this.element.currentTime * 1000;
-    this.element.pause();
-    this.onInterrupted?.(songMs, this.context.state);
+    const alreadyPaused = this.element.paused;
+    // Renewal can already have paused media. A new context interruption must
+    // still revoke its pending recovery, once per state transition.
+    if (!alreadyPaused) this.element.pause();
+    this.onInterrupted?.(songMs, this.context.state, alreadyPaused);
   }
 
   isRunning(): boolean { return this.context?.state === "running"; }
@@ -82,5 +90,6 @@ export class KaraokePlaybackGraph {
     this.context = null;
     this.element = null;
     this.hasRun = false;
+    this.interruptedState = null;
   }
 }

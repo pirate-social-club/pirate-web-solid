@@ -9,7 +9,9 @@ import type { SwitchablePersona } from "./persona-switcher-sheet/persona-switche
  *
  * The community page registers the switch target while it is mounted: the
  * eligible personas and the community they belong to. The shell's profile
- * control opens the switcher against that target, and every writer goes
+ * control retains profile navigation and switching. A separate menu row uses
+ * the target's name action when present.
+ * Every profile selection goes
  * through `selectPersona`, so a selection made from the footer, the page, or
  * any future surface lands in one place. A retained submission bound to
  * another persona is never rewritten here; the composer resolves that case
@@ -22,6 +24,7 @@ export interface PersonaSwitchTarget {
   readonly loading?: boolean;
   readonly unavailable?: boolean;
   readonly onRetry?: () => void;
+  readonly nameAction?: { readonly label: string; readonly run: (returnFocus?: HTMLElement) => void };
 }
 
 export interface ActivePersonaStore {
@@ -70,7 +73,7 @@ function createActivePersonaStore(): ActivePersonaStore {
     open,
     openSwitcher: () => {
       const current = target();
-      if (current === undefined || (current.personas.length < 2 && !current.unavailable)) return;
+      if (current === undefined || (current.personas.length < 2 && !current.unavailable && !current.nameAction)) return;
       setOpen(true);
     },
     closeSwitcher: () => setOpen(false),

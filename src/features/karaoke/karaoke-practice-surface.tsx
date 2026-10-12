@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import {
   Button,
   IconArrowCounterClockwise,
@@ -12,11 +12,13 @@ import { karaokeResultsView, type KaraokeResultsSummary } from "./karaoke-result
 import { getLyricDurationMs } from "./karaoke-timing";
 import { KaraokeLyricStage } from "./karaoke-lyric-stage";
 import type { KaraokeLineRating, KaraokeStageLine } from "./karaoke-lyric-stage";
+import { createKaraokePlaybackRenewal, type KaraokePlaybackAccess } from "./karaoke-playback-renewal";
 
 export interface KaraokePracticeSurfaceProps {
   title: string;
   artworkSrc?: string;
   instrumentalAudioUrl?: string;
+  playbackAccess?: KaraokePlaybackAccess;
   lines: readonly KaraokeStageLine[];
   rewardLabel?: string;
   rewardSlot?: JSX.Element;
@@ -36,7 +38,7 @@ export interface KaraokePracticeSurfaceProps {
   playbackInterrupted?: boolean;
   onResumePlayback?: () => Promise<boolean>;
   onPlay?: (songMs: number) => void;
-  onPause?: (songMs: number) => void;
+  onPause?: (songMs: number) => void | Promise<void>;
   onSeek?: (songMs: number) => void;
   onFinish?: (songMs: number) => void;
   /** The server's summary for the finished take; null when none arrived. */
@@ -59,6 +61,19 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   let disposed = false;
   let playRequest = 0;
   const [playbackIssue, setPlaybackIssue] = createSignal(false);
+  // Access belongs to this mounted payload; renewal preserves its scored take.
+  const initialPlaybackAccess = untrack(() => props.playbackAccess);
+  const playbackRenewal = initialPlaybackAccess ? createKaraokePlaybackRenewal({
+    access: initialPlaybackAccess,
+    audio: () => audioRef.current,
+    canResume: () => untrack(() => props.singingStatus === "active" && !props.playbackInterrupted),
+    onPause: (songMs) => {
+      setIsPlaying(false);
+      setCurrentTimeMs(songMs);
+      return props.onPause?.(songMs);
+    },
+    onIssue: setPlaybackIssue,
+  }) : undefined;
   const [resuming, setResuming] = createSignal(false);
   let recoveryRequest = 0;
   const resumeInterruptedPlayback = () => {
@@ -75,6 +90,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
     });
   };
   const playBackingTrack = () => {
+    if (playbackRenewal) { playbackRenewal.play(); return; }
     const audio = audioRef.current;
     if (!audio) return;
     const request = ++playRequest;
@@ -91,7 +107,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   const busy = () => props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting";
 
   const syncTime = () => {
-    const songMs = (audioRef.current?.currentTime ?? 0) * 1000;
+    const songMs = (playbackRenewal?.positionSeconds() ?? audioRef.current?.currentTime ?? 0) * 1000;
     setCurrentTimeMs(songMs);
     props.onTimeChange?.(songMs);
     return songMs;
@@ -108,17 +124,18 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
       if (singingStatus !== "active") {
         recoveryRequest += 1;
         setResuming(false);
-        if (singingStatus === "idle" || singingStatus === "ended" || singingStatus === "error") {
+        if (singingStatus === "idle" || singingStatus === "finishing" || singingStatus === "ended" || singingStatus === "error") {
+          playbackRenewal?.cancel();
           pendingPlay = false;
           playRequest += 1;
           audioRef.current?.pause();
         }
         return;
       }
-      if (!pendingPlay) return;
+      if (!pendingPlay) { playbackRenewal?.resume(); return; }
       pendingPlay = false;
       const audio = audioRef.current;
-      if (audio && !isPlaying()) playBackingTrack();
+      if (audio && !untrack(isPlaying)) playBackingTrack();
     },
   );
   let clockTimer: ReturnType<typeof setInterval> | undefined;
@@ -128,11 +145,12 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   });
   createEffect(() => props.playbackInterrupted, (interrupted) => {
     if (!interrupted) return;
+    playbackRenewal?.interrupt();
     playRequest += 1;
     setPlaybackIssue(false);
     setIsPlaying(false);
   });
-  onCleanup(() => { clearInterval(clockTimer); props.onPlaybackElement?.(null); disposed = true; playRequest += 1; audioRef.current?.pause(); });
+  onCleanup(() => { clearInterval(clockTimer); playbackRenewal?.dispose(); props.onPlaybackElement?.(null); disposed = true; playRequest += 1; audioRef.current?.pause(); });
 
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
@@ -191,6 +209,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         crossorigin="anonymous"
         preload="auto"
         src={props.instrumentalAudioUrl}
+        onLoadedMetadata={() => playbackRenewal?.metadata()}
         onCanPlay={() => setIsLoading(false)}
         onDurationChange={(event) => {
           const nextDurationMs = event.currentTarget.duration * 1000;
@@ -199,10 +218,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
           }
         }}
         onEnded={() => { setIsPlaying(false); props.onFinish?.(syncTime()); }}
-        onError={() => setIsLoading(false)}
+        onError={() => { setIsLoading(false); playbackRenewal?.error(); }}
         onPause={() => { setIsPlaying(false); props.onPause?.(syncTime()); }}
         onPlay={() => setIsPlaying(true)}
-        onPlaying={() => { setIsPlaying(true); props.onPlay?.(syncTime()); }}
+        onPlaying={() => {
+          if (playbackRenewal && !playbackRenewal.playing()) return;
+          setIsPlaying(true); props.onPlay?.(syncTime());
+        }}
         onWaiting={() => { props.onPause?.(syncTime()); }}
         onStalled={(event) => {
           const songMs = syncTime();

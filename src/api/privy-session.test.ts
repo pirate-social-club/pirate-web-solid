@@ -15,6 +15,36 @@ import {
 
 const noPersonas = async (): Promise<GetPersonasResponse> => ({ personas: [] });
 
+it.each(["success", "account-change", "provider-change", "cancel"])("activates a newly prepared profile with exact account, provider and wallet index binding: %s", async outcome => {
+  const token = (subject: string) => `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
+  let proof = token("did:privy:owner");
+  let accountId = "account-owner";
+  let retained: BrowserIdentitySession | undefined;
+  const controller = new AbortController();
+  const prepareWallet = vi.fn(async (persona_id: string) => ({ persona_id, hd_wallet_index: 4, status: "pending" as const }));
+  const confirmWallet = vi.fn(async () => ({ hd_wallet_index: 4 }));
+  const ensure = vi.fn(async () => {
+    if (outcome === "account-change") accountId = "other-account";
+    if (outcome === "provider-change") proof = token("did:privy:other");
+    if (outcome === "cancel") controller.abort();
+  });
+  const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+    createPrivy: async () => ({ auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => {} } },
+      initialize: async () => {}, getAccessToken: async () => proof, ensureEmbeddedEthereumWallet: ensure }),
+    exchange: async () => {}, readAccountId: async () => accountId, listPendingWallets: async () => ({ wallets: [] }), listPersonas: noPersonas,
+    csrf: () => "csrf", retainSession: session => { retained = session; }, prepareWallet, confirmWallet,
+  });
+  await auth.loginWithCode("operator@example.test", "123456");
+  const activation = retained!.activatePersonaWallet!("account-owner", "new-profile", "preparation-key", controller.signal);
+  if (outcome === "success") await expect(activation).resolves.toBeUndefined();
+  else await expect(activation).rejects.toThrow();
+  expect(prepareWallet).toHaveBeenCalledWith("new-profile", "preparation-key", controller.signal);
+  expect(ensure).toHaveBeenCalledWith(4, "preparation-key");
+  if (outcome === "success") expect(confirmWallet).toHaveBeenCalledWith("new-profile", proof, controller.signal);
+  else expect(confirmWallet).not.toHaveBeenCalled();
+  retained!.clear();
+});
+
 it("transfers a successful provider session for same-account renewal and rejects cancellation or another identity", async () => {
   const token = (subject: string) => `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
   let proof = token("did:privy:owner");
@@ -33,7 +63,7 @@ it("transfers a successful provider session for same-account renewal and rejects
         initialize: async () => {}, getAccessToken: async () => proof, dispose,
       };
     },
-    exchange, listPendingWallets: async () => ({ wallets: [] }), listPersonas: noPersonas,
+    exchange, readAccountId: async () => "account-owner", listPendingWallets: async () => ({ wallets: [] }), listPersonas: noPersonas,
     csrf: () => csrf, retainSession: session => { retained = session; },
   });
   await auth.loginWithCode("operator@example.test", "123456");
