@@ -86,35 +86,25 @@ SOLID_BASE_URL=http://localhost:4173 bun run verify:live
 
 ## Main publication
 
-Radicle `main` is authoritative. GitHub `main` is its downstream release
-mirror. Configure every integration clone once:
+The assigned cloud staging journey uses GitHub feature branches and protected
+pull requests, as authorized in
+[the cloud handoff](https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6126612932).
+This applies to `cloud/naming-karaoke-20261012` and its assigned guest UI
+successor. Publish the named feature branch, open a PR, complete independent
+source/dependency/browser review and require current `verify`, `storybook-audit`
+and `Solid Doctor (PR)` checks on protected `main` before acceptance. Use a
+normal merge so the accepted Naming and Karaoke histories remain reachable.
+Do not squash, rebase, force-push or push `main` directly.
 
-```bash
-scripts/configure-radicle-primary --apply
-scripts/configure-radicle-primary --check
-```
+These cloud lanes need no Radicle signing identity or workstation round-trip.
+Preserve the existing Radicle histories and read-only proof, private local
+holds and unrelated release pins. The legacy `scripts/configure-radicle-primary`
+and `scripts/publish-main` helpers belong to the historical Radicle route
+outside this assigned scope; do not use them to bypass the protected PR route.
+Keep the existing GitHub fetch URL and change a local `no-push` guard only if
+needed for the authorized feature branch.
 
-This sets the repository-local `origin` push URL to the literal `no-push`, so
-an ordinary `git push origin` fails before contacting GitHub. Fetches from
-GitHub continue to use the public `origin` URL, and Radicle patch publication is
-unchanged.
-
-After integrating and reviewing `main`, validate the full commit SHA, then
-perform the explicitly confirmed publication:
-
-```bash
-scripts/publish-main --sha <full-commit-sha> --dry-run
-scripts/publish-main --sha <full-commit-sha> --execute
-```
-
-The command requires a clean `main` checkout, expected remote identities, the
-installed `no-push` guard, and fast-forward remote states. It advances Radicle,
-synchronizes the preferred seed, verifies Radicle's exact SHA, and only then
-pushes that SHA to GitHub through the validated fetch URL. If Radicle fails,
-GitHub is untouched. If the GitHub mirror fails, rerun the same command; it
-supports the safe state where Radicle is already ahead.
-
-The guard is clone-local. It does not block a GitHub web/API actor or a clone
-that has not installed it. Full enforcement still requires GitHub `main` to be
-mirror-only, with a dedicated mirroring identity and ordinary direct pushes
-denied.
+GitHub Actions verifies and packages source with Worker dry runs. Production
+deployment remains separately gated by the manual guarded workflows; source
+acceptance permits no deployment, SQL application, secret mutation, feature
+activation or funded operations. Production remains paused.

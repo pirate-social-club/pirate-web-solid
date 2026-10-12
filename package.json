@@ -123,6 +123,9 @@
     "@storybook/builder-vite": "10.6.0",
     "@storybook/csf-plugin": "10.5.10",
     "ethers>ws": "8.21.3",
-    "miniflare>sharp": "0.35.4"
+    "miniflare>sharp": "0.35.5",
+    "seroval": "1.6.3",
+    "jsdom>undici": "8.10.2",
+    "miniflare>undici": "7.29.1"
   }
 }
