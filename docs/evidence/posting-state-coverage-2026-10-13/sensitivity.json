@@ -1,0 +1,12 @@
+[
+  {
+    "mutation": "one row removed from each map",
+    "exit": 1,
+    "expectedFailures": 3
+  },
+  {
+    "mutation": "received original-command signal removed",
+    "exit": 1,
+    "expectedFailures": 1
+  }
+]
