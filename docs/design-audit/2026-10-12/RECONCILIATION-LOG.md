@@ -37,7 +37,7 @@ Playback goes through the existing access endpoint and poster route. The card ne
 - **Overflow:** a 32 px mark in a 44 px target.
 - **Song artist:** absent until a projection exists.
 
-## Slice 1b: single profile posts feed (this commit)
+## Slice 1b: single profile posts feed (`6ff62d1`)
 
 **Paper sheet:** `Screens/Profiles/Profile`, states 205, 207 and 209.
 
@@ -70,6 +70,56 @@ Playback goes through the existing access endpoint and poster route. The card ne
 - `Compositions/Profiles/ProfilePage` is retitled `Screens/Profiles/Profile`, matching the sheet and the catalog tiers.
 - Every story shows song, video and text posts.
 - New `WithoutHandle` story.
+
+## Review follow-up (`f7bd144`)
+
+**Manual card playback**
+- The card had passed `autoplay={false}`, which is the vertical feed's "hold paused" policy. Every status change, including a grant renewal, cleared the play intent and paused the video, so playback the viewer started stopped at the first renewal.
+- `VideoPlayer` now has `activation="manual"`:
+  - nothing starts playback automatically;
+  - a renewal keeps whatever the viewer chose, playing or paused;
+  - leaving the viewport ends the play intent.
+- Tests cover silence → explicit play → successful renewal (this test fails against the old card setting), a viewer pause surviving renewal, and the viewport reset.
+
+**Video delivery is required**
+- `CommunityPost` is a discriminated union. A video post must carry its delivery state, and only a video post may.
+- The projector returns an explicit variant per kind.
+- A compile-time test pins both directions.
+
+**Boost focus return**
+- Boost opened the dialog from a menu item that no longer exists, so dismissing the dialog left focus nowhere.
+- The card now returns focus to its Post options trigger.
+- `SongBoostFromMenu` covers selection, opening, Escape and focus return in the browser.
+- `AdultVideoAccess` covers the 18+ card.
+
+## Branch and admission record
+
+This section gives the facts the coordinator needs to reconcile the authoritative workstation record. That record still says *planned* on `feat/paper-storybook-reconciliation`. This cloud session cannot reach the workstation `tasks/records/`.
+
+**Where the work is**
+
+| Item | Value |
+| --- | --- |
+| Repository | `pirate-social-club/pirate-web-solid` on GitHub |
+| Branch | `ccr-1bb64139-1xpaas`, the branch assigned to this cloud session |
+| Base | `main` at `45d07cb25b3267ad16f158aa40eff7d11ad49c5e` |
+| Audit commit | `f77c687` |
+| Slice 1a | `e652d9b` |
+| Slice 1b | `6ff62d1` |
+| Review follow-up | `f7bd144` |
+| Evidence commit | the commit that adds `evidence/final/` |
+| Reference branch | `handoff/paper-storybook-20261012` at `9c21981`, unchanged |
+| API pin | `e8628c82d7d3827e69e13641538e2ba7c08bfd80`; api-next is unchanged |
+
+**Deviation from the published direction**
+- The implementation is stacked on the audit branch. It is not on a dedicated `feat/paper-storybook-reconciliation` branch. The proposed handoff record named `feat/paper-post-card-profile-reconciliation`.
+- The reason: this cloud session may push only its assigned branch without explicit permission for another.
+- No history has been rewritten. If the record needs the named branch, it can point at the same final commit, which preserves every SHA above.
+
+**Admission**
+- Implementation started on the workspace owner's direction, relayed in this session on 2026-10-12. The direction supersedes the 2026-10-11 Paper-only restriction, asks the cloud agent to reconcile the full Storybook catalogs starting with the card and profile slices, and resolves routine choices without another approval round. Missing contracts and Dance stay as dependencies.
+- The coordinator said they would record that direction. This log is not that record.
+- Nothing has been deployed, no pull request is open, and Rewards stay disabled.
 
 ## Recorded differences from Paper
 
