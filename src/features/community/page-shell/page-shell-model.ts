@@ -6,7 +6,8 @@ export type CommunityPostKind = "text" | "song" | "video";
 
 export type CommunityMembershipMode = "open" | "gated" | "request";
 
-export interface CommunityPost {
+/** What every post card carries, whatever it shows. */
+export interface CommunityPostBase {
   id: string;
   title: string;
   body: string;
@@ -27,21 +28,34 @@ export interface CommunityPost {
   /** Retain the public projection so rendering can use the page locale. */
   readonly authorProfile?: PublicProfileLabelSource | null;
   authorAvatarSrc?: string | null;
-  kind?: CommunityPostKind;
   /** The report endpoint currently accepts published text submissions only. */
   supportsPostReports?: boolean;
   mediaSrc?: string | null;
   mediaTitle?: string;
   mediaArtist?: string;
-  /**
-   * Delivery status of a video post, never a media location. Playback is
-   * minted per viewer by the player; feed references are not URLs.
-   */
-  readonly video?: VideoDeliveryState;
-  /** The post's own 18+ policy, which the player enforces before playback. */
-  readonly requiresAgeVerification?: boolean;
   commentCount?: number;
 }
+
+/**
+ * A post card is one of three kinds. A text post may omit `kind`. A video
+ * post cannot exist without its delivery state, so a card can never be a
+ * video with nothing to play.
+ */
+export type CommunityPost =
+  | (CommunityPostBase & { readonly kind?: "text"; readonly video?: never })
+  | (CommunityPostBase & { readonly kind: "song"; readonly video?: never })
+  | (CommunityPostBase & {
+    readonly kind: "video";
+    /**
+     * Delivery status of the video, never a media location. Playback is
+     * minted per viewer by the player; feed references are not URLs.
+     */
+    readonly video: VideoDeliveryState;
+    /** The post's own 18+ policy, which the player enforces before playback. */
+    readonly requiresAgeVerification?: boolean;
+  });
+
+export type CommunityVideoPost = Extract<CommunityPost, { readonly kind: "video" }>;
 
 /**
  * What the shell renders in the feed region. A pending read is the absence of

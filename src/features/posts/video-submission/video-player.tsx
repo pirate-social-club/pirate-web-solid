@@ -37,9 +37,18 @@ export function VideoPlayer(props: {
    * playing, and delivery messages sit over the frame instead of below it.
    */
   readonly layout?: "inline" | "card";
+  /**
+   * Who starts playback. "policy" (the default) lets the host's `autoplay`
+   * play or hold the media, as the vertical feed does. "manual" never starts
+   * or holds it automatically: only the viewer's play tap starts it, a grant
+   * renewal keeps whatever the viewer chose (playing or paused), and leaving
+   * the viewport ends the play intent so returning shows the play control.
+   */
+  readonly activation?: "policy" | "manual";
 }) {
   const seams = useVideoPlaybackSeams();
   const card = () => props.layout === "card";
+  const manual = () => props.activation === "manual";
   const posterPath = (postId: string) => (props.posterPath ?? seams.posterPath ?? videoPosterPath)(postId);
   let host!: HTMLElement;
   let video!: HTMLVideoElement;
@@ -127,6 +136,8 @@ export function VideoPlayer(props: {
       appliedDelivery = key;
       stop(); setStatus("idle");
       if (lastPost !== _id) { lastPost = _id; position = 0; resume = false; }
+      // A manual player never restarts by itself after leaving the viewport.
+      if (manual()) resume = false;
       if (inView && inForeground && state === "ready") void acquire();
     },
   );
@@ -142,6 +153,9 @@ export function VideoPlayer(props: {
     ([autoplay, muted, playbackStatus, inView, inForeground]) => {
       if (video === undefined) return;
       if (video.muted !== muted) video.muted = muted;
+      // Manual playback belongs to the viewer: status changes such as a grant
+      // renewal must neither start it nor pause it.
+      if (manual()) return;
       if (autoplay && playbackStatus === "ready" && inView && inForeground) {
         resume = true;
         if (video.paused) {

@@ -286,3 +286,55 @@ export const VideoDeliveryStates: Story = {
     await expect(canvasElement.querySelector('[data-community-video="video-no-poster"] video[poster]')).toBeNull();
   },
 };
+
+/**
+ * Boost is the live sponsor entry point, reached from the song card's
+ * overflow menu: choose it, the sponsor dialog opens over the feed, and
+ * dismissing it returns focus to the menu that opened it.
+ */
+export const SongBoostFromMenu: Story = {
+  render: () => <CommunityPageShell following joined community={{ ...infinity, id: "community-boost", name: "Harbor Collective", posts: [
+    { id: "boost-song", authorHandle: "wavemaker", kind: "song", title: "Harbor Lights", mediaTitle: "Harbor Lights", body: "Late-night loop, take two.", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+    { id: "boost-text", authorHandle: "wavemaker", title: "Weekly listening thread", body: "What have you had on repeat this week?", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  ] }} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const page = within(canvasElement.ownerDocument.body);
+    const song = canvasElement.querySelector<HTMLElement>('[data-community-post="boost-song"]');
+    const text = canvasElement.querySelector<HTMLElement>('[data-community-post="boost-text"]');
+    if (song === null || text === null) throw new Error("Expected both cards");
+    // A text post offers no Boost and, with no other actions, no menu.
+    await expect(within(text).queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
+    const trigger = within(song).getByRole("button", { name: "Post options" });
+    await userEvent.click(trigger);
+    await userEvent.click(await page.findByRole("menuitem", { name: "Boost" }));
+    const dialog = await page.findByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await expect(canvas.getByRole("button", { name: "Play Harbor Lights" })).toBeVisible();
+  },
+};
+
+/**
+ * An 18+ video in the card. Playback is refused until the viewer proves
+ * their age; the card then offers the age check in its own frame and never
+ * starts playback by itself.
+ */
+export const AdultVideoAccess: Story = {
+  render: () => <VideoPlaybackSeamsContext value={{ mint: async () => { throw new Error("Age verification required"); }, attach: reviewCanplayAttach, posterPath: reviewPosterPath }}>
+    <CommunityPageShell following joined community={{ ...infinity, name: "Harbor Collective", posts: [
+      { id: "adult-video", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "After hours.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "ready" }, requiresAgeVerification: true },
+    ] }} />
+  </VideoPlaybackSeamsContext>,
+  play: async ({ canvasElement }) => {
+    const frame = canvasElement.querySelector<HTMLElement>('[data-community-video="adult-video"]');
+    if (frame === null) throw new Error("Expected the video frame");
+    frame.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(within(frame).getByText(/Playback is unavailable/u)).toBeVisible());
+    await expect(within(frame).getByRole("button", { name: /verify/iu })).toBeVisible();
+    await expect(within(frame).queryByRole("button", { name: "Play video" })).not.toBeInTheDocument();
+    await expect(frame.querySelector("video")?.getAttribute("src") ?? null).toBeNull();
+  },
+};

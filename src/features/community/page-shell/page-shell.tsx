@@ -42,6 +42,7 @@ import {
   type CommunityData,
   type CommunityFeed,
   type CommunityPost,
+  type CommunityVideoPost,
   type CommunitySort,
 } from "./page-shell-model";
 
@@ -147,18 +148,14 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
  * line is the referenced song as the server projects it, and it steps aside
  * while the video plays so it never covers the native controls.
  */
-function VideoPost(props: { post: CommunityPost }) {
+function VideoPost(props: { post: CommunityVideoPost }) {
   return (
-    <Show when={props.post.video}>
-      {video => (
-        <div class="group/video relative z-10 aspect-[9/16] w-[252px] max-w-full overflow-hidden rounded-xl bg-muted" data-community-video={props.post.id}>
-          <VideoPlayer autoplay={false} layout="card" postId={props.post.id} requiresAgeVerification={props.post.requiresAgeVerification} state={video()} />
-          <Show when={props.post.mediaTitle}>
-            {title => <span class="pointer-events-none absolute inset-x-3 bottom-3 truncate text-sm text-white/85 [text-shadow:0_1px_2px_rgb(0_0_0/0.8)] group-has-[[data-video-player-playing=true]]/video:hidden group-has-[[data-video-player-state=unavailable]]/video:hidden">{title()}</span>}
-          </Show>
-        </div>
-      )}
-    </Show>
+    <div class="group/video relative z-10 aspect-[9/16] w-[252px] max-w-full overflow-hidden rounded-xl bg-muted" data-community-video={props.post.id}>
+      <VideoPlayer activation="manual" layout="card" postId={props.post.id} requiresAgeVerification={props.post.requiresAgeVerification} state={props.post.video} />
+      <Show when={props.post.mediaTitle}>
+        {title => <span class="pointer-events-none absolute inset-x-3 bottom-3 truncate text-sm text-white/85 [text-shadow:0_1px_2px_rgb(0_0_0/0.8)] group-has-[[data-video-player-playing=true]]/video:hidden group-has-[[data-video-player-state=unavailable]]/video:hidden">{title()}</span>}
+      </Show>
+    </div>
   );
 }
 
@@ -173,6 +170,13 @@ export const communityFeedListClass = "flex flex-col [&>*:first-child_[data-comm
 export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[]; flush?: boolean }) {
   const locale = usePageUiLocale();
   const [boosting, setBoosting] = createSignal(false);
+  let card: HTMLElement | undefined;
+  // The dialog opens from a menu item that no longer exists once the menu
+  // closes, so the card returns focus to the menu trigger that led there.
+  const closeBoost = () => {
+    setBoosting(false);
+    setTimeout(() => card?.querySelector<HTMLElement>('[aria-label="Post options"]')?.focus(), 0);
+  };
   // Boost is the live sponsor entry point. It sits in the post's overflow
   // menu, as the Paper feed's More menu does, until the reward pill replaces
   // it on a real activity count and an authorized rewards surface.
@@ -185,7 +189,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
     ? publicProfileLabel(props.post.authorProfile, locale, props.post.authorPublicHandle)
     : props.post.authorHandle ?? "Unknown author";
   return (
-    <article class={props.flush ? "relative flex flex-col gap-3" : "relative flex flex-col gap-3 border-b border-border-soft py-5"} data-community-post={props.post.id}>
+    <article class={props.flush ? "relative flex flex-col gap-3" : "relative flex flex-col gap-3 border-b border-border-soft py-5"} data-community-post={props.post.id} ref={card}>
       <div class="flex items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
@@ -198,7 +202,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         <div class="relative z-10 ml-auto flex shrink-0 items-center"><ContentOverflowMenu inline label="Post options" actions={menuActions()} /></div>
       </div>
       <Show when={boosting() && props.communityId}>
-        {communityId => <RewardSponsorDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={() => setBoosting(false)} />}
+        {communityId => <RewardSponsorDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={closeBoost} />}
       </Show>
       <Show when={props.post.kind === "video"}>
         <Show when={props.post.body.trim()}>
@@ -207,7 +211,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         <Show when={!props.post.body.trim() && props.titleHref}>
           {href => <a class="sr-only" href={href()} rel={props.nativeNavigation ? "external" : undefined}>Open video post</a>}
         </Show>
-        <VideoPost post={props.post} />
+        <Show when={props.post.kind === "video" ? props.post : undefined}>{video => <VideoPost post={video()} />}</Show>
       </Show>
       <Show when={props.post.kind !== "video"}>
       <Show when={props.post.kind === "song"} fallback={

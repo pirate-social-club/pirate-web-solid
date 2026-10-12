@@ -8,7 +8,7 @@ import {
   createGeneratedApiClient,
   type ApiClientFactoryOptions,
 } from "../../../api/client.ts";
-import type { CommunityPost, CommunityPostKind } from "../../community/page-shell/page-shell-model.ts";
+import type { CommunityPost, CommunityPostBase, CommunityPostKind } from "../../community/page-shell/page-shell-model.ts";
 import { projectVideoDelivery } from "../../posts/video-submission/delivery-state.ts";
 import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 
@@ -64,7 +64,7 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
   const body = post.body ?? post.caption ?? "";
   const upvoteCount = finiteCount(item.upvote_count);
   const downvoteCount = finiteCount(item.downvote_count);
-  return {
+  const base: CommunityPostBase = {
     id: post.id,
     title,
     body,
@@ -79,20 +79,20 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
     authorProfile: post.identity_mode === "anonymous" ? undefined : persona ?? null,
     authorPersonaId: post.identity_mode === "anonymous" ? undefined : persona?.persona_id,
     authorAvatarSrc: post.identity_mode === "anonymous" ? null : persona?.avatar_ref ?? null,
-    kind,
     supportsPostReports: kind === "text",
-    ...(kind === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),
-    ...(kind === "video" ? {
-      video: projectVideoDelivery(item.video),
-      requiresAgeVerification: post.age_gate_policy === "18_plus",
-      ...(soundtrackTitle(item.video) ? { mediaTitle: soundtrackTitle(item.video) } : {}),
-    } : {}),
     commentCount: finiteCount(item.comment_count),
     // Being a song is not a Learn or Karaoke capability. These were derived
     // from post_type alone, which put two buttons with no handlers behind them
     // on every song. The real capability is a server projection this surface
     // does not carry, so nothing is claimed here until it does.
   };
+  if (kind === "text") return { ...base, kind };
+  if (kind === "song") return post.song_title ? { ...base, kind, mediaTitle: post.song_title } : { ...base, kind };
+  // A video card always carries its delivery state; an absent projection
+  // reads as unavailable rather than as a card with nothing to play.
+  const soundtrack = soundtrackTitle(item.video);
+  const video = { ...base, kind, video: projectVideoDelivery(item.video), requiresAgeVerification: post.age_gate_policy === "18_plus" };
+  return soundtrack ? { ...video, mediaTitle: soundtrack } : video;
 }
 
 export function normalizeCommunityThreadPage(

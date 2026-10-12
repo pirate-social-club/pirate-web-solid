@@ -6,7 +6,7 @@ import { userEvent } from "@testing-library/user-event";
 import { createRoot, createSignal } from "solid-js";
 import { beforeAll, afterAll, afterEach, describe, expect, test, vi } from "vitest";
 
-import type { CommunityData } from "./page-shell-model.ts";
+import type { CommunityData, CommunityPost } from "./page-shell-model.ts";
 import { CommunityPageShell } from "./page-shell.tsx";
 
 const disposers: Array<() => void> = [];
@@ -223,6 +223,16 @@ describe("community feed thread links", () => {
     expect(frame?.textContent).toContain("Playback is being prepared.");
     expect(frame?.textContent).toContain("Harbor Lights");
     expect(container.querySelector('[data-community-post="video-one"] video')).toBeNull();
+  });
+
+  test("a video card cannot exist without its delivery state", () => {
+    const base = { id: "v", title: "video", body: "", score: 0, publishedAt: "2026-10-08" };
+    // @ts-expect-error A video post must carry its delivery state.
+    const missing: CommunityPost = { ...base, kind: "video" };
+    // @ts-expect-error Only a video post carries a delivery state.
+    const misplaced: CommunityPost = { ...base, kind: "song", video: { playback: "ready", thumbnail: "ready" } };
+    const complete: CommunityPost = { ...base, kind: "video", video: { playback: "pending", thumbnail: "pending" } };
+    expect([missing.kind, misplaced.kind, complete.kind]).toEqual(["video", "song", "video"]);
   });
 
   test("the author row draws the compact age and a 44px overflow target that does not grow the row", () => {
