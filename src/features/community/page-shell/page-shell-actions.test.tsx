@@ -107,13 +107,14 @@ describe("community page shell header actions", () => {
       />
     ));
 
-    const song = container.querySelector('[data-community-post="song-1"]');
-    const text = container.querySelector('[data-community-post="text-1"]');
-    const songActions = [...song!.querySelectorAll("button")].find(button => button.textContent?.trim() === "Song actions");
-    expect(songActions).toBeDefined();
-    expect([...text!.querySelectorAll("button")].some(button => button.textContent?.trim() === "Song actions")).toBe(false);
+    const song = container.querySelector<HTMLElement>('[data-community-post="song-1"]');
+    const text = container.querySelector<HTMLElement>('[data-community-post="text-1"]');
+    if (song === null || text === null) throw new Error("Expected both cards");
+    // Boost lives in the post's overflow menu, which a song always has.
+    const songActions = within(song).getByRole("button", { name: "Post options" });
+    expect(within(text).queryByRole("button", { name: "Post options" })).toBeNull();
 
-    await userEvent.setup().click(songActions!);
+    await userEvent.setup().click(songActions);
     await vi.waitFor(() => expect([...document.querySelectorAll('[role="menuitem"]')].some(item => item.textContent?.trim() === "Boost")).toBe(true));
   });
 });

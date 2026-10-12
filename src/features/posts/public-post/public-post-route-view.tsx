@@ -138,7 +138,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
             <h1 class="sr-only">{title()}</h1>
             <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
               post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
-              {(controls, menuActions) => <CommunityPostCard post={songPost()} actions={controls} menuActions={menuActions} />}
+              {(controls, menuActions) => <CommunityPostCard flush post={songPost()} actions={controls} menuActions={menuActions} />}
             </PublicPostEngagement>
             <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
             <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />

@@ -8,7 +8,7 @@ import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-enga
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
-import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
+import { RewardSponsorDialog } from "../../rewards/reward-sponsor-dialog.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -162,13 +162,30 @@ function VideoPost(props: { post: CommunityPost }) {
   );
 }
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[] }) {
+/**
+ * A feed list of post cards. Cards may arrive wrapped (engagement controllers
+ * wrap each one), so the first card's top padding and the last card's divider
+ * are decided by the card's position in the list, not by `first:`/`last:` on
+ * the card, which would see every wrapped card as both first and last.
+ */
+export const communityFeedListClass = "flex flex-col [&>*:first-child_[data-community-post]]:pt-0 [&>[data-community-post]:first-child]:pt-0 [&>*:last-child_[data-community-post]]:border-b-0 [&>[data-community-post]:last-child]:border-b-0";
+
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[]; flush?: boolean }) {
   const locale = usePageUiLocale();
+  const [boosting, setBoosting] = createSignal(false);
+  // Boost is the live sponsor entry point. It sits in the post's overflow
+  // menu, as the Paper feed's More menu does, until the reward pill replaces
+  // it on a real activity count and an authorized rewards surface.
+  const menuActions = (): readonly ContentAction[] | undefined => {
+    const communityId = props.communityId;
+    if (props.post.kind !== "song" || !communityId) return props.menuActions;
+    return [...(props.menuActions ?? []), { label: "Boost", run: () => setBoosting(true) }];
+  };
   const author = () => props.post.authorProfile !== undefined
     ? publicProfileLabel(props.post.authorProfile, locale, props.post.authorPublicHandle)
     : props.post.authorHandle ?? "Unknown author";
   return (
-    <article class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
+    <article class={props.flush ? "relative flex flex-col gap-3" : "relative flex flex-col gap-3 border-b border-border-soft py-5"} data-community-post={props.post.id}>
       <div class="flex items-center gap-2">
         <CommunityAvatar
           avatarSrc={props.post.authorAvatarSrc}
@@ -178,16 +195,11 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         />
         <Type as="span" class="min-w-0 truncate text-sm leading-5" variant="label"><Show when={publicProfileHref(props.post.authorPersonaId)} fallback={author()}>{href => <a href={href()} class="relative z-10 hover:underline">{author()}</a>}</Show></Type>
         <Show when={compactRelativeTime(props.post.publishedAt)}>{age => <Type as="span" class="shrink-0 text-sm" variant="caption"><time datetime={props.post.publishedAt} title={new Date(props.post.publishedAt).toUTCString()}>{age()}</time></Type>}</Show>
-        <div class="relative z-10 ml-auto flex shrink-0 items-center gap-1">
-          {/* Boost stays the live sponsor entry point. The design's reward
-              pill replaces it only once a real activity count and an
-              authorized rewards surface exist. */}
-          <Show when={props.post.kind === "song" && props.communityId}>
-            {communityId => <RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} />}
-          </Show>
-          <ContentOverflowMenu inline label="Post options" actions={props.menuActions} />
-        </div>
+        <div class="relative z-10 ml-auto flex shrink-0 items-center"><ContentOverflowMenu inline label="Post options" actions={menuActions()} /></div>
       </div>
+      <Show when={boosting() && props.communityId}>
+        {communityId => <RewardSponsorDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={() => setBoosting(false)} />}
+      </Show>
       <Show when={props.post.kind === "video"}>
         <Show when={props.post.body.trim()}>
           {body => <Type variant="body"><Show when={props.titleHref} fallback={body()}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{body()}</a>}</Show></Type>}
@@ -506,7 +518,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 {agePrompt()}
                 <Show when={sortedPosts().length > 0 || hasAgeLocks() || (props.feedLeadCount ?? 0) > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
-                  <div class={(props.feedLeadCount ?? 0) > 0 ? "flex flex-col pt-5" : "flex flex-col"}>
+                  <div class={(props.feedLeadCount ?? 0) > 0 ? `${communityFeedListClass} pt-5` : communityFeedListClass}>
                     <For each={sortedPosts()}>{post => renderPost(post)}</For>
                   </div>
                 </Show>
@@ -517,7 +529,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             <Loading fallback={<FeedPending />}>
               {agePrompt()}
               <Show when={songs().length > 0 || hasAgeLocks()} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
-                <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
+                <div class={communityFeedListClass}><For each={songs()}>{post => renderPost(post)}</For></div>
               </Show>
             </Loading>
           </Show>

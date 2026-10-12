@@ -4,7 +4,7 @@ import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { reviewPlaybackMint, reviewPosterPath } from "../../posts/feed/public-feed-fixtures";
+import { reviewCanplayAttach, reviewPlaybackMint, reviewPosterPath } from "../../posts/feed/public-feed-fixtures";
 import { VideoPlaybackSeamsContext } from "../../posts/video-submission/video-playback-seams";
 import { type CommunityData, type CommunityPost } from "./page-shell-model";
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
@@ -218,12 +218,6 @@ export const FeedPostThreadLinksOnMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
-/** Reports canplay so the ready poster and play control can be reviewed without a stream. */
-const canplayAttach = async (input: { video: HTMLVideoElement }) => {
-  input.video.dispatchEvent(new Event("canplay"));
-  return () => {};
-};
-
 const twoHoursAgo = () => new Date(Date.now() - 2 * 3_600_000).toISOString();
 
 /** The three kinds of the Paper PostCard sheet, in one feed, with live-route pills. */
@@ -234,7 +228,7 @@ const mixedKindPosts = (): CommunityPost[] => [
 ];
 
 function MixedKindsFixture(props: { posts?: CommunityPost[] }) {
-  return <VideoPlaybackSeamsContext value={{ mint: reviewPlaybackMint, attach: canplayAttach, posterPath: reviewPosterPath }}>
+  return <VideoPlaybackSeamsContext value={{ mint: reviewPlaybackMint, attach: reviewCanplayAttach, posterPath: reviewPosterPath }}>
     <CommunityPageShell following joined community={{ ...infinity, name: "Harbor Collective", posts: props.posts ?? mixedKindPosts() }}
       renderPost={(post, render) => render(
         <EngagementControls score={post.score} commentCount={post.commentCount ?? 0} onVote={() => undefined} onComment={() => undefined} />,
