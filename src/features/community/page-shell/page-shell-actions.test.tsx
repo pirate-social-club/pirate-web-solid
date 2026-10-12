@@ -205,4 +205,35 @@ describe("community feed thread links", () => {
     expect(vote).toHaveBeenCalledOnce();
     expect(within(container).getByRole("button", { name: "Play An original song" }).closest("a")).toBeNull();
   });
+
+  test("a video post shows its caption link and a framed player above the link overlay, with no title heading", () => {
+    const container = render(() => <CommunityPageShell community={{ ...community, posts: [
+      { id: "video-one", kind: "video", title: "video", body: "Late-night loop, take two.", score: 0, publishedAt: "2026-10-08",
+        mediaTitle: "Harbor Lights", video: { playback: "pending", thumbnail: "pending" } },
+      { id: "video-two", kind: "video", title: "video", body: "", score: 0, publishedAt: "2026-10-08",
+        video: { playback: "unavailable", thumbnail: "unavailable" } },
+    ] }} following={false} joined={false} />);
+    expect(within(container).getByRole("link", { name: "Late-night loop, take two." }).getAttribute("href")).toBe("/post/video-one");
+    expect(within(container).getByRole("link", { name: "Open video post" }).getAttribute("href")).toBe("/post/video-two");
+    expect(within(container).queryByRole("heading", { name: "video" })).toBeNull();
+    const frame = container.querySelector('[data-community-video="video-one"]');
+    expect(frame?.className).toContain("z-10");
+    expect(frame?.className).toContain("aspect-[9/16]");
+    expect(frame?.textContent).toContain("Playback is being prepared.");
+    expect(frame?.textContent).toContain("Harbor Lights");
+    expect(container.querySelector('[data-community-post="video-one"] video')).toBeNull();
+  });
+
+  test("the author row draws the compact age and a 44px overflow target that does not grow the row", () => {
+    const container = render(() => <CommunityPageShell community={{ ...community, id: "community-1", posts: [
+      { id: "song-one", kind: "song", title: "An original song", body: "", score: 0, publishedAt: new Date(Date.now() - 2 * 3_600_000).toISOString() },
+    ] }} following={false} joined={false}
+      renderPost={(_post, card) => card(undefined, [{ label: "Report", run: () => {} }])} />);
+    const card = container.querySelector<HTMLElement>('[data-community-post="song-one"]');
+    if (card === null) throw new Error("Expected the song card");
+    expect(card.querySelector("time")?.textContent).toBe("2h");
+    const trigger = within(card).getByRole("button", { name: "Post options" });
+    expect(trigger.className).toContain("size-11");
+    expect(trigger.className).toContain("-my-2.5");
+  });
 });

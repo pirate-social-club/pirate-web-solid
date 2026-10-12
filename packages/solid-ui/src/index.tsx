@@ -363,6 +363,10 @@ export {
   type CommentPillProps,
 } from "./patterns/engagement/comment-pill/comment-pill";
 export {
+  RewardPill,
+  type RewardPillProps,
+} from "./patterns/engagement/reward-pill/reward-pill";
+export {
   CommunityAvatar,
   resolveCommunityAvatarSrc,
   type CommunityAvatarProps,

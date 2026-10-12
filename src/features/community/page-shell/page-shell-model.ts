@@ -1,7 +1,8 @@
 import type { PublicProfileLabelSource } from "../../identity/public-profile-label.ts";
+import type { VideoDeliveryState } from "../../posts/video-submission/delivery-state.ts";
 export type CommunitySort = "best" | "new" | "top";
 
-export type CommunityPostKind = "text" | "song";
+export type CommunityPostKind = "text" | "song" | "video";
 
 export type CommunityMembershipMode = "open" | "gated" | "request";
 
@@ -32,6 +33,13 @@ export interface CommunityPost {
   mediaSrc?: string | null;
   mediaTitle?: string;
   mediaArtist?: string;
+  /**
+   * Delivery status of a video post, never a media location. Playback is
+   * minted per viewer by the player; feed references are not URLs.
+   */
+  readonly video?: VideoDeliveryState;
+  /** The post's own 18+ policy, which the player enforces before playback. */
+  readonly requiresAgeVerification?: boolean;
   commentCount?: number;
 }
 

@@ -6,6 +6,7 @@ import { attachPlayback } from "./playback-engine";
 import { mintPlaybackAccess, videoPosterPath, type PlaybackGrant } from "./playback-access";
 import { VideoDeliveryPending } from "./video-delivery-pending";
 import type { VideoDeliveryState } from "./delivery-state";
+import { useVideoPlaybackSeams } from "./video-playback-seams";
 
 /** Grants live only in this mounted player; neither SSR nor feed caches hold them. */
 export function VideoPlayer(props: {
@@ -30,8 +31,16 @@ export function VideoPlayer(props: {
    * do not call it: automatic playback is not a user interaction.
    */
   readonly onUserInteraction?: () => void;
+  /**
+   * Inline fills the width of a post page. Card fills a fixed 9:16 frame in a
+   * feed card: the poster covers it, native controls appear only while
+   * playing, and delivery messages sit over the frame instead of below it.
+   */
+  readonly layout?: "inline" | "card";
 }) {
-  const posterPath = (postId: string) => (props.posterPath ?? videoPosterPath)(postId);
+  const seams = useVideoPlaybackSeams();
+  const card = () => props.layout === "card";
+  const posterPath = (postId: string) => (props.posterPath ?? seams.posterPath ?? videoPosterPath)(postId);
   let host!: HTMLElement;
   let video!: HTMLVideoElement;
   let detach: (() => void) | undefined;
@@ -70,7 +79,7 @@ export function VideoPlayer(props: {
   }
   function fail() { stop(); setStatus("unavailable"); }
   async function attach(grant: PlaybackGrant, expected: number) {
-    const cleanup = await (props.attach ?? attachPlayback)({ video, url: grant.url,
+    const cleanup = await (props.attach ?? seams.attach ?? attachPlayback)({ video, url: grant.url,
       position, resume,
       signal: abort!.signal, onFailure: () => { if (generation === expected) fail(); } });
     if (generation !== expected) cleanup(); else detach = cleanup;
@@ -83,7 +92,7 @@ export function VideoPlayer(props: {
     lastMint = Date.now(); setStatus("loading");
     requestTimer = setTimeout(() => { if (generation === expected) fail(); }, 10_000);
     try {
-      const grant = await (props.mint ?? mintPlaybackAccess)(props.postId, abort.signal);
+      const grant = await (props.mint ?? seams.mint ?? mintPlaybackAccess)(props.postId, abort.signal);
       if (generation !== expected || abort.signal.aborted) return;
       clearTimeout(requestTimer);
       if (props.state.thumbnail === "ready") setPoster(posterPath(props.postId));
@@ -148,9 +157,19 @@ export function VideoPlayer(props: {
     },
   );
   onCleanup(stop);
-  return <section ref={host} aria-label="Published video" class="relative" data-video-player-playing={playing()} data-video-player-state={status()}>
-    <Show when={props.state.playback === "ready"} fallback={<><VideoDeliveryPending state={props.state} showThumbnailMessage={false} /><Show when={poster()}>{src => <img src={src()} alt="Video thumbnail" onError={() => setPoster(undefined)} />}</Show><Show when={!poster()}><p>{props.state.thumbnail === "pending" ? "Thumbnail is being prepared." : props.state.thumbnail === "ready" ? "Thumbnail could not be loaded yet." : "Thumbnail is unavailable."}</p></Show></>}>
-      <video ref={video} controls playsinline preload="metadata" crossorigin="anonymous" muted={props.muted === true} poster={poster()} class="max-h-[80dvh] w-full bg-black object-contain"
+  const overlay = "absolute inset-x-3 bottom-3 text-sm text-white";
+  // In a feed every card holds a player, so the card form is a labelled group,
+  // not one more "Published video" landmark among identical ones.
+  return <section ref={host} aria-label="Published video" role={card() ? "group" : undefined} class={card() ? "relative size-full" : "relative"} data-video-player-playing={playing()} data-video-player-state={status()}>
+    <Show when={props.state.playback === "ready"} fallback={
+      <Show when={card()} fallback={<><VideoDeliveryPending state={props.state} showThumbnailMessage={false} /><Show when={poster()}>{src => <img src={src()} alt="Video thumbnail" onError={() => setPoster(undefined)} />}</Show><Show when={!poster()}><p>{props.state.thumbnail === "pending" ? "Thumbnail is being prepared." : props.state.thumbnail === "ready" ? "Thumbnail could not be loaded yet." : "Thumbnail is unavailable."}</p></Show></>}>
+        <Show when={poster()}>{src => <img src={src()} alt="Video thumbnail" class="absolute inset-0 size-full object-cover" onError={() => setPoster(undefined)} />}</Show>
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/45 p-4 text-center text-sm text-white">
+          <VideoDeliveryPending state={props.state} showThumbnailMessage={false} />
+        </div>
+      </Show>
+    }>
+      <video ref={video} controls={!card() || playing()} playsinline preload="metadata" crossorigin="anonymous" muted={props.muted === true} poster={poster()} class={card() ? "size-full bg-black object-cover" : "max-h-[80dvh] w-full bg-black object-contain"}
         onCanPlay={() => { if (abort && !abort.signal.aborted) setStatus("ready"); }}
         onError={() => { if (status() === "ready" || status() === "loading") fail(); }}
         onPause={() => setPlaying(false)}
@@ -158,7 +177,9 @@ export function VideoPlayer(props: {
       <Show when={status() === "ready" && !playing()}>
         <button
           aria-label="Play video"
-          class="absolute inset-0 m-auto grid size-16 place-items-center rounded-full bg-black/60 text-white shadow-lg"
+          class={card()
+            ? "absolute inset-0 m-auto grid size-14 place-items-center rounded-full bg-black/45 text-white"
+            : "absolute inset-0 m-auto grid size-16 place-items-center rounded-full bg-black/60 text-white shadow-lg"}
           data-video-player-play
           onClick={() => {
             // An explicit play affordance: this is the interaction that unlocks
@@ -169,14 +190,16 @@ export function VideoPlayer(props: {
           }}
           type="button"
         >
-          <IconPlay class="ml-1 size-8" />
+          <IconPlay class={card() ? "ml-0.5 size-6" : "ml-1 size-8"} />
         </button>
       </Show>
-      <Show when={status() === "loading"}><p role="status">Preparing playback…</p></Show>
+      <Show when={status() === "loading"}><p class={card() ? overlay : undefined} role="status">Preparing playback…</p></Show>
       <Show when={status() === "unavailable"}>
-        <Show when={props.requiresAgeVerification}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { resume = false; if (visible() && foreground()) await acquire(); }} /></Show>
-        <p role="status">Playback is unavailable. Your access may have changed, or delivery needs attention.</p>
-        <button type="button" onClick={() => { if (visible() && foreground() && Date.now() - lastMint >= 10_000) void acquire(); }}>Try playback again</button>
+        <div class={card() ? "absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto bg-black/70 p-4 text-center text-sm text-white" : "contents"}>
+          <Show when={props.requiresAgeVerification}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { resume = false; if (visible() && foreground()) await acquire(); }} /></Show>
+          <p role="status">Playback is unavailable. Your access may have changed, or delivery needs attention.</p>
+          <button class={card() ? "underline underline-offset-4" : undefined} type="button" onClick={() => { if (visible() && foreground() && Date.now() - lastMint >= 10_000) void acquire(); }}>Try playback again</button>
+        </div>
       </Show>
     </Show>
   </section>;

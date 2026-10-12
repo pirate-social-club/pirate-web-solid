@@ -4,7 +4,9 @@ import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { type CommunityData } from "./page-shell-model";
+import { reviewPlaybackMint, reviewPosterPath } from "../../posts/feed/public-feed-fixtures";
+import { VideoPlaybackSeamsContext } from "../../posts/video-submission/video-playback-seams";
+import { type CommunityData, type CommunityPost } from "./page-shell-model";
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
 
 const infinity: CommunityData = {
@@ -214,4 +216,79 @@ export const FeedPostThreadLinks: Story = {
 export const FeedPostThreadLinksOnMobile: Story = {
   ...FeedPostThreadLinks,
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** Reports canplay so the ready poster and play control can be reviewed without a stream. */
+const canplayAttach = async (input: { video: HTMLVideoElement }) => {
+  input.video.dispatchEvent(new Event("canplay"));
+  return () => {};
+};
+
+const twoHoursAgo = () => new Date(Date.now() - 2 * 3_600_000).toISOString();
+
+/** The three kinds of the Paper PostCard sheet, in one feed, with live-route pills. */
+const mixedKindPosts = (): CommunityPost[] => [
+  { id: "kind-text", authorHandle: "wavemaker", title: "Weekly listening thread", body: "What have you had on repeat this week?", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  { id: "kind-song", authorHandle: "wavemaker", kind: "song", title: "Harbor Lights", mediaTitle: "Harbor Lights", mediaArtist: "The Tidewater", body: "Late-night loop, take two.", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  { id: "kind-video", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "", score: 18, commentCount: 24, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "ready" } },
+];
+
+function MixedKindsFixture(props: { posts?: CommunityPost[] }) {
+  return <VideoPlaybackSeamsContext value={{ mint: reviewPlaybackMint, attach: canplayAttach, posterPath: reviewPosterPath }}>
+    <CommunityPageShell following joined community={{ ...infinity, name: "Harbor Collective", posts: props.posts ?? mixedKindPosts() }}
+      renderPost={(post, render) => render(
+        <EngagementControls score={post.score} commentCount={post.commentCount ?? 0} onVote={() => undefined} onComment={() => undefined} />,
+        [{ label: "Report", run: () => undefined }],
+      )} />
+  </VideoPlaybackSeamsContext>;
+}
+
+/**
+ * Parts/Posts/PostCard: text, song and video in the shared card. The reward
+ * pill is absent on purpose: there is no live activity count and Rewards are
+ * disabled, so it lives only in Patterns/Engagement/RewardPill. Song cards
+ * keep Boost in the author row, the live sponsor entry point.
+ */
+export const MixedKinds: Story = {
+  render: () => <MixedKindsFixture />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("link", { name: "Weekly listening thread" })).toHaveAttribute("href", "/post/kind-text");
+    await expect(canvas.getByRole("button", { name: "Play Harbor Lights" })).toBeVisible();
+    await expect(canvas.getByRole("link", { name: "Open video post" })).toHaveAttribute("href", "/post/kind-video");
+    const frame = canvasElement.querySelector<HTMLElement>('[data-community-video="kind-video"]');
+    if (frame === null) throw new Error("Expected the video frame");
+    // The player mints only while its frame is on screen.
+    frame.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(frame.querySelector("video")?.getAttribute("poster")).toContain("poster"));
+    await waitFor(() => expect(within(frame).getByRole("button", { name: "Play video" })).toBeVisible());
+    await expect(canvas.queryByRole("button", { name: /^Rewards/ })).toBeNull();
+    for (const time of canvasElement.querySelectorAll("[data-community-post] time")) await expect(time).toHaveTextContent("2h");
+  },
+};
+
+export const MixedKindsOnMobile: Story = {
+  ...MixedKinds,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** A video that cannot play yet stays one quiet line over its frame. */
+export const VideoDeliveryStates: Story = {
+  render: () => <MixedKindsFixture posts={[
+    { id: "video-pending", authorHandle: "wavemaker", kind: "video", title: "video", body: "Still processing.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "pending", thumbnail: "pending" } },
+    { id: "video-unavailable", authorHandle: "wavemaker", kind: "video", title: "video", body: "Delivery failed.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "unavailable", thumbnail: "unavailable" } },
+    { id: "video-no-poster", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "Ready before its thumbnail.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "pending" } },
+  ]} />,
+  play: async ({ canvasElement }) => {
+    const frame = (id: string) => {
+      const element = canvasElement.querySelector<HTMLElement>(`[data-community-video="${id}"]`);
+      if (element === null) throw new Error(`Expected the ${id} frame`);
+      return within(element);
+    };
+    await expect(frame("video-pending").getByText("Playback is being prepared.")).toBeVisible();
+    await expect(frame("video-unavailable").getByText("Playback is unavailable.")).toBeVisible();
+    canvasElement.querySelector('[data-community-video="video-no-poster"]')?.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(frame("video-no-poster").getByRole("button", { name: "Play video" })).toBeVisible());
+    await expect(canvasElement.querySelector('[data-community-video="video-no-poster"] video[poster]')).toBeNull();
+  },
 };

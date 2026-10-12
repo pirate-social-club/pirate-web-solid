@@ -174,16 +174,16 @@ export function SongPlayer(props: SongPlayerProps) {
         fallback={
           <Button
             aria-label={`Play ${props.title}`}
-            class={props.compact ? "ml-auto size-9 shrink-0 rounded-full px-0" : "max-w-full"}
+            class={props.compact ? "ml-auto size-11 shrink-0 rounded-full px-0" : "max-w-full"}
             disabled={busy()}
             loading={props.compact ? busy() : undefined}
             onClick={() => void renew(true)}
             size="sm"
             type="button"
-            variant="secondary"
+            variant={props.compact ? "default" : "secondary"}
           >
             {props.compact
-              ? (busy() ? undefined : <IconPlay aria-hidden="true" class="size-4" />)
+              ? (busy() ? undefined : <IconPlay aria-hidden="true" class="ml-0.5 size-5" />)
               : busy() ? "Loading audio…" : "Play song"}
           </Button>
         }

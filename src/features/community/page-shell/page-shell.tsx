@@ -2,11 +2,12 @@ import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
-import { relativeTime } from "../../posts/shared-engagement/relative-time.ts";
+import { compactRelativeTime } from "../../posts/shared-engagement/relative-time.ts";
 import { EngagementControls } from "../../posts/shared-engagement/engagement-controls.tsx";
 import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-engagement/content-overflow-menu.tsx";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
+import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
 import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
@@ -120,7 +121,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
 
 function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNavigation?: boolean }) {
   return (
-    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
         <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
           {src => <img alt="" class="size-full object-cover" src={src()} />}
@@ -131,11 +132,33 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
         {/* An unknown artist is left unsaid. The placeholder here named a
             real recording artist who has nothing to do with the post. */}
         <Show when={props.post.mediaArtist}>
-          {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
+          {artist => <Type class="block truncate text-sm" variant="caption">{artist()}</Type>}
         </Show>
       </div>
       <div class="relative z-10 shrink-0 has-[audio]:basis-full"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} /></div>
     </div>
+  );
+}
+
+/**
+ * A video post's poster in a fixed 9:16 frame. The frame sits above the
+ * card's link overlay so the player keeps its own controls, and it waits for
+ * a tap: a feed card never starts sound on its own. The soundtrack
+ * line is the referenced song as the server projects it, and it steps aside
+ * while the video plays so it never covers the native controls.
+ */
+function VideoPost(props: { post: CommunityPost }) {
+  return (
+    <Show when={props.post.video}>
+      {video => (
+        <div class="group/video relative z-10 aspect-[9/16] w-[252px] max-w-full overflow-hidden rounded-xl bg-muted" data-community-video={props.post.id}>
+          <VideoPlayer autoplay={false} layout="card" postId={props.post.id} requiresAgeVerification={props.post.requiresAgeVerification} state={video()} />
+          <Show when={props.post.mediaTitle}>
+            {title => <span class="pointer-events-none absolute inset-x-3 bottom-3 truncate text-sm text-white/85 [text-shadow:0_1px_2px_rgb(0_0_0/0.8)] group-has-[[data-video-player-playing=true]]/video:hidden group-has-[[data-video-player-state=unavailable]]/video:hidden">{title()}</span>}
+          </Show>
+        </div>
+      )}
+    </Show>
   );
 }
 
@@ -153,13 +176,28 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
           displayName={author()}
           size="xs"
         />
-        <Type as="span" variant="label"><Show when={publicProfileHref(props.post.authorPersonaId)} fallback={author()}>{href => <a href={href()} class="relative z-10 hover:underline">{author()}</a>}</Show></Type>
-        <Show when={relativeTime(props.post.publishedAt)}>{timestamp => <Type as="span" variant="caption">· {timestamp()}</Type>}</Show>
-        <div class="relative z-10 ml-auto"><ContentOverflowMenu label="Post options" actions={props.menuActions} /></div>
-        <Show when={props.post.kind === "song" && props.communityId}>
-          {communityId => <div class="relative z-10 ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
-        </Show>
+        <Type as="span" class="min-w-0 truncate text-sm leading-5" variant="label"><Show when={publicProfileHref(props.post.authorPersonaId)} fallback={author()}>{href => <a href={href()} class="relative z-10 hover:underline">{author()}</a>}</Show></Type>
+        <Show when={compactRelativeTime(props.post.publishedAt)}>{age => <Type as="span" class="shrink-0 text-sm" variant="caption"><time datetime={props.post.publishedAt} title={new Date(props.post.publishedAt).toUTCString()}>{age()}</time></Type>}</Show>
+        <div class="relative z-10 ml-auto flex shrink-0 items-center gap-1">
+          {/* Boost stays the live sponsor entry point. The design's reward
+              pill replaces it only once a real activity count and an
+              authorized rewards surface exist. */}
+          <Show when={props.post.kind === "song" && props.communityId}>
+            {communityId => <RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} />}
+          </Show>
+          <ContentOverflowMenu inline label="Post options" actions={props.menuActions} />
+        </div>
       </div>
+      <Show when={props.post.kind === "video"}>
+        <Show when={props.post.body.trim()}>
+          {body => <Type variant="body"><Show when={props.titleHref} fallback={body()}>{href => <a href={href()} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{body()}</a>}</Show></Type>}
+        </Show>
+        <Show when={!props.post.body.trim() && props.titleHref}>
+          {href => <a class="sr-only" href={href()} rel={props.nativeNavigation ? "external" : undefined}>Open video post</a>}
+        </Show>
+        <VideoPost post={props.post} />
+      </Show>
+      <Show when={props.post.kind !== "video"}>
       <Show when={props.post.kind === "song"} fallback={
         <>
           <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} aria-label={props.post.title.trim() ? undefined : props.post.body.trim().replace(/\s+/gu, " ").slice(0, 120) || "Open post"} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{props.post.title}</a>}</Show></Type>
@@ -173,6 +211,7 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
         </Show>
         <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} />
         <Show when={props.communityId}>{communityId => <MegapotPoolSummary communityId={communityId()} postId={props.post.id} compact />}</Show>
+      </Show>
       </Show>
       <div class={props.titleHref ? "relative z-10 w-fit max-w-full" : undefined}><PostActions engagementControls={props.actions} post={props.post} /></div>
     </article>
