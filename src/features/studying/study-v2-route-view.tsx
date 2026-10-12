@@ -81,6 +81,7 @@ function availabilityMessage(availability: Exclude<StudyAvailability, { state: "
   switch (availability.reason) {
     case "not_a_song": return "Study is available only for song posts.";
     case "lyrics_not_accepted": return "Study will be available after this song's lyrics are accepted.";
+    case "stems_missing": return "This song's audio is still being prepared for Study. Try again later.";
     case "learning_language_unsupported": return "The song's language is not supported for Study yet.";
     case "insufficient_exercises": return "This song does not have enough ready exercises for a Study session yet.";
     case "policy_blocked": return "Study is unavailable for this song under its current policy.";

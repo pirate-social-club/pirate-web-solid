@@ -66,6 +66,28 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+test("leaving Karaoke aborts a pending playback request before it can mount audio", async () => {
+  const host = document.createElement("div"); document.body.appendChild(host);
+  let requestedSignal: AbortSignal | undefined;
+  const unused = async (): Promise<never> => { throw new Error("unused"); };
+  const client: KaraokeApiClient = {
+    createSession: unused, getAttempt: unused, getLeaderboard: unused,
+    getPayload: (_postId, signal) => {
+      requestedSignal = signal;
+      return new Promise((_resolve, reject) => signal?.addEventListener("abort", () => reject(signal.reason), { once: true }));
+    },
+  };
+  const TestRouter = createRouter({ history: memoryHistory(), routes: [{ path: "/" }] });
+  const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView postId="post-1" client={client} />}</TestRouter>, host);
+  await vi.waitFor(() => expect(requestedSignal).toBeDefined());
+  expect(host.querySelector("audio")).toBeNull();
+  dispose();
+  expect(requestedSignal?.aborted).toBe(true);
+  await Promise.resolve();
+  expect(host.querySelector("audio")).toBeNull();
+  host.remove();
+});
+
 test.each(["karaoke", "leaderboard"] as const)("anonymous %s refusal settles without a session-refresh request loop", async activity => {
   clearSession(); refreshSession();
   const fetchImpl = vi.fn(async () => Response.json({ error: { code: "auth_error", message: "Not authenticated", retryable: false } }, { status: 401 }));

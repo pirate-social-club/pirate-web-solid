@@ -74,7 +74,7 @@ interface Harness {
   setNow: (ms: number) => void;
 }
 
-function makeHarness(opts: { failStart?: Error; getPlaybackPosition?: () => { songMs: number; playbackRate: number }; deferCaptureUntilPlaying?: boolean } = {}): Harness {
+function makeHarness(opts: { failStart?: Error; getPlaybackPosition?: () => { songMs: number; playbackRate: number }; deferCaptureUntilPlaying?: boolean; flush?: () => Promise<void> } = {}): Harness {
   const events: Harness["events"] = {
     aborted: [], anchors: [], cleared: 0, closed: 0, finishes: [], lineBoundaries: [],
     pauses: [], playbackSyncs: [], pushed: [], resumes: [], seeks: [], started: [],
@@ -121,7 +121,7 @@ function makeHarness(opts: { failStart?: Error; getPlaybackPosition?: () => { so
     const engine: KaraokeScoringCaptureEngine = {
       activate: async (startTimeMs) => { const stamp = startTimeMs ?? captureClock; capture.activateStamps.push(stamp); return stamp; },
       captureClockMs: () => captureClock,
-      deactivateAndFlush: async () => { capture.deactivateCalls += 1; },
+      deactivateAndFlush: async () => { capture.deactivateCalls += 1; await opts.flush?.(); },
       start: async () => { capture.startCalls += 1; if (opts.failStart) throw opts.failStart; },
       stop: async () => { capture.stopCalls += 1; },
     };
@@ -272,6 +272,25 @@ describe("createKaraokeScoringController", () => {
     expect(h.events.resumes).toEqual([1_200]);
     expect(h.capture.activateStamps).toEqual([1_000, 5_000]); // re-anchored at the new capture clock
     expect(h.events.anchors[1]).toEqual({ captureMs: 5_000, playbackRate: 1, songMs: 1_200 });
+  });
+
+  test("playback replacement can await the old capture tail without opening another take", async () => {
+    let flushed: (() => void) | undefined;
+    const h = makeHarness({ flush: () => new Promise<void>(resolve => { flushed = resolve; }) });
+    await h.controller.start(0);
+    h.driver.setPhase("live");
+    await settle();
+    let paused = false;
+    const pause = h.controller.notePause(12_500).then(() => { paused = true; });
+    await settle();
+    expect(h.events.pauses).toEqual([12_500]);
+    expect(h.capture.deactivateCalls).toBe(1);
+    expect(h.events.cleared).toBe(0);
+    expect(paused).toBe(false);
+    flushed!(); await pause;
+    expect(h.events.cleared).toBe(1);
+    expect(h.events.started).toHaveLength(1);
+    expect(h.events.seeks).toEqual([]);
   });
 
   test("finish sends the finish frame and moves to finishing", async () => {
