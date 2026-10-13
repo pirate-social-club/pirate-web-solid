@@ -1,7 +1,11 @@
-import type { PirateApiClient } from "@pirate/api-client";
+import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createGuestStudyAccountingApi } from "./guest-study-accounting-api";
 const origin = "https://app.pirate.test", intentId = `gai_${"C".repeat(21)}A`;
+function sessionHeaders(value: PirateApiRequestOptions["headers"]): Headers {
+  if (!(value instanceof Headers)) throw new Error("Expected actual session headers");
+  return value;
+}
 beforeEach(() => vi.stubGlobal("location", { origin }));
 afterEach(() => vi.unstubAllGlobals());
 test("attachment uses ordinary session CSRF plus separate Guest CSRF; claim never sends Guest authority", async () => {
@@ -14,12 +18,12 @@ test("attachment uses ordinary session CSRF plus separate Guest CSRF; claim neve
   };
   const api = createGuestStudyAccountingApi({ origin, client, readAccountCsrf: () => "ordinary", readGuestCsrf: () => "A".repeat(43) });
   await api.prepareAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } });
-  expect(new Headers(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-csrf-token")).toBe("ordinary");
+  expect(sessionHeaders(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-csrf-token")).toBe("ordinary");
   await api.confirmAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" }, body: { expected_account_id: "account", target_revision: 1 } });
-  const headers = new Headers(client.post_guestAttachmentIntentsIdConfirm.mock.calls[0]?.[1]?.headers);
+  const headers = sessionHeaders(client.post_guestAttachmentIntentsIdConfirm.mock.calls[0]?.[1]?.headers);
   expect(headers.get("x-csrf-token")).toBe("ordinary"); expect(headers.get("x-guest-csrf-token")).toBe("A".repeat(43));
   await api.claimCredit({ path: { creditId: "credit" }, body: { idempotency_key: "original", selection_revision: 1 } });
-  const claim = new Headers(client.post_rewardsCreditsCreditIdOwnerClaimsV1.mock.calls[0]?.[1]?.headers);
+  const claim = sessionHeaders(client.post_rewardsCreditsCreditIdOwnerClaimsV1.mock.calls[0]?.[1]?.headers);
   expect(claim.get("x-csrf-token")).toBe("ordinary"); expect(claim.has("x-guest-csrf-token")).toBe(false); expect(claim.has("x-guest-credential-id")).toBe(false);
   vi.stubGlobal("location", { origin: "https://name.pirate.test" });
   expect(() => api.prepareAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } })).toThrow();

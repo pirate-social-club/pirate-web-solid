@@ -87,7 +87,6 @@ export function guestPurchaseStatus(value: GuestParticipationProjection): GuestR
   if (value.purchase_state === "pending") return "purchase_pending";
   switch (value.admission_state) {
     case "entry_closed": return "closed";
-    case "pending_confirmation": return "admission_pending";
     default: return value.admission_state;
   }
 }

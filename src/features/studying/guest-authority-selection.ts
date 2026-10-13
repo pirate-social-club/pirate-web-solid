@@ -73,6 +73,7 @@ function attachment(value: unknown, origin: string): value is OriginalGuestAttac
     || !("owner_id" in binding) || !("account_id" in binding) || !("state" in binding) || !("bound_at" in binding)
     || (intent === null || binding.attachment_id !== intent.intent_id) || binding.owner_id !== value.ownerId || !text(binding.account_id)
     || binding.state !== "bound" || !canonicalGuestInstant(binding.bound_at) || !value.confirmationSubmitted || target === null
+    || !object(target.account_confirmation)
     || binding.account_id !== target.account_confirmation.account_id)) return false;
   return true;
 }
