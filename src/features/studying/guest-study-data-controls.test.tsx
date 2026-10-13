@@ -6,7 +6,7 @@ import type { GuestDataApi } from "./guest-study-data-controller";
 
 test("owner switching remounts data controls without showing the former owner's saved preference", async () => {
   const api: GuestDataApi = {
-    setLearningRetention: vi.fn(async () => ({ mode: "ephemeral", effective_at: "2026-10-13T12:00:00.000Z" })),
+    setLearningRetention: vi.fn<GuestDataApi["setLearningRetention"]>(async () => ({ mode: "ephemeral", effective_at: "2026-10-13T12:00:00.000Z" })),
     deleteLearnerAudio: vi.fn(),
   };
   const container = document.createElement("div");
