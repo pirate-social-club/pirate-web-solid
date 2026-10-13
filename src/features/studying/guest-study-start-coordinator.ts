@@ -158,9 +158,22 @@ export function createGuestStudyStartCoordinator(options: Options) {
     const proof = confirmed(result);
     // A previously captured pending owner cannot be silently switched after a lost confirmation.
     // Canonical empty convergence may change owner only in the actual confirmation response above.
-    if (!confirmedNow && issuance?.ownerId != null && result.pointer_repair === null && issuance.ownerId !== proof.owner_id)
-      throw new Refusal("authority_conflict");
-    const after = { origin, owner_id: proof.owner_id, credential_id: proof.credential_id, last_start_key: null };
+    if (!confirmedNow && issuance?.ownerId != null) {
+      if (result.pointer_repair !== null) {
+        const repair = result.pointer_repair;
+        if (repair.previous_credential_id !== issuance.credentialId || repair.credential_id !== proof.credential_id
+          || repair.owner_id !== proof.owner_id) throw new Refusal("pointer_repair_invalid");
+        if (proof.owner_id !== issuance.ownerId && state.starts.some((r) => r.body.expected_owner_id === issuance.ownerId))
+          throw new Refusal("uncertain_owner_cannot_change");
+      } else if (issuance.ownerId !== proof.owner_id || issuance.credentialId !== proof.credential_id) {
+        throw new Refusal("authority_conflict");
+      }
+    }
+    const retained = [...state.starts].reverse().find((r) => r.body.expected_owner_id === proof.owner_id
+      && (r.state === "submitted" || r.state === "pending_confirmation"))
+      ?? [...state.starts].reverse().find((r) => r.body.expected_owner_id === proof.owner_id);
+    const after = { origin, owner_id: proof.owner_id, credential_id: proof.credential_id,
+      last_start_key: retained?.body.idempotency_key ?? null };
     await commitPointer(null, after);
     return after;
   }

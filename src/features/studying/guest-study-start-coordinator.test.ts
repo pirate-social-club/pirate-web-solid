@@ -288,4 +288,57 @@ describe("guest immutable start authority", () => {
     expect(holding).toBe(false);
   });
 
+  it.each([
+    { previous_credential_id: "unrelated", credential_id: "successor", owner_id: "other-owner" },
+    { previous_credential_id: "credential", credential_id: "unrelated", owner_id: "other-owner" },
+    { previous_credential_id: "credential", credential_id: "successor", owner_id: "unrelated" },
+  ])("rejects unbound issuance repair metadata %j without changing captured selection", async (repair) => {
+    const f = fixture();
+    await f.store.update((j) => { j.issuance = { key: "original-issue", ownerId: "owner", credentialId: "credential" }; });
+    const original = await f.store.read();
+    f.api.discoverAuthority.mockResolvedValue({ ...authority("confirmed", "successor", "other-owner"), pointer_repair: repair });
+    expect(await f.create().start({ ...route, draft })).toMatchObject({ status: "unavailable", reason: "pointer_repair_invalid" });
+    expect(await f.store.read()).toEqual(original);
+    expect(f.api.startSession).not.toHaveBeenCalled();
+    expect(f.api.issueBootstrap).not.toHaveBeenCalled();
+  });
+  it("exact issuance successor proof can repair a lost pointer without issuing or confirming a second owner", async () => {
+    const f = fixture();
+    await f.store.update((j) => { j.issuance = { key: "original-issue", ownerId: "owner", credentialId: "credential" }; });
+    f.api.discoverAuthority.mockResolvedValue({ ...authority("confirmed", "successor"),
+      pointer_repair: { previous_credential_id: "credential", credential_id: "successor", owner_id: "owner" } });
+    expect(await f.create().start({ ...route, draft })).toMatchObject({ status: "started", credentialId: "successor" });
+    expect((await f.store.read()).pointer?.owner_id).toBe("owner");
+    expect(f.api.issueBootstrap).not.toHaveBeenCalled();
+    expect(f.api.confirmBootstrap).not.toHaveBeenCalled();
+  });
+  it("a precisely bound owner-changing empty repair still cannot abandon retained original start uncertainty", async () => {
+    const f = fixture();
+    await f.store.update((j) => {
+      j.issuance = { key: "original-issue", ownerId: "owner", credentialId: "credential" };
+      j.starts.push({ ...route, body: { ...draft, expected_owner_id: "owner", idempotency_key: "uncertain-start" }, state: "pending_confirmation" });
+    });
+    const original = await f.store.read();
+    f.api.discoverAuthority.mockResolvedValue({ ...authority("confirmed", "successor", "other-owner"),
+      pointer_repair: { previous_credential_id: "credential", credential_id: "successor", owner_id: "other-owner" } });
+    expect(await f.create().start({ ...route, draft })).toMatchObject({ reason: "uncertain_owner_cannot_change" });
+    expect(await f.store.read()).toEqual(original);
+    expect(f.api.startSession).not.toHaveBeenCalled();
+  });
+
+  it("same-owner issuance repair restores the retained original key before recovery and never POSTs another start", async () => {
+    const f = fixture();
+    await f.store.update((j) => {
+      j.issuance = { key: "original-issue", ownerId: "owner", credentialId: "credential" };
+      j.starts.push({ ...route, body: { ...draft, expected_owner_id: "owner", idempotency_key: "uncertain-start" }, state: "pending_confirmation" });
+    });
+    f.api.discoverAuthority.mockResolvedValue({ ...authority("confirmed", "successor"),
+      pointer_repair: { previous_credential_id: "credential", credential_id: "successor", owner_id: "owner" } });
+    f.api.findStartOperation.mockResolvedValue({ state: "pending_confirmation", session: null });
+    expect(await f.create().start({ ...route, draft })).toMatchObject({ status: "pending", originalKey: "uncertain-start" });
+    expect((await f.store.read()).pointer).toEqual({ origin, owner_id: "owner", credential_id: "successor", last_start_key: "uncertain-start" });
+    expect(f.api.startSession).not.toHaveBeenCalled();
+    expect(f.api.findStartOperation.mock.calls[0]?.[0].path.idempotencyKey).toBe("uncertain-start");
+  });
+
 });
