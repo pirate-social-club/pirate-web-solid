@@ -1,225 +1,173 @@
 import { Button, Card, Type, FormFieldLabel, PrefixInput, Textarea } from "@pirate/web-solid-ui";
-import { ApiClientError } from "@pirate/api-client";
-import { Show, createSignal, onCleanup, untrack } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { createActor } from "xstate";
 
 import { createSpacesOwnerProofApi, type SpacesOwnerProofApi } from "./spaces-owner-proof-api";
+import { canStartSpacesProof, canonicalSpacesRoot, createSpacesCommandKeys, createSpacesOwnerProofMachine,
+  freshSpacesProof, spacesProofNotice, type SpacesProofScope } from "./spaces-owner-proof-machine";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 import { useApplicationSession } from "../../shell/application-session";
 import { ensureApplicationSession } from "../../auth/session-recovery";
 import { resolveAccountSession } from "../../../api/session";
+import { useOwnedActor } from "../../posts/video-submission/solid-actor";
 
-type Challenge = Awaited<ReturnType<SpacesOwnerProofApi["start"]>>;
-type Assignment = NonNullable<Awaited<ReturnType<SpacesOwnerProofApi["assignment"]>>["candidate"]>;
-
-function newKey(): string {
-  const random = new Uint8Array(16);
-  crypto.getRandomValues(random);
-  return [...random].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; communityId: string; onBusyChange?: (busy: boolean) => void }) {
-  const api = props.api ?? createSpacesOwnerProofApi();
+export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; communityId: string;
+  accountId?: string; onBusyChange?: (busy: boolean) => void }) {
+  const suppliedApi = untrack(() => props.api);
+  const api = suppliedApi ?? createSpacesOwnerProofApi();
   const [root, setRoot] = createSignal("");
   const [signature, setSignature] = createSignal("");
-  const [challenge, setChallenge] = createSignal<Exclude<Challenge, { status: "verification_pending" }>>();
-  const [pollKey, setPollKey] = createSignal("");
-  const [busy, setBusyState] = createSignal(false);
-  const setBusy = (value: boolean) => { setBusyState(value); props.onBusyChange?.(value); };
-  const [message, setMessage] = createSignal("");
-  const [verifiedUntil, setVerifiedUntil] = createSignal("");
-  const [authority, setAuthority] = createSignal<{ reference: string; generation: number }>();
-  const [candidate, setCandidate] = createSignal<Assignment>();
-  const [confirmed, setConfirmed] = createSignal(false);
-  const [authRequired, setAuthRequired] = createSignal(false);
+  const [draftError, setDraftError] = createSignal("");
   const applicationSession = useApplicationSession();
-  const initialAccount = untrack(applicationSession);
-  let ownerAccountId = initialAccount !== undefined && typeof initialAccount === "object" ? initialAccount.userId : undefined;
-  const controller = new AbortController();
-  onCleanup(() => controller.abort());
-  const ensureSession = async () => {
-    if (props.api !== undefined) return true;
-    if (ownerAccountId === undefined) {
+  const accountId = () => {
+    const session = applicationSession();
+    if (session !== undefined && typeof session === "object") return session.userId;
+    if (session === "anonymous") return null;
+    // Injected ports are isolated fixtures; real requests always resolve the application session.
+    return props.accountId ?? (suppliedApi === undefined ? undefined : "fixture-account");
+  };
+  let revision = 0;
+  let disposed = false;
+  const scope = (): SpacesProofScope => untrack(() => ({ communityId: props.communityId, accountId: accountId(), revision }));
+  const current = (at: SpacesProofScope) => !disposed && at.communityId === props.communityId
+    && at.accountId === accountId() && at.revision === revision;
+  const machine = createSpacesOwnerProofMachine({ api, isCurrent: at => untrack(() => current(at)),
+    commandKey: createSpacesCommandKeys(typeof sessionStorage === "undefined" ? undefined : sessionStorage),
+    authorize: async (at, expected, signal) => {
+      if (suppliedApi !== undefined) return at.accountId ?? undefined;
       const account = await resolveAccountSession({ timeoutMs: 15_000 });
-      if (account === "anonymous" || controller.signal.aborted) return false;
-      ownerAccountId = account.userId;
-    }
-    return ensureApplicationSession(ownerAccountId, controller.signal);
+      signal.throwIfAborted();
+      if (!untrack(() => current(at)) || account === "anonymous" || expected !== undefined && expected !== account.userId
+        || at.accountId !== undefined && at.accountId !== account.userId) return undefined;
+      if (!await ensureApplicationSession(account.userId, signal)) return undefined;
+      signal.throwIfAborted();
+      return untrack(() => current(at)) ? account.userId : undefined;
+    },
+  });
+  const { snapshot, send } = useOwnedActor(createActor(machine, { input: { scope: scope() } }));
+  const context = () => current(snapshot().context.scope) ? snapshot().context : undefined;
+  const progress = () => context()?.progress;
+  const ceremony = () => progress()?.ceremony;
+  const challenge = () => {
+    const saved = ceremony();
+    return saved?.status === "awaiting_signature" || saved?.status === "verification_pending" ? saved.challenge : undefined;
   };
-  const reportFailure = (reason: unknown, message: string) => {
-    if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
-    else setMessage(message);
+  const proof = () => freshSpacesProof(progress());
+  const candidate = () => progress()?.operator_assignment ?? undefined;
+  const confirmed = () => candidate()?.status === "confirmed" && candidate()?.current;
+  const busy = () => context() === undefined || snapshot().matches("discovering") || snapshot().matches("reading") || snapshot().matches("acting");
+  const ready = () => context() !== undefined && snapshot().matches("ready");
+  const message = () => draftError() || context()?.notice || spacesProofNotice(progress());
+
+  let previousScope = untrack(() => JSON.stringify([props.communityId, accountId()]));
+  createEffect(() => JSON.stringify([props.communityId, accountId()]), (next) => {
+    if (next === previousScope) return;
+    previousScope = next;
+    revision++;
+    send({ type: "SCOPE", scope: scope() });
+    queueMicrotask(() => { if (!disposed) { setRoot(""); setSignature(""); setDraftError(""); } });
+  });
+  // Reading does not hold the shared address choice. Only a command owns that busy slot.
+  createEffect(() => context() !== undefined && snapshot().matches("acting"), (value) => {
+    queueMicrotask(() => { if (!disposed) props.onBusyChange?.(value); });
+  });
+  const refresh = () => { setSignature(""); setDraftError(""); send({ type: "REFRESH" }); };
+  const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+  if (typeof window !== "undefined") {
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+  }
+  onCleanup(() => {
+    disposed = true;
+    if (typeof window !== "undefined") {
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    }
+    props.onBusyChange?.(false);
+  });
+  const choose = () => {
+    revision++;
+    setRoot(""); setSignature(""); setDraftError("");
+    send({ type: "CHOOSE", scope: scope() });
+  };
+  const select = (value: string) => {
+    revision++;
+    setRoot(value); setSignature(""); setDraftError("");
+    send({ type: "SELECT", root: value, scope: scope() });
+  };
+  const start = (replace = false) => {
+    const value = canonicalSpacesRoot(context()?.root ?? root());
+    if (value === undefined) { setDraftError("Enter a Spaces root such as @yahoo."); return; }
+    setDraftError(""); setSignature("");
+    send({ type: "START", root: value, scope: scope(), replace });
+  };
+  const poll = () => {
+    const value = signature().trim().toLowerCase();
+    if (!/^[0-9a-f]{128}$/u.test(value)) { setDraftError("Paste the 128-character hexadecimal signature from your Spaces wallet."); return; }
+    setDraftError(""); setSignature("");
+    send({ type: "POLL", signatureHex: value });
   };
 
-  const storageKey = (canonicalRoot: string) => `spaces-owner-proof:${props.communityId}:${canonicalRoot}`;
-  const clearSavedKey = () => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(storageKey(root().replace(/^@/u, "")));
-  };
-
-  const start = async () => {
-    if (busy()) return;
-    const displayedRoot = root().trim().toLowerCase();
-    const canonicalRoot = displayedRoot.startsWith("@") ? displayedRoot.slice(1) : displayedRoot;
-    if (!/^[a-z0-9][a-z0-9-]{0,61}$/.test(canonicalRoot)) {
-      setMessage("Enter a Spaces root such as @yahoo.");
-      return;
-    }
-    setBusy(true);
-    setMessage("");
-    setVerifiedUntil("");
-    setAuthority(undefined);
-    setCandidate(undefined);
-    setConfirmed(false);
-    try {
-      if (!await ensureSession()) { setAuthRequired(true); return; }
-      let idempotencyKey = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(storageKey(canonicalRoot));
-      if (idempotencyKey === null) {
-        idempotencyKey = newKey();
-        if (typeof sessionStorage !== "undefined") sessionStorage.setItem(storageKey(canonicalRoot), idempotencyKey);
-      }
-      const response = await api.start({ communityId: props.communityId, canonicalRoot, idempotencyKey });
-      if ("status" in response) {
-        setMessage("The Spaces chain is updating. Try again after its next checkpoint.");
-        return;
-      }
-      setRoot(`@${response.canonical_root}`);
-      setPollKey(newKey());
-      setSignature("");
-      setChallenge(response);
-    } catch (reason) {
-      reportFailure(reason, "Ownership proof could not start. Check that this root belongs to you and try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const checkSignature = async () => {
-    const current = challenge();
-    if (current === undefined || busy()) return;
-    const signatureHex = signature().trim().toLowerCase();
-    if (!/^[0-9a-f]{128}$/.test(signatureHex)) {
-      setMessage("Paste the 128-character hexadecimal signature from your Spaces wallet.");
-      return;
-    }
-    setBusy(true);
-    setMessage("");
-    try {
-      if (!await ensureSession()) { setAuthRequired(true); return; }
-      const result = await api.poll({ communityId: props.communityId, ceremonyId: current.ceremony_id,
-        idempotencyKey: pollKey(), signatureHex });
-      if (result.status === "verified") {
-        clearSavedKey();
-        setVerifiedUntil(result.fresh_until);
-        setAuthority({ reference: result.namespace_authority_reference,
-          generation: result.namespace_authority_generation });
-        setChallenge(undefined);
-        setSignature("");
-        setMessage("Ownership verified. Complete the Spaces operate transaction, then check for the operator address here.");
-      } else if (result.status === "verification_pending") {
-        setPollKey(newKey());
-        setMessage("The Spaces chain is updating. Check this proof again after its next checkpoint.");
-      } else {
-        clearSavedKey();
-        setChallenge(undefined);
-        setSignature("");
-        setMessage(result.status === "signature_rejected"
-          ? "That signature did not match the owner key. Start a new proof."
-          : "The root changed or the challenge expired. Start a new proof.");
-      }
-    } catch (reason) {
-      reportFailure(reason, "The signature could not be checked. You can try the same signature again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const checkAssignment = async () => {
-    if (busy() || authority() === undefined) return;
-    setBusy(true);
-    try {
-      if (!await ensureSession()) { setAuthRequired(true); return; }
-      const response = await api.assignment({ communityId: props.communityId, root: root().replace(/^@/u, "") });
-      setCandidate(response.candidate ?? undefined);
-      setMessage(response.candidate === null
-        ? "The operator address is not ready yet. Check again after operate is confirmed and the chain catches up."
-        : "Check this address against your Spaces wallet before assigning it.");
-    } catch (reason) {
-      reportFailure(reason, "The operator address could not be loaded. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const confirmAssignment = async () => {
-    const selected = candidate();
-    const proof = authority();
-    if (busy() || selected === undefined || proof === undefined) return;
-    setBusy(true);
-    const keyName = `spaces-operator-assignment:${props.communityId}:${selected.operator_assignment_id}`;
-    let idempotencyKey = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(keyName);
-    if (idempotencyKey === null) {
-      idempotencyKey = newKey();
-      if (typeof sessionStorage !== "undefined") sessionStorage.setItem(keyName, idempotencyKey);
-    }
-    try {
-      if (!await ensureSession()) { setAuthRequired(true); return; }
-      const result = await api.confirmAssignment({ communityId: props.communityId, idempotencyKey,
-        assignmentId: selected.operator_assignment_id, generation: selected.generation,
-        authorityReference: proof.reference, authorityGeneration: proof.generation });
-      if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(keyName);
-      setCandidate(result);
-      setConfirmed(true);
-      setMessage("Operator address confirmed. Delegate this Spaces root to the address shown below in your Spaces wallet.");
-    } catch (reason) {
-      reportFailure(reason, "The assignment could not be confirmed. Check that ownership and the operator address are still current, then retry.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard onAuthenticated={() => setAuthRequired(false)} />}>
+  return <Show when={context() === undefined || !snapshot().matches("signInRequired")}
+    fallback={<OwnerSettingsSignInCard onAuthenticated={refresh} />}>
     <Card class="space-y-4 p-5 md:p-6" data-spaces-owner-proof>
       <Type as="h2" variant="h3">Prove your Spaces root</Type>
       <Type as="p" variant="body" class="text-muted-foreground">Use the Spaces wallet that owns the root. This check signs a message and sends no Bitcoin transaction.</Type>
+      <Show when={context()?.root === undefined && (context()?.roots.length ?? 0) > 1}>
+        <p class="text-sm">Choose a saved root.</p>
+        <div class="flex flex-wrap gap-2"><For each={context()?.roots}>{value =>
+          <Button type="button" disabled={!ready()} onClick={() => select(value)}>@{value}</Button>
+        }</For></div>
+      </Show>
       <div class="space-y-2">
         <FormFieldLabel htmlFor="spaces-owner-root" label="Spaces root" />
-        <PrefixInput id="spaces-owner-root" class="h-16" prefix="@" value={root().replace(/^@/u, "")}
-          disabled={busy() || challenge() !== undefined} onInput={(event) => setRoot(event.currentTarget.value)} placeholder="root" />
+        <PrefixInput id="spaces-owner-root" class="h-16" prefix="@" value={context()?.root ?? root().replace(/^@/u, "")}
+          disabled={busy() || context()?.root !== undefined} onInput={event => setRoot(event.currentTarget.value)} placeholder="root" />
       </div>
-      <Show when={challenge() === undefined}>
-        <Button type="button" disabled={busy()} onClick={() => void start()}>Get ownership message</Button>
+      <Show when={ready() && canStartSpacesProof(progress())}>
+        <Button type="button" onClick={() => start()}>Get ownership message</Button>
       </Show>
-      <Show when={challenge()}>{(current) => (
-        <div class="space-y-3">
-          <p class="text-sm">Sign the 32-byte digest below with the Schnorr key that owns @{current().canonical_root}. The message explains what you are approving. Do not paste your seed phrase or private key here.</p>
-          <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-sm" data-spaces-challenge>{current().challenge_message}</pre>
-          <p class="break-all font-mono text-sm" data-spaces-challenge-digest>Digest: {current().challenge_digest_hex}</p>
-          <p class="text-xs text-muted-foreground">Challenge expires at {current().expires_at}.</p>
+      <Show when={context()?.root !== undefined}>
+        <Button type="button" variant="secondary" onClick={choose}>Choose another root</Button>
+      </Show>
+      <Show when={challenge()}>{saved => <div class="space-y-3">
+        <p class="text-sm">Sign the 32-byte digest below with the Schnorr key that owns @{saved().canonical_root}. Do not paste your seed phrase or private key here.</p>
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-sm" data-spaces-challenge>{saved().challenge_message}</pre>
+        <p class="break-all font-mono text-sm" data-spaces-challenge-digest>Digest: {saved().challenge_digest_hex}</p>
+        <p class="text-xs text-muted-foreground">Challenge expires at {saved().expires_at}.</p>
+        <Show when={ceremony()?.status === "awaiting_signature"}>
           <div class="space-y-2">
             <FormFieldLabel htmlFor="spaces-owner-signature" label="Message signature (hex)" />
-            <Textarea id="spaces-owner-signature" class="min-h-24 font-mono"
-              value={signature()} disabled={busy()} onInput={(event) => setSignature(event.currentTarget.value)} />
+            <Textarea id="spaces-owner-signature" class="min-h-24 font-mono" value={signature()}
+              disabled={busy()} onInput={event => setSignature(event.currentTarget.value)} />
           </div>
           <div class="flex gap-2">
-            <Button type="button" disabled={busy()} onClick={() => void checkSignature()}>Check signature</Button>
-            <Button type="button" variant="secondary" disabled={busy()} onClick={() => { clearSavedKey(); setChallenge(undefined); setSignature(""); setMessage(""); }}>Start over</Button>
+            <Button type="button" disabled={!ready()} onClick={poll}>Check signature</Button>
+            <Button type="button" variant="secondary" disabled={!ready()} onClick={() => start(true)}>Get a new message</Button>
           </div>
-        </div>
-      )}</Show>
+        </Show>
+        <Show when={ceremony()?.status === "verification_pending"}>
+          <Button type="button" disabled={!ready()} onClick={() => send({ type: "RESUME" })}>Check saved proof</Button>
+        </Show>
+      </div>}</Show>
       <Show when={message()}><p role="status" class="text-sm">{message()}</p></Show>
-      <Show when={verifiedUntil()}><p class="text-xs text-muted-foreground">Authority check expires at {verifiedUntil()}.</p></Show>
-      <Show when={authority()}>
-        <Button type="button" variant="secondary" disabled={busy()} onClick={() => void checkAssignment()}>Check operator address</Button>
-      </Show>
+      <Show when={busy()}><p role="status" class="text-sm">Checking status…</p></Show>
+      <Button type="button" variant="secondary" disabled={busy()} onClick={refresh}>Refresh status</Button>
+      <Show when={proof()}>{saved => <>
+        <p class="text-xs text-muted-foreground">Ownership check expires at {saved().fresh_until}.</p>
+        <Show when={!confirmed()}>
+          <Button type="button" variant="secondary" disabled={!ready()} onClick={() => send({ type: "ASSIGN" })}>Check operator address</Button>
+        </Show>
+      </>}</Show>
       <Show when={candidate()}>{selected => <div class="space-y-3 rounded-md border p-3" data-spaces-operator-assignment>
         <p class="text-sm">Delegation address for @{selected().canonical_root}</p>
         <p class="break-all font-mono text-sm" data-spaces-delegation-address>{selected().delegation_address}</p>
-        <Show when={!confirmed()}>
-          <Button type="button" disabled={busy()} onClick={() => void confirmAssignment()}>Confirm this operator address</Button>
+        <Show when={proof() !== undefined && selected().status === "prepared"}>
+          <Button type="button" disabled={!ready()} onClick={() => send({ type: "CONFIRM" })}>Confirm this operator address</Button>
         </Show>
         <Show when={confirmed()}><p role="status">Address confirmed. Delegate from your Spaces wallet when ready.</p></Show>
+        <Show when={selected().status === "confirmed" && !selected().current}><p role="status">This address is no longer current. Refresh status before continuing.</p></Show>
       </div>}</Show>
     </Card>
-    </Show>
-  );
+  </Show>;
 }
