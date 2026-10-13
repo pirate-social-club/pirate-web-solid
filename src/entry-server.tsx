@@ -1,4 +1,4 @@
-import { isTelegramLinkPage, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
+import { isTelegramLinkPage, isTelegramPageAlias, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
 import { getRequestEvent, httpHeader, httpStatus, renderToStream } from "@solidjs/web";
 import type { Component } from "solid-js";
@@ -51,6 +51,14 @@ export async function render(
   dependencies: EntryServerRenderDependencies = {},
 ) {
   const event = getRequestEvent();
+  // The router also routes other spellings of these pages (case, slashes, percent-encoding).
+  // Only the canonical spelling is served, so callbacks never reach an unscrubbed render.
+  if (isTelegramPageAlias(new URL(request.url).pathname)) {
+    if (event !== undefined) event.request = telegramPageRequest(request);
+    return new Response(null, { status: 404, headers: {
+      "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex, nofollow",
+    } });
+  }
   if (isTelegramLinkPage(new URL(request.url).pathname)) {
     request = telegramPageRequest(request);
     // The router reads the request event, not this function's argument.

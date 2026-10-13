@@ -2,6 +2,7 @@ import { ApiClientError, TELEGRAM_IDENTITY_LINK_CONFLICT_REASON } from "@pirate/
 import { expect, test, vi } from "vitest";
 import { createTelegramLinkingApi, telegramLinkFailure } from "./telegram-linking-api";
 import { communityBotUrl, confirmedTransactionId, linkReference, takeTelegramCallback, telegramAuthorizationUrl } from "./telegram-linking-navigation";
+import { isTelegramLinkPage, isTelegramPageAlias, routerPathKey } from "./telegram-linking-privacy";
 
 const state = "a".repeat(43);
 test("callback capture scrubs the address synchronously and never needs tab storage", () => {
@@ -60,4 +61,29 @@ test("missing CSRF stops callback verification before network traffic", () => {
   const api = createTelegramLinkingApi({ origin: "https://pirate.test", fetchImpl, readCsrfToken: () => undefined });
   expect(() => api.verify({ state, code: "one-time" })).toThrow();
   expect(fetchImpl).not.toHaveBeenCalled();
+});
+
+// The installed router's own matcher, so the classifier is checked against what is routed.
+const routes = ["/telegram/link", "/telegram/link/callback", "/telegram/link/account"];
+const spellings = (path: string) => [
+  path, `${path}/`, path.toUpperCase(), `${path.toUpperCase()}/`, `//${path.slice(1)}//`,
+  path.replace("i", "%69"), path.replace("t", "%54"), path.replace("t", "%74"), path.replace("/", "/%2F"),
+];
+
+test.each(routes)("private Telegram classification covers every spelling the router routes to %s", async (route) => {
+  const { comparablePath, createMatcher } = await import("../../../../node_modules/@solidjs/router/dist/utils.js");
+  for (const spelling of spellings(route)) {
+    const routed = routes.some(path => createMatcher(path)(decodeURI(comparablePath(spelling))) !== null);
+    expect(isTelegramLinkPage(spelling), spelling).toBe(routed);
+    // Only the canonical spelling is served; every other routed spelling is refused.
+    expect(isTelegramPageAlias(spelling), spelling).toBe(routed && spelling !== route);
+  }
+  expect(routerPathKey(route)).toBe(route);
+});
+
+test("private Telegram classification leaves unrelated and malformed paths alone", () => {
+  for (const path of ["/", "/telegram", "/telegram/link/other", "/telegram//link", "/%E0%A4%A", "/internal/telegram-login-probes"]) {
+    expect(isTelegramLinkPage(path), path).toBe(false);
+    expect(isTelegramPageAlias(path), path).toBe(false);
+  }
 });
