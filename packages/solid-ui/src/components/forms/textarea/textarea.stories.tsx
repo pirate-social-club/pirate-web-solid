@@ -69,8 +69,10 @@ export const LongContent: Story = {
   args: {
     value:
       "A deliberately long value that wraps across several lines to show line wrapping and the default minimum height: the tide came in around four, the boats swung on their moorings, and the whole harbor turned silver in the last light before the rain arrived.",
-    // Paper draws the box grown to its seven wrapped lines in a 320px column.
-    rows: 7,
+    // Paper draws the box grown to its wrapped lines in a 320px column. Size it
+    // to its content rather than a fixed row count, which would depend on how
+    // the installed font wraps the text.
+    class: "[field-sizing:content]",
   },
   render: (args) => (
     <div class="w-80 max-w-full">
