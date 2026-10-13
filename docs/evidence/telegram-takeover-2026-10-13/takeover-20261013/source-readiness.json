@@ -1,0 +1,89 @@
+{
+  "recorded_at": "2026-10-13T05:13:46.177230+00:00",
+  "owner_role": "telegram_coordinator",
+  "session": "01a13380-3a24-74b3-a6fa-ae35e508411e",
+  "source": "c584a347bce8481bbf0ab389ef3259059e11dd68",
+  "tree": "fca5d088c1a83761768e140831faa624e7e87b97",
+  "accepted_base": "45d07cb25b3267ad16f158aa40eff7d11ad49c5e",
+  "original_probe": "95a6991d2e5e5e83618300174b6f1f0300783785",
+  "changed_paths_from_base": [
+    "docs/telegram-identity-probe.md",
+    "src/entry-server.tsx",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-client.test.tsx",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.test.ts",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.ts",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-page.tsx",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx",
+    "src/features/identity/telegram-linking/telegram-linking-privacy.ts",
+    "src/routes/internal/telegram-login-probe/callback.tsx",
+    "src/routes/internal/telegram-login-probe/index.tsx",
+    "vitest.app.config.ts",
+    "vitest.ssr.config.ts"
+  ],
+  "focused_tests": {
+    "app": 17,
+    "ssr": 4,
+    "passed": true
+  },
+  "typescript_passed": true,
+  "focused_lint": {
+    "exit_code": 0,
+    "advisory_warnings": 4
+  },
+  "full_verify": {
+    "command": "bun run verify",
+    "exit_code": 0,
+    "execution_session": 4358,
+    "source": "c584a347bce8481bbf0ab389ef3259059e11dd68",
+    "raw_log": "verify.log",
+    "raw_log_sha256": "872d100aa6698514a27b9d2c49a0ea5862498363ebdc9ed13451dddb0f180c13",
+    "api_tests": 377,
+    "app_tests": 1772,
+    "ssr_tests": 67,
+    "solid_ui_tests": 420,
+    "solid_doctor_errors": 0,
+    "solid_doctor_warnings": 87,
+    "observed_by": "telegram_coordinator from tool completion; raw output preserved without added success markers"
+  },
+  "publication": false,
+  "deployed": false,
+  "provider_phone_proof": false,
+  "original_seed_delivery_confirmed": true,
+  "source_files": {
+    "docs/telegram-identity-probe.md": "791a9a5472f80cc37433b7f1e155725deca4a09535469dc731fd550799512d97",
+    "src/entry-server.tsx": "d6b81e2b4da4b2b1dbd1582ad1674b94c4e76383b7840ed6cc97d89153284ec7",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-client.test.tsx": "6de7a2b5145d00ed190abb29f7982c71d5662dbc0b24754f8a97c234cbfe775b",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts": "eb44c44a25c81c6d456ddfa1c8701380b6821664546faf5d28e3d50d4fa59a32",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.test.ts": "e3f490eefe87ac36c0cc1b54ee4699889e7b29aa8d476ea7b80a427583c8cd73",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.ts": "cf7ebf279d6f77e64beb4806a90d7c479e7052d14cd3e7897bc81d05457c0c50",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-page.tsx": "6da53215a3d6a9547805e97c9b7a1c6db75418576d77bdccef7b510738fc8a9d",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx": "34302423d86b842af4cc0c16c5d3bb09e252477fa6624996909ade672129c051",
+    "src/features/identity/telegram-linking/telegram-linking-privacy.ts": "29a89ba18de09446411b30bcd73b36d362023ad19599b791262bf2b4750fc710",
+    "src/routes/internal/telegram-login-probe/callback.tsx": "aaf1d97778390b1e69d26b27a2ff660a0b61e6e85a5dd23716b1bf3fa8b8f31e",
+    "src/routes/internal/telegram-login-probe/index.tsx": "01d6cfd065281bce4d8218816f7bbcf83d181b4c0d86fc111728bf86619a23aa",
+    "vitest.app.config.ts": "20126b3accdd221b5cb0b54b6adf1640377411720229a26f5b3eb48011c3423f",
+    "vitest.ssr.config.ts": "e09512000e8f70dad21a51485a4d3398714caeff8fe8e8458cd75cbfcbac308b"
+  },
+  "task_register_scan": {
+    "command": "bin/tasks-check",
+    "exit_code": 0,
+    "execution_session": 70512,
+    "files_valid": 1091,
+    "warnings": 233,
+    "raw_log": "tasks-check.log",
+    "raw_log_sha256": "3e4074a95cc46cbaf66e776f9d60c1cb5c4ee7fb21fea93f52225eb5a116438f",
+    "scope": "point-in-time; precedes final own prose update and later disjoint task changes; not integration admission"
+  },
+  "staging_worker_build_on_current_candidate": false,
+  "product_graph_build_check_on_current_candidate": false,
+  "independent_review_on_current_candidate": false,
+  "hosted_ci_on_current_candidate": false,
+  "actual_shared_staging_handback": false,
+  "protected_files_match_accepted_base": [
+    "src/worker.ts",
+    "src/worker.test.ts",
+    "wrangler.jsonc",
+    "worker-configuration.d.ts"
+  ]
+}

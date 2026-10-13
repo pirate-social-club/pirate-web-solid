@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-10-08T20:32:34.310Z",
+  "scope": "Read-only pilot conversation counts since the HTTP release, excluding the synthetic identity range",
+  "recent_nonfixture_conversations": 0,
+  "showing_new_ending": 0,
+  "showing_clean_prompt": 0,
+  "latest_activity": null,
+  "acceptance": "Pending; no new real-client activity observed since this release"
+}

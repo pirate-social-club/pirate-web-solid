@@ -1,0 +1,82 @@
+{
+  "headRefOid": "80d3bc5cc336ee8bfdbfadf58d3bb9b78208bcd8",
+  "mergeCommit": {
+    "oid": "b8332919dcc4235058d15c277b2de1a8755bfeda"
+  },
+  "mergedAt": "2026-10-08T20:10:39Z",
+  "state": "MERGED",
+  "statusCheckRollup": [
+    {
+      "name": "Advisory policy",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814251/job/113512421231"
+    },
+    {
+      "name": "check",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422395"
+    },
+    {
+      "name": "secret-boundary",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835809863/job/113512413430"
+    },
+    {
+      "name": "postgres17-namespace",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422384"
+    },
+    {
+      "name": "postgres17-recovery",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422073"
+    },
+    {
+      "name": "hns-regtest",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422352"
+    },
+    {
+      "name": "postgres17-general-0",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422589"
+    },
+    {
+      "name": "postgres17-general-1",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422347"
+    },
+    {
+      "name": "postgres17-general-2",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422713"
+    },
+    {
+      "name": "postgres17-general-3",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422255"
+    },
+    {
+      "name": "postgres18-shape",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113512422745"
+    },
+    {
+      "name": "postgres17",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/37835814316/job/113517884839"
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "recorded_at": "2026-10-10T15:57:54.028492+00:00",
+  "task": "solid-telegram-privy-identity-probe",
+  "owner_role": "workspace_coordinator",
+  "base": "0801168a8344e66fdccdb8fc3298251e6abb69cc",
+  "source_head": "95a6991d2e5e5e83618300174b6f1f0300783785",
+  "source_tree": "a827adf5faac5fc92fdd73e2fdd042a4ff2703c5",
+  "patch_id": "b9e8d15f9f20f396602649a311d9b8c98c76acc7",
+  "publication": {
+    "local_radicle_patch_created": true,
+    "push_exit_code": 0,
+    "seed_count": 0,
+    "seed_has_patch": false,
+    "hosted_ci_received": false,
+    "main_promoted": false,
+    "deployed": false
+  },
+  "local_transport": {
+    "disconnected_node_recovery_stop_exit": 0,
+    "restart_exit": 1,
+    "restart_error": "A passphrase is required to read your Radicle key in order to start the node.",
+    "owner_local_unlock_requested": true,
+    "passphrase_read_or_guessed": false
+  },
+  "review": {
+    "reviewer_role": "independent_reviewer",
+    "review_agent": "/root/pr590_review",
+    "accepted_head": "95a6991d2e5e5e83618300174b6f1f0300783785",
+    "decision": "Accepted exact successor; no findings remain.",
+    "final_review_scope": "Read-only review of two-file BFCache successor; no tests rerun by reviewer."
+  },
+  "gates": {
+    "full_verify": {
+      "head": "2754b281154234359a5bfc276dc338adfea3f8f1",
+      "exit_code": 0,
+      "api_tests": 371,
+      "app_tests": 1643,
+      "ssr_tests": 64,
+      "design_system_tests": 420,
+      "log": "probe-gates/verify-page-only.log"
+    },
+    "final_successor": {
+      "head": "95a6991d2e5e5e83618300174b6f1f0300783785",
+      "app_tests": 1643,
+      "app_test_files": 162,
+      "app_tests_exit": 0,
+      "type_check_exit": 0,
+      "focused_lint_exit": 0,
+      "staging_build_exit": 0,
+      "product_graph_exit": 0,
+      "full_verify_rerun": false
+    },
+    "focused_page_controller_ssr": {
+      "tests_passed": 21,
+      "head": "2754b281154234359a5bfc276dc338adfea3f8f1"
+    },
+    "ingress": {
+      "reference": "solid-hns-ingress-sha256:595321a64fd0a3b4911cc2ecb62920c08332ac9643048e8c8596412896653b17",
+      "matches_canonical_main": true,
+      "protected_files_match_base": [
+        "src/worker.ts",
+        "src/worker.test.ts",
+        "wrangler.jsonc",
+        "worker-configuration.d.ts"
+      ],
+      "gateway_manifest_changed": false
+    },
+    "register_mechanical_repair": {
+      "commit": "7e9b07f90e2e2f6063fa2e6412fe50a72cfcb62b",
+      "record": "production-main-reconciliation-release",
+      "change": "Only missing worktree header becomes . for its actual registered serialized control-plane main checkout.",
+      "foreign_changes_preserved": true
+    },
+    "tasks_check_after_header_repair": {
+      "exit_code": 0,
+      "task_files_valid": 1071,
+      "existing_warnings": 208,
+      "log": "probe-gates/tasks-check-after-header-repair.log"
+    },
+    "workspace_check_after_parking": {
+      "exit_code": 0,
+      "target": "pirate-web-solid",
+      "log": "probe-gates/workspace-check-after-parking.log",
+      "other_lane_breaches_preserved": true
+    },
+    "tasks_check_after_parking": {
+      "exit_code": 0,
+      "task_files_valid": 1071,
+      "existing_warnings": 208,
+      "log": "probe-gates/tasks-check-after-parking.log"
+    }
+  },
+  "source_files": {
+    "docs/telegram-identity-probe.md": "791a9a5472f80cc37433b7f1e155725deca4a09535469dc731fd550799512d97",
+    "src/entry-server.tsx": "d6b81e2b4da4b2b1dbd1582ad1674b94c4e76383b7840ed6cc97d89153284ec7",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-client.test.tsx": "6de7a2b5145d00ed190abb29f7982c71d5662dbc0b24754f8a97c234cbfe775b",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts": "eb44c44a25c81c6d456ddfa1c8701380b6821664546faf5d28e3d50d4fa59a32",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.test.ts": "e3f490eefe87ac36c0cc1b54ee4699889e7b29aa8d476ea7b80a427583c8cd73",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.ts": "cf7ebf279d6f77e64beb4806a90d7c479e7052d14cd3e7897bc81d05457c0c50",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-page.tsx": "6da53215a3d6a9547805e97c9b7a1c6db75418576d77bdccef7b510738fc8a9d",
+    "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx": "34302423d86b842af4cc0c16c5d3bb09e252477fa6624996909ade672129c051",
+    "src/features/identity/telegram-linking/telegram-linking-privacy.ts": "29a89ba18de09446411b30bcd73b36d362023ad19599b791262bf2b4750fc710",
+    "src/routes/internal/telegram-login-probe/callback.tsx": "aaf1d97778390b1e69d26b27a2ff660a0b61e6e85a5dd23716b1bf3fa8b8f31e",
+    "src/routes/internal/telegram-login-probe/index.tsx": "01d6cfd065281bce4d8218816f7bbcf83d181b4c0d86fc111728bf86619a23aa",
+    "vitest.app.config.ts": "0863d2e772afe181fd9b0d7da8cfd26ea4d9f310425aa6620b31f473c1641563",
+    "vitest.ssr.config.ts": "e09512000e8f70dad21a51485a4d3398714caeff8fe8e8458cd75cbfcbac308b"
+  },
+  "gate_log_sha256": {
+    "probe-gates/app-final.log": "cf9353d6a96f1987dbeac60168e8a861bb9efdbbcb4cdff9cd8c0dc0cfc1839c",
+    "probe-gates/build-final.log": "4c5c00330e9f89acde678d6d62f6996b9bbc940c66dfb4e00be6e75a9ff114a4",
+    "probe-gates/client-tests.log": "f5c9a98753c12d2815da21cadfbd59d35f66b0659b3af147a3bb6af3aa064b53",
+    "probe-gates/lint.log": "5540135448ef7bea7ca95f7db37c14707d4b87952e3d2064f1f41a403426e750",
+    "probe-gates/ssr-tests.log": "167df6cb732f42033bb04d891c63f9879be0b0fed19eb63a2cff26404b912502",
+    "probe-gates/tasks-check.log": "7740e5cfbb30bedd3bc96290eb731cf9db665f14eb4b4b46fc42def827b2af9d",
+    "probe-gates/types-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "probe-gates/types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "probe-gates/verify-page-only.log": "cfb85152979422aeb094f590d04538f9bddac0b1b049573e10b94a6414428e26",
+    "probe-gates/verify.log": "3fe77b4660601cdf33244fd50555bf271fe4ee9d005ab4dad982cad607e20689",
+    "probe-gates/tasks-check-after-header-repair.log": "d4ad2aaf2885d5ffa628b95f48882559b5ae87745d99f8dc97fc7665b00c316b",
+    "probe-gates/workspace-check-after-parking.log": "1347b6d3db7c8b2a4d9ea9c01c64d1c072a9e01bfe3b6bf8905eec7e15686af2",
+    "probe-gates/tasks-check-after-parking.log": "d4ad2aaf2885d5ffa628b95f48882559b5ae87745d99f8dc97fc7665b00c316b"
+  },
+  "integration_handoff": {
+    "requested_resources": [
+      "actual canonical Solid main writer",
+      "compatible shared staging deploy interval"
+    ],
+    "delivered_to_other_session": false,
+    "reason": "No connected document session or inter-session messaging tool is available.",
+    "required_before_promotion": [
+      "Seed receives exact reviewed patch and exact-source Radicle CI succeeds.",
+      "Refresh task/workspace checks and source readiness.",
+      "Obtain actual compatible main/staging handback; the old hold expiry is not custody."
+    ],
+    "promotion": "Use scripts/publish-main --sha <full-sha> --execute after reviewed integration.",
+    "deployment": "Use bun run deploy:staging:hns-guarded from published main after downstream checks.",
+    "frozen_refs_may_move": false
+  },
+  "phone_acceptance": {
+    "run": false,
+    "provider_lookup_run": false,
+    "needs": [
+      "Link opened inside Telegram and same-tab OAuth return.",
+      "Managed read-only lookup by original practice Telegram sender; identity, subject hash and provider verification time match attempt.",
+      "Separate cancelled attempt."
+    ],
+    "raw_ids_tokens_profiles_in_output": false
+  },
+  "account_connection_implemented": false,
+  "scope": "Temporary staging-only login observation page. Browser return is not server verification, authorization or account recovery.",
+  "source_archive": {
+    "path": "probe-source-95a6991d.tar.gz",
+    "sha256": "50fc8ebb85df0cb1bd1a976ecd2262d863d85c8d3520aaed0d35da15fc8f38c5",
+    "tracked_changed_files": 13,
+    "verified_against_source_file_hashes": true,
+    "git_history_preservation": "Exact head95 remains on local branch and configured rad refs/heads/patches/b9e8d15f9f20f396602649a311d9b8c98c76acc7. This tar archive is review evidence, not a Git-history capture.",
+    "independent_volume_copy": false
+  },
+  "source_custody_return": {
+    "method": "bin/worktree-close --status parked",
+    "exit_code": 0,
+    "checkout_removed": true,
+    "processes_using_checkout": 0,
+    "preserved_branch": "feat/telegram-privy-identity-probe",
+    "advertised_configured_remote_ref": "rad refs/heads/patches/b9e8d15f9f20f396602649a311d9b8c98c76acc7",
+    "head": "95a6991d2e5e5e83618300174b6f1f0300783785",
+    "record_commit": "ad5ec3bba7d72e52fe6ce9f80734d1e44ea6facb",
+    "parent_investigation_active": true,
+    "proof_or_deployment_complete": false
+  },
+  "delivery_watch": {
+    "script": "probe-publication-watch-2026-10-10.py",
+    "expires_at": "2026-10-10T19:00:13.755641+00:00",
+    "read_only": true,
+    "can_resume_codex_chat": false,
+    "last_observation": {
+      "node_running": false,
+      "seed_has_exact_head": false,
+      "observed_at": "2026-10-10T16:11:41.364837+00:00",
+      "started_at": "2026-10-10T16:00:13.755641+00:00",
+      "expires_at": "2026-10-10T19:00:13.755641+00:00",
+      "source_head": "95a6991d2e5e5e83618300174b6f1f0300783785",
+      "read_only": true,
+      "ci_success_verified": false,
+      "can_resume_codex_chat": false,
+      "status": "waiting"
+    }
+  },
+  "provider_lookup_procedure": {
+    "endpoint": "POST https://api.privy.io/v1/users/telegram/telegram_user_id",
+    "documentation": "https://docs.privy.io/api-reference/users/get-by-telegram-user-id",
+    "credentials": "Use only managed staging app ID/secret; keep Basic header and response in memory.",
+    "selector": "Original practice Telegram sender from the trusted staging record, not a user-entered ID or community-bot signature.",
+    "subject_fingerprint": "Lowercase hexadecimal SHA-256 of UTF-8 bytes of privy: followed by the Privy response user.id, exactly matching the reviewed browser calculation.",
+    "identity_condition": "Exactly one Telegram linked identity matching the original numeric practice sender.",
+    "freshness_condition": "Provider latest_verified_at must fall between the displayed original Started and Returned values at provider timestamp precision. If missing, stale or mismatched, fail rather than substituting request time.",
+    "output": "Only identity/subject/freshness match booleans and final acceptance. No raw IDs, username, profile, token, callback code or credential values.",
+    "authorization": "This read-only observation is spike acceptance only; actual account authorization must be built in api-next."
+  },
+  "last_status_at": "2026-10-10T16:12:25.944540+00:00",
+  "canonical_solid_unchanged": true
+}

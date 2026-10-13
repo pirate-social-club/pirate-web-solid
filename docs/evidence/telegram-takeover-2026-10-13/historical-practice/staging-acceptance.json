@@ -1,0 +1,18 @@
+{
+  "source_sha": "b8332919dcc4235058d15c277b2de1a8755bfeda",
+  "http_wrapper_exit": 0,
+  "jobs_wrapper_exit": 0,
+  "hns_serving_acceptance": "Passed, including maintained browser route case",
+  "synthetic_recovery_path": {
+    "picker": "One button, no duplicated title text or website link",
+    "prompt": "Say this back plus one source line; force_reply retained",
+    "resume": "Same session and prompt, one processing attempt",
+    "identity": "Existing fake learner only; no age attestation, qualification or identity credential created",
+    "cancel": "Clears current turn and pending chat actions while retaining Study progress"
+  },
+  "helper_initial_exit": 1,
+  "helper_initial_failure": "Cleanup incorrectly asserted sessionId null after cancel; this contradicts documented preservation for Resume",
+  "helper_correction": "Changed cleanup assertion to preserved session and cleared chat actions; read-only final-state verification passed with exit 0",
+  "real_phone": "Prior ten-card 8/10 run is preserved; new completion buttons and Resume still await real client acceptance",
+  "new_staging_lesson": "One additional practice-only session for the existing fake fixture; no voice grading synthesized"
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source_sha": "b8332919dcc4235058d15c277b2de1a8755bfeda",
+  "config_path": "apps/http-worker/wrangler.jsonc",
+  "environment": "staging",
+  "worker_name": "pirate-http-worker-staging",
+  "observed_at": "2026-10-08T20:11:53.895Z",
+  "baseline_sha256": "4d01d38c537b5444dca39e440e777b871082abbb88c7cf92fc1015882d290eef",
+  "candidate_sha256": "4c7505bde4fca65cc08eec6bebfcf4a3ac20c02f68330d46bf5f40b220b9cedd",
+  "serving_versions": [
+    {
+      "version_id": "0c020126-f989-46fc-922d-aabf884a3148",
+      "percentage": 100
+    }
+  ],
+  "changes": [
+    {
+      "kind": "binding",
+      "version_id": "0c020126-f989-46fc-922d-aabf884a3148",
+      "name": "HNS_OWNER_VERIFIER",
+      "before_sha256": "552c6c81a0e0776e5f4dd9021e17086fb8f985b2c7e1e830d82d415eacfbc9b4",
+      "after_sha256": "0abacfd1bb2cc08ff51e00f0651d6d00a2b2eefc1a4110e418633105077cdc38"
+    }
+  ],
+  "reviewed_by_role": "independent_reviewer",
+  "review_expires_at": "2026-10-08T20:32:07.000Z"
+}

@@ -1,0 +1,32 @@
+{
+  "recorded_at": "2026-10-09T08:35:08.416395+00:00",
+  "task": "telegram-post-lesson-account-connection-spike",
+  "source_head": "69898316dfa220faa63c99456a72cb7851049a5c",
+  "reviewer_role": "independent_reviewer",
+  "review_agent": "/root/pr590_review",
+  "decision": "Research checkpoint accepted; no material findings remain.",
+  "scope": "Research documentation only. No provider selection amendment or runtime release.",
+  "source_baselines": {
+    "api-next": "3c894763c4331bd62d16f9b096c717f84d71660b",
+    "pirate-web-solid": "9c280360f1eba371f46e37d3980620d8f8006ad6",
+    "privy_core_sdk": "0.70.0"
+  },
+  "corrected_findings": [
+    "Explicit migration0246 restriction on ordinary Study for restricted learner accounts. Recovery needs a reviewed transition or an initial session limited to practice history.",
+    "Explicit embedded ethereum and solana createOnLogin off in the planned proof experiment. No wallet calls or dashboard setting change."
+  ],
+  "independent_provider_read": {
+    "time_utc": "2026-10-09T08:24:49.812Z",
+    "telegram_seamless_auth_enabled": true,
+    "telegram_auth": false,
+    "telegram_oauth": false
+  },
+  "remaining": [
+    "No OAuth credentials supplied by workspace_owner.",
+    "No reviewed runtime probe or Pirate callback implemented.",
+    "No real provider approval or independently verified numeric Telegram identity.",
+    "Native OIDC remains the ratified selection. Account recovery and connection remain unimplemented."
+  ],
+  "callback_source": "https://docs.privy.io/basics/get-started/dashboard/configure-login-methods",
+  "provider_callback": "https://auth.privy.io/api/v1/oauth/callback"
+}

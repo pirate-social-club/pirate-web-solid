@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "sealed_at_utc": "2026-10-13T05:13:46.177230+00:00",
+  "owner_role": "telegram_coordinator",
+  "session": "01a13380-3a24-74b3-a6fa-ae35e508411e",
+  "authority_root": "/media/t42/codedrive/Code/pirate-workspace",
+  "control_checkpoint": {
+    "recorded_at_utc": "2026-10-13T05:12:31.912258+00:00",
+    "head_before": "09ea3527913e82ff32678e5fbbd43d0efa46e9fb",
+    "head_after": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+    "committed_paths": [
+      "tasks/records/solid-telegram-privy-identity-probe.md"
+    ],
+    "index_empty_before_and_after": true,
+    "foreign_path": "tasks/records/solid-hns-claim-persona-picker.md",
+    "foreign_sha256_before_and_after": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f",
+    "concurrent_disjoint_commits_inspected": [
+      "3d02f45efd850d11429e8f3fa06f01805a3ea89f",
+      "09ea3527913e82ff32678e5fbbd43d0efa46e9fb"
+    ],
+    "initial_head_guard_refusal_before_mutation": true
+  },
+  "local_source": {
+    "worktree": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-telegram-privy-identity-probe",
+    "branch": "feat/telegram-privy-identity-probe",
+    "head": "c584a347bce8481bbf0ab389ef3259059e11dd68",
+    "tree": "fca5d088c1a83761768e140831faa624e7e87b97",
+    "ordered_parents": [
+      "95a6991d2e5e5e83618300174b6f1f0300783785",
+      "45d07cb25b3267ad16f158aa40eff7d11ad49c5e"
+    ],
+    "clean": true,
+    "merge_tree_matches": true,
+    "probe_delta_diff_check_exit_code": 0,
+    "origin_push_url": "no-push",
+    "published": false,
+    "deployed": false,
+    "source_path_hashes": "source-readiness.json"
+  },
+  "canonical_heads_at_seal": {
+    "pirate-web-solid": "0801168a8344e66fdccdb8fc3298251e6abb69cc",
+    "api-next": "f08c93dbe4602e982c00614c791930ffe2bed4e3"
+  },
+  "completed_checks": {
+    "full_verify": {
+      "command": "bun run verify",
+      "exit_code": 0,
+      "execution_session": 4358,
+      "source": "c584a347bce8481bbf0ab389ef3259059e11dd68",
+      "raw_log": "verify.log",
+      "raw_log_sha256": "872d100aa6698514a27b9d2c49a0ea5862498363ebdc9ed13451dddb0f180c13",
+      "api_tests": 377,
+      "app_tests": 1772,
+      "ssr_tests": 67,
+      "solid_ui_tests": 420,
+      "solid_doctor_errors": 0,
+      "solid_doctor_warnings": 87,
+      "observed_by": "telegram_coordinator from tool completion; raw output preserved without added success markers"
+    },
+    "task_register_scan": {
+      "command": "bin/tasks-check",
+      "exit_code": 0,
+      "execution_session": 70512,
+      "files_valid": 1091,
+      "warnings": 233,
+      "raw_log": "tasks-check.log",
+      "raw_log_sha256": "3e4074a95cc46cbaf66e776f9d60c1cb5c4ee7fb21fea93f52225eb5a116438f",
+      "scope": "point-in-time; precedes final own prose update and later disjoint task changes; not integration admission"
+    }
+  },
+  "record_snapshots": {
+    "tasks/records/telegram-post-lesson-account-connection-spike.md": {
+      "snapshot": "record-snapshots/telegram-post-lesson-account-connection-spike.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "247b76e2ec3292b3494ab9c41917235eaa40416749fe86efd3ad20fb073e1b6c"
+    },
+    "tasks/records/solid-telegram-privy-identity-probe.md": {
+      "snapshot": "record-snapshots/solid-telegram-privy-identity-probe.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "2c5b174ebdc5125e22baf5c0504125adc72cad3e807a0c2efd9d131e36b90c37"
+    },
+    "tasks/records/api-telegram-practice-delivery-hardening.md": {
+      "snapshot": "record-snapshots/api-telegram-practice-delivery-hardening.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "fba25bd38004463db58526152528e3202adfc9bb071648572274fe41ae2ebf16"
+    },
+    "tasks/records/api-telegram-http-practice-regression.md": {
+      "snapshot": "record-snapshots/api-telegram-http-practice-regression.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "711989d60b11488692dd53026dfdcbff2e25371f938ca1751077e0ad4a22f7ae"
+    },
+    "tasks/records/api-telegram-learner-recovery-claim.md": {
+      "snapshot": "record-snapshots/api-telegram-learner-recovery-claim.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "6a347333c24c655b7b5a5d76dc2bc48635ad4d006d991904b92742b4ff3b7071"
+    },
+    "tasks/records/solid-telegram-learner-recovery-claim.md": {
+      "snapshot": "record-snapshots/solid-telegram-learner-recovery-claim.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "48a5795b7c32d0533a93be83089632b02271c7d1ddf679ab4e9b7917dc604d13"
+    },
+    "tasks/records/api-telegram-practice-streak.md": {
+      "snapshot": "record-snapshots/api-telegram-practice-streak.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "9524e2003dd032a0c714d1a9f96e820d8c219231b4c806bf258a18637a398dee"
+    },
+    "tasks/records/api-telegram-interface-localization-ru-ka.md": {
+      "snapshot": "record-snapshots/api-telegram-interface-localization-ru-ka.md",
+      "source_control_commit": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+      "sha256": "c1d42a784c29f21a80cfa647d96dac0997f41d935e96ee267ca6d777445c562a"
+    }
+  },
+  "historical_evidence_bindings": {
+    "research-review.json": {
+      "relative_path": "../research-review.json",
+      "sha256": "7f201890e963ac02b2ceb966df22175da624f051f302c2339a4766409c1d5b7a"
+    },
+    "reviewed-research.md": {
+      "relative_path": "../reviewed-research.md",
+      "sha256": "08c6ab9681eb6caa99889cc2f27f3478ed44151ca0cb48490586bb415d6804b3"
+    },
+    "probe-readiness-2026-10-10.json": {
+      "relative_path": "../probe-readiness-2026-10-10.json",
+      "sha256": "b3bee890d096f3025f44b09e5fc8e27cee98b3538f7b5095ce62fc17547c6225"
+    },
+    "public-provider-config-after-owner-done.json": {
+      "relative_path": "../public-provider-config-after-owner-done.json",
+      "sha256": "e1a200d9352ddcb6ef6600f6534d7111ced9889504529e4571e9563ba3af4089"
+    }
+  },
+  "observation_provenance": {
+    "cloud": "cloud-snapshot.json is a fresh connected GitHub fetch; cloud test assertions are author reports, not locally rerun checks",
+    "original_seed_receipt": "earlier read-only tool observation attested in the committed task record; raw transport output was not separately archived",
+    "ci_lookup": "earlier SSH report lookup timed out; no verified CI verdict",
+    "staging_probe_reads": "earlier HTTP 403 observations attested in the task record; no deployed/provider conclusion",
+    "api_hardening_admission": "exit 1 and refusal strings preserved as a committed task receipt; no separate raw admission log was captured",
+    "probe_admission": "actual raw output in probe-admission.log"
+  },
+  "remaining_gates": "HANDOFF.md",
+  "cloud_ownership_announced_by_this_session": false,
+  "shared_staging_custody_acknowledged": false,
+  "phone_provider_proof": false,
+  "ongoing_verify_or_tasks_check_session": false,
+  "production_or_fund_activation": false,
+  "preservation": "ordinary same-volume archive package; not independent-volume redundancy"
+}

@@ -1,0 +1,84 @@
+{
+  "source_sha": "b8332919dcc4235058d15c277b2de1a8755bfeda",
+  "read_at": "2026-10-08T20:21:53.891213+00:00",
+  "workers": {
+    "http": {
+      "version_id": "4c785542-8e5f-4c09-9303-1a69ae1cc5d8",
+      "traffic_percentage": 100,
+      "deployment_created_at": "2026-10-08T20:16:22.090917Z",
+      "source_provenance_verified": true,
+      "telegram_config_sha256": "ad7b552451fb4cdaa18b2d373bed142f776a86e06ac147390fab44f026a3697d",
+      "secret_binding_names": [
+        "AVATAR_R2_ACCESS_KEY_ID",
+        "AVATAR_R2_SECRET_ACCESS_KEY",
+        "COMMUNITY_PURCHASE_FUNDING_RPC_URL",
+        "ELEVENLABS_API_KEY",
+        "HNS_AUTHORITY_HSD_AUTHORIZATION",
+        "HNS_FORWARDER_V3_HMAC_KEY_REGISTRY",
+        "MEDIA_INGRESS_R2_PRESIGN_ACCESS_KEY_ID",
+        "MEDIA_INGRESS_R2_PRESIGN_SECRET_ACCESS_KEY",
+        "MEGAPOT_V2_RPC_URL",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "PIRATE_APP_JWT_PRIVATE_KEY",
+        "PRIVY_APP_SECRET",
+        "SONG_PLAYBACK_R2_ACCESS_KEY_ID",
+        "SONG_PLAYBACK_R2_SECRET_ACCESS_KEY",
+        "SONG_PLAYBACK_SOURCE_HMAC_BASE64",
+        "SPACES_VERIFIER_ACCESS_CLIENT_ID",
+        "SPACES_VERIFIER_ACCESS_CLIENT_SECRET",
+        "SPACES_VERIFIER_BEARER_TOKEN",
+        "TELEGRAM_SECRETS_JSON",
+        "VERY_WEB_SEALING_KEY",
+        "VIDEO_PLAYBACK_SOURCE_HMAC_BASE64",
+        "VIDEO_STREAM_SIGNING_JWK_BASE64",
+        "ZKPASSPORT_VERIFIER_RESPONSE_SIGNING_SECRET",
+        "ZKPASSPORT_VERIFIER_SHARED_SECRET"
+      ],
+      "hns_verifier": {
+        "name": "HNS_OWNER_VERIFIER",
+        "type": "service",
+        "service": "pirate-hns-owner-verifier-staging",
+        "environment": "production"
+      },
+      "telegram": {
+        "enabled": true,
+        "practice_enabled": true,
+        "linking_enabled": true,
+        "practice_community_id": "community_1e84e573-21eb-4d70-ad7f-e94a92d9885e",
+        "practice_post_ids": [
+          "media-post-media-operation-b1a4b814-7bbb-4ee8-b969-c9e90c15e8a6"
+        ]
+      }
+    },
+    "jobs": {
+      "version_id": "26aa2ad8-b41e-41dc-a307-aa1a402557ae",
+      "traffic_percentage": 100,
+      "deployment_created_at": "2026-10-08T20:14:21.030561Z",
+      "source_provenance_verified": true,
+      "telegram_config_sha256": "595e7f1aa2278f85f48ff679ccd65f0d0bf20150c4fb5a1d20da13ad48065e7b",
+      "secret_binding_names": [
+        "COMMUNITY_PURCHASE_FUNDING_RPC_URL",
+        "ELEVENLABS_API_KEY",
+        "MEGAPOT_COMMITMENT_PUBLIC_ORIGIN",
+        "MEGAPOT_CUSTODY_PRIVATE_KEY",
+        "MEGAPOT_GAS_TOPUP_PRIVATE_KEY",
+        "MEGAPOT_V2_RPC_URL",
+        "SPACES_VERIFIER_ACCESS_CLIENT_ID",
+        "SPACES_VERIFIER_ACCESS_CLIENT_SECRET",
+        "SPACES_VERIFIER_BEARER_TOKEN",
+        "TELEGRAM_SECRETS_JSON",
+        "VIDEO_WORKFLOW_READ_TOKEN"
+      ],
+      "telegram": {
+        "enabled": true,
+        "practice_enabled": true,
+        "linking_enabled": false,
+        "practice_community_id": "community_1e84e573-21eb-4d70-ad7f-e94a92d9885e",
+        "practice_post_ids": [
+          "media-post-media-operation-b1a4b814-7bbb-4ee8-b969-c9e90c15e8a6"
+        ]
+      }
+    }
+  }
+}

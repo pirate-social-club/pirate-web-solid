@@ -1,0 +1,87 @@
+id: solid-telegram-privy-identity-probe
+title: Prove Pirate-controlled Telegram OAuth identity on staging
+status: active
+repository: pirate-web-solid
+area: identity
+parent: telegram-post-lesson-account-connection-spike
+priority: high
+worktree: .worktrees/pirate-web-solid/solid-telegram-privy-identity-probe
+branch: feat/telegram-privy-identity-probe
+owner_role: telegram_coordinator
+coordination: exclusive
+blocked_by: none
+updated: 2026-10-13
+closed_at:
+review_after: 2026-10-17
+
+The workspace_owner instructed the coordinator to continue the Privy-first
+identity spike after configuring the Telegram login callback for
+@staging_oauth_bot. This bounded experimental source lane prepares the missing
+real-phone probe from the independently accepted research at control-plane
+69898316dfa220faa63c99456a72cb7851049a5c. It does not replace the accepted native
+OIDC linking contract or implement recovery, connection or the completion button.
+
+Use installed headless Privy SDK 0.70.0 and the existing public verification
+config. Keep SDK credentials in memory and disable both embedded-wallet creation
+options. Use a same-tab OAuth return with a five-minute sessionStorage entry
+containing only staging app, version, start time, state and PKCE verifier.
+Consume that entry before exchange; refuse wrong origin, route, state, expiry,
+replay and cancellation. Clear callback history/SSR query and SDK memory.
+
+Gate the server render and actual browser action to staging before October 17.
+Keep src/worker.ts, wrangler.jsonc and generated Worker types identical to base.
+Do not introduce a second website token verifier or identity-token dependency.
+The page reports only a browser login return with times and a subject hash.
+After the actual phone attempt, use a managed read-only Privy lookup by the
+original practice sender to independently check numeric identity, subject hash
+and latest verification time. Keep all raw identity data and secrets in memory.
+No result from the page alone grants a principal or changes a Pirate account.
+
+Account recovery, existing-account association and the completion button remain
+separate API/Solid implementation after reviewed contract selection. No ordinary
+registration, session exchange, credential attachment, practice reservation,
+persona, lesson, wallet, rewards or production mutation belongs in this probe.
+
+Run focused same-tab, cancellation, replay, storage and SSR privacy tests, then
+full owning gates and Worker build. Require exact-source independent review,
+sanctioned feature/main publication and guarded staging deployment with actual
+resource handback. Acceptance needs a real login from a link opened inside
+Telegram, a same-tab return, independent provider identity/freshness matching
+and a cancelled attempt. Configuration and local fixtures are not acceptance.
+
+Admission refused, 2026-10-10. The owner completed staging Telegram OAuth configuration and an independent public provider read confirms telegram_oauth=true. Missing OAuth credentials are no longer the prerequisite. Normal bin/worktree-open repeatedly exited nonzero before creating a worktree or activating this record. The target blocker is the foreign solid-hns-names-page-member-journey branch's overdue publication checkpoint, including eleven unpublished commits at 940678a767d93b32a0f0f355c13ca576f3e6aef6. Its verified full-history capture is registered, but current Solid admission still requires publication. Existing capacity has a free slot; raising capacity does not resolve this breach. No product files were written, no probe was deployed and no real Telegram login occurred. Resolve the actual source checkpoint and obtain compatible shared publication/staging custody through the normal coordinator route before retrying admission. The release session's quiet interval through 12:00 UTC October 10 is not an automatic handback. No further general owner approval or credential entry is pending. Evidence remains in .archive/telegram-account-connection-spike-2026-10-09/.
+
+Owner-requested monitoring, 2026-10-10. No monitor existed before the owner's question. A bounded read-only publication watcher is now running from .archive/telegram-account-connection-spike-2026-10-09/publication-watch-2026-10-10.py. It refreshes configured Radicle/GitHub remote refs without pruning every minute and checks the live journey branch against current unpublished-work thresholds. Startup verified desktop notification delivery. The first actual observation at 2026-10-10T12:18:30.205373Z still reports fifteen unpublished commits at 9cf1d6e8dbfa422bf821625be52b9f8870148119. A published sibling label patch does not cover that journey ancestry. The watcher expires at 2026-10-10T15:17:28.435727Z, sends a desktop notification when the checkpoint clears or expires, and writes sanitized status/events in the same archive. It changes no product source, local branch, task admission, provider or deployment. It does not automatically wake or resume this Codex chat. Clearing this checkpoint is only a signal to rerun normal admission; it does not establish shared source or staging custody, including after the former 12:00 interval. Probe source and account connection remain unbuilt.
+
+Admission and implementation, 2026-10-10. The watcher detected the journey checkpoint clear at 12:30:30.222317 UTC, recorded zero unpublished commits and delivered its desktop notification. It completed then; it is no longer running and never automatically resumed this chat. Normal bin/worktree-open subsequently admitted this exclusive Solid lane at main 0801168a8344e66fdccdb8fc3298251e6abb69cc. Source now implements the passive staging probe, memory-only original-window OAuth return, explicit Ethereum/Solana wallet creation off, provider-signed numeric identity validation and hash-only proof output. Focused browser/controller, Worker/API and SSR tests pass. The initial browser effect and fixture typing findings have been corrected. Full gates and exact-source review are pending; no source publication, deployment, real Telegram login or account mapping has occurred.
+
+Deployment readiness remains a separate coordination prerequisite. The naming and release records confirm actual canonical Solid main080 stability through 14:30 UTC or an earlier compatible handback. Release operations were paused at 13:13 UTC, explicitly without granting resources to another lane. This probe requests actual compatible source-publication and guarded-staging custody after its review and gates, not an expiry-based assumption or new owner approval. The canonical source, foreign task/source bytes and frozen production refs remain unchanged.
+
+Owner-directed boundary correction, 2026-10-10. The uncommitted Worker-side handler and verifier were rejected in audit and removed. Their reversible source capture is discarded-worker-probe-2026-10-10 in the existing spike archive. Worker source, Worker tests, wrangler.jsonc and generated types now exactly match base 0801168. The probe and canonical main ingress identity are both solid-hns-ingress-sha256:595321a64fd0a3b4911cc2ecb62920c08332ac9643048e8c8596412896653b17. No guard allow-list or gateway-manifest change was attempted. The new page-only source is committed at Solid 2754b281154234359a5bfc276dc338adfea3f8f1. Its 21 focused tests, type check and lint pass; full verify and exact-source independent review are running. This replaces the earlier server-verifier, popup and identity-token design without selecting a new production linking contract. No source has been published or deployed, no real sign-in or lookup proof exists, and account connection remains unbuilt. The current record also corrects the completed watcher state. Actual shared publication and staging handback remain required; the former main080 time bound is not current custody.
+
+Reviewed page-only successor, 2026-10-10. Exact source 95a6991d2e5e5e83618300174b6f1f0300783785 adds cached browser Back cancellation to reviewed parent 2754b281154234359a5bfc276dc338adfea3f8f1. Independent exact-successor review accepts it with no remaining findings. Full verify passed on the parent, including 371 API, 1643 app, 64 SSR and 420 design-system tests. The final two-file successor passed all 1643 app tests, type check, focused lint, staging build and product graph checks; full verify was not repeated on the successor. All four protected Worker/configuration files still exactly match main080, with the unchanged ingress fingerprint. Readiness and integration instructions are probe-readiness-2026-10-10.json in the existing spike archive.
+
+Radicle push exited 0 and created local patch b9e8d15f9f20f396602649a311d9b8c98c76acc7, with exact head95 reachable from configured rad ref refs/heads/patches/b9e8d15f9f20f396602649a311d9b8c98c76acc7. However, it reported "Synced with 0 seed(s)". The CI seed independently lacked the patch and its broker had received no event. A reconnect and bounded announcement reported "All seeds timed out" despite direct SSH/TCP connectivity and healthy remote services. The disconnected local node was then stopped for recovery. Restart exited1: "A passphrase is required to read your Radicle key in order to start the node." The signing key remains loaded in ssh-agent, but node startup needs a local passphrase unlock. The coordinator should have checked restart credentials before stopping it. No passphrase was read, guessed or stored, and the owner was asked only to start the local node securely, not to send a secret.
+
+A bounded read-only delivery watcher began at 16:00:13.755641 UTC and ends at 19:00:13.755641 UTC. It checks local node state and the seed's exact patch-head ref every minute, writes sanitized status/events and sends a desktop notification on actual receipt or expiry. It performs no unlock, publication, merge, deployment or CI verdict, and cannot resume this chat. The earlier journey-checkpoint watcher remains completed. Actual exact-source Radicle CI, compatible main/staging handback, published-main integration, downstream checks and guarded deployment remain outstanding. No other session received a handoff notice: no connected document session or inter-session messaging capability is available. Main, frozen release refs, staging and account data remain unchanged. Real phone login, cancellation and the managed numeric identity/subject/freshness lookup are unproven; browser return alone cannot authorize an account.
+
+The independent task-register failure was mechanically repaired in separate control-plane commit7e9b07f90e2e2f6063fa2e6412fe50a72cfcb62b: only the production coordinator's missing worktree header now names its actual registered serialized control-plane checkout. Its status, scope and body were preserved. Fresh tasks-check is running. The target workspace audit reported "Target pirate-web-solid: 1 blocking breach(es)" because all5of5 auxiliary slots are occupied, including this finished source checkout. The unrelated dirty persona record and Spaces checkpoint remain untouched. This lane can normally park after its own process/preservation checks, returning only its source checkout while keeping CI, staging and phone acceptance open under the parent investigation.
+
+Actual source-custody return, 2026-10-10. The checkout was clean at95 and no process used it. Normal bin/worktree-close --status parked exited0, verified exact95 under advertised configured rad ref refs/heads/patches/b9e8d15f9f20f396602649a311d9b8c98c76acc7, and removed only this task's checkout. The branch and local signed patch remain preserved; ordinary thirteen-file review evidence is separately verified in probe-source-95a6991d.tar.gz. Seed delivery is still unproven and this return does not make CI green, grant main/staging custody or complete provider acceptance. This parked source lane frees its auxiliary slot; the parent investigation stays active and retains the remaining reviewed publication, deployment and real-login duties. Fresh tasks-check after the mechanical header repair passed1071files with208existing warnings. The record's next review is kept at the probe's fixed October17 end. The delivery watcher remains read-only and running until its original19:00:13.755641 UTC bound; no operation is delegated to it.
+
+
+## Owner-directed local continuation, October 13
+
+The workspace_owner assigns Telegram ownership to telegram_coordinator in session 01a13380-3a24-74b3-a6fa-ae35e508411e while cloud finishes guest learning. Reopen this exact preserved source branch through bin/worktree-open, then reconcile with freshly fetched accepted Solid main 45d07cb25b3267ad16f158aa40eff7d11ad49c5e. Preserve original 95a6991d ancestry and the accepted Naming/Karaoke histories. Restrict source changes to the probe and necessary integration; cloud guest contracts, migrations/client, protected Worker/configuration and foreign source remain outside this lane.
+
+The October 10 transport observation is stale: a fresh rad node status succeeds and reports the configured seed connected. Seed delivery and exact CI have not yet been verified. The existing bounded staging-only probe and expiry remain unchanged. Refresh source review and required local/remote gates before source acceptance, and obtain actual compatible staging custody before guarded deployment. Real phone return, cancellation and managed provider identity/freshness lookup remain the acceptance boundary. This record resumes source preparation; it does not claim deployment or a working account-connection flow. The cloud successor still owns shared website learning/accounting; Spec 027 permits this provider investigation in parallel.
+
+
+Source preparation advanced, October 13. Normal Solid admission succeeded and the preserved probe checkout is active again. Exact seed readback returned original 95a6991d; the old seed-delivery blocker is resolved. The follow-up CI-report lookup timed out over SSH and establishes no CI verdict. Public staging probe/config GETs both returned 403; they establish neither deployed availability nor provider failure.
+
+Mechanical merge c584a347bce8481bbf0ab389ef3259059e11dd68 has ordered parents 95a6991d and accepted main 45d07cb2, and tree fca5d088c1a83761768e140831faa624e7e87b97 exactly matches the conflict-free merge-tree preview. Relative to current accepted main, the candidate retains only the 13 original probe files. All four protected Worker/configuration files match main; the probe implementation remains byte-identical to the reviewed source. Frozen dependency installation, 21 focused app/SSR tests, full TypeScript and focused lint passed; lint reports four existing advisory warnings. An inherited main file has an EOF whitespace warning when compared to the old probe base; the actual probe delta against main passes diff-check. Full maintained verify is running from the exact committed candidate. Evidence is .archive/telegram-account-connection-spike-2026-10-09/takeover-20261013/. No source publication, main movement, deployment or account mutation followed this local merge.
+
+
+Auditable checkpoint, October 13. The full maintained bun run verify on exact c584a347bce8481bbf0ab389ef3259059e11dd68 completed with exit 0: 377 API, 1772 app, 67 SSR and 420 design-system cases passed, together with maintained configuration, ingress, helper/discovery, provenance, icon and local hydration/playback gates. Existing lint/browser advisories and 87 Solid Doctor warnings with zero errors remain in the completed verify.log. This supersedes the preceding running observation. The read-only task-register scan completed with exit 0, 1091 task files valid and 233 review-date warnings; it is point-in-time evidence before this prose-only record update and later disjoint task changes, not integration acceptance.
+
+The workspace_owner requested an auditable handoff before further work. The dated package .archive/telegram-account-connection-spike-2026-10-09/takeover-20261013/HANDOFF.md binds the source, completed logs, cloud PR snapshot, authoritative record snapshots and remaining gates through SHA256SUMS and audit-snapshot.json. The exact merge remains clean, local-only and undeployed. Its staging Worker build/product graph, independent candidate review, exact publication/hosted checks, actual shared staging custody, guarded release and real phone/provider proof remain open. No further source, deployment or provider work was started for this handoff. Account recovery, existing-account association and Connect remain unbuilt; cloud retains shared learning/schema/client custody. No remote ownership announcement or resource handback is claimed.

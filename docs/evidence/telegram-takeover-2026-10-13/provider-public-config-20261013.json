@@ -1,0 +1,10 @@
+{
+  "observed_at_utc": "2026-10-13T05:23:22.482993+00:00",
+  "url": "https://auth.privy.io/api/v1/apps/cmsw5pis300b80cladbxx7bsr",
+  "status": 200,
+  "scope": "public GET only; no login or account/settings mutation",
+  "public_app_id": "cmsw5pis300b80cladbxx7bsr",
+  "telegram_oauth": true,
+  "telegram_auth": false,
+  "telegram_seamless_auth_enabled": true
+}

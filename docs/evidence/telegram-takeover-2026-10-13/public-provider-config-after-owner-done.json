@@ -1,0 +1,10 @@
+{
+  "observed_at": "2026-10-09T08:19:07.342044+00:00",
+  "public_app_id": "cmsw5pis300b80cladbxx7bsr",
+  "scope": "read-only public configuration after workspace_owner replied done",
+  "status": 200,
+  "telegram_auth": false,
+  "telegram_oauth": false,
+  "telegram_seamless_auth_enabled": true,
+  "telegram_config_present": false
+}

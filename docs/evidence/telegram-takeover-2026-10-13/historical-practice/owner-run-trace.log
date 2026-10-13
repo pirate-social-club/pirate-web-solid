@@ -1,0 +1,42 @@
+now: 2026-10-08T19:04:16.233Z window: last 75 min
+18:54:41.861 update completed, attempts 1, accepted->handled 1530 ms
+    +628 ms queued, +1307 ms delivered (attempts 1) [callback buttons] "Choose a song to study:"
+18:54:44.782 update completed, attempts 1, accepted->handled 2442 ms
+    +1917 ms queued, +2239 ms delivered (attempts 1) [reply prompt] "Say this back:\nMusic helps us remember.\n\nThe community bot owner can access and listen to "
+18:57:33.753 update completed, attempts 1, accepted->handled 5138 ms
+    +3891 ms queued, +4261 ms delivered (attempts 1) [] "✅ Correct"
+    +4427 ms queued, +4937 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nPractice a little every day."
+18:57:46.004 update completed, attempts 1, accepted->handled 3873 ms
+    +3011 ms queued, +3332 ms delivered (attempts 1) [] "✅ Correct"
+    +3467 ms queued, +3722 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nRead the words and speak clearly."
+18:58:00.818 update completed, attempts 1, accepted->handled 4924 ms
+    +3473 ms queued, +4214 ms delivered (attempts 1) [] "❌ Incorrect\nYou said: <redacted>"
+    +4351 ms queued, +4729 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nTake your time and try again."
+18:58:13.981 update completed, attempts 1, accepted->handled 3584 ms
+    +2496 ms queued, +2832 ms delivered (attempts 1) [] "❌ Incorrect\nYou said: <redacted>"
+    +2950 ms queued, +3310 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nListen to the rhythm together."
+18:58:25.042 update completed, attempts 1, accepted->handled 4585 ms
+    +3475 ms queued, +3786 ms delivered (attempts 1) [] "✅ Correct"
+    +3999 ms queued, +4380 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nEvery new word tells a story."
+18:58:34.974 update completed, attempts 1, accepted->handled 4128 ms
+    +2980 ms queued, +3359 ms delivered (attempts 1) [] "✅ Correct"
+    +3502 ms queued, +3885 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nKeep learning with your friends."
+18:58:43.414 update completed, attempts 1, accepted->handled 4850 ms
+    +3727 ms queued, +4105 ms delivered (attempts 1) [] "✅ Correct"
+    +4251 ms queued, +4613 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nSmall steps can take us far."
+18:58:51.669 update completed, attempts 1, accepted->handled 5972 ms
+    +4666 ms queued, +5001 ms delivered (attempts 1) [] "✅ Correct"
+    +5131 ms queued, +5443 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nWe can make progress together."
+18:59:01.907 update completed, attempts 1, accepted->handled 4144 ms
+    +3210 ms queued, +3532 ms delivered (attempts 1) [] "✅ Correct"
+    +3650 ms queued, +3986 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nStart with one small step."
+18:59:14.491 update completed, attempts 1, accepted->handled 4372 ms
+    +3301 ms queued, +3724 ms delivered (attempts 1) [] "✅ Correct"
+    +3882 ms queued, +4200 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nRead the words and speak clearly."
+18:59:26.592 update completed, attempts 1, accepted->handled 7293 ms
+    +5501 ms queued, +6459 ms delivered (attempts 1) [] "✅ Correct"
+    +6625 ms queued, +7060 ms delivered (attempts 1) [reply prompt, after predecessor] "Say this back:\nTake your time and try again."
+18:59:41.881 update completed, attempts 1, accepted->handled 4966 ms
+    +3719 ms queued, +4153 ms delivered (attempts 1) [] "✅ Correct"
+    +4355 ms queued, +4775 ms delivered (attempts 1) [after predecessor] "Lesson complete\n✅ 8/10"
+practice sessions of real learners: [{"status":"completed","created_at":"2026-10-08T18:54:45.688Z","cards":10,"attempts":12,"correct":10},{"status":"active","created_at":"2026-10-08T13:03:39.604Z","cards":10,"attempts":1,"correct":1}]

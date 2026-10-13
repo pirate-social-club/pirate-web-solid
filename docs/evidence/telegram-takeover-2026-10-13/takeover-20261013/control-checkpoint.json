@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-10-13T05:12:31.912258+00:00",
+  "head_before": "09ea3527913e82ff32678e5fbbd43d0efa46e9fb",
+  "head_after": "dc00fb3b7b554dc34671f1dd1dcee9dc0991c57c",
+  "committed_paths": [
+    "tasks/records/solid-telegram-privy-identity-probe.md"
+  ],
+  "index_empty_before_and_after": true,
+  "foreign_path": "tasks/records/solid-hns-claim-persona-picker.md",
+  "foreign_sha256_before_and_after": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f",
+  "concurrent_disjoint_commits_inspected": [
+    "3d02f45efd850d11429e8f3fa06f01805a3ea89f",
+    "09ea3527913e82ff32678e5fbbd43d0efa46e9fb"
+  ],
+  "initial_head_guard_refusal_before_mutation": true
+}
