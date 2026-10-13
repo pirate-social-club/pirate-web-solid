@@ -3,6 +3,12 @@ import type { PirateApiClient } from "@pirate/api-client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createGuestStudyRewardPreviewReader, createOwnerStudyFinancialApi } from "./guest-study-financial-api";
 import { prepared } from "./guest-study-test-fixtures";
+function actualHeaders(value: unknown): Headers {
+  if (value === undefined) return new Headers();
+  if (!(value instanceof Headers)) throw new TypeError("Expected actual request Headers");
+  return value;
+}
+
 const origin = "https://app.pirate.test";
 beforeEach(() => vi.stubGlobal("location", { origin }));
 afterEach(() => vi.unstubAllGlobals());
@@ -50,7 +56,7 @@ test("Account original lookups retain exact original IDs and contain no Guest he
   expect(c.get_usersMeRewardsOwnerCreditsV1CreditId.mock.calls[0]?.[0]).toEqual({ path: { creditId: "original-credit" } });
   for (const opts of [c.get_rewardsParticipationsParticipationIdOwnerV1.mock.calls[0]?.[1], c.get_usersMeRewardsOwnerCreditsV1CreditId.mock.calls[0]?.[1]]) {
     expect(opts?.credentials).toBe("same-origin");
-    const h = new Headers(opts?.headers); expect(h.has("x-guest-credential-id")).toBe(false); expect(h.has("x-guest-csrf-token")).toBe(false);
+    const h = actualHeaders(opts?.headers); expect(h.has("x-guest-credential-id")).toBe(false); expect(h.has("x-guest-csrf-token")).toBe(false);
   }
   vi.stubGlobal("location", { origin: "https://name.pirate.test" });
   expect(() => api.getCredit({ path: { creditId: "original-credit" } })).toThrow("Initiating origin changed");

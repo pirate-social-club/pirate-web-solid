@@ -1,6 +1,12 @@
 import type { PirateApiClient } from "@pirate/api-client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createGuestStudyAccountingApi } from "./guest-study-accounting-api";
+function actualHeaders(value: unknown): Headers {
+  if (value === undefined) return new Headers();
+  if (!(value instanceof Headers)) throw new TypeError("Expected actual request Headers");
+  return value;
+}
+
 const origin = "https://app.pirate.test", intentId = `gai_${"C".repeat(21)}A`;
 beforeEach(() => vi.stubGlobal("location", { origin }));
 afterEach(() => vi.unstubAllGlobals());
@@ -14,17 +20,17 @@ test("attachment uses ordinary session CSRF plus separate Guest CSRF; claim neve
   };
   const api = createGuestStudyAccountingApi({ origin, client, readAccountCsrf: () => "ordinary", readGuestCsrf: () => "A".repeat(43) });
   await api.prepareAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } });
-  expect(new Headers(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-csrf-token")).toBe("ordinary");
-  expect(new Headers(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-guest-csrf-token")).toBe("A".repeat(43));
+  expect(actualHeaders(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-csrf-token")).toBe("ordinary");
+  expect(actualHeaders(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[1]?.headers).get("x-guest-csrf-token")).toBe("A".repeat(43));
   expect(client.post_guestAttachmentIntentsIdPrepare.mock.calls[0]?.[0]).toEqual({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } });
   const noGuestCsrf = createGuestStudyAccountingApi({ origin, client, readAccountCsrf: () => "ordinary", readGuestCsrf: () => undefined });
   expect(() => noGuestCsrf.prepareAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } })).toThrow("Guest ceremony CSRF required");
   expect(client.post_guestAttachmentIntentsIdPrepare).toHaveBeenCalledOnce();
   await api.confirmAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" }, body: { expected_account_id: "account", target_revision: 1 } });
-  const headers = new Headers(client.post_guestAttachmentIntentsIdConfirm.mock.calls[0]?.[1]?.headers);
+  const headers = actualHeaders(client.post_guestAttachmentIntentsIdConfirm.mock.calls[0]?.[1]?.headers);
   expect(headers.get("x-csrf-token")).toBe("ordinary"); expect(headers.get("x-guest-csrf-token")).toBe("A".repeat(43));
   await api.claimCredit({ path: { creditId: "credit" }, body: { idempotency_key: "original", selection_revision: 1 } });
-  const claim = new Headers(client.post_rewardsCreditsCreditIdOwnerClaimsV1.mock.calls[0]?.[1]?.headers);
+  const claim = actualHeaders(client.post_rewardsCreditsCreditIdOwnerClaimsV1.mock.calls[0]?.[1]?.headers);
   expect(claim.get("x-csrf-token")).toBe("ordinary"); expect(claim.has("x-guest-csrf-token")).toBe(false); expect(claim.has("x-guest-credential-id")).toBe(false);
   vi.stubGlobal("location", { origin: "https://name.pirate.test" });
   expect(() => api.prepareAttachment({ path: { id: intentId }, headers: { "x-guest-credential-id": "credential" } })).toThrow();

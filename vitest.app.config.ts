@@ -182,6 +182,7 @@ export default defineConfig({
       "src/features/studying/guest-study-route-view.test.tsx",
       "src/features/studying/guest-study-public-reader.test.ts",
       "src/features/studying/guest-study-accounting-api.test.ts",
+      "src/features/studying/guest-study-financial-api.test.ts",
       "src/features/studying/guest-study-attachment-coordinator.test.ts",
       "src/features/studying/guest-study-reward-model.test.ts",
 

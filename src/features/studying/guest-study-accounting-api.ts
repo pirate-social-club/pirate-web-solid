@@ -33,8 +33,10 @@ export function createGuestStudyAccountingApi(options: Options): GuestStudyAccou
   const mixedWrite = (signal?: AbortSignal) => {
     const account = accountWrite(signal), csrf = (options.readGuestCsrf ?? readGuestCsrfCookie)();
     if (csrf === undefined) throw new Error("Guest ceremony CSRF required");
+    if (!(account.headers instanceof Headers)) throw new Error("Ordinary CSRF headers unavailable");
+    guestRequestOptions(csrf);
     const headers = new Headers(account.headers);
-    headers.set("x-guest-csrf-token", new Headers(guestRequestOptions(csrf).headers).get("x-guest-csrf-token") ?? "");
+    headers.set("x-guest-csrf-token", csrf);
     return { ...account, headers };
   };
   const bounded = (body: unknown) => { if (new TextEncoder().encode(JSON.stringify(body)).byteLength > 4_096) throw new Error("Request too large"); };
