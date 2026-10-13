@@ -215,6 +215,24 @@ This section gives the facts the coordinator needs to reconcile the authoritativ
 | Study, Karaoke and the Megapot summary stay on song posts | Removing them would leave no way into an activity while the reward pill is absent. |
 | Video cards never appear live | Both api-next feed queries return only text and songs. Slice 1c widens them, and must not ship to an environment until this build is serving and verified there. |
 
+## PR #60 review record
+
+- **Blocker found:** signed-out phone viewers lost Mute. More was hidden while the header's Sign in held the top right, so a tap could unmute a video with no way to mute it again.
+- **Fix:** `9be9252` moves More below the header instead of hiding it.
+- **Reviewer blocker clearance (relayed by the workspace owner, PR comment 6144729535):**
+  - the reviewer reviewed `9be9252` and reports the regression fixed;
+  - all 58 relevant tests passed;
+  - the identified blocker is cleared, subject to CI passing.
+
+  This is a reviewer's blocker clearance, **not product-owner approval**.
+- **Owner choices stay unresolved:**
+  - Unfollow for members;
+  - the Profile button for non-members;
+  - "View replies".
+
+  Each keeps the status "Owner decision pending" in the table above. The reviewer recommended keeping the current behaviour for all three, and for chronological comments and the "Unmute" label. Those recommendations do not resolve the owner decisions, and this PR does not implement anything beyond the current behaviour on their account.
+- **Remaining design work** belongs in a follow-up PR after this one merges.
+
 ## Verification
 
 Run on Node 24.21.0 for each slice:
