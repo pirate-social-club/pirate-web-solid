@@ -236,3 +236,8 @@ At 1b, `song-feed-playback-check` timed out once on its spawned Storybook's firs
 - phone and desktop captures with Paper comparisons.
 
 **Not verifiable here:** real Stream video playback, staging data, and devices.
+
+**Slice 2 evidence for `3d6ffc7`** is in `evidence/slice-2/`:
+- the app Storybook production build;
+- the full-catalog sweep against that build: 780 stories, 0 axe violations, and 202 of 202 touched stories passing. Only the same 9 `VideoPost/Authoring` H.264 failures remain;
+- 20 phone and desktop Paper comparison captures, covering community 178–186, feed 169–177 and post 210–213.
