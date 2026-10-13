@@ -176,6 +176,7 @@ export default defineConfig({
       "src/features/studying/study-v2-api.test.ts",
       "src/features/studying/guest-study-api.test.ts",
       "src/features/studying/guest-study-runtime-client.test.ts",
+      "src/features/studying/guest-study-answer-journal.test.ts",
       "src/features/studying/guest-study-route-view.test.tsx",
       "src/features/studying/guest-study-public-reader.test.ts",
 
