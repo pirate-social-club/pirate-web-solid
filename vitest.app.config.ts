@@ -175,6 +175,7 @@ export default defineConfig({
       "src/features/wallet/wallet-receive-sheet-view-model.test.ts",
       "src/features/studying/study-v2-api.test.ts",
       "src/features/studying/guest-study-api.test.ts",
+      "src/features/studying/guest-study-start-coordinator.test.ts",
       "src/features/studying/guest-study-data-controller.test.ts",
       "src/features/studying/guest-study-data-controls.test.tsx",
       "src/features/studying/study-v2-route-view.test.tsx",
