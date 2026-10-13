@@ -1,0 +1,154 @@
+{
+  "schema": "telegram-corrected-probe-and-contract-review/v1",
+  "solid": {
+    "head": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+    "base": "5dae654a688c81851961bfaa84bb17648a9460ed",
+    "delta_from": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+    "review": "Independent re-review at e9df87008285b25fc72d00c1e8f6d000193e013e, against the previously reviewed e86f34d118b56d7e0d9405c5bdea7ba41ee989eb: the route-alias blocker is cleared. No new blocking source finding was identified.\n\nI inspected all five corrected paths. The shared classifier mirrors the installed router's normalization, including static-segment case, end slashes and percent decoding. Server entry refuses every recognized noncanonical Telegram route before routing/rendering, scrubs its request event, and returns the private empty 404. Canonical probe routes retain the staging-origin, canonical-origin, expiry, hydration and asset-origin gates. Middleware now recognizes the same aliases through the shared classifier, including error responses. The existing Telegram linking routes receive the same protection.\n\nI independently reran the original eight-URL control-flow reproduction with the exact fetched modules and their real dependency resolved in memory: all eight are recognized, production is refused, private classification applies and fixture callback values are removed. I also checked fifty spellings across the five Telegram routes against the installed router matcher and its comparablePath/decodeURI pipeline; classification and alias refusal agree. This reproducer is not a full SSR renderer or deployed Worker test. The added actual entry-server/middleware tests cover eleven aliases across six render contexts, canonical hydration/asset refusal and private render failures. The required native suites were run by hosted verify; I did not rerun the full native suites in this reviewer session.\n\nAll three applicable hosted checks are successful on this exact head: verify, Solid Doctor (PR) and storybook-audit. Solid Doctor (main) is skipped. Run: https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38411407368 .\n\nThe cloud coordinator may now integrate this exact head with a normal merge through the authorized protected PR path, after fresh head/check/custody verification. This clears source acceptance; provider and staged serving acceptance are still open.\n\nThe probe module can precede the API migration: it reads the Solid Worker's same-origin public verification config and talks to Privy, without calling the api-next recovery, association, registration, guest or practice endpoints. For the proposed Solid-only Part A release, the operator must still establish the actual composed main and serving predecessor, preserved ingress/config references, current HNS guard and browser readiness, managed config/app binding, exact built artifact/version/readbacks and bounded recovery. Use the maintained guarded staging deploy from published main. Module independence does not waive whole-release compatibility or custody checks.\n\nThe phone return, cancellation and managed numeric-ID/subject/freshness lookup must complete before 2026-10-17T00:00:00Z. Browser observation alone remains insufficient account proof. PR604's provider and owner decisions remain pending and this review does not accept them.",
+    "publication": {
+      "id": 5505145858,
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/64#pullrequestreview-5505145858",
+      "body_read_back_exactly": true
+    },
+    "checks": [
+      {
+        "name": "Solid Doctor (main)",
+        "head_sha": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+        "status": "completed",
+        "conclusion": "skipped",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38411406846/job/115344406632"
+      },
+      {
+        "name": "storybook-audit",
+        "head_sha": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38411407368/job/115344406185"
+      },
+      {
+        "name": "verify",
+        "head_sha": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38411407368/job/115344405416"
+      },
+      {
+        "name": "Solid Doctor (PR)",
+        "head_sha": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+        "status": "completed",
+        "conclusion": "success",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38411406846/job/115344403973"
+      }
+    ],
+    "reproducer_source": "import { createMatcher, comparablePath } from './node_modules/@solidjs/router/dist/utils.js';\nimport ts from 'typescript';\nimport { readFileSync } from 'node:fs';\nconst input={\"head\":\"e9df87008285b25fc72d00c1e8f6d000193e013e\",\"config\":{\"content\":\"import { routerPathKey } from \\\"../telegram-linking/telegram-linking-privacy.ts\\\";\\nexport const TELEGRAM_PROBE_PATH = \\\"/internal/telegram-login-probe\\\";\\nexport const TELEGRAM_PROBE_CALLBACK_PATH = `${TELEGRAM_PROBE_PATH}/callback`;\\nexport const TELEGRAM_PROBE_ORIGIN = \\\"https://web-next-staging.pirate.sc\\\";\\nexport const TELEGRAM_PROBE_APP_ID = \\\"cmsw5pis300b80cladbxx7bsr\\\";\\nexport const TELEGRAM_PROBE_EXPIRES_AT = Date.parse(\\\"2026-10-17T00:00:00Z\\\");\\n\\n/** Every spelling the router routes to the probe, not only the canonical one. */\\nexport function isTelegramProbePage(pathname: string): boolean {\\n  const key = routerPathKey(pathname);\\n  return key === TELEGRAM_PROBE_PATH || key === TELEGRAM_PROBE_CALLBACK_PATH;\\n}\\n\\nexport function telegramProbeEnabled(origin: string, canonicalOrigin: string | undefined, now = Date.now()): boolean {\\n  return origin === TELEGRAM_PROBE_ORIGIN && canonicalOrigin === TELEGRAM_PROBE_ORIGIN &&\\n    Number.isFinite(now) && now < TELEGRAM_PROBE_EXPIRES_AT;\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"cf5fe1593eaf744cbb2ce9344cd0a30050d4df04\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/e9df87008285b25fc72d00c1e8f6d000193e013e/src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts\",\"display_title\":\"telegram-identity-probe-config.ts\"},\"privacy\":{\"content\":\"const TELEGRAM_PRIVATE_PATHS: readonly string[] = [\\n  \\\"/telegram/link\\\", \\\"/telegram/link/callback\\\", \\\"/telegram/link/account\\\",\\n  \\\"/internal/telegram-login-probe\\\", \\\"/internal/telegram-login-probe/callback\\\",\\n];\\n\\n/**\\n * The spelling @solidjs/router matches a pathname by: leading and repeated trailing slashes\\n * trimmed, one trailing slash dropped, percent-decoded with decodeURI and case-folded. Every\\n * privacy decision uses this key, so no spelling the router routes can bypass it.\\n */\\nexport function routerPathKey(pathname: string): string {\\n  const trimmed = pathname.replace(/^\\\\/+|(\\\\/)\\\\/+$/g, \\\"$1\\\");\\n  const comparable = (trimmed ? `/${trimmed}` : \\\"\\\").toLowerCase().replace(/\\\\/$/, \\\"\\\");\\n  try { return decodeURI(comparable).toLowerCase(); } catch { return comparable; }\\n}\\n\\nexport function isTelegramLinkPage(pathname: string): boolean {\\n  return TELEGRAM_PRIVATE_PATHS.includes(routerPathKey(pathname));\\n}\\n\\n/** Another spelling of a private Telegram route. It is refused before routing or rendering. */\\nexport function isTelegramPageAlias(pathname: string): boolean {\\n  return isTelegramLinkPage(pathname) && !TELEGRAM_PRIVATE_PATHS.includes(pathname);\\n}\\n\\n/** SSR must not serialize callbacks into router state, metadata or HTML. */\\nexport function telegramPageRequest(request: Request): Request {\\n  const url = new URL(request.url);\\n  url.search = \\\"\\\";\\n  url.hash = \\\"\\\";\\n  return new Request(url.href, request);\\n}\\n\\nexport function telegramPageResponse(response: Response): Response {\\n  const headers = new Headers(response.headers);\\n  headers.set(\\\"cache-control\\\", \\\"private, no-store\\\");\\n  headers.set(\\\"referrer-policy\\\", \\\"no-referrer\\\");\\n  headers.set(\\\"x-robots-tag\\\", \\\"noindex, nofollow\\\");\\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"8079b82967406f4efd889760d718b279a68ca1af\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/e9df87008285b25fc72d00c1e8f6d000193e013e/src/features/identity/telegram-linking/telegram-linking-privacy.ts\",\"display_title\":\"telegram-linking-privacy.ts\"}};\nconst transpile = s=>ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;\nconst uri=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');\nconst privacyURI=uri(transpile(input.privacy.content));\nconst configSource=transpile(input.config.content).replace('\"../telegram-linking/telegram-linking-privacy.ts\"',JSON.stringify(privacyURI));\nconst privacy=await import(privacyURI), config=await import(uri(configSource));\nconst routerVersion=JSON.parse(readFileSync('./node_modules/@solidjs/router/package.json','utf8')).version;\nconst paths=[config.TELEGRAM_PROBE_PATH,config.TELEGRAM_PROBE_CALLBACK_PATH];\nconst eight=paths.flatMap(route=>[route,route+'/',route.toUpperCase(),route.toUpperCase()+'/'].map(pathname=>{\n const request=new Request('https://pirate.sc'+pathname+'?privy_oauth_code=fixture-code&privy_oauth_state=fixture-state');\n const recognized=config.isTelegramProbePage(pathname);\n const privatePage=privacy.isTelegramLinkPage(pathname);\n const effectiveRequest=privatePage?privacy.telegramPageRequest(request):request;\n const enabled=config.telegramProbeEnabled(new URL(request.url).origin,'https://pirate.sc',Date.parse('2026-10-13T00:00:00Z'));\n return {pathname,routerMatches:!!createMatcher(route)(decodeURI(comparablePath(pathname))),probeGateRecognizesPath:recognized,productionGateReturns404:recognized&&!enabled,privacyRecognizesPath:privatePage,ssrRequestStillHasFixtureCredentials:effectiveRequest.url.includes('fixture-code')};\n}));\nif(eight.some(r=>!r.routerMatches||!r.probeGateRecognizesPath||!r.productionGateReturns404||!r.privacyRecognizesPath||r.ssrRequestStillHasFixtureCredentials)) throw Error('Original alias reproduction still fails');\nconst routes=['/telegram/link','/telegram/link/callback','/telegram/link/account',...paths];\nconst spellings=p=>[p,p+'/',p.toUpperCase(),p.toUpperCase()+'/',p+'//','//'+p.slice(1)+'//',p.replace('-', '%2D'),p.replace('i','%69'),p.replace('t','%54'),p.replace('/','/%2F')];\nconst parity=routes.flatMap(route=>spellings(route).map(pathname=>{\n const routed=routes.some(p=>createMatcher(p)(decodeURI(comparablePath(pathname)))!==null);\n const privatePage=privacy.isTelegramLinkPage(pathname);\n const alias=privacy.isTelegramPageAlias(pathname);\n if(privatePage!==routed||alias!==(routed&&!routes.includes(pathname))) throw Error('Parity mismatch '+pathname);\n return {pathname,routed,privatePage,alias};\n}));\nconsole.log(JSON.stringify({head:input.head,configBlob:input.config.sha,privacyBlob:input.privacy.sha,routerVersion,originalEight:eight,extendedSpellings:parity.length,result:'passed',limits:'Exact fetched source modules and installed router evaluated in memory; no full SSR renderer or deployed Worker.'},null,2));",
+    "reproducer_result": {
+      "head": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+      "configBlob": "cf5fe1593eaf744cbb2ce9344cd0a30050d4df04",
+      "privacyBlob": "8079b82967406f4efd889760d718b279a68ca1af",
+      "routerVersion": "2.0.0-next.16",
+      "originalEight": [
+        {
+          "pathname": "/internal/telegram-login-probe",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/internal/telegram-login-probe/",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/internal/telegram-login-probe/callback",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/internal/telegram-login-probe/callback/",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/CALLBACK",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        },
+        {
+          "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/CALLBACK/",
+          "routerMatches": true,
+          "probeGateRecognizesPath": true,
+          "productionGateReturns404": true,
+          "privacyRecognizesPath": true,
+          "ssrRequestStillHasFixtureCredentials": false
+        }
+      ],
+      "extendedSpellings": 50,
+      "result": "passed",
+      "limits": "Exact fetched source modules and installed router evaluated in memory; no full SSR renderer or deployed Worker."
+    },
+    "merge": {
+      "head": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+      "base": "5dae654a688c81851961bfaa84bb17648a9460ed",
+      "state": "closed",
+      "draft": false,
+      "merged": true,
+      "merged_at": "2026-10-13T14:30:57Z",
+      "merge_commit_sha": "b835c734d019b5523ccbd53aa74251f51c27beb5"
+    }
+  },
+  "contract": {
+    "head": "af4ac7d24985559ea2de611226f4860fdccfa67e",
+    "base": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+    "file": "docs/telegram-recovery-connect-successor.md",
+    "blob": "4ab369e658ef00d6cd983d01fa9c644233fc6d3b",
+    "review": "Independent draft review at af4ac7d24985559ea2de611226f4860fdccfa67e, document blob 4ab369e658ef00d6cd983d01fa9c644233fc6d3b.\n\nThe current revision preserves the accepted invariants: the same original promotable account and history, bot-local isolation, permanent historical practice-only attribution, one Telegram-ID association, independent numeric identity proof, and refusal instead of a merge or reassignment. It now makes protected explicit confirmation separate from verification in both flows, narrows the proposed limited session, and uses \"Open my progress\". These are useful corrections. The document correctly remains unaccepted and admits no implementation; provider choice and R1/R2/C1/E1 remain owner decision pending.\n\nTwo points still need clarification before this becomes an accepted implementation contract. Connect step4 currently combines linking a credential to a Privy user with writing the Pirate relation \"atomically\" under one lock. A PostgreSQL transaction cannot roll back a completed external provider link. The provider-specific successor must define the consented external mutation boundary, durable pending/uncertain states, same-target reconciliation and conflict refusal without moving a credential or silently authenticating another provider user. Distinguish provider login's permitted external identity creation from the no-Pirate-mutation guarantee after cancellation. Do not promise cross-system atomicity.\n\nFor the limited session, specify a distinct declarative principal/capability that cannot satisfy ordinary user authority, rather than an ad hoc route allowlist. The current operation list is a good semantic boundary, but the generated auth policy and default refusal must enforce it. C1 should say the relation grants exactly the reviewed read-only projection instead of both granting a projection and saying it grants no new authority. Also make clear whether linking Telegram adds a future full-account login method or only the history relation: those are different effects needing explicit consent. A provider subject already mapped elsewhere must require independent sign-in and confirmation of the target; routing to Connect is not account proof.\n\nThe workspace_owner's reply asked what the specs and research recommend; it did not approve the four decisions. My recommendation is limited practice access first, the existing practice-only restriction, a private read-only relation with new bot lessons continuing the original practice profile, and one \"Open my progress\" action. The research offers limited or full recovery; limited first is a reviewer recommendation, not an already ratified requirement. Keep owner decision pending until an explicit choice is recorded.\n\nSolid64 source is cleared at e9df8700, all three applicable checks pass, and its normal merge is verified as b835c734d019b5523ccbd53aa74251f51c27beb5. The probe module can precede the API migration, subject to whole-release guarded staging checks and actual serving/config/resource custody. Real phone and managed provider evidence remain open. This draft review does not select Privy, activate a completion button, authorize implementation or replace reviewed control-plane integration.",
+    "publication": {
+      "id": 5505231370,
+      "html_url": "https://github.com/pirate-social-club/api-next/pull/604#pullrequestreview-5505231370",
+      "commit_id": "af4ac7d24985559ea2de611226f4860fdccfa67e",
+      "submitted_at": "2026-10-13T14:36:45Z",
+      "body_read_back_exactly": true
+    },
+    "owner_decisions": "pending; latest user reply asks for recommendations, not approval",
+    "provider": "pending real phone and managed provider evidence"
+  },
+  "coordinator_checkpoint": {
+    "id": 6148031799,
+    "html_url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6148031799",
+    "commit_id": null,
+    "submitted_at": "2026-10-13T14:36:46Z",
+    "body_read_back_exactly": true,
+    "body": "Solid64 independent re-review is complete at e9df87008285b25fc72d00c1e8f6d000193e013e: the route-alias blocker is cleared with no new blocking source finding. Review https://github.com/pirate-social-club/pirate-web-solid/pull/64#pullrequestreview-5505145858 was read back exactly. The original eight-URL reproduction and fifty spellings across the five private Telegram routes pass against the exact fetched modules and installed router pipeline. verify, Solid Doctor (PR) and storybook-audit pass on that head; the main-only doctor is skipped. The normal merge is verified as b835c734d019b5523ccbd53aa74251f51c27beb5.\n\nThe proposed Solid-only Part A is supported by the probe's actual dependency path: its public verification config comes from the Solid Worker, and its provider calls do not require new API recovery or practice endpoints. It may proceed through the reviewed guarded staging packet once whole-release compatibility, actual serving predecessor, exact source/artifact and config/app binding, fresh HNS/browser readiness, exclusive custody and bounded recovery are established. This is not a deployment receipt. API Part B retains actual staging ledger0246, migrations0247–0264, effective four-role and jobs permissions, matched HTTP/jobs readbacks and composed practice/Resume acceptance.\n\nPR604 at af4ac7d24985559ea2de611226f4860fdccfa67e received an independent draft review. The revision adds explicit protected confirmation and a bounded limited-session proposal. Before acceptance, clarify provider-side uncertain-link handling without cross-system atomicity, the distinct declarative limited-session capability, and the exact authority granted by Connect. The workspace_owner asked for recommendations rather than approving R1/R2/C1/E1. They remain owner decision pending. My recommendation is limited recovery first, practice-only status, a private read-only history relation with the original bot profile, and one \"Open my progress\" action. Provider selection remains pending real phone and managed evidence, then exact reviewed contract integration."
+  },
+  "limits": "Native product suites, full local SSR rendering, managed operations, deployment and phone acceptance were not performed by this reviewer. The independent reproduction evaluated exact fetched modules and the installed router pipeline in memory. Hosted checks and the actual protected merge were verified separately."
+}
