@@ -94,6 +94,9 @@ const clients = [
       "post_communitiesCommunityIdHnsTxtAttachmentsAttachmentIntentIdCheck",
       "get_usersMeCommunityMemberships",
       "post_communitiesCommunityIdActivityPersonasPrepare",
+      "get_communitiesCommunityIdSpacesOwnershipRoots",
+      "get_communitiesCommunityIdSpacesOwnership",
+      "post_communitiesCommunityIdSpacesOwnershipResume",
     ],
   },
 ];
