@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createGeneratedApiClient, createSessionApiClient } from "./client.ts";
+import { createGuestBrowserClient, guestRequestOptions } from "./guest-browser-client.ts";
 import { browserIdentitySession } from "./browser-identity-session.ts";
 import { SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
 import type { ApiFetch } from "./proxy.ts";
@@ -40,6 +41,37 @@ function transport(fetchImpl: ApiFetch) {
 }
 
 describe("session refusal at the real client/store boundary", () => {
+  test.each(["read", "write"])("guest %s401 preserves the established account without exchange or sign-in", async method => {
+    await establishSession();
+    const renew = vi.fn(async () => true);
+    browserIdentitySession.retain({ renew, clear() {} });
+    const rejected = observeRejection();
+    const refreshed = vi.fn(), cleared = vi.fn(), signIn = vi.fn();
+    cleanups.push(onSessionRefreshed(refreshed), onSessionCleared(cleared));
+    window.addEventListener("pirate:connect", signIn);
+    cleanups.push(() => window.removeEventListener("pirate:connect", signIn));
+    const fetchImpl = vi.fn(async () => Response.json({ error: {
+      code: "auth_error", message: "Guest proof revoked", retryable: false,
+      details: { reason_code: "guest_proof_revoked" },
+    } }, { status: 401 }));
+    const client = createGuestBrowserClient({ origin: "https://pirate.sc", fetchImpl });
+    const headers = { "x-guest-credential-id": "A".repeat(22) };
+    const pending = method === "read"
+      ? client.get_guestAuthority({ headers })
+      : client.post_guestAuthorityRenew({ body: { expected_owner_id: "owner-current" }, headers },
+        guestRequestOptions("A".repeat(43)));
+    await expect(pending).rejects.toMatchObject({
+      status: 401, code: "auth_error", details: { reason_code: "guest_proof_revoked" },
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(renew).not.toHaveBeenCalled();
+    expect(rejected).not.toHaveBeenCalled();
+    expect(refreshed).not.toHaveBeenCalled();
+    expect(cleared).not.toHaveBeenCalled();
+    expect(signIn).not.toHaveBeenCalled();
+    await expect(resolveAccountSession()).resolves.toMatchObject({ userId: "account-current" });
+  });
+
   test.each([200, 401])("a non-aborted read renews once and handles the retry's %s response", async status => {
     await establishSession();
     const renew = vi.fn(async () => true);
