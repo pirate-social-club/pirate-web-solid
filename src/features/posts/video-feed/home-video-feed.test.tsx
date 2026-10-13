@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
-import type { FeedPageLoader } from "../feed/public-feed.tsx";
+import type { FeedPageLoader } from "../feed/public-feed-adapter.ts";
 import { HomeVideoFeed } from "./home-video-feed.tsx";
 import { makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
