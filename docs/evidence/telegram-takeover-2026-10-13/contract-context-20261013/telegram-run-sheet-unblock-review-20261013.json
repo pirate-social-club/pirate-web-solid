@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-13T18:13:50Z",
+  "purpose": "Resolve the document-publication dependency, complete the final selected-decision source review and prepare bounded local operator handover",
+  "automatic_permission_review": {
+    "status": "Reported by cloud",
+    "rejected_action": "Local script building the updated staging run-sheet document",
+    "exact_rejection_text_supplied": false,
+    "stated_likely_reason": "Grant commands within the document; this reason was not independently verified",
+    "alternative": "Visible plain Markdown publication through the sanctioned GitHub documentation tool",
+    "permission_settings_changed": false,
+    "rejected_script_executed_here": false,
+    "guard_disabled_or_obscured": false
+  },
+  "contract604": {
+    "head": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+    "base": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+    "changed_paths": [
+      "docs/telegram-recovery-connect-successor.md"
+    ],
+    "checks": [
+      {
+        "name": "postgres17",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115453972629",
+        "completed_at": "2026-10-13T17:58:34Z"
+      },
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447804336",
+        "completed_at": "2026-10-13T17:55:30Z"
+      },
+      {
+        "name": "postgres18-shape",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803441",
+        "completed_at": "2026-10-13T17:46:48Z"
+      },
+      {
+        "name": "postgres17-general-2",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803396",
+        "completed_at": "2026-10-13T17:55:25Z"
+      },
+      {
+        "name": "postgres17-general-3",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803368",
+        "completed_at": "2026-10-13T17:54:27Z"
+      },
+      {
+        "name": "postgres17-general-4",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803360",
+        "completed_at": "2026-10-13T17:56:12Z"
+      },
+      {
+        "name": "hns-regtest",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803194",
+        "completed_at": "2026-10-13T17:47:48Z"
+      },
+      {
+        "name": "postgres17-general-1",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803180",
+        "completed_at": "2026-10-13T17:56:37Z"
+      },
+      {
+        "name": "postgres17-general-0",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803118",
+        "completed_at": "2026-10-13T17:58:21Z"
+      },
+      {
+        "name": "postgres17-recovery",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803013",
+        "completed_at": "2026-10-13T17:50:34Z"
+      },
+      {
+        "name": "postgres17-namespace",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447802598",
+        "completed_at": "2026-10-13T17:47:10Z"
+      },
+      {
+        "name": "Advisory policy",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164225/job/115447801516",
+        "completed_at": "2026-10-13T17:45:35Z"
+      },
+      {
+        "name": "secret-boundary",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441159814/job/115447796697",
+        "completed_at": "2026-10-13T17:45:20Z"
+      }
+    ],
+    "review": {
+      "id": 5507879288,
+      "url": "https://github.com/pirate-social-club/api-next/pull/604#pullrequestreview-5507879288",
+      "body": "Final source review at 153658a4ead7ad1f4bc26a63fc46a249f75177d6 clears the selected-decision documentation update. I compared it with the previously reviewed 9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763: only docs/telegram-recovery-connect-successor.md changes. R1, R2, C1 and E1 now record coordinator selections under the owner's standing delegation, preserve the limited/practice-only/read-only boundaries, and leave provider choice evidence-dependent. All thirteen checks on this exact head are independently verified successful.\n\nNo new provider-independent source finding is identified. Continue the narrow Specs014/026 successor through the documented spec process; publish any required control-plane patch for coordinator integration rather than requesting another product-choice approval. The provider-specific acceptance and actual login/recovery implementation remain conditional on the probe's phone and managed identity evidence. Do not describe this review as a completed provider proof or final composed runtime acceptance.\n\nThe run-sheet rejection is an automation-path issue, not a new owner approval gate. I am preparing a plain Markdown publication with the exact visible commands through the sanctioned GitHub documentation path. Cloud should preserve the automatic rejection text and attempted action if available; do not disable or obscure its permission check. The local coordinator will take bounded workstation execution from the current reviewed packet and actual custody/access.",
+      "commit_id": "153658a4ead7ad1f4bc26a63fc46a249f75177d6"
+    },
+    "provider_choice": "Open pending phone and managed identity evidence",
+    "spec_integration": "Cloud retains the narrow Specs014/026 process; no control-plane spec mutation is claimed here"
+  },
+  "run_sheet": {
+    "publication": {
+      "commit": "e2e7e7909ae6e07cf73bf028747b1b291d2fcb8e",
+      "blob": "ae5898dc3b799aa2d6ba056d23f2e570c818a21e",
+      "path": "docs/evidence/telegram-takeover-2026-10-13/contract-context-20261013/telegram-staging-workstation-run-sheet-20261013.md",
+      "byte_identical": true
+    },
+    "comparison": {
+      "base": "f5e607a24ca51ee3116570cc9868a16645ba0b25",
+      "head": "e2e7e7909ae6e07cf73bf028747b1b291d2fcb8e",
+      "files": [
+        {
+          "path": "docs/evidence/telegram-takeover-2026-10-13/contract-context-20261013/telegram-staging-workstation-run-sheet-20261013.md",
+          "status": "added"
+        }
+      ]
+    },
+    "url": "https://github.com/pirate-social-club/pirate-web-solid/blob/e2e7e7909ae6e07cf73bf028747b1b291d2fcb8e/docs/evidence/telegram-takeover-2026-10-13/contract-context-20261013/telegram-staging-workstation-run-sheet-20261013.md",
+    "offline_validation": {
+      "bash_blocks_checked": 10,
+      "renderer_cases": [
+        {
+          "case": "normal",
+          "grant_count": 23,
+          "exclusive_output": true
+        },
+        {
+          "case": "quoted",
+          "grant_count": 23,
+          "exclusive_output": true
+        },
+        {
+          "case": "normal",
+          "grant_count": 23,
+          "exclusive_output": true
+        }
+      ],
+      "database_connections_opened": 0,
+      "markdown_sha256": "eaac42d667dce9f3291c431973569ccac13a4ecbdafbd16a11a526239b716a5c",
+      "bytes": 26502
+    },
+    "source_pins": {
+      "api": "b8efd833af7e9729c1e988f81aa8804776cf74fe",
+      "solid": "f668c090e00b1a5792406075476620aad49f8890",
+      "recovery": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f"
+    },
+    "migration_delta": [
+      {
+        "version": "0247_karaoke_instrumental_qualification_policy.sql",
+        "sha256": "ea353c0d863a2532c47e793c7cb46b5104ba474ae92924d0b406ad73fb216258"
+      },
+      {
+        "version": "0248_guest_learning_authority_foundation.sql",
+        "sha256": "2c99571cedbe0640733b3509c657e81d4a89f505ba6d3fed61ea7e0c4befaed1"
+      },
+      {
+        "version": "0249_study_participation_owner_preservation.sql",
+        "sha256": "8c3578dcbbbdf929fb412e4493e6e16ab5d2af0fe13d518bd3f582892cd0c732"
+      },
+      {
+        "version": "0250_guest_browser_authority_transitions.sql",
+        "sha256": "c025474320a4bc244d974929415fed95ad26b22d0e2cf9657fbd2f328ddafcf9"
+      },
+      {
+        "version": "0251_guest_learning_resource_reservations.sql",
+        "sha256": "2de6e6508ec498a616b2db85ceafef1e2dbde7323a060cfae9956d0353d1aae4"
+      },
+      {
+        "version": "0252_guest_learning_controlled_row_admission.sql",
+        "sha256": "fc49e0678b1a14430455b29c9f1079c10fe8ee6408724edcbad110cd22b9ea7f"
+      },
+      {
+        "version": "0253_learner_audio_deletion_fence.sql",
+        "sha256": "27ce4e1c6e3185badb27e23bad96b84a3c9c5a226c7678d736d05072138f6cdb"
+      },
+      {
+        "version": "0254_guest_prepared_study_session_capture.sql",
+        "sha256": "2c5d3a799eba282ce4c4993f70f86276372424b8dfcc2946a0dfee457c1b2ad3"
+      },
+      {
+        "version": "0255_guest_spoken_success_checkpoints.sql",
+        "sha256": "fb7e3519edf7df95ef8071aaeced8d22509c146edce2f2d0b85d146b06051a2b"
+      },
+      {
+        "version": "0256_guest_owned_study_mutations.sql",
+        "sha256": "bb90ea35b74aa8fddfb206aad1ce8ddb439ba53ae5175de7a33fd2c7102684ce"
+      },
+      {
+        "version": "0257_guest_spoken_audio_archive.sql",
+        "sha256": "3c5eb872e14558e28f78e607012d498f6fb7c2e8bae05bbba8911fd2ad9bcfec"
+      },
+      {
+        "version": "0258_guest_recovery_audio_deletion.sql",
+        "sha256": "cc9792c45c8938b89025a3e723e58f01f021d93d11b426c7600cfcf677bf9aef"
+      },
+      {
+        "version": "0259_guest_captured_recovery_reads.sql",
+        "sha256": "3b84f8f3798e777bd7aa674363add62854d330b9ef12079fa49e2f2b24ea0dc9"
+      },
+      {
+        "version": "0260_owner_study_original_source_reads.sql",
+        "sha256": "efe82c3b3c132217bc6c01f2b73fef5f7940465d9c08ab18c0bcbaeb3b897120"
+      },
+      {
+        "version": "0261_guest_study_resource_expiry.sql",
+        "sha256": "e782d6dc574052f30418d54332087715d2e1ec279543e5f6a8be5c4ffbc4960c"
+      },
+      {
+        "version": "0262_ordinary_audio_producer_capture.sql",
+        "sha256": "e266708eae7b1d954421adc8b322ec51103f50506c42da91c22120f57bbcb485"
+      },
+      {
+        "version": "0263_guest_ephemeral_audio_cleanup.sql",
+        "sha256": "3b0c0da63baacda30b5a450052bb3f1842ec73b8a68011a2674b969f3fc37d55"
+      },
+      {
+        "version": "0264_legacy_learner_audio_producer_disposition.sql",
+        "sha256": "04a395bef0a06e3a405387123ec85ccdd3f4503b202cb365154375e6d7186097"
+      },
+      {
+        "version": "0265_account_karaoke_unclaimed_cancellation.sql",
+        "sha256": "337b5469bdf01595413349517f1c0750530280a4a38ac8fd007a2d2e3c4e106f"
+      }
+    ],
+    "grant_template_sha256": "474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814",
+    "required_grants": 23,
+    "required_denials": 147,
+    "wrangler": {
+      "local_help_version": "4.123.0",
+      "api_source_pin": "^4.123.0",
+      "solid_source_pin": "4.123.0"
+    },
+    "source_blobs": [
+      {
+        "repository": "api-next",
+        "path": "scripts/deploy-worker-with-provenance.ts",
+        "blob": "83464a0054239e74b5c5c6c85b4bec10c4c0c38a"
+      },
+      {
+        "repository": "api-next",
+        "path": "scripts/postgres-migrations.ts",
+        "blob": "2297a1c8a76e94f47415af8c92059118552e1d96"
+      },
+      {
+        "repository": "api-next",
+        "path": "scripts/serving-function-privileges-preflight.ts",
+        "blob": "5b2383c3379aeef72c531e301a7478f4b307fda8"
+      },
+      {
+        "repository": "api-next",
+        "path": "db/postgres/roles.sql.example",
+        "blob": "2c04813a488b9de27aaea81416c87bae460c22d7"
+      },
+      {
+        "repository": "api-next",
+        "path": "scripts/telegram-activation-preflight.ts",
+        "blob": "b7882d7fb911e9d99dc3a717370215a1b67b55d3"
+      },
+      {
+        "repository": "api-next",
+        "path": "docs/staging-serving-binding-drift.md",
+        "blob": "4af5b2132c1b0989741b50fc11a1477d05e7e8dd"
+      },
+      {
+        "repository": "api-next",
+        "path": "docs/runbooks/media-alignment-alert-deploy.md",
+        "blob": "d2fc444f7cc2118bc9945d9412bff3efe4863eb6"
+      }
+    ],
+    "docs_sources": [
+      "https://developers.cloudflare.com/workers/wrangler/commands/workers/",
+      "https://developers.cloudflare.com/workflows/get-started/guide/"
+    ]
+  },
+  "continuation_direction": {
+    "id": 6152107229,
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6152107229",
+    "body": "The run-sheet document is now published in plain Markdown at https://github.com/pirate-social-club/pirate-web-solid/blob/e2e7e7909ae6e07cf73bf028747b1b291d2fcb8e/docs/evidence/telegram-takeover-2026-10-13/contract-context-20261013/telegram-staging-workstation-run-sheet-20261013.md . It was fetched back byte for byte; SHA256 is eaac42d667dce9f3291c431973569ccac13a4ecbdafbd16a11a526239b716a5c. The handoff comparison adds only this file and preserves prior evidence. All ten Bash command blocks parse, and the data-only renderer independently produces exactly twenty-three schema-qualified grants with correct role quoting and refuses overwriting its output. No staging connection or mutation occurred.\n\nThis resolves the documentation-path dependency through an allowed, visible GitHub documentation operation. I did not change permission settings, disable the cloud permission check, conceal the grant text or run the rejected cloud script. Preserve the automatic rejection's exact action and stated reason if available; the speculative reason in the forwarded report is not verified. Do not request another broad owner approval for document creation or for the unchanged authorized grant.\n\nFinal #604 source review is posted at https://github.com/pirate-social-club/api-next/pull/604#pullrequestreview-5507879288 on 153658a4ead7ad1f4bc26a63fc46a249f75177d6. All thirteen exact-head checks pass; the selected four choices are correctly recorded and the three earlier provider-independent findings remain resolved. Provider choice stays open. Continue its narrow spec integration through the documented process.\n\nCloud retains full Telegram ownership. Review this operator packet and return the current source composition plus the named exclusive HTTP/jobs/media/Solid/database resource handover. The local coordinator is the bounded workstation operator; existing managed access and project-local tooling are available here, so no unspecified new operator is needed. Actual effective credential/serving-principal binding and the specific managed SQL runner still need fresh validation. The local product checkouts remain at their old recorded pins; reconcile source through the maintained admitted-worktree process without resetting a foreign writer's checkout.\n\nThe sheet separates Solid-only Part A and API/database Part B, pins nineteen migrations through 0265 and the exact incremental grant, preserves the 147 denials, uses the corrected G3 recovery and gives per-instance media compatibility gates and before/after receipts. The database CLI has no --expected-ledger flag; its stronger exported API requires a reviewed adapter if the ceremony needs exact starting-ledger enforcement inside the apply transaction. Keep that distinction explicit.\n\nProceed with packet review and any source/spec work now. Ask the participant for the phone interaction only when the guarded staging probe is actually ready. No grant, migration, deploy, reset or phone result is inferred by this publication.",
+    "created_at": "2026-10-13T18:13:00Z"
+  },
+  "operator": {
+    "role": "local_coordinator",
+    "scope": "Bounded workstation execution under existing Telegram standing authority",
+    "current_product_checkout_heads": {
+      "api": "f08c93dbe4602e982c00614c791930ffe2bed4e3",
+      "solid": "0801168a8344e66fdccdb8fc3298251e6abb69cc"
+    },
+    "technical_dependencies": [
+      "Cloud review of the operator packet and named exclusive shared-resource custody handover",
+      "Maintained admitted-checkout reconciliation to exact accepted release source",
+      "Fresh effective deployment credential, serving allocation, Hyperdrive origin and login binding",
+      "Managed SQL runner target binding, actual ledger and before/after effective privileges",
+      "Prepared compatible source-forward recovery and media-instance compatibility",
+      "Real phone interaction after the guarded probe is serving"
+    ]
+  },
+  "limits": {
+    "managed_database_connections_opened": 0,
+    "managed_mutations": [],
+    "native_full_product_suites_rerun": false,
+    "probe_or_phone_acceptance": false,
+    "source_packet_is_serving_proof": false,
+    "old_sealed_evidence_changed": false
+  }
+}
