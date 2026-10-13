@@ -260,5 +260,34 @@
   "publicIdentity": {
     "fallback": "用户 {suffix}",
     "unavailable": "个人资料不可用"
+  },
+  "guestStudyData": {
+    "heading": "访客学习数据",
+    "intro": "无需注册即可管理此浏览器的学习数据。删除录音不会取消应付给你的任何款项。",
+    "retentionUnknown": "当前存储偏好未显示。请选择未来录音的存储偏好。",
+    "retentionConfirmed": "已保存偏好：{mode}，生效时间：{time}。",
+    "ephemeral": "不保留录音",
+    "privateLearning": "私密学习存储",
+    "ephemeralAction": "不保留未来录音",
+    "privateAction": "私密保留未来录音",
+    "retentionUncertain": "更改尚待确认。选择其他偏好前，请核实原来的更改。",
+    "retry": "核实原来的更改",
+    "deleteAction": "删除我的学习录音",
+    "retryDeletion": "核实原来的删除请求",
+    "counts": "已删除：{deleted}。剩余：{remaining}。",
+    "deletionStatuses": {
+      "idle": "",
+      "deleting": "正在请求删除录音。",
+      "pending": "录音删除仍在等待处理。",
+      "completed": "服务器已完成此录音删除请求。",
+      "uncertain": "删除尚未确认。请核实原来的请求。"
+    },
+    "providerStates": {
+      "not_stored": "服务提供商未存储此录音。",
+      "deletion_confirmed": "已确认服务提供商完成删除。",
+      "pending": "服务提供商的删除仍在等待处理。",
+      "unknown": "尚未确认服务提供商完成删除。",
+      "unavailable": "无法获取服务提供商的删除状态。"
+    }
   }
 }

@@ -114,6 +114,35 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "إنشاء مجتمع",
         "tryAgain": "أعد المحاولة"
       },
+      "guestStudyData": {
+        "counts": "المحذوف: {deleted}. المتبقي: {remaining}.",
+        "deleteAction": "حذف تسجيلاتي التعليمية",
+        "deletionStatuses": {
+          "completed": "أكمل الخادم طلب حذف الصوت هذا.",
+          "deleting": "جارٍ طلب حذف الصوت.",
+          "idle": "",
+          "pending": "حذف الصوت لا يزال معلقاً.",
+          "uncertain": "لم يتأكد الحذف. تحقق من الطلب الأصلي."
+        },
+        "ephemeral": "عدم الاحتفاظ بالتسجيلات",
+        "ephemeralAction": "عدم الاحتفاظ بالتسجيلات المستقبلية",
+        "heading": "بيانات تعلّم الزائر",
+        "intro": "أدِر بيانات التعلّم لهذا المتصفح دون إنشاء حساب. حذف الصوت لا يلغي أي أموال مستحقة لك.",
+        "privateAction": "الاحتفاظ بالتسجيلات المستقبلية بشكل خاص",
+        "privateLearning": "تخزين خاص للتعلّم",
+        "providerStates": {
+          "deletion_confirmed": "تأكد الحذف لدى المزوّد.",
+          "not_stored": "لم يخزّن المزوّد هذا الصوت.",
+          "pending": "الحذف لدى المزوّد لا يزال معلقاً.",
+          "unavailable": "حالة الحذف لدى المزوّد غير متاحة.",
+          "unknown": "لم يتأكد الحذف لدى المزوّد."
+        },
+        "retentionConfirmed": "حُفظ التفضيل: {mode}، يسري منذ {time}.",
+        "retentionUncertain": "التغيير بانتظار التأكيد. تحقق من التغيير الأصلي قبل اختيار تفضيل آخر.",
+        "retentionUnknown": "لا يُعرض تفضيل التخزين الحالي. اختر تفضيلاً للتسجيلات المستقبلية.",
+        "retry": "التحقق من التغيير الأصلي",
+        "retryDeletion": "التحقق من الحذف الأصلي"
+      },
       "home": {
         "description": "موجز فيديو بايرت ويب",
         "heading": "واجهة بايرت ويب",
@@ -414,6 +443,35 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "Create community",
         "tryAgain": "Try again"
       },
+      "guestStudyData": {
+        "counts": "Deleted: {deleted}. Remaining: {remaining}.",
+        "deleteAction": "Delete my learner audio",
+        "deletionStatuses": {
+          "completed": "The server completed this audio deletion request.",
+          "deleting": "Requesting audio deletion.",
+          "idle": "",
+          "pending": "Audio deletion is still pending.",
+          "uncertain": "Deletion has not been confirmed. Check the original request."
+        },
+        "ephemeral": "do not keep recordings",
+        "ephemeralAction": "Do not keep future recordings",
+        "heading": "Guest learning data",
+        "intro": "Manage this browser’s learning data without signing up. Audio deletion does not erase any money owed to you.",
+        "privateAction": "Keep future recordings privately",
+        "privateLearning": "private learning storage",
+        "providerStates": {
+          "deletion_confirmed": "Provider deletion is confirmed.",
+          "not_stored": "The provider did not store this audio.",
+          "pending": "Provider deletion is still pending.",
+          "unavailable": "Provider deletion status is unavailable.",
+          "unknown": "Provider deletion has not been confirmed."
+        },
+        "retentionConfirmed": "Preference saved: {mode}, effective {time}.",
+        "retentionUncertain": "Your change is awaiting confirmation. Retry the original change before choosing another preference.",
+        "retentionUnknown": "Your current storage preference is not shown. Choose a preference for future recordings.",
+        "retry": "Check the original change",
+        "retryDeletion": "Check the original deletion"
+      },
       "home": {
         "description": "Video feed",
         "heading": "Pirate Web Solid shell",
@@ -713,6 +771,35 @@ export const GENERATED_LOCALE_CATALOGS = {
         "submit": "创建",
         "title": "创建社区",
         "tryAgain": "重试"
+      },
+      "guestStudyData": {
+        "counts": "已删除：{deleted}。剩余：{remaining}。",
+        "deleteAction": "删除我的学习录音",
+        "deletionStatuses": {
+          "completed": "服务器已完成此录音删除请求。",
+          "deleting": "正在请求删除录音。",
+          "idle": "",
+          "pending": "录音删除仍在等待处理。",
+          "uncertain": "删除尚未确认。请核实原来的请求。"
+        },
+        "ephemeral": "不保留录音",
+        "ephemeralAction": "不保留未来录音",
+        "heading": "访客学习数据",
+        "intro": "无需注册即可管理此浏览器的学习数据。删除录音不会取消应付给你的任何款项。",
+        "privateAction": "私密保留未来录音",
+        "privateLearning": "私密学习存储",
+        "providerStates": {
+          "deletion_confirmed": "已确认服务提供商完成删除。",
+          "not_stored": "服务提供商未存储此录音。",
+          "pending": "服务提供商的删除仍在等待处理。",
+          "unavailable": "无法获取服务提供商的删除状态。",
+          "unknown": "尚未确认服务提供商完成删除。"
+        },
+        "retentionConfirmed": "已保存偏好：{mode}，生效时间：{time}。",
+        "retentionUncertain": "更改尚待确认。选择其他偏好前，请核实原来的更改。",
+        "retentionUnknown": "当前存储偏好未显示。请选择未来录音的存储偏好。",
+        "retry": "核实原来的更改",
+        "retryDeletion": "核实原来的删除请求"
       },
       "home": {
         "description": "视频动态",

@@ -260,5 +260,34 @@
   "publicIdentity": {
     "fallback": "User {suffix}",
     "unavailable": "Unavailable profile"
+  },
+  "guestStudyData": {
+    "heading": "Guest learning data",
+    "intro": "Manage this browser’s learning data without signing up. Audio deletion does not erase any money owed to you.",
+    "retentionUnknown": "Your current storage preference is not shown. Choose a preference for future recordings.",
+    "retentionConfirmed": "Preference saved: {mode}, effective {time}.",
+    "ephemeral": "do not keep recordings",
+    "privateLearning": "private learning storage",
+    "ephemeralAction": "Do not keep future recordings",
+    "privateAction": "Keep future recordings privately",
+    "retentionUncertain": "Your change is awaiting confirmation. Retry the original change before choosing another preference.",
+    "retry": "Check the original change",
+    "deleteAction": "Delete my learner audio",
+    "retryDeletion": "Check the original deletion",
+    "counts": "Deleted: {deleted}. Remaining: {remaining}.",
+    "deletionStatuses": {
+      "idle": "",
+      "deleting": "Requesting audio deletion.",
+      "pending": "Audio deletion is still pending.",
+      "completed": "The server completed this audio deletion request.",
+      "uncertain": "Deletion has not been confirmed. Check the original request."
+    },
+    "providerStates": {
+      "not_stored": "The provider did not store this audio.",
+      "deletion_confirmed": "Provider deletion is confirmed.",
+      "pending": "Provider deletion is still pending.",
+      "unknown": "Provider deletion has not been confirmed.",
+      "unavailable": "Provider deletion status is unavailable."
+    }
   }
 }
