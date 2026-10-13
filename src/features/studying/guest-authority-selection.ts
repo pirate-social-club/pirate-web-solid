@@ -28,12 +28,17 @@ export class GuestSelectionStorageError extends Error {
   constructor() { super("Guest recovery storage is unavailable or damaged."); }
 }
 export const emptyGuestJournal = (): GuestAuthorityJournal => ({ pointer: null, issuance: null, starts: [] });
-const object = (value: unknown): value is Record<string, unknown> =>
+const object = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === "string" && value.length > 0;
 const nullableText = (value: unknown): value is string | null => value === null || text(value);
 function body(value: unknown): value is GuestStartBody {
-  if (!object(value) || Object.keys(value).length !== 8 || !object(value.disclosure)) return false;
+  if (!object(value) || Object.keys(value).length !== 8
+    || !("idempotency_key" in value) || !("expected_owner_id" in value)
+    || !("target_language" in value) || !("learner_band" in value) || !("timezone" in value)
+    || !("reward_mode" in value) || !("reward_preview_terms_hash" in value)
+    || !("disclosure" in value) || !object(value.disclosure)
+    || !("version" in value.disclosure) || !("accepted" in value.disclosure)) return false;
   return text(value.idempotency_key) && text(value.expected_owner_id) && nullableText(value.target_language)
     && (value.learner_band === null || value.learner_band === "A1" || value.learner_band === "A2"
       || value.learner_band === "B1" || value.learner_band === "B2" || value.learner_band === "C1" || value.learner_band === "C2")
@@ -41,15 +46,21 @@ function body(value: unknown): value is GuestStartBody {
     && Object.keys(value.disclosure).length === 2 && text(value.disclosure.version) && value.disclosure.accepted === true;
 }
 function journal(value: unknown, origin: string): value is GuestAuthorityJournal {
-  if (!object(value) || Object.keys(value).length !== 3 || !Array.isArray(value.starts)) return false;
+  if (!object(value) || Object.keys(value).length !== 3
+    || !("starts" in value) || !("pointer" in value) || !("issuance" in value)
+    || !Array.isArray(value.starts)) return false;
   const p = value.pointer;
-  if (p !== null && (!object(p) || Object.keys(p).length !== 4 || p.origin !== origin
+  if (p !== null && (!object(p) || Object.keys(p).length !== 4
+    || !("origin" in p) || !("owner_id" in p) || !("credential_id" in p) || !("last_start_key" in p)
+    || p.origin !== origin
     || !text(p.owner_id) || !text(p.credential_id) || !nullableText(p.last_start_key))) return false;
   const i = value.issuance;
-  if (i !== null && (!object(i) || Object.keys(i).length !== 3 || !text(i.key)
+  if (i !== null && (!object(i) || Object.keys(i).length !== 3
+    || !("key" in i) || !("ownerId" in i) || !("credentialId" in i) || !text(i.key)
     || !nullableText(i.ownerId) || !nullableText(i.credentialId)
     || ((i.ownerId === null) !== (i.credentialId === null)))) return false;
   return value.starts.every((s: unknown) => object(s) && Object.keys(s).length === 4
+    && "communityId" in s && "postId" in s && "body" in s && "state" in s
     && text(s.communityId) && text(s.postId) && body(s.body)
     && (s.state === "submitted" || s.state === "pending_confirmation" || s.state === "completed" || s.state === "not_started"));
 }

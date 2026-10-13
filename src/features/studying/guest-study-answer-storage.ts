@@ -26,20 +26,25 @@ export interface GuestStudyAnswerStorage {
   mark(marker: GuestStudyAnswerMarker): Promise<void>;
   clearMatching(marker: GuestStudyAnswerMarker): Promise<void>;
 }
-const object = (value: unknown): value is Record<string, unknown> =>
+const object = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const identifier = (value: unknown): value is string => typeof value === "string"
   && value.length > 0 && value.length <= 128 && !/[\s\x00-\x1f\x7f]/u.test(value);
-const exactKeys = (value: Record<string, unknown>, keys: readonly string[]) =>
+const exactKeys = (value: object, keys: readonly string[]) =>
   Object.keys(value).length === keys.length && keys.every(name => Object.hasOwn(value, name));
 export function validGuestAnswerScope(value: unknown): value is GuestStudyAnswerScope {
-  if (!object(value) || !exactKeys(value, ["origin", "ownerId", "communityId", "sessionId"]) || typeof value.origin !== "string"
+  if (!object(value) || !("origin" in value) || !("ownerId" in value)
+    || !("communityId" in value) || !("sessionId" in value)
+    || !exactKeys(value, ["origin", "ownerId", "communityId", "sessionId"]) || typeof value.origin !== "string"
     || !identifier(value.ownerId) || !identifier(value.communityId) || !identifier(value.sessionId)) return false;
   try { const url = new URL(value.origin); return url.origin === value.origin
     && (url.protocol === "https:" || url.protocol === "http:"); } catch { return false; }
 }
 export function validGuestAnswerMarker(value: unknown): value is GuestStudyAnswerMarker {
-  if (!object(value) || !exactKeys(value, ["origin", "ownerId", "communityId", "sessionId", "sessionItemId", "attemptNumber", "idempotencyKey"]) || !identifier(value.sessionItemId)
+  if (!object(value) || !("origin" in value) || !("ownerId" in value)
+    || !("communityId" in value) || !("sessionId" in value) || !("sessionItemId" in value)
+    || !("attemptNumber" in value) || !("idempotencyKey" in value)
+    || !exactKeys(value, ["origin", "ownerId", "communityId", "sessionId", "sessionItemId", "attemptNumber", "idempotencyKey"]) || !identifier(value.sessionItemId)
     || !identifier(value.idempotencyKey) || !Number.isInteger(value.attemptNumber)
     || typeof value.attemptNumber !== "number" || value.attemptNumber < 1 || value.attemptNumber > 3) return false;
   return validGuestAnswerScope({ origin: value.origin, ownerId: value.ownerId,
@@ -56,7 +61,8 @@ export function guestAnswerScopeOf(marker: GuestStudyAnswerMarker): GuestStudyAn
   return { origin: marker.origin, ownerId: marker.ownerId, communityId: marker.communityId, sessionId: marker.sessionId };
 }
 function inventory(value: unknown, scope: GuestStudyAnswerScope): value is GuestStudyAnswerInventory {
-  return object(value) && exactKeys(value, ["scope", "pending"]) && validGuestAnswerScope(value.scope)
+  return object(value) && "scope" in value && "pending" in value
+    && exactKeys(value, ["scope", "pending"]) && validGuestAnswerScope(value.scope)
     && sameGuestAnswerScope(value.scope, scope) && (value.pending === null
       || (validGuestAnswerMarker(value.pending) && sameGuestAnswerScope(value.pending, scope)));
 }
