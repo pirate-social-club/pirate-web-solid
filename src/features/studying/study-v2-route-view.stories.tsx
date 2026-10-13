@@ -185,7 +185,7 @@ export const Loading: Story = {
   },
 };
 
-/** A prepared participant opens the first exercise directly; no Start screen. */
+/** An explicit ordinary practice start opens the first exercise. */
 export const DirectFirstExercise: Story = {
   args: {
     api: studyApi(),
@@ -194,6 +194,7 @@ export const DirectFirstExercise: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
     await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Sing line 1" })).toBeInTheDocument();
     await expect(canvas.queryByRole("heading", { name: "Start Study" })).toBeNull();
@@ -303,7 +304,7 @@ export const HelperLanguage: Story = {
   },
 };
 
-/** The direct start is in flight; the surface says what it is doing. */
+/** The explicit ordinary practice start is in flight; the surface says what it is doing. */
 export const SessionLoading: Story = {
   name: "Session loading",
   args: {
@@ -313,6 +314,7 @@ export const SessionLoading: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
     await expect(await canvas.findByRole("status")).toHaveAccessibleName("Starting study");
   },
 };
@@ -327,6 +329,7 @@ export const SessionError: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
     await waitFor(() =>
       expect(canvas.getByText(/could not (confirm|start) this session/i)).toBeInTheDocument(),
     );
