@@ -41,7 +41,7 @@ async function consentAndStart(node: HTMLElement): Promise<void> {
 }
 function accountApi(): StudyV2Api {
   const unused = async (): Promise<never> => { throw new Error("Unexpected ordinary effect"); };
-  return { loadAvailability: vi.fn(async () => ({ communityId: "community-1", availability: {
+  return { loadAvailability: vi.fn<StudyV2Api["loadAvailability"]>(async () => ({ communityId: "community-1", availability: {
     state: "ready", available_exercise_types: ["say_it_back", "translation_choice"], learning_language: "en",
     target_languages: ["ar"], learner_bands: ["A1"],
   } })), createSession: unused, getSession: unused, requestGeneration: unused,
