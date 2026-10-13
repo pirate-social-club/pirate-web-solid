@@ -194,7 +194,7 @@ export const DirectFirstExercise: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
+    await userEvent.click(await canvas.findByRole("button", { name: /^Start$/ }));
     await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Sing line 1" })).toBeInTheDocument();
     await expect(canvas.queryByRole("heading", { name: "Start Study" })).toBeNull();
@@ -314,7 +314,7 @@ export const SessionLoading: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
+    await userEvent.click(await canvas.findByRole("button", { name: /^Start$/ }));
     await expect(await canvas.findByRole("status")).toHaveAccessibleName("Starting study");
   },
 };
@@ -329,7 +329,7 @@ export const SessionError: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Start", exact: true }));
+    await userEvent.click(await canvas.findByRole("button", { name: /^Start$/ }));
     await waitFor(() =>
       expect(canvas.getByText(/could not (confirm|start) this session/i)).toBeInTheDocument(),
     );
