@@ -769,6 +769,7 @@ function SuccessState(props: {
                 else navigate(profilePath(current));
               }}
               menuLabel={namingCopy().profileMenu}
+              menuDesktopOnly
               onMenuClick={namingEntryOpen() ? () => { bannerProfileFocus = focusedElement(); store().openSwitcher(); } : undefined}
             />
           );

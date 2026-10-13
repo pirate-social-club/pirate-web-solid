@@ -19,13 +19,19 @@ export function CommunityPersonaControl(props: {
   onClick: () => void;
   onMenuClick?: () => void;
   menuLabel?: string;
+  /**
+   * Draw the banner's menu button on desktop only. In the app a phone already
+   * has the footer's profile menu, and two controls with one name would be
+   * ambiguous to assistive technology.
+   */
+  menuDesktopOnly?: boolean;
 }) {
   const banner = () => props.placement === "banner";
   const visibility = () => props.desktopOnly ? "hidden md:flex" : "flex";
   const menu = () => <Show when={props.onMenuClick}><IconButton
     aria-label={props.menuLabel ?? "Profile menu"} aria-haspopup="dialog"
     class={banner()
-      ? "size-10 shrink-0 bg-background/75 text-foreground backdrop-blur-sm"
+      ? `size-10 shrink-0 bg-background/75 text-foreground backdrop-blur-sm${props.menuDesktopOnly ? " max-md:hidden" : ""}`
       : `fixed bottom-5 end-20 z-40 size-11 rounded-full border border-border-soft bg-background shadow-md ${visibility()}`}
     onClick={props.onMenuClick} variant="ghost"><IconDotsThree class="size-5" /></IconButton></Show>;
   const profile = () => <IconButton
