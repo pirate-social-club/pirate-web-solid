@@ -257,6 +257,7 @@ describe("Guest financial offer consent stays separate from public practice", ()
     expect(button(node, "Start practice").disabled).toBe(true);
     const checkboxes = node.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     checkboxes[1]?.click();
+    await vi.waitFor(() => expect(button(node, "Start with accepted offer").disabled).toBe(true));
     expect(node.querySelector("[data-guest-study-entry]")?.textContent).not.toContain("This lesson does not create a drawing entry.");
     expect(node.querySelector("[data-guest-study-entry]")?.textContent).toContain("Participation has not yet been admitted.");
     expect(button(node, "Start with accepted offer").disabled).toBe(true);

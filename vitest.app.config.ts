@@ -179,6 +179,9 @@ export default defineConfig({
       "src/features/studying/guest-study-answer-journal.test.ts",
       "src/features/studying/guest-study-route-view.test.tsx",
       "src/features/studying/guest-study-public-reader.test.ts",
+      "src/features/studying/guest-study-accounting-api.test.ts",
+      "src/features/studying/guest-study-attachment-coordinator.test.ts",
+      "src/features/studying/guest-study-reward-model.test.ts",
 
       "src/features/studying/guest-study-start-coordinator.test.ts",
       "src/features/studying/guest-authority-selection.test.ts",
