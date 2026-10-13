@@ -19,10 +19,8 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "../design-system";
-import type { HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
-import { fetchHomeFeedPage } from "../features/posts/feed/home-feed-adapter.ts";
-import type { PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
-import { fetchPublicFeedPage } from "../features/posts/feed/public-feed-adapter.ts";
+import { fetchHomeFeedPage, type HomeFeedClient } from "../features/posts/feed/home-feed-adapter.ts";
+import { fetchPublicFeedPage, type FeedPage, type PublicFeedClient } from "../features/posts/feed/public-feed-adapter.ts";
 import {
   publicFeedReviewPage,
   reviewPlaybackMint,
@@ -39,10 +37,10 @@ export interface HomeRouteProps {
   readonly claimVideoOutcome?: typeof claimVideoOutcome;
   /** Test seam; production resolves the host-only api-next session cookie. */
   readonly resolveSession?: () => Promise<AccountSessionResolution>;
-  readonly publicData?: PublicFeedProps["data"];
-  readonly publicClient?: PublicFeedProps["client"];
-  readonly homeData?: HomeFeedProps["data"];
-  readonly homeClient?: HomeFeedProps["client"];
+  readonly publicData?: FeedPage | PromiseLike<FeedPage>;
+  readonly publicClient?: PublicFeedClient;
+  readonly homeData?: FeedPage | PromiseLike<FeedPage>;
+  readonly homeClient?: HomeFeedClient;
   readonly navigate?: HomeVideoFeedProps["navigate"];
 }
 

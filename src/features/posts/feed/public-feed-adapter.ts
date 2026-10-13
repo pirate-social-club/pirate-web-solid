@@ -104,6 +104,15 @@ export interface PublicFeedPage {
 
 export type FeedPage = PublicFeedPage;
 
+export interface FeedPageLoaderOptions {
+  readonly cursor?: string | null;
+  readonly locale: UiLocaleCode;
+  readonly sort: FeedSort;
+}
+
+/** Reads one page of a feed: the public read signed out, the home read signed in. */
+export type FeedPageLoader = (options: FeedPageLoaderOptions) => Promise<FeedPage>;
+
 export interface PublicFeedRequestOptions {
   readonly client?: PublicFeedClient;
   readonly cursor?: string | null;

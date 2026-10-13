@@ -25,8 +25,7 @@ import { submitPostReport, unavailablePendingStorage } from "../post-engagement/
 import { VideoFeedReport } from "./video-feed-report.tsx";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "../feed/feed-model.ts";
-import type { FeedPage } from "../feed/public-feed-adapter.ts";
-import type { FeedPageLoader } from "../feed/public-feed.tsx";
+import type { FeedPage, FeedPageLoader } from "../feed/public-feed-adapter.ts";
 import {
   playableHomeVideos,
   resolveVideoMedia,
