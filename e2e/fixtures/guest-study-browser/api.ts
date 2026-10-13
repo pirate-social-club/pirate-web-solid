@@ -109,7 +109,7 @@ export async function installApi(context: BrowserContext, origin: string, option
         starts: [{ body, state: "submitted" }] });
       startEntered.resolve();
       if (options.holdStart) await releaseStart.promise;
-      return fulfill(route, initial);
+      return fulfill(route, initial, 201);
     }
     if (path.startsWith("/communities/community-1/posts/post-1/study/guest/v1/session-operations/")) {
       counts.lookup++;

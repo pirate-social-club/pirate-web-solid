@@ -22,7 +22,7 @@ export function initialSession(): GuestStudySession {
       languages: { learning_language: "en", target_language: "ar" }, learner_band: "A1",
       line: { ...item.line, line_source_hash: "a".repeat(64) },
       presentation: { kind: "translation_choice", capture: "choice_selection", source_text: `Line ${item.ordinal + 1}`,
-        question: "Choose the translation", choices: [{ choice_key: "one", text: "Answer one" }, { choice_key: "two", text: "Answer two" }] },
+        question: "Choose the translation", choices: [{ choice_key: "one", text: "Answer one" }, { choice_key: "two", text: "Answer two" }, { choice_key: "three", text: "Answer three" }, { choice_key: "four", text: "Answer four" }] },
     })),
   });
 }
