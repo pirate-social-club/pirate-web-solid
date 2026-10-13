@@ -36,6 +36,8 @@ const reportPost = fn(async () => ({ report_id: "story-report", case_ref: "story
 const signedIn = () => ({
   principalId: "story-viewer",
   sourceIdentity: "user:story-viewer",
+  // The finished report flow, reviewed ahead of api-next accepting video reports.
+  videoReportsSupported: true,
   reportTransport: { reportPost },
   pendingStorage: createMemoryPendingEngagementStorage(),
   generateIdempotencyKey: () => "story-report-key",

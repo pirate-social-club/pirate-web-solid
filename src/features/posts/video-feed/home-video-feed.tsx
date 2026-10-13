@@ -70,6 +70,14 @@ export interface HomeVideoFeedProps {
    * so the phone More button is left out.
    */
   readonly principalId?: string;
+  /**
+   * Whether the API accepts reports on video posts. It does not yet: api-next
+   * resolves a post report through its text submission, so a video report is
+   * answered "not found". Until it does, the production feed leaves Report out
+   * of More rather than offering an action that cannot succeed; reviews and
+   * tests enable it to exercise the finished flow.
+   */
+  readonly videoReportsSupported?: boolean;
   /** Test/review seam; production reports through the post-engagement transport. */
   readonly reportTransport?: Pick<PostEngagementTransport, "reportPost">;
   /** Test/review seam; production keeps report records in durable storage. */
@@ -442,7 +450,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     }
   };
   const moreActions = (postId: string): readonly MediaMoreAction[] | undefined =>
-    props.principalId && mediaPost(postId)?.viewerIsMember
+    props.videoReportsSupported === true && props.principalId && mediaPost(postId)?.viewerIsMember
       ? [{ id: "report", label: "Report", onSelect: () => openReport(postId) }]
       : undefined;
 

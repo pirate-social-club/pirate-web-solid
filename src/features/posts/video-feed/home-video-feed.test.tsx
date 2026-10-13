@@ -366,6 +366,7 @@ function streamedFeed(options: {
   readonly studyReady?: boolean;
   readonly karaokeReady?: boolean;
   readonly principalId?: string;
+  readonly videoReportsSupported?: boolean;
   readonly membership?: PublicFeedItem["viewerMembershipStatus"];
   readonly reportPost?: PostEngagementTransport["reportPost"];
   readonly pendingStorage?: PendingEngagementStorage;
@@ -402,6 +403,7 @@ function streamedFeed(options: {
       studyReady={async () => options.studyReady ?? false}
       {...(options.navigate ? { navigate: options.navigate } : {})}
       {...(options.principalId ? { principalId: options.principalId, sourceIdentity: `user:${options.principalId}` } : {})}
+      videoReportsSupported={options.videoReportsSupported ?? true}
       {...(options.reportPost ? { reportTransport: { reportPost: options.reportPost } } : {})}
       pendingStorage={options.pendingStorage ?? createMemoryPendingEngagementStorage()}
       generateIdempotencyKey={() => "feed-report-key"}
@@ -457,6 +459,12 @@ test("the feed starts muted, and More's Unmute row unmutes; the rail has no mute
 });
 
 describe("Report in the feed", () => {
+  test("is left out while the API does not accept reports on video posts", async () => {
+    const member = streamedFeed({ principalId: "user-1", membership: "member", videoReportsSupported: false });
+    (await phoneMore(member.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute"]);
+  });
+
   test("is offered only to signed-in members of the post's community", async () => {
     const member = streamedFeed({ principalId: "user-1", membership: "member" });
     (await phoneMore(member.container)).click();
