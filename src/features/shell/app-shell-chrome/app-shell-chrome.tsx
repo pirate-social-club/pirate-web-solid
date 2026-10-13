@@ -153,6 +153,8 @@ export interface MobileFooterNavProps {
    * tap waits one window so a double tap can win, then navigates.
    */
   onProfileDoubleTap?: () => void;
+  onProfileMenuClick?: () => void;
+  profileMenuAriaLabel?: string;
   userAvatarSeed?: string | null;
   userAvatarSrc?: string | null;
 }
@@ -200,12 +202,14 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
           wallet: labels().wallet,
           profile: labels().profile,
           profileAriaLabel: labels().profileAriaLabel,
+          profileMenuAriaLabel: props.profileMenuAriaLabel,
           primaryNavAriaLabel: labels().primaryNavAriaLabel,
         }}
         onHomeClick={props.onHomeClick}
         onSongsClick={props.onSongsClick}
         onWalletClick={props.onWalletClick}
         onProfileClick={handleProfileTap}
+        onProfileMenuClick={props.onProfileMenuClick}
         userAvatarSeed={props.userAvatarSeed}
         userAvatarSrc={props.userAvatarSrc}
       />

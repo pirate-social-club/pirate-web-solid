@@ -223,5 +223,42 @@
     "signInToCreate": "Sign in to create",
     "submit": "Create",
     "tryAgain": "Try again"
+  },
+  "communityJoinName": {
+    "title": "Choose your name",
+    "label": "Name",
+    "length": "{min}–{max} characters.",
+    "exactName": "Use the name offered by this community.",
+    "taken": "That name is taken. Try another.",
+    "invalid": "Lowercase a–z, 0–9 and hyphens only.",
+    "join": "Join",
+    "getName": "Get name",
+    "retry": "Try again",
+    "preparing": "Getting your profile ready…",
+    "joining": "Joining…",
+    "issuing": "Finishing your name…",
+    "failedBeforeJoin": "We couldn’t finish joining. Try again.",
+    "failedAfterJoin": "You have joined. Your name is unfinished; try again to finish it.",
+    "pending": "You have joined. Your name is still being issued.",
+    "checkStatus": "Check my name",
+    "successTitle": "You’re in",
+    "successDescription": "Your name is ready.",
+    "openName": "Open my name",
+    "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
+    "takenAfterJoin": "You’ve joined. That name is taken. Try another.",
+    "loadFailed": "Your community name could not be loaded. Retry from Profile.",
+    "offerChanged": "The name offer changed. Check its rules and press Get name again.",
+    "requestExpired": "The name request expired. Press Get name to start again.",
+    "signInRetry": "Sign in again from Profile, then retry this name.",
+    "profileTitle": "Profile in this community",
+    "profileControl": "Profile, {name}",
+    "profileOptions": "Profile options, {name}",
+    "openProfile": "Open profile",
+    "getNameEntry": "Get a name",
+    "profileMenu": "Profile menu"
+  },
+  "publicIdentity": {
+    "fallback": "User {suffix}",
+    "unavailable": "Unavailable profile"
   }
 }

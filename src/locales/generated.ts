@@ -44,6 +44,39 @@ export const GENERATED_LOCALE_CATALOGS = {
         "rules": "قواعد المجتمع",
         "title": "{name} · بايرت ويب"
       },
+      "communityJoinName": {
+        "checkStatus": "تحقق من اسمي",
+        "exactName": "استخدم الاسم الذي يقدمه هذا المجتمع.",
+        "failedAfterJoin": "لقد انضممت. لم يكتمل اسمك بعد؛ حاول مجددًا لإكماله.",
+        "failedBeforeJoin": "تعذر إكمال الانضمام. حاول مجددًا.",
+        "getName": "احصل على اسم",
+        "getNameEntry": "احصل على اسم",
+        "invalid": "استخدم a–z و0–9 والشرطات فقط.",
+        "issuing": "جارٍ إكمال اسمك…",
+        "join": "انضم",
+        "joining": "جارٍ الانضمام…",
+        "label": "الاسم",
+        "length": "من {min} إلى {max} حرفًا.",
+        "loadFailed": "تعذر تحميل اسمك في المجتمع. حاول مجددًا من الملف الشخصي.",
+        "offerChanged": "تغيّر عرض الاسم. تحقق من شروطه واضغط «احصل على اسم» مجددًا.",
+        "openName": "افتح اسمي",
+        "openProfile": "افتح الملف الشخصي",
+        "pending": "لقد انضممت. لا يزال اسمك قيد الإصدار.",
+        "preparing": "جارٍ تجهيز ملفك…",
+        "profileControl": "الملف الشخصي، {name}",
+        "profileMenu": "قائمة الملف الشخصي",
+        "profileOptions": "خيارات الملف الشخصي، {name}",
+        "profileTitle": "الملف الشخصي في هذا المجتمع",
+        "requestExpired": "انتهت صلاحية طلب الاسم. اضغط «احصل على اسم» للبدء مجددًا.",
+        "resultUnavailable": "تعذر تأكيد العنوان الصادر. تحقق من اسمك مجددًا.",
+        "retry": "حاول مجددًا",
+        "signInRetry": "سجّل الدخول مجددًا من الملف الشخصي، ثم أعد محاولة إكمال هذا الاسم.",
+        "successDescription": "اسمك جاهز.",
+        "successTitle": "لقد انضممت",
+        "taken": "هذا الاسم محجوز. جرّب اسمًا آخر.",
+        "takenAfterJoin": "لقد انضممت. هذا الاسم محجوز. جرّب اسمًا آخر.",
+        "title": "اختر اسمك"
+      },
       "createCommunity": {
         "avatarHelp": "الصور المربعة هي الأفضل.",
         "avatarLabel": "الصورة الرمزية",
@@ -207,6 +240,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openCommunity": "فتح {name}",
         "title": "@{handle} · بايرت ويب"
       },
+      "publicIdentity": {
+        "fallback": "مستخدم {suffix}",
+        "unavailable": "الملف الشخصي غير متاح"
+      },
       "settings": {
         "booking": {
           "addAvailability": "إضافة",
@@ -306,6 +343,39 @@ export const GENERATED_LOCALE_CATALOGS = {
         "notFound": "This community could not be found.",
         "rules": "Community rules",
         "title": "{name}"
+      },
+      "communityJoinName": {
+        "checkStatus": "Check my name",
+        "exactName": "Use the name offered by this community.",
+        "failedAfterJoin": "You have joined. Your name is unfinished; try again to finish it.",
+        "failedBeforeJoin": "We couldn’t finish joining. Try again.",
+        "getName": "Get name",
+        "getNameEntry": "Get a name",
+        "invalid": "Lowercase a–z, 0–9 and hyphens only.",
+        "issuing": "Finishing your name…",
+        "join": "Join",
+        "joining": "Joining…",
+        "label": "Name",
+        "length": "{min}–{max} characters.",
+        "loadFailed": "Your community name could not be loaded. Retry from Profile.",
+        "offerChanged": "The name offer changed. Check its rules and press Get name again.",
+        "openName": "Open my name",
+        "openProfile": "Open profile",
+        "pending": "You have joined. Your name is still being issued.",
+        "preparing": "Getting your profile ready…",
+        "profileControl": "Profile, {name}",
+        "profileMenu": "Profile menu",
+        "profileOptions": "Profile options, {name}",
+        "profileTitle": "Profile in this community",
+        "requestExpired": "The name request expired. Press Get name to start again.",
+        "resultUnavailable": "The issued address could not be confirmed. Check your name again.",
+        "retry": "Try again",
+        "signInRetry": "Sign in again from Profile, then retry this name.",
+        "successDescription": "Your name is ready.",
+        "successTitle": "You’re in",
+        "taken": "That name is taken. Try another.",
+        "takenAfterJoin": "You’ve joined. That name is taken. Try another.",
+        "title": "Choose your name"
       },
       "createCommunity": {
         "avatarHelp": "A square image works best.",
@@ -470,6 +540,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "openCommunity": "Open {name}",
         "title": "@{handle}"
       },
+      "publicIdentity": {
+        "fallback": "User {suffix}",
+        "unavailable": "Unavailable profile"
+      },
       "settings": {
         "booking": {
           "addAvailability": "Add",
@@ -569,6 +643,39 @@ export const GENERATED_LOCALE_CATALOGS = {
         "notFound": "找不到该社区。",
         "rules": "社区规则",
         "title": "{name}"
+      },
+      "communityJoinName": {
+        "checkStatus": "查看我的名字",
+        "exactName": "使用此社区提供的名字。",
+        "failedAfterJoin": "你已加入，但名字尚未完成；请重试以完成。",
+        "failedBeforeJoin": "未能完成加入，请重试。",
+        "getName": "获取名称",
+        "getNameEntry": "获取名称",
+        "invalid": "仅限小写 a–z、0–9 和连字符。",
+        "issuing": "正在完成你的名字…",
+        "join": "加入",
+        "joining": "正在加入…",
+        "label": "名字",
+        "length": "{min}–{max} 个字符。",
+        "loadFailed": "无法加载你的社区名称。请从个人资料重试。",
+        "offerChanged": "名称获取条件已变更。请检查规则，再次点击“获取名称”。",
+        "openName": "打开我的名字",
+        "openProfile": "打开个人资料",
+        "pending": "你已加入，名字仍在签发中。",
+        "preparing": "正在准备你的资料…",
+        "profileControl": "个人资料，{name}",
+        "profileMenu": "个人资料菜单",
+        "profileOptions": "个人资料选项，{name}",
+        "profileTitle": "此社区中的个人资料",
+        "requestExpired": "名称请求已过期。请点击“获取名称”重新开始。",
+        "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
+        "retry": "重试",
+        "signInRetry": "请从个人资料重新登录，再重试完成此名称。",
+        "successDescription": "你的名字已准备好。",
+        "successTitle": "你已加入",
+        "taken": "这个名字已被使用，请换一个。",
+        "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
+        "title": "选择你的名字"
       },
       "createCommunity": {
         "avatarHelp": "方形图片效果最好。",
@@ -732,6 +839,10 @@ export const GENERATED_LOCALE_CATALOGS = {
         "notFound": "找不到该个人资料。",
         "openCommunity": "打开 {name}",
         "title": "@{handle}"
+      },
+      "publicIdentity": {
+        "fallback": "用户 {suffix}",
+        "unavailable": "个人资料不可用"
       },
       "settings": {
         "booking": {

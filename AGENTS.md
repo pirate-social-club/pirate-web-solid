@@ -76,12 +76,23 @@ not an authentication, cursor, or API compatibility change.
   never a task root or write target.
 - Preserve the pre-clean-slate tree at
   `refs/archive/pre-clean-slate-20260818`; do not rewrite or delete it.
-- Configure each integration clone with
-  `scripts/configure-radicle-primary --apply`. Advance `main` only through
-  `scripts/publish-main --sha <full-sha> --execute`: it publishes the exact
-  commit to Radicle first, synchronizes the preferred seed, and then mirrors
-  the same commit to GitHub. Ordinary `git push origin` publication is a
-  policy violation even when the local guard has not been installed.
+- For the transferred cloud staging journey, `cloud/naming-karaoke-20261012`
+  and its explicitly assigned guest UI successor publish named feature branches
+  to GitHub and integrate through protected pull requests. This scoped route
+  is authorized by the workspace owner in
+  https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6126612932.
+  Before acceptance, enforce current GitHub Actions checks and PR review on
+  `main`; preserve the accepted Naming/Karaoke histories with a normal merge,
+  never squash or rebase them. Direct `main` pushes and force pushes are
+  prohibited. Radicle signatures, workstation keys and bundle round-trips are
+  not prerequisites for these cloud lanes. Existing Radicle histories, private
+  local holds and unrelated release pins remain preserved.
+- The historical Radicle publication route remains outside that cloud scope.
+  Its `scripts/configure-radicle-primary` and `scripts/publish-main` helpers
+  must not bypass the cloud pull-request route. Keep the GitHub fetch URL;
+  change a clone-local origin push guard only when needed for its authorized
+  named feature branch. Source acceptance does not authorize deployment,
+  feature activation, credentials or funded operations; production is paused.
 - Import work in reviewable tranches with a source manifest and hash evidence.
   Exclude React, dispatcher, route-migration, legacy-origin, and compatibility
   files even when they are adjacent to useful Solid code.

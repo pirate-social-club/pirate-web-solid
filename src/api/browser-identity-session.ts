@@ -3,6 +3,7 @@ import { replaceSessionAuthority } from "./browser-session-events.ts";
 /** A page-local provider session, never a persisted Pirate bearer credential. */
 export interface BrowserIdentitySession {
   renew(signal: AbortSignal): Promise<boolean>;
+  activatePersonaWallet?(accountId: string, personaId: string, idempotencyKey: string, signal: AbortSignal): Promise<void>;
   clear(): void;
 }
 
@@ -10,12 +11,15 @@ export function createBrowserIdentitySessionStore(timeoutMs = 30_000) {
   let current: BrowserIdentitySession | undefined;
   let pending: Promise<boolean> | undefined;
   let controller: AbortController | undefined;
+  const activations = new Set<AbortController>();
   const clear = () => {
     const previous = current;
     current = undefined;
     pending = undefined;
     controller?.abort();
     controller = undefined;
+    for (const activation of activations) activation.abort();
+    activations.clear();
     previous?.clear();
   };
   return {
@@ -24,6 +28,23 @@ export function createBrowserIdentitySessionStore(timeoutMs = 30_000) {
       current = session;
     },
     clear,
+    async activatePersonaWallet(accountId: string, personaId: string, idempotencyKey: string, signal: AbortSignal): Promise<boolean> {
+      const session = current;
+      if (session?.activatePersonaWallet === undefined || signal.aborted) return false;
+      const activation = new AbortController();
+      activations.add(activation);
+      const combined = AbortSignal.any([signal, activation.signal]);
+      let stop!: () => void;
+      const cancelled = new Promise<never>((_resolve, reject) => {
+        stop = () => reject(combined.reason ?? new DOMException("Activation cancelled", "AbortError"));
+        combined.addEventListener("abort", stop, { once: true });
+      });
+      const timer = setTimeout(() => activation.abort(), timeoutMs);
+      try {
+        await Promise.race([session.activatePersonaWallet(accountId, personaId, idempotencyKey, combined), cancelled]);
+        return current === session && !combined.aborted;
+      } finally { clearTimeout(timer); combined.removeEventListener("abort", stop); activations.delete(activation); }
+    },
     renew(): Promise<boolean> {
       if (pending !== undefined) return pending;
       const session = current;

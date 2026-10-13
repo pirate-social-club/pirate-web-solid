@@ -18,6 +18,7 @@ import {
   Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
   loadCommunityPage,
@@ -56,9 +57,9 @@ import {
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
 import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
 import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
+import { profilePath } from "../../shell/navigation-model.ts";
 import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
-import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
-import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
+import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
   createCommunityThreadFeedClient,
@@ -70,6 +71,10 @@ import {
   type CommunityEngagementApi,
 } from "./community-engagement-api.ts";
 import { createCommunityEngagementController } from "./community-engagement-controller.ts";
+import { createCommunityProfileAttempt } from "../../identity/community-profile-attempt.ts";
+import { createCommunityNameController, type CommunityNameClients } from "../community-join-name/community-name-controller.ts";
+import { CommunityJoinName } from "../community-join-name/community-join-name.tsx";
+import { consumeJoinedNameContinuation } from "../../identity/community-join-continuation.ts";
 import {
   createCommunityViewerVoteClient,
   createCommunityViewerVoteReader,
@@ -93,6 +98,7 @@ export interface CommunityPageProps {
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
+  readonly nameClients?: CommunityNameClients;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
   readonly navigate?: (href: string) => void;
@@ -164,6 +170,7 @@ function SuccessState(props: {
   readonly composeText?: boolean;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly nameClients?: CommunityNameClients;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
   readonly navigate?: (href: string) => void;
@@ -276,6 +283,8 @@ function SuccessState(props: {
     if (props.navigate) props.navigate(href);
     else globalThis.location?.assign(href);
   };
+  const namingLocale = usePageUiLocale();
+  const prepareCommunityProfile = createCommunityProfileAttempt();
   const engagement = createCommunityEngagementController({
     api: engagementApi,
     communityId: communityId,
@@ -284,6 +293,28 @@ function SuccessState(props: {
     navigate,
     resolveSession,
     returnTo: state.canonicalPath,
+    continueJoinAfterSignIn: true,
+    prepareProfile: async (session, choice, signal) => (await prepareCommunityProfile({ session, choice, communityId, preferredPersonaId: selectedPersonaId(), signal })).personaId,
+    onJoined: () => showNaming(),
+  });
+  const naming = createCommunityNameController({ communityId, root: state.routeFamily === "hns" ? state.requestedPathSegment : undefined,
+    publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, locale: namingLocale, ...props.nameClients });
+  let nameReturnFocus: HTMLElement | undefined;
+  let nameAfterLocalMenu = false;
+  const showNaming = (returnFocus?: HTMLElement) => {
+    nameReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined);
+    void naming.show();
+  };
+  const namingCopy = () => getLocaleMessages(namingLocale, "routes").communityJoinName;
+  createEffect(() => [engagement.accountIdentity(), engagement.joined(), naming.entry()] as const, ([accountId, joined]) => {
+    if (typeof accountId !== "string" || !joined) return;
+    queueMicrotask(() => {
+      if (!active) return;
+      try {
+        if (consumeJoinedNameContinuation(accountId, communityId)) void naming.show();
+        else void naming.restoreOnReturn();
+      } catch { /* Unreadable intent never starts another request. */ }
+    });
   });
   // deferStream holds the response open until the feed settles, so the HTML
   // carries the posts, a true empty feed, or an honest failure — never an
@@ -664,16 +695,17 @@ function SuccessState(props: {
   // while the page owns an active persona, so no other surface can open a
   // switcher for a community the viewer is not looking at.
   createEffect(
-    () => [communityId, personaStore, personaOptions(), engagement.personaRetryAvailable(), engagement.personaRetryBusy()] as const,
-    ([targetCommunityId, store, personas, unavailable, loading]) => {
+    () => [communityId, personaStore, personaOptions(), engagement.personaRetryAvailable(), engagement.personaRetryBusy(), naming.entry()] as const,
+    ([targetCommunityId, store, personas, unavailable, loading, nameEntry]) => {
       if (store === undefined) return;
       store.setTarget({
         communityId: targetCommunityId,
         personas,
-        title: "Profile in this community",
+        title: namingCopy().profileTitle,
         unavailable,
         loading,
         onRetry: () => void engagement.retryPersonas(),
+        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: showNaming } } : {}),
       });
     },
   );
@@ -903,28 +935,26 @@ function SuccessState(props: {
               The retry control is not an outcome, so it stays on the page, in
               the Post action, which retries the required profile read. */}
           <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
-          <CommunityPersonaChoiceDialog
-            choice={engagement.joinPersonaChoice()}
-            createNewUnavailable
-            createNewLabel="Create a new persona in this Community"
-            label="Joining as"
-            note="Membership attaches to your account. The persona you choose becomes your public identity in this Community; your private Study progress and streaks stay with your account either way."
-            onChoose={engagement.confirmJoinPersona}
-            onOpenChange={(open) => { if (!open) engagement.cancelJoinPersona(); }}
-            open={engagement.joinPersonaStep()}
-            personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
-          />
+          <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} returnFocus={() => nameReturnFocus} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
           <Show when={personaStore === undefined}>
-            <Show when={personaOptions().length > 1 || engagement.personaRetryAvailable()}>
+            <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
               <CommunityPersonaControl
-                label={engagement.personaRetryAvailable() ? "Retry profiles" : "Switch posting profile"}
-                opensPicker
+                label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
+                opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
                 persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
-                onClick={() => setLocalSwitcherOpen(true)}
+                onClick={() => {
+                  const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
+                  if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
+                  else navigate(profilePath(persona));
+                }}
+                menuLabel={namingCopy().profileMenu}
+                onMenuClick={naming.entry() === "new" || naming.entry() === "pending" ? () => {
+                  nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true);
+                } : undefined}
               />
             </Show>
             <PersonaSwitcherSheet
-              title="Profile in this community"
+              title={namingCopy().profileTitle}
               open={localSwitcherOpen()}
               onOpenChange={setLocalSwitcherOpen}
               personas={personaOptions()}
@@ -933,6 +963,8 @@ function SuccessState(props: {
               loading={engagement.personaRetryBusy()}
               unavailable={engagement.personaRetryAvailable()}
               onRetry={() => void engagement.retryPersonas()}
+              footer={<Show when={naming.entry() === "new" || naming.entry() === "pending"}><Button class="mx-4 mt-4 justify-start" variant="ghost" type="button" onClick={() => { nameAfterLocalMenu = true; setLocalSwitcherOpen(false); }}>{naming.entry() === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus}</Button></Show>}
+              onAfterClose={() => { if (nameAfterLocalMenu) { nameAfterLocalMenu = false; requestAnimationFrame(() => showNaming(nameReturnFocus)); } }}
             />
           </Show>
       </div>
@@ -956,6 +988,7 @@ function CommunityState(props: {
   readonly composeText?: boolean;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly nameClients?: CommunityNameClients;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
   readonly navigate?: (href: string) => void;
@@ -983,6 +1016,7 @@ function CommunityState(props: {
               composeText={props.composeText}
               state={state()}
               handleSalesClient={props.handleSalesClient}
+              nameClients={props.nameClients}
               resolveSession={props.resolveSession}
               resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
               navigate={props.navigate}
@@ -1022,6 +1056,7 @@ function CommunityData(props: CommunityPageProps) {
       mediaSubmissionTransport={props.mediaSubmissionTransport}
       state={state()}
       handleSalesClient={handleSalesClient}
+      nameClients={props.nameClients}
       resolveSession={props.resolveSession}
       resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
       navigate={props.navigate}

@@ -1,4 +1,5 @@
-import { Avatar, IconButton } from "../../design-system";
+import { Show } from "solid-js";
+import { Avatar, IconButton, IconDotsThree } from "../../design-system";
 import type { SwitchablePersona } from "./persona-switcher-sheet/persona-switcher-sheet.tsx";
 
 /** The operation identity control, shared by app chrome and isolated pages. */
@@ -8,8 +9,10 @@ export function CommunityPersonaControl(props: {
   opensPicker: boolean;
   desktopOnly?: boolean;
   onClick: () => void;
+  onMenuClick?: () => void;
+  menuLabel?: string;
 }) {
-  return <IconButton
+  return <><IconButton
     aria-label={props.label}
     aria-haspopup={props.opensPicker ? "dialog" : undefined}
     class={`fixed bottom-5 end-5 z-40 size-12 rounded-full border border-border-soft bg-background shadow-md ${props.desktopOnly ? "hidden md:flex" : "flex"}`}
@@ -19,5 +22,8 @@ export function CommunityPersonaControl(props: {
     variant="ghost"
   >
     <Avatar class="size-8" fallback={props.persona?.displayName ?? "Profile"} fallbackSeed={props.persona?.avatarSeed ?? props.persona?.publicHandle ?? undefined} size="sm" src={props.persona?.avatarSrc ?? undefined} />
-  </IconButton>;
+  </IconButton><Show when={props.onMenuClick}><IconButton
+    aria-label={props.menuLabel ?? "Profile menu"} aria-haspopup="dialog"
+    class={`fixed bottom-5 end-20 z-40 size-11 rounded-full border border-border-soft bg-background shadow-md ${props.desktopOnly ? "hidden md:flex" : "flex"}`}
+    onClick={props.onMenuClick} variant="ghost"><IconDotsThree class="size-5" /></IconButton></Show></>;
 }

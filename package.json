@@ -42,6 +42,7 @@
     "stream-check": "node scripts/stream-check.mjs",
     "hydration-check": "node scripts/hydration-check.mjs",
     "community-feed-hydration-check": "node scripts/community-feed-hydration-check.mjs",
+    "community-name-locale-hydration-check": "node scripts/community-naming-locale-hydration-check.mjs",
     "post-engagement-check": "node scripts/post-engagement-check.mjs",
     "text-post-check": "node scripts/text-post-check.mjs",
     "song-post-check": "node scripts/song-post-check.mjs",
@@ -59,7 +60,7 @@
     "test:hns-ingress-identity": "node --test scripts/hns-ingress-composition-identity.test.mjs scripts/hns-ingress-runtime-graph.test.mjs",
     "lint": "oxlint src && node scripts/check-story-production-parity.mjs",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run test:production-config && bun run test:hns-ingress-identity && bun run tsc --noEmit -p tsconfig.json && bun run test:e2e:helpers && bun run check:e2e && bun run check:test-discovery && bun run test:api && bun run test:app && bun run test:ssr && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check && bun run song-feed-playback-check && bun run community-feed-hydration-check",
+    "verify": "bun run generate-worker-types && bun run test:production-config && bun run test:hns-ingress-identity && bun run tsc --noEmit -p tsconfig.json && bun run test:e2e:helpers && bun run check:e2e && bun run check:test-discovery && bun run test:api && bun run test:app && bun run test:ssr && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check && bun run song-feed-playback-check && bun run community-feed-hydration-check && bun run community-name-locale-hydration-check",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs",
     "test:e2e:helpers": "node --test --test-concurrency=1 scripts/creation-diagnostics.test.mjs scripts/e2e-environment.test.mjs scripts/e2e-auth.test.mjs scripts/e2e-anonymous-probes.test.mjs scripts/e2e-feed-hydration-environment.test.mjs scripts/run-happy-path-attempt.test.mjs scripts/happy-path-receipt.test.mjs scripts/happy-path-preflight.test.mjs",
     "test:e2e:feed-hydration": "playwright test -c e2e e2e/community-feed-hydration.spec.ts",
@@ -70,7 +71,7 @@
     "test:e2e:happy-path:attempt": "node scripts/run-happy-path-attempt.mjs"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.112.0-a734db3f.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.114.0-a2eb47a5.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@selfxyz/sdk-common": "1.0.0",
@@ -122,6 +123,9 @@
     "@storybook/builder-vite": "10.6.0",
     "@storybook/csf-plugin": "10.5.10",
     "ethers>ws": "8.21.3",
-    "miniflare>sharp": "0.35.4"
+    "miniflare>sharp": "0.35.5",
+    "seroval": "1.6.3",
+    "jsdom>undici": "8.10.2",
+    "miniflare>undici": "7.29.1"
   }
 }

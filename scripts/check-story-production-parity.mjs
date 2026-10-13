@@ -26,7 +26,9 @@ const ENTRY_DIRECTORIES = ["src/routes"];
 
 /** Story files whose imports are accepted despite the rule, with a reason. */
 const ALLOWED_STORIES = new Map([
-  // None today. Add "src/.../x.stories.tsx": "reason" only with a recorded
+  // Owner-directed real-component preview before route wiring; see the current
+  // brief in tasks/records/solid-hns-names-page-member-journey.md. Remove after wiring.
+  // Add "src/.../x.stories.tsx": "reason" only with a recorded
   // justification; the parity review that added this check started empty.
 ]);
 

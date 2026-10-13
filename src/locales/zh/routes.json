@@ -223,5 +223,42 @@
     "signInToCreate": "登录以创建",
     "submit": "创建",
     "tryAgain": "重试"
+  },
+  "communityJoinName": {
+    "title": "选择你的名字",
+    "label": "名字",
+    "length": "{min}–{max} 个字符。",
+    "exactName": "使用此社区提供的名字。",
+    "taken": "这个名字已被使用，请换一个。",
+    "invalid": "仅限小写 a–z、0–9 和连字符。",
+    "join": "加入",
+    "getName": "获取名称",
+    "retry": "重试",
+    "preparing": "正在准备你的资料…",
+    "joining": "正在加入…",
+    "issuing": "正在完成你的名字…",
+    "failedBeforeJoin": "未能完成加入，请重试。",
+    "failedAfterJoin": "你已加入，但名字尚未完成；请重试以完成。",
+    "pending": "你已加入，名字仍在签发中。",
+    "checkStatus": "查看我的名字",
+    "successTitle": "你已加入",
+    "successDescription": "你的名字已准备好。",
+    "openName": "打开我的名字",
+    "resultUnavailable": "无法确认已签发的地址，请再次查看你的名字。",
+    "takenAfterJoin": "你已加入。这个名字已被使用，请换一个。",
+    "loadFailed": "无法加载你的社区名称。请从个人资料重试。",
+    "offerChanged": "名称获取条件已变更。请检查规则，再次点击“获取名称”。",
+    "requestExpired": "名称请求已过期。请点击“获取名称”重新开始。",
+    "signInRetry": "请从个人资料重新登录，再重试完成此名称。",
+    "profileTitle": "此社区中的个人资料",
+    "profileControl": "个人资料，{name}",
+    "profileOptions": "个人资料选项，{name}",
+    "openProfile": "打开个人资料",
+    "getNameEntry": "获取名称",
+    "profileMenu": "个人资料菜单"
+  },
+  "publicIdentity": {
+    "fallback": "用户 {suffix}",
+    "unavailable": "个人资料不可用"
   }
 }
