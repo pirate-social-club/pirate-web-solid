@@ -23,13 +23,15 @@ export interface OwnerStudyEntryProps {
   api?: OwnerStudyFinancialApi; store?: GuestAuthorityStore; locks?: OwnerStudyLocks;
 }
 export function OwnerStudyEntry(props: OwnerStudyEntryProps) {
-  return <For each={[JSON.stringify([props.account.userId, props.communityId, props.postId])]}>{() => {
-    const account = props.account, communityId = props.communityId, postId = props.postId;
-    return <Errored fallback={<section data-owner-study-unavailable>
+  return <For each={[{
+    key: JSON.stringify([props.account.userId, props.communityId, props.postId]),
+    account: props.account,
+    communityId: props.communityId,
+    postId: props.postId,
+  }]} keyed={scope => scope.key}>{scope => <Errored fallback={<section data-owner-study-unavailable>
       <p>Original financial recovery is unavailable in this browser. Saved operations and owed rewards remain unchanged.</p>
       <Button onClick={props.onPractice}>Ordinary practice</Button>
-    </section>}><OwnerStudyEntryForAccount {...props} account={account} communityId={communityId} postId={postId} /></Errored>;
-  }}</For>;
+    </section>}><OwnerStudyEntryForAccount {...props} account={scope().account} communityId={scope().communityId} postId={scope().postId} /></Errored>}</For>;
 }
 function OwnerStudyEntryForAccount(props: OwnerStudyEntryProps) {
   if (props.store === undefined && typeof indexedDB === "undefined") throw new Error("Durable financial storage unavailable");

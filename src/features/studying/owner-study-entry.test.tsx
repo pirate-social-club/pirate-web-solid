@@ -2,7 +2,7 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import type { OwnerStudyFinancialApi } from "./guest-study-financial-api";
 import type { AuthenticatedSession } from "../../api/session";
 import { createPageGuestAuthorityStore } from "./guest-authority-selection";
@@ -12,7 +12,6 @@ import { serializedOwnerLocks } from "./owner-study-test-fixtures";
 const cleanups: (() => void)[] = [];
 function mount(ui: () => JSX.Element) { const node = document.createElement("div"); document.body.appendChild(node);
   let dispose = () => {}; createRoot(rootDispose => { dispose = rootDispose; solidRender(ui, node); }); cleanups.push(() => { dispose(); node.remove(); }); return node; }
-beforeEach(() => vi.stubGlobal("location", { origin: "https://app.pirate.test" }));
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.unstubAllGlobals(); });
 test("verified Account switch remounts consent and helper choices without deleting original journal", async () => {
   const store = createPageGuestAuthorityStore();
