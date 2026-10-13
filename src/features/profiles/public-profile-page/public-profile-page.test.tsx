@@ -76,6 +76,7 @@ describe("PublicProfilePage", () => {
     const pending = new Promise<GetPublicProfilesHandleResponse>(done => { resolve = done; });
     const container = render(() => (
       <PublicProfilePage
+        activityDependencies={activityDependencies}
         handle="captain-one"
         client={{ get_publicProfilesHandle: async () => pending }}
       />
