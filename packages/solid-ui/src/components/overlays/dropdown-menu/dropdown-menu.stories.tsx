@@ -142,5 +142,8 @@ export const EveryItemReachable: Story = {
     await expect(item.bottom).toBeLessThanOrEqual(bounds.bottom + 0.5);
     const hit = document.elementFromPoint(item.left + item.width / 2, item.top + item.height / 2);
     await expect(last.contains(hit)).toBe(true);
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("menu")).not.toBeInTheDocument());
   },
 };
