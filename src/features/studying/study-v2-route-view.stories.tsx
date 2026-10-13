@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
-import type { SessionResolution } from "../../api/session";
 import type { StudyAvailability, StudySession, StudyV2Api } from "./study-v2-api";
 import { StudyV2RouteView } from "./study-v2-route-view";
 import { createStudySessionStartCoordinator } from "./study-session-start-coordinator.ts";
@@ -171,12 +170,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The session read and availability read are both in flight. */
+/** A confirmed account is waiting for its ordinary availability read.
+ * Pending account discovery itself keeps the public Guest branch visible.
+ */
 export const Loading: Story = {
-  args: { resolveSession: () => new Promise<SessionResolution>(() => {}) },
+  args: {
+    api: { ...studyApi(), loadAvailability: () => new Promise<never>(() => {}) },
+    resolveSession: authenticated([learner("persona-learner", "Learner")]),
+    guest: { publicReader: { load: () => new Promise<never>(() => {}) } },
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("status")).toHaveAccessibleName("Loading study");
+    await expect(await canvas.findByRole("status", { name: "Loading study" })).toHaveAccessibleName("Loading study");
   },
 };
 
@@ -195,9 +200,19 @@ export const DirectFirstExercise: Story = {
   },
 };
 
-/** Anonymous visitors get the sign-in state instead of a member read. */
+/** An established Account whose ordinary availability request rejects access
+ * receives the sign-in state. Anonymous visitors instead enter Guest practice.
+ */
 export const AuthRequired: Story = {
-  args: { resolveSession: async () => "anonymous" },
+  name: "Account access rejected",
+  args: {
+    api: {
+      ...studyApi(),
+      loadAvailability: async () => { throw Object.assign(new Error("Account session rejected"), { status: 401 }); },
+    },
+    resolveSession: authenticated([learner("persona-learner", "Learner")]),
+    guest: { publicReader: { load: () => new Promise<never>(() => {}) } },
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByRole("heading", { name: "Sign in to study" })).toBeInTheDocument());
