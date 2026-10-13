@@ -67,3 +67,15 @@ export const Default: Story = {
     );
   },
 };
+
+/** Paper places the tooltip above its trigger, 4px away. */
+export const AboveTrigger: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Close dialog" });
+    await userEvent.hover(trigger);
+    const tooltip = await within(document.body).findByRole("tooltip");
+    await waitFor(() => expect(tooltip).toBeVisible());
+    const gap = trigger.getBoundingClientRect().top - tooltip.getBoundingClientRect().bottom;
+    await expect(Math.round(gap)).toBe(4);
+  },
+};

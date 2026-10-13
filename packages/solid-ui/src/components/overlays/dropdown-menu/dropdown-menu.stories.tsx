@@ -124,3 +124,23 @@ export const Default: Story = {
     await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
+
+/** The last item stays reachable by pointer, and the open menu draws no browser outline. */
+export const EveryItemReachable: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Open menu" }));
+    const menu = await body.findByRole("menu");
+    await waitFor(() => expect(menu).toHaveFocus());
+    await expect(getComputedStyle(menu).outlineStyle).toBe("none");
+
+    const last = body.getByRole("menuitem", { name: "Delete" });
+    last.scrollIntoView({ block: "nearest" });
+    const item = last.getBoundingClientRect();
+    const bounds = menu.getBoundingClientRect();
+    await expect(item.bottom).toBeLessThanOrEqual(bounds.bottom + 0.5);
+    const hit = document.elementFromPoint(item.left + item.width / 2, item.top + item.height / 2);
+    await expect(last.contains(hit)).toBe(true);
+  },
+};

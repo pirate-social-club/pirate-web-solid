@@ -38,6 +38,12 @@ export const Default: Story = {
     const canvas = within(canvasElement);
     const textarea = canvas.getByRole("textbox", { name: "Reply" });
 
+    // It keeps the Textarea styling: bordered, padded, rounded.
+    const style = getComputedStyle(textarea);
+    await expect(style.borderTopWidth).toBe("1px");
+    await expect(style.paddingLeft).toBe("16px");
+    await expect(style.borderTopLeftRadius).not.toBe("0px");
+
     const initialHeight = textarea.getBoundingClientRect().height;
     await userEvent.type(textarea, "line one\nline two\nline three");
     const grownHeight = textarea.getBoundingClientRect().height;

@@ -17,7 +17,10 @@ function DropdownMenuContent(
 ) {
   const className = createMemo(() =>
     cn(
-      "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-[var(--radius-lg)] border border-border bg-popover p-0 text-popover-foreground shadow-md",
+      // Size to the space the popper has and scroll beyond it, so the last
+      // item is never clipped out of reach. The container takes focus on open;
+      // items show their own highlight, so it draws no outline of its own.
+      "relative z-50 max-h-[var(--kb-popper-content-available-height)] min-w-32 overflow-y-auto outline-none rounded-[var(--radius-lg)] border border-border bg-popover p-0 text-popover-foreground shadow-md",
       props.class,
     ),
   );
@@ -25,7 +28,7 @@ function DropdownMenuContent(
 
   return (
     <KMenu.Portal>
-      <KMenu.Content class={className()} {...rest}>
+      <KMenu.Content {...rest} class={className()}>
         {props.children}
       </KMenu.Content>
     </KMenu.Portal>
@@ -39,7 +42,7 @@ function DropdownMenuItem(
   const rest = omit(props, "class", "children");
 
   return (
-    <KMenu.Item class={className()} {...rest}>
+    <KMenu.Item {...rest} class={className()}>
       {props.children}
     </KMenu.Item>
   );
@@ -52,7 +55,7 @@ function DropdownMenuCheckboxItem(
   const rest = omit(props, "class", "children");
 
   return (
-    <KMenu.CheckboxItem class={className()} {...rest}>
+    <KMenu.CheckboxItem {...rest} class={className()}>
       <KMenu.ItemIndicator class="absolute end-2 inline-flex size-4 items-center justify-center">
         <IconCheck class="size-3.5" />
       </KMenu.ItemIndicator>
@@ -68,7 +71,7 @@ function DropdownMenuRadioItem(
   const rest = omit(props, "class", "children");
 
   return (
-    <KMenu.RadioItem class={className()} {...rest}>
+    <KMenu.RadioItem {...rest} class={className()}>
       <KMenu.ItemIndicator class="absolute end-2 inline-flex size-4 items-center justify-center">
         <IconCheck class="size-3.5" />
       </KMenu.ItemIndicator>
@@ -86,7 +89,7 @@ function DropdownMenuGroupLabel(
   const rest = omit(props, "class", "children");
 
   return (
-    <KMenu.GroupLabel class={className()} {...rest}>
+    <KMenu.GroupLabel {...rest} class={className()}>
       {props.children}
     </KMenu.GroupLabel>
   );

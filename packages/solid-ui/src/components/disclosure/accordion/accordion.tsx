@@ -23,7 +23,7 @@ function AccordionItem(props: ParentProps<AccordionItemProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <KAccordion.Item class={className()} {...rest}>
+    <KAccordion.Item {...rest} class={className()}>
       {props.children}
     </KAccordion.Item>
   );
@@ -38,7 +38,7 @@ function AccordionHeader(props: ParentProps<AccordionHeaderProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <KAccordion.Header class={className()} {...rest}>
+    <KAccordion.Header {...rest} class={className()}>
       {props.children}
     </KAccordion.Header>
   );
@@ -58,7 +58,7 @@ function AccordionTrigger(props: ParentProps<AccordionTriggerProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <KAccordion.Trigger class={className()} {...rest}>
+    <KAccordion.Trigger {...rest} class={className()}>
       {props.children}
       <IconCaretDown class="size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[expanded]:rotate-180" />
     </KAccordion.Trigger>

@@ -10,7 +10,7 @@ export const textareaVariants = cva(
     variants: {
       variant: {
         default: "",
-        flat: "rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0",
+        flat: "rounded-none border-0 bg-transparent px-0 py-0 shadow-none focus-visible:border-transparent focus-visible:ring-0",
       },
     },
     defaultVariants: {
@@ -31,5 +31,5 @@ export function Textarea(props: TextareaProps) {
   );
   const rest = omit(props, "class", "variant");
 
-  return <textarea dir="auto" class={className()} {...rest} />;
+  return <textarea dir="auto" {...rest} class={className()} />;
 }

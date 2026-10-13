@@ -5,8 +5,6 @@ import { controlledRender } from "@/stories/lib/controlled";
 import { StoryStack } from "@/stories/lib/story-layout";
 import {
   RadioGroup,
-  RadioGroupDescription,
-  RadioGroupErrorMessage,
   RadioGroupItem,
 } from "./radio-group";
 
@@ -34,6 +32,7 @@ const meta = {
   ),
   args: {
     value: "new",
+    orientation: "horizontal",
     onChange: fn(),
   },
   argTypes: {
@@ -76,12 +75,12 @@ export const Default: Story = {
 export const Disabled: Story = {
   render: () => (
     <StoryStack>
-      <RadioGroup aria-label="Disabled group" disabled>
+      <RadioGroup aria-label="Disabled group" disabled orientation="horizontal">
         <RadioGroupItem value="new">Newest</RadioGroupItem>
         <RadioGroupItem value="top">Top rated</RadioGroupItem>
         <RadioGroupItem value="old">Oldest</RadioGroupItem>
       </RadioGroup>
-      <RadioGroup aria-label="Group with a disabled item" defaultValue="new">
+      <RadioGroup aria-label="Group with a disabled item" defaultValue="new" orientation="horizontal">
         <RadioGroupItem value="new">Newest</RadioGroupItem>
         <RadioGroupItem value="top">Top rated</RadioGroupItem>
         <RadioGroupItem value="old" disabled>
@@ -116,23 +115,42 @@ export const Error: Story = {
     <RadioGroup
       aria-label="Sort order"
       defaultValue="new"
+      orientation="horizontal"
       validationState="invalid"
+      description="Controls the order of the list."
+      errorMessage="Pick a sort order."
     >
       <RadioGroupItem value="new">Newest</RadioGroupItem>
       <RadioGroupItem value="top">Top rated</RadioGroupItem>
       <RadioGroupItem value="old">Oldest</RadioGroupItem>
-      <RadioGroupDescription>
-        Controls the order of the list.
-      </RadioGroupDescription>
-      <RadioGroupErrorMessage>
-        Pick a sort order.
-      </RadioGroupErrorMessage>
     </RadioGroup>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText("Pick a sort order."),
-    ).toBeInTheDocument();
+    const error = canvas.getByText("Pick a sort order.");
+    await expect(error).toBeInTheDocument();
+    // Paper: description and error sit below the tinted track, not inside it.
+    const track = canvas.getByRole("radio", { name: "Newest" }).closest("[role=radiogroup] > div");
+    if (!(track instanceof HTMLElement)) throw new globalThis.Error("track not found");
+    const trackBottom = track.getBoundingClientRect().bottom;
+    await expect(canvas.getByText("Controls the order of the list.").getBoundingClientRect().top).toBeGreaterThanOrEqual(trackBottom);
+    await expect(error.getBoundingClientRect().top).toBeGreaterThanOrEqual(trackBottom);
+    await expect(canvas.getByRole("radiogroup")).toHaveAccessibleDescription(/Controls the order of the list\./);
+  },
+};
+
+/** Paper draws the group as one row of equal columns. */
+export const HorizontalRow: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const labels = ["Newest", "Top rated", "Oldest"].map((name) =>
+      canvas.getByText(name).getBoundingClientRect(),
+    );
+    const [first] = labels;
+    if (!first) throw new globalThis.Error("no items");
+    for (const box of labels) {
+      await expect(Math.abs(box.top - first.top)).toBeLessThan(1);
+      await expect(Math.abs(box.width - first.width)).toBeLessThan(1);
+    }
   },
 };
