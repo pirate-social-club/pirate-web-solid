@@ -1,3 +1,4 @@
+import { OwnerStudyRecoveryControls } from "./owner-study-recovery-controls";
 import { For, Show, createSignal, onCleanup, untrack } from "solid-js";
 import { Button } from "../../design-system";
 import { usePageUiLocale } from "../../lib/ui-locale";
@@ -71,7 +72,8 @@ function OwnerRewardControls(props: Props & { ownerId: string }) {
     finally { if (active) setBusy(false); }
   };
   const target = () => { const value = attachmentState(); return value?.status === "awaiting_confirmation" ? value.target : undefined; };
-  return <section class="flex flex-col gap-3 p-5" data-guest-reward-status aria-label={copy.heading}>
+  const bound = () => { const value = attachmentState(); return value?.status === "bound" ? value.binding : undefined; };
+  return <Show when={bound()} fallback={(<section class="flex flex-col gap-3 p-5" data-guest-reward-status aria-label={copy.heading}>
     <h2 class="font-semibold">{copy.heading}</h2>
     <Show when={props.session.status === "completed"}><p>{copy.lessonComplete}</p></Show>
     <p role="status">{copy.statuses[guestParticipationStatus(props.session.participation)]}</p>
@@ -88,5 +90,5 @@ function OwnerRewardControls(props: Props & { ownerId: string }) {
       <Show when={attachmentState()?.status === "pending"}><p role="status">{copy.attachmentPending}</p></Show>
       <Show when={attachmentState()?.status === "unavailable"}><p role="status">{copy.attachmentUnavailable}</p></Show>
     </Show>
-  </section>;
+  </section>)}>{binding => <OwnerStudyRecoveryControls originalAccountId={binding().account_id} accounting={accounting} />}</Show>;
 }

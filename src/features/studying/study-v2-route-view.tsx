@@ -1,3 +1,4 @@
+import { OwnerStudyEntry } from "./owner-study-entry";
 import { GuestStudyRouteView, type GuestStudyRouteViewProps } from "./guest-study-route-view";
 import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
@@ -229,22 +230,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       }
       if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
       if (!preserveChoices) { setTargetLanguage(""); setLearnerBand(""); }
-      const preparedPersona = defaultOperationPersonaId(eligible);
-      if (eligible.length === 1 && preparedPersona !== undefined) {
-        // A single prepared persona needs no preparation gate: open the first
-        // exercise directly, source-only, reusing that persona. Capture still
-        // waits for the participant's personal consent inside the lesson.
-        await beginSession({
-          availability: loaded.availability,
-          communityId: loaded.communityId,
-          learnerBand: null,
-          personaId: preparedPersona,
-          session: resolved,
-          targetLanguage: null,
-        });
-        return;
-      }
-      // More than one eligible persona stays explicit: no silent identity choice.
+      // Entry and recipient choices remain deliberate; no automatic chance start.
+      // Account configuration remains explicit before selecting either ordinary practice or original-drawing entry.
       setState({
         availability: loaded.availability,
         communityId: loaded.communityId,
@@ -415,6 +402,11 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   return (
     <main data-route-path={props.routePath ?? `/p/${props.postId}/study`} class="min-h-dvh bg-background text-foreground">
       <Title>Study</Title>
+      <Show when={state().kind !== "guest" && state().kind !== "lesson" && state().kind !== "starting"}>
+        <Button onClick={() => { guestFlowEntered = true; requestGeneration++; setMessage(""); setState({ kind: "guest" }); }}>
+          Continue as Guest practice
+        </Button>
+      </Show>
       <Show
         when={state().kind !== "loading" && state().kind !== "starting"}
         fallback={<StudyRouteLoadingState label={state().kind === "starting" ? "Starting study" : "Loading study"} />}
@@ -543,8 +535,11 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                       Practice the original lyrics, or add a ready helper language and level.
                     </Type>
                   </header>
+                  <OwnerStudyEntry account={configuration().session} communityId={configuration().communityId} postId={props.postId}
+                    availability={configuration().availability} recorder={recorder} onExit={() => navigate(props.exitPath ?? "/")}
+                    onPractice={() => { void start(configuration()); }} />
                   <OperationPersonaControl
-                    label="Studying as"
+                    label="Ordinary practice persona"
                     personas={personas()}
                     placeholder="Choose a persona"
                     selectedPersonaId={personaId()}

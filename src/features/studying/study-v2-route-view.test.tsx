@@ -177,6 +177,17 @@ function routeSession(): StudySession {
   };
 }
 
+async function enterOrdinaryPractice(container: HTMLElement, createSession: unknown): Promise<void> {
+  let start: HTMLButtonElement | undefined;
+  await vi.waitFor(() => {
+    start = [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start");
+    expect(start?.disabled).toBe(false);
+  });
+  expect(createSession).not.toHaveBeenCalled(); // Consent/configure is visible before any ordinary start POST.
+  if (start === undefined) throw new Error("Explicit ordinary practice Start required");
+  start.click();
+}
+
 describe("Study v2 production route", () => {
   test("explains missing stems without offering to start or generate a lesson", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
@@ -207,8 +218,8 @@ describe("Study v2 production route", () => {
     expect(availability).not.toHaveBeenCalled();
     unavailable = false;
     [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try Again")!.click();
-    // A single prepared persona opens the first exercise directly; the retry
-    // no longer lands on a Start gate.
+    // Successful profile retry opens explicit configuration, never an automatic entry.
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(api.createSession).toHaveBeenCalledOnce());
   });
 
@@ -288,7 +299,8 @@ describe("Study v2 production route", () => {
     confirmed = true;
     [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
     (await completion).complete(true);
-    // The prepared single persona continues straight into the session.
+    // Wallet confirmation does not accept chance terms or auto-start practice.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -399,7 +411,8 @@ describe("Study v2 production route", () => {
     activeAccount = "user-2";
     activated = true;
     (await completion).complete(true);
-    // The activated account's single bound persona continues into the session.
+    // The activated Account explicitly starts practice as its prepared persona.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -434,7 +447,8 @@ describe("Study v2 production route", () => {
     await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
       choice: { kind: "existing", personaId: "unbound" },
     })));
-    // The bound single persona continues straight into the session.
+    // Persona preparation opens configuration; practice still requires a click.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       learnerBand: null,
@@ -476,7 +490,8 @@ describe("Study v2 production route", () => {
       />
     ));
 
-    // No Start gate: the prepared single persona starts source-only directly.
+    // Explicit ordinary practice preserves the original null helper/level payload.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -501,7 +516,7 @@ describe("Study v2 production route", () => {
   };
 
   const enterLesson = async (container: HTMLElement, createSession: ReturnType<typeof vi.fn>) => {
-    // Auto-start opens the first exercise without a Start gate.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(container.textContent).toContain("Record"));
     return [...container.querySelectorAll("button")]
@@ -701,7 +716,8 @@ test("an age-locked Study entry verifies in place and continues into the session
       communityBinding:{communityId:"community-1",bindingSource:"first_membership"}}]})} />);
   await vi.waitFor(()=>expect(container.textContent).toContain("Verify 18+ to view"));
   [...container.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
-  // Verification reloads and the prepared persona continues without a Start gate.
+  // Verification reloads configuration; it does not choose chance terms or start a session.
+  await enterOrdinaryPractice(container, api.createSession);
   await vi.waitFor(()=>expect(api.createSession).toHaveBeenCalledOnce());
   expect(container.textContent).not.toContain("Verify 18+ to view");
 });
@@ -727,9 +743,10 @@ test("fails visibly when cross-tab coordination is unavailable", async () => {
       })}
     />
   ));
+  await enterOrdinaryPractice(container, createSession);
   await vi.waitFor(() => expect(container.textContent).toContain("Study cannot coordinate this session"));
   expect(createSession).not.toHaveBeenCalled();
-  // A failed auto-start stays visible without sending a single-persona user to setup.
+  // A failed explicit start stays visible without inventing a persona setup requirement.
   expect(container.textContent).toContain("Try Again");
   expect(container.textContent).not.toContain("Start Study");
 });

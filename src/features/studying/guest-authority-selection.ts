@@ -1,3 +1,4 @@
+import { isOriginalOwnerStudyStart, isOriginalOwnerCreditCommand, type OriginalOwnerStudyStart, type OriginalOwnerCreditCommand } from "./owner-study-journal";
 import type { OriginalGuestAttachment } from "./guest-study-attachment-coordinator";
 import { isGuestRewardTerms, canonicalGuestInstant, type GuestRewardTerms } from "./guest-study-reward-model";
 import type { GuestStudyApi } from "./guest-study-api.ts";
@@ -24,6 +25,9 @@ export interface GuestAuthorityJournal {
   starts: OriginalGuestStart[];
   /** Nonsecret initiating-origin ceremony; absent in prior journals. Never a proof. */
   attachment?: OriginalGuestAttachment;
+  /** Account nonsecret original operations. No OwnerID, tokens or answer payload. */
+  ownerStarts?: OriginalOwnerStudyStart[];
+  ownerCreditCommands?: OriginalOwnerCreditCommand[];
 }
 export interface GuestAuthorityStore {
   read(): Promise<GuestAuthorityJournal>;
@@ -79,9 +83,14 @@ function attachment(value: unknown, origin: string): value is OriginalGuestAttac
   return true;
 }
 function journal(value: unknown, origin: string): value is GuestAuthorityJournal {
-  if (!object(value) || (Object.keys(value).length !== 3 && Object.keys(value).length !== 4)
-    || (Object.keys(value).length === 4 && !("attachment" in value))
+  if (!object(value) || Object.keys(value).some(key => !["pointer", "issuance", "starts", "attachment", "ownerStarts", "ownerCreditCommands"].includes(key))
     || ("attachment" in value && !attachment(value.attachment, origin))
+    || ("ownerStarts" in value && (!Array.isArray(value.ownerStarts) || value.ownerStarts.length > 128
+      || !value.ownerStarts.every(isOriginalOwnerStudyStart)
+      || new Set(value.ownerStarts.map(record => record.body.idempotency_key)).size !== value.ownerStarts.length))
+    || ("ownerCreditCommands" in value && (!Array.isArray(value.ownerCreditCommands) || value.ownerCreditCommands.length > 128
+      || !value.ownerCreditCommands.every(isOriginalOwnerCreditCommand)
+      || new Set(value.ownerCreditCommands.map(record => record.body.idempotency_key)).size !== value.ownerCreditCommands.length))
     || !("starts" in value) || !("pointer" in value) || !("issuance" in value)
     || !Array.isArray(value.starts)) return false;
   const p = value.pointer;

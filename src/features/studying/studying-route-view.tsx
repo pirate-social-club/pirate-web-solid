@@ -58,6 +58,8 @@ export interface GuestStudyPresentation {
 export interface StudyingRouteViewProps {
   /** Opt-in Guest presentation; ordinary account defaults remain unchanged. */
   guestPresentation?: GuestStudyPresentation;
+  /** Same original-request presentation for ordinary Account answers; no Guest authority is fabricated. */
+  recoveryPresentation?: GuestStudyPresentation;
   rewardSlot?: JSX.Element;
   postId: string;
   client: StudyingClient;
@@ -69,6 +71,10 @@ export interface StudyingRouteViewProps {
   onKaraoke?: () => void;
   onStudyAgain?: () => void;
   onConnect?: () => void;
+}
+
+function recoveryPresentation(props: StudyingRouteViewProps): GuestStudyPresentation | undefined {
+  return props.recoveryPresentation ?? props.guestPresentation;
 }
 
 type SayItBackSurfaceState = Extract<StudyingSurfaceState, { kind: "say_it_back" }>;
@@ -103,7 +109,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   const [pendingBusy, setPendingBusy] = createSignal(false);
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
-  let guestDisclosureAcknowledged = props.guestPresentation?.disclosureAccepted ?? false;
+  let guestDisclosureAcknowledged = recoveryPresentation(props)?.disclosureAccepted ?? false;
   const [micDisclosure, setMicDisclosure] = createSignal<string | null>(null);
 
   // Spec 019 §5.1: learner-facing microphone capture requires a first-use
@@ -113,7 +119,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 
   const micDisclosureAcknowledged = (): boolean => {
     // The exact server disclosure is acknowledged before starting Guest Study.
-    if (props.guestPresentation !== undefined) return guestDisclosureAcknowledged && props.guestPresentation.disclosure !== undefined;
+    if (recoveryPresentation(props) !== undefined) return guestDisclosureAcknowledged && recoveryPresentation(props)?.disclosure !== undefined;
     try {
       return globalThis.localStorage?.getItem(MIC_DISCLOSURE_STORAGE_KEY) === "1";
     } catch {
@@ -123,8 +129,8 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 
   const acknowledgeMicDisclosure = () => {
     const pending = micDisclosure();
-    if (props.guestPresentation !== undefined) {
-      if (props.guestPresentation.disclosure === undefined) return;
+    if (recoveryPresentation(props) !== undefined) {
+      if (recoveryPresentation(props)?.disclosure === undefined) return;
       guestDisclosureAcknowledged = true;
     } else try {
       globalThis.localStorage?.setItem(MIC_DISCLOSURE_STORAGE_KEY, "1");
@@ -275,8 +281,8 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     }).catch((rejection: StudyingAttemptRejection) => {
       if (!active) return;
       setPendingBusy(false);
-      if (props.guestPresentation !== undefined) {
-        // Every unknown Guest answer keeps exact audio/choice, item, attempt
+      if (recoveryPresentation(props) !== undefined) {
+        // Every unknown journaled answer keeps exact audio/choice, item, attempt
         // and key. It never enters account auth or divergence rerecord paths.
         setPendingAttempt(input);
         setPendingAuthority(isStudyingAuthError(rejection));
@@ -482,7 +488,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
             <Type as="h2" variant="h3">Before you record</Type>
             <Type as="p" class="mt-3 text-muted-foreground" variant="body">
-              <Show when={props.guestPresentation === undefined} fallback={props.guestPresentation?.disclosure?.text ?? props.guestPresentation?.noDisclosureDescription}>
+              <Show when={recoveryPresentation(props) === undefined} fallback={recoveryPresentation(props)?.disclosure?.text ?? recoveryPresentation(props)?.noDisclosureDescription}>
               Your voice recording is sent to our speech provider, ElevenLabs,
               for transcription. Under its standard terms, ElevenLabs may retain
               the recording. Pirate also stores your recording privately for 24
@@ -501,7 +507,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
               <Button
                 class="flex-1"
                 data-study-mic-disclosure-accept
-                disabled={props.guestPresentation !== undefined && props.guestPresentation.disclosure === undefined}
+                disabled={recoveryPresentation(props) !== undefined && recoveryPresentation(props)?.disclosure === undefined}
                 onClick={acknowledgeMicDisclosure}
               >
                 Continue to record
@@ -512,21 +518,21 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       </Show>
       <Show when={pendingAttempt() === undefined} fallback={(
         <div class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-5" data-guest-answer-pending role="status">
-          <Type as="h2" variant="h2">{props.guestPresentation?.pendingTitle}</Type>
-          <Type as="p" variant="body">{props.guestPresentation?.pendingDescription}</Type>
-          <Show when={pendingAuthority()}><Type as="p" variant="body">{props.guestPresentation?.authorityDescription}</Type></Show>
-          <Type as="p" variant="caption">{props.guestPresentation?.practiceLabel}</Type>
+          <Type as="h2" variant="h2">{recoveryPresentation(props)?.pendingTitle}</Type>
+          <Type as="p" variant="body">{recoveryPresentation(props)?.pendingDescription}</Type>
+          <Show when={pendingAuthority()}><Type as="p" variant="body">{recoveryPresentation(props)?.authorityDescription}</Type></Show>
+          <Type as="p" variant="caption">{recoveryPresentation(props)?.practiceLabel}</Type>
           <Button disabled={pendingBusy()} onClick={() => {
             const input = pendingAttempt();
             if (input === undefined || pendingBusy()) return;
-            if (pendingAuthority() && props.guestPresentation !== undefined) {
+            if (pendingAuthority() && recoveryPresentation(props) !== undefined) {
               setPendingBusy(true);
-              void props.guestPresentation.onRecoverAccess().then(() => {
+              void recoveryPresentation(props)?.onRecoverAccess().then(() => {
                 if (active) submitAttempt(input);
               }).catch(() => { if (active) setPendingBusy(false); });
             } else submitAttempt(input);
-          }}>{props.guestPresentation?.retryOriginalLabel}</Button>
-          <Button variant="secondary" onClick={props.onExit}>{props.guestPresentation?.exitLabel}</Button>
+          }}>{recoveryPresentation(props)?.retryOriginalLabel}</Button>
+          <Button variant="secondary" onClick={props.onExit}>{recoveryPresentation(props)?.exitLabel}</Button>
         </div>
       )}>
       <StudyingSurface
@@ -583,11 +589,11 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
     <Show
       when={!authRequired()}
       fallback={(
-        <Show when={props.guestPresentation === undefined} fallback={(
+        <Show when={recoveryPresentation(props) === undefined} fallback={(
           <div class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-5" role="status">
-            <Type as="p" variant="body">{props.guestPresentation?.authorityDescription}</Type>
-            <Button onClick={() => { void props.guestPresentation?.onRecoverAccess().then(load).catch(() => {}); }}>{props.guestPresentation?.retryOriginalLabel}</Button>
-            <Button variant="secondary" onClick={props.onExit}>{props.guestPresentation?.exitLabel}</Button>
+            <Type as="p" variant="body">{recoveryPresentation(props)?.authorityDescription}</Type>
+            <Button onClick={() => { void recoveryPresentation(props)?.onRecoverAccess().then(load).catch(() => {}); }}>{recoveryPresentation(props)?.retryOriginalLabel}</Button>
+            <Button variant="secondary" onClick={props.onExit}>{recoveryPresentation(props)?.exitLabel}</Button>
           </div>
         )}>
         <StudyAuthRequiredState
