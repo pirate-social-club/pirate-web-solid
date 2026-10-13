@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-13T15:10:23Z",
+  "api_ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+  "solid_ref": "b835c734d019b5523ccbd53aa74251f51c27beb5",
+  "cloud_audit": {
+    "comment_id": 6148175072,
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6148175072",
+    "reported_revoked_functions": 173,
+    "reported_runtime_entry_points": 24,
+    "independent_count_recomputed": false
+  },
+  "independent_source_findings": {
+    "direct_call_permission_conflict": "confirmed",
+    "generic_helper_boundary": "upload ID only; registered-only closure under source lock; not a Karaoke-specific capture boundary",
+    "proposed_fix": "private raw helper plus narrow owner-executed capture-bound runtime entry point, with additive source successor if necessary",
+    "media_processor_coupling": "PR592 workflow/store pass vocal source ref/hash; adapter consumes and records them; new Karaoke reader requires matching ref/hash; current media processor imports changed modules",
+    "rollback": "sanctioned revert PR and guarded release default; concrete predecessor compatibility required"
+  },
+  "sources": [
+    {
+      "path": "packages/platform-cf/src/captured-karaoke-bindings.ts",
+      "blob_sha": "be3dfeceac1233af9c77b09568c0a7e3633e71a8",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/packages/platform-cf/src/captured-karaoke-bindings.ts"
+    },
+    {
+      "path": "packages/platform-cf/src/learner-audio-deletion-captured-expiry.pg-fixture.ts",
+      "blob_sha": "80ecaf59fa6675b9b43b74386cded36128d90f37",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/packages/platform-cf/src/learner-audio-deletion-captured-expiry.pg-fixture.ts"
+    },
+    {
+      "path": "db/postgres/migrations/0262_ordinary_audio_producer_capture.sql",
+      "blob_sha": "cebfa9aa4631397f03753b3c3dcbcfbf009a54a3",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/db/postgres/migrations/0262_ordinary_audio_producer_capture.sql"
+    },
+    {
+      "path": "db/postgres/roles.sql.example",
+      "blob_sha": "38e7967e62bb536ce2797a9a8328a0e4b37815d9",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/db/postgres/roles.sql.example"
+    },
+    {
+      "path": "db/postgres/migrations/0247_karaoke_instrumental_qualification_policy.sql",
+      "blob_sha": "633c4bbc5a72da0800874b9ab566553733c0f9e0",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/db/postgres/migrations/0247_karaoke_instrumental_qualification_policy.sql"
+    },
+    {
+      "path": "apps/media-processor-worker/wrangler.jsonc",
+      "blob_sha": "f2802cc433a3585a1bb98382b67fca891019370c",
+      "ref": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "url": "https://github.com/pirate-social-club/api-next/blob/78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b/apps/media-processor-worker/wrangler.jsonc"
+    }
+  ],
+  "release_packet": {
+    "comment_id": 6148037069,
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6148037069",
+    "independent_execution": false,
+    "limits": "No deployment/readiness/serving receipt; incremental exact permission block not published yet."
+  },
+  "contract": {
+    "pr": 604,
+    "head": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+    "draft": true,
+    "accepted": false,
+    "decisions": "R1 R2 C1 E1 owner decision pending",
+    "provider": "pending real phone plus managed evidence",
+    "recommendation": "limited recovery; practice-only; private read-only linked history, original bot practice profile; Open my progress"
+  },
+  "ci": {
+    "superseded_head": "af4ac7d24985559ea2de611226f4860fdccfa67e",
+    "superseded_aggregate_job": 115359833137,
+    "aggregate_cause": "GENERAL_RESULT, NAMESPACE_RESULT and RECOVERY_RESULT cancelled; PG18_SHAPE_RESULT success; status shell check exit1",
+    "current_head": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+    "checks_at_1509": [
+      {
+        "name": "postgres17-general-2",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904633"
+      },
+      {
+        "name": "postgres17-general-0",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904563"
+      },
+      {
+        "name": "postgres17-general-4",
+        "status": "in_progress",
+        "conclusion": null,
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904524"
+      },
+      {
+        "name": "postgres17-general-3",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904444"
+      },
+      {
+        "name": "postgres17-general-1",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904417"
+      },
+      {
+        "name": "postgres17-namespace",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904397"
+      },
+      {
+        "name": "postgres17-recovery",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904301"
+      },
+      {
+        "name": "postgres18-shape",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904280"
+      },
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904260"
+      },
+      {
+        "name": "hns-regtest",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084935/job/115359904048"
+      },
+      {
+        "name": "Advisory policy",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415084376/job/115357281456"
+      },
+      {
+        "name": "secret-boundary",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38415080855/job/115357262921"
+      }
+    ],
+    "full_pass": false
+  },
+  "direction": {
+    "comment_id": 6148709063,
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6148709063",
+    "body": "Cloud continuation direction and independent G1 boundary check, 2026-10-13.\n\nContinue the G1 source, narrow-grant tests and deployment preflight now on a separate owned branch/PR from current main. This necessary source work is covered by the standing Telegram task authorization; it does not depend on PR604 merging or on another branch-creation approval. Keep exclusive writer custody and do not put permission/source changes in the docs-only contract PR.\n\nThe close-unclaimed conflict is confirmed on API main 78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b. captured-karaoke-bindings.ts invokes close_unclaimed_learner_audio_private_v1(text) directly through CONTROL_PLANE. The captured-expiry fixture deliberately denies that invocation to the serving role. Migration0262's helper takes an upload ID alone, locks its source and closes a registered upload as absent; it has no Karaoke-specific capture/account boundary. It refuses writing/unknown states, so this is an authority-surface mismatch, not proof that an unknown writer is already safe.\n\nPreserve the direct-helper denial. Prepare a narrow SECURITY DEFINER cancellation entry point for the genuine captured account Karaoke path, using the existing exact-capture validation and source-lock protocol. It must bind the account/session/attempt/artifact/key and original registered generation, refuse a different capture, Study/guest sources and writing/unknown producers, and serialize cancellation against mandatory claim. Its owner-executed body may call the private helper; the runtime must not receive database-owner credentials. Test the real production cancellation path with only the proposed runtime grants, retain the direct-helper denial and test the claim/cancel race. Use an additive next migration if a new routine is necessary; do not rewrite applied0262/0264. Regenerate the baseline, ledger and affected readiness bindings for the resulting exact head.\n\nPublish the complete proposed function signatures, real serving-principal mapping and per-Worker call sites. The audit's 24 names are a discovery inventory, not approval of a 24-function grant. HTTP/jobs may share a principal, but establish that from the effective bindings. Check required EXECUTE and required denials, schema/function owner and pinned search_path through the actual connections. Keep operator/legacy-settlement and guest-only functions private. The generic roles example starts by creating roles and granting broad table rights; the staging ceremony must apply only the separately reviewed incremental function block, with no new table, role-membership or guest grants. Applying that permission change remains excluded from standing authorization and needs the workspace_owner's explicit approval of the concrete reviewed block.\n\nG2 is a coordinated-source dependency to resolve in the packet, not a new product-owner design choice. PR592 changed the media workflow/store to supply the vocal-stem source, the ElevenLabs adapter to consume and record that source, and the new Karaoke readiness reader to require its exact ref/hash. The media-processor composition uses those changed modules. Include its matching source in PartB unless fresh serving evidence proves it already contains the compatible producer, or independently reviewed compatibility evidence supports holding it. Preserve the existing feature flags/bindings and identify in-flight workflow compatibility; do not activate new financial or provider effects. Capture its before/after allocation and binding receipts alongside HTTP/jobs.\n\nFor G3, use the sanctioned revert-PR plus guarded staging release as the default recovery path. Prepare the exact predecessor/revert and establish that its HNS/config/API compatibility is actually recoverable before PartA mutation. Do not silently substitute a direct Wrangler rollback for the repository's guarded source/artifact/readiness path. If a bounded emergency path is needed, publish it as a concrete reviewed successor rather than asking for a generic bypass. Operator command pipelines must retain failure status (for example, pipefail when using tee). PartA still needs exclusive custody and fresh whole-release/source/artifact/serving/config/app and HNS/browser receipts; the packet itself is not a serving receipt.\n\nPR604 remains an unaccepted draft. The workspace_owner asked what the designs recommend; that was not approval of R1/R2/C1/E1. Keep owner decision pending. The recommendation remains limited practice recovery, practice-only status, a private read-only history relation with the original bot practice profile, and one \"Open my progress\" action. Provider selection still needs the real phone and managed lookup evidence. Refresh the PR description to match the current draft wording.\n\nThe old af4ac7d2 postgres17 aggregate failure is verified as cancellation-derived: its job log records GENERAL_RESULT, NAMESPACE_RESULT and RECOVERY_RESULT as cancelled. At the 15:09 UTC read, current PR604 head9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763 has eleven successful checks, general-4 still running and no completed aggregate yet. Do not reuse that partial result as final matched-head acceptance.\n\nCloud retains source integration, the operator packet and the composed staging/phone outcome. Prepare and publish all reviewable work that does not depend on an owner decision while the actual permission approval, product decisions and workstation/device acceptance remain outstanding. Production, credentials/permission mutations, funds and irreversible operations are not authorized by this source direction.",
+    "exact_readback": true
+  },
+  "authority": "Source, tests, separate branch/PR and reviewed staging packet within standing Telegram scope. Actual credential permission change excluded until explicit concrete owner approval; production, funds, irreversible operations excluded.",
+  "local_actions": "Read-only source and hosted CI inspection, published coordination direction, own documentary checkpoint. No native product test, source edit, managed permission change, migration, deployment or phone run.",
+  "control_checkpoint": {
+    "commit": "09b6116b99adfd861f62f7550fa66ab94f5ff31a",
+    "record": "tasks/records/telegram-cloud-coordinator-takeover.md",
+    "record_sha256": "c408239b8cc36b89638fc1986cc6f1971120e878de46b00a7694e10380f3c213",
+    "index_empty": true,
+    "foreign_record_bytes_preserved": true
+  }
+}
