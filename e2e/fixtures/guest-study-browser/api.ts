@@ -52,6 +52,9 @@ export async function installApi(context: BrowserContext, origin: string, option
     if (url.origin !== origin && url.origin !== namedOrigin) return route.abort("blockedbyclient");
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const path = url.pathname.slice(4), headers = await request.allHeaders();
+    // Ordinary session resolution begins its independent persona read too.
+    if (path === "/personas") return fulfill(route, { error: { code: "internal_error",
+      message: "Scripted ordinary persona read failure", retryable: false } }, 500);
     if (path === "/users/me") {
       counts.account++;
       if (options.account === "pending") await releaseAccount.promise;
