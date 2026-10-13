@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-import { Button } from "./button";
+import { Button, buttonVariants } from "./button";
 
 const meta = {
   title: "Components/Actions/Button",
@@ -64,6 +64,46 @@ export const Variants: Story = {
       <Button variant="link">Link</Button>
     </div>
   ),
+};
+
+/**
+ * Each variant's hover fill, written as the static (unprefixed) form of the
+ * recipe's own `hover:` utility so the row renders without a pointer. The
+ * play function checks every entry still matches the recipe.
+ */
+const forcedHover = [
+  { variant: "default", label: "Default", hover: "bg-primary-hover" },
+  { variant: "secondary", label: "Secondary", hover: "bg-secondary/85" },
+  { variant: "outline", label: "Outline", hover: "bg-card-hover" },
+  { variant: "ghost", label: "Ghost", hover: "bg-muted" },
+  { variant: "destructive", label: "Destructive", hover: "bg-destructive-hover" },
+  { variant: "link", label: "Link", hover: "underline" },
+] as const;
+
+/** Paper's Hover row: every variant in its pointer-over state, drawn statically. */
+export const Hover: Story = {
+  render: () => (
+    <div class="flex flex-wrap gap-3">
+      {forcedHover.map((entry) => (
+        <Button class={entry.hover} variant={entry.variant}>
+          {entry.label}
+        </Button>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    for (const entry of forcedHover) {
+      await expect(buttonVariants({ variant: entry.variant }).split(" ")).toContain(`hover:${entry.hover}`);
+      const button = canvas.getByRole("button", { name: entry.label });
+      await expect(button).toHaveClass(entry.hover);
+    }
+    // The forced fill replaces the resting one rather than stacking with it.
+    await expect(canvas.getByRole("button", { name: "Default" })).not.toHaveClass("bg-primary");
+    await expect(
+      getComputedStyle(canvas.getByRole("button", { name: "Link" })).textDecorationLine,
+    ).toBe("underline");
+  },
 };
 
 export const Sizes: Story = {

@@ -76,9 +76,37 @@ export const Sizes: Story = {
   ),
 };
 
+/**
+ * A vote in flight: the pressed arrow turns into a spinner and both buttons
+ * lock until the host settles the vote (this one never settles). The
+ * component spins only the pressed direction; Paper draws both arrows as
+ * spinners, which `busy` alone does not render.
+ */
 export const Loading: Story = {
+  args: {
+    score: 42,
+    onVote: () => new Promise<void>(() => {}),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Upvote" }));
+    const group = canvas.getByRole("button", { name: "Upvote" }).parentElement as HTMLElement;
+    await expect(group).toHaveAttribute("aria-busy", "true");
+    await expect(canvas.getByRole("button", { name: "Upvote" }).querySelector(".animate-spin")).not.toBeNull();
+    await expect(canvas.getByRole("button", { name: "Upvote" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Downvote" })).toBeDisabled();
+  },
+};
+
+/** Host-driven `busy`: both buttons disabled while the host is working. */
+export const Busy: Story = {
   args: {
     busy: true,
     score: 42,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Upvote" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Downvote" })).toBeDisabled();
   },
 };

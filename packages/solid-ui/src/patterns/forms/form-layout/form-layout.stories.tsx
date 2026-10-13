@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
 
 import { Input } from "@/components/forms/input/input";
 import { FormFieldLabel, FormNote, FormSectionHeading } from "./form-layout";
@@ -60,4 +61,54 @@ export const Default: Story = {
       </div>
     </div>
   ),
+};
+
+/** Paper's FormFieldLabel variants: plain, required, with a counter, and muted. */
+export const LabelVariants: Story = {
+  name: "FormFieldLabel variants",
+  render: () => (
+    <div class="flex w-96 flex-col gap-3" data-testid="label-variants">
+      <FormFieldLabel label="Display name" />
+      <FormFieldLabel label="Display name" required />
+      <FormFieldLabel counter="12 / 140" label="Display name" />
+      <FormFieldLabel label="Optional" tone="muted" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const rows = Array.from(canvas.getByTestId("label-variants").children);
+    await expect(rows).toHaveLength(4);
+    // Required adds the hidden asterisk; the counter sits at the row's end.
+    await expect(rows[1].querySelector("[aria-hidden=true]")).toHaveTextContent("*");
+    const counter = canvas.getByText("12 / 140");
+    await expect(Math.round(counter.getBoundingClientRect().right)).toBe(
+      Math.round(rows[2].getBoundingClientRect().right),
+    );
+    await expect(canvas.getByText("Optional")).toHaveClass("text-muted-foreground");
+  },
+};
+
+const noteTones = [
+  { tone: "default", text: "Default: plain supporting copy.", className: "text-foreground" },
+  { tone: "muted", text: "Muted: a hint under a field.", className: "text-muted-foreground" },
+  { tone: "destructive", text: "Destructive: an error that is not tied to the field.", className: "text-destructive-text" },
+  { tone: "warning", text: "Warning: something to double-check.", className: "text-warning" },
+] as const;
+
+/** Paper's FormNote tones: default, muted, destructive and warning. */
+export const NoteTones: Story = {
+  name: "FormNote tones",
+  render: () => (
+    <div class="flex w-96 flex-col gap-1.5">
+      {noteTones.map((note) => (
+        <FormNote tone={note.tone}>{note.text}</FormNote>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    for (const note of noteTones) {
+      await expect(canvas.getByText(note.text)).toHaveClass(note.className);
+    }
+  },
 };
