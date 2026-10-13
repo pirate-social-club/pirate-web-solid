@@ -97,6 +97,7 @@ export interface CommunityData {
 export function membershipLine(mode: CommunityMembershipMode | undefined): string | null {
   if (mode === "gated") return "Members verify with a palm scan.";
   if (mode === "request") return "Membership is by request.";
+  if (mode === "open") return "Anyone can join.";
   return null;
 }
 

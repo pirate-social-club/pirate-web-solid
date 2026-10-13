@@ -386,7 +386,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           userAvatarSeed={footerPersona()?.avatarSeed ?? footerPersona()?.publicHandle ?? undefined}
           userAvatarSrc={footerPersona()?.avatarSrc ?? undefined}
         />
-        <Show when={signedIn() && ((switchTarget()?.personas.length ?? 0) > 0 || switchTarget()?.unavailable)}>
+        <Show when={signedIn() && !switchTarget()?.hostsProfileControl && ((switchTarget()?.personas.length ?? 0) > 0 || switchTarget()?.unavailable)}>
           <CommunityPersonaControl
             desktopOnly
             label={desktopProfileLabel()}

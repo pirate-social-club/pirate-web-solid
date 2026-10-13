@@ -382,9 +382,20 @@ describe("CommunityPage", () => {
     ).toBe(false));
   });
 
-  test("an isolated community page switches authorship from its bottom-right control", async () => {
+  test("in the app, the profile control is the banner's, and the shell draws no corner control", async () => {
+    const container = renderPersonaEngagement();
+    await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")).not.toBeNull());
+    const controls = container.querySelectorAll("[data-community-profile-control]");
+    expect(controls).toHaveLength(1);
+    expect(controls[0]?.closest("[data-community-banner-actions]")).not.toBeNull();
+    expect(controls[0]?.className).toContain("size-10");
+    expect(controls[0]?.className).not.toContain("fixed");
+  });
+
+  test("an isolated community page switches authorship from its banner profile control", async () => {
     const container = renderPersonaEngagement(false);
     await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")).not.toBeNull());
+    expect(container.querySelector("[data-community-profile-control]")?.closest("[data-community-banner-actions]")).not.toBeNull();
     expect(container.querySelector("[data-application-chrome]")).toBeNull();
     expect(container.querySelector("[data-community-persona-reserved]")).toBeNull();
     container.querySelector<HTMLButtonElement>("[data-community-profile-control]")!.click();
@@ -838,10 +849,21 @@ describe("CommunityPage", () => {
     const follow = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Follow")!;
     follow.click();
-    await vi.waitFor(() => expect(follow.textContent).toBe("Following"));
+    // A follower who has not joined has Join across the row; Unfollow is in More.
+    await vi.waitFor(() => expect(container.querySelector("[data-community-follow-slot]")).toBeNull());
+    expect(container.querySelector("[data-community-membership-slot]")?.className).toContain("col-span-2");
     expect(container.textContent).toContain("21 followers");
-    follow.click();
-    await vi.waitFor(() => expect(follow.textContent).toBe("Follow"));
+    const more = container.querySelector<HTMLElement>("[data-community-more='menu']")!;
+    openOverlay(more);
+    const unfollow = await vi.waitFor(() => {
+      const item = [...document.body.querySelectorAll<HTMLElement>("[role='menuitem']")]
+        .find(entry => entry.textContent?.trim() === "Unfollow");
+      expect(item).toBeDefined();
+      return item!;
+    });
+    activateOverlayItem(unfollow);
+    await vi.waitFor(() => expect(container.querySelector("[data-community-follow-slot]")?.textContent).toBe("Follow"));
+    expect(api.unfollow).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("20 followers");
   });
 
@@ -866,7 +888,9 @@ describe("CommunityPage", () => {
     follow.click();
     await vi.waitFor(() => expect(followWrite).toHaveBeenCalledTimes(1));
     settleFollow({ following: true, followerCount: 21 });
-    await vi.waitFor(() => expect(follow.textContent).toBe("Following"));
+    // Settled as a follower, the row hands its width to Join.
+    await vi.waitFor(() => expect(container.querySelector("[data-community-follow-slot]")).toBeNull());
+    expect(followWrite).toHaveBeenCalledTimes(1);
   });
 
   test("keeps engagement state unchanged when a server write fails", async () => {
@@ -965,7 +989,7 @@ describe("CommunityPage", () => {
     openOverlay(overflow);
     const manage = await vi.waitFor(() => {
       const item = [...document.body.querySelectorAll<HTMLElement>("[role='menuitem']")]
-        .find(entry => entry.textContent?.trim() === "Manage community");
+        .find(entry => entry.textContent?.trim() === "Manage");
       expect(item).toBeDefined();
       return item!;
     });

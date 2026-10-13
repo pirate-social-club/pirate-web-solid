@@ -301,6 +301,8 @@ function SuccessState(props: {
     publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, locale: namingLocale, ...props.nameClients });
   let nameReturnFocus: HTMLElement | undefined;
   let nameAfterLocalMenu = false;
+  /** The banner control that last opened the shell's profile menu. */
+  let bannerProfileFocus: HTMLElement | undefined;
   const showNaming = (returnFocus?: HTMLElement) => {
     nameReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined);
     void naming.show();
@@ -705,13 +707,75 @@ function SuccessState(props: {
         unavailable,
         loading,
         onRetry: () => void engagement.retryPersonas(),
-        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: showNaming } } : {}),
+        // The page draws the profile control in its banner, so the shell
+        // does not draw its own corner control as well.
+        hostsProfileControl: true,
+        // A menu opened from the banner returns focus to the banner control.
+        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: (returnFocus?: HTMLElement) => showNaming(returnFocus ?? bannerProfileFocus) } } : {}),
       });
     },
   );
   onCleanup(() => {
     personaStore?.setTarget(undefined);
   });
+
+  const focusedElement = () => document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const namingEntryOpen = () => naming.entry() === "new" || naming.entry() === "pending";
+  /**
+   * The viewer's profile for this community, in the banner beside More. It
+   * opens what the corner control used to: the profile page with one
+   * profile, the switcher with several or when profiles need a retry. In the
+   * app the shell's switcher answers it; standalone, the page's own does.
+   */
+  const bannerProfileControl = () => (
+    <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
+      <Show when={personaStore} fallback={
+        <CommunityPersonaControl
+          placement="banner"
+          label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
+          opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
+          persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
+          onClick={() => {
+            const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
+            if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
+            else navigate(profilePath(persona));
+          }}
+          menuLabel={namingCopy().profileMenu}
+          onMenuClick={namingEntryOpen() ? () => {
+            nameReturnFocus = focusedElement(); setLocalSwitcherOpen(true);
+          } : undefined}
+        />
+      }>
+        {store => {
+          const persona = () => personaOptions().find(item => item.personaId === selectedPersonaId());
+          const switchable = () => personaOptions().length > 1;
+          const unavailable = () => engagement.personaRetryAvailable();
+          const label = () => {
+            const current = persona();
+            if (unavailable()) return "Retry profiles";
+            if (current === undefined) return "Choose a posting profile";
+            return switchable() ? `Switch posting profile, ${current.displayName}` : `Open posting profile, ${current.displayName}`;
+          };
+          return (
+            <CommunityPersonaControl
+              placement="banner"
+              label={label()}
+              opensPicker={switchable() || unavailable()}
+              persona={persona()}
+              onClick={() => {
+                bannerProfileFocus = focusedElement();
+                const current = persona();
+                if (switchable() || unavailable() || current === undefined) store().openSwitcher();
+                else navigate(profilePath(current));
+              }}
+              menuLabel={namingCopy().profileMenu}
+              onMenuClick={namingEntryOpen() ? () => { bannerProfileFocus = focusedElement(); store().openSwitcher(); } : undefined}
+            />
+          );
+        }}
+      </Show>
+    </Show>
+  );
 
   // The feed carries both vote sides; a caller that supplied only a net score
   // gets a split that preserves that net, which is all the control displays.
@@ -927,6 +991,8 @@ function SuccessState(props: {
             onFollowToggle={() => void engagement.followToggle()}
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
+            profileControl={bannerProfileControl()}
+            shareUrl={canonicalUrl()}
           />
           {/* Action outcomes go to the shared toast region, which owns its own
               lifetime, dismissal and announcement priority. A hand-rolled
@@ -937,22 +1003,6 @@ function SuccessState(props: {
           <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
           <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} returnFocus={() => nameReturnFocus} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
           <Show when={personaStore === undefined}>
-            <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
-              <CommunityPersonaControl
-                label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
-                opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
-                persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
-                onClick={() => {
-                  const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
-                  if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
-                  else navigate(profilePath(persona));
-                }}
-                menuLabel={namingCopy().profileMenu}
-                onMenuClick={naming.entry() === "new" || naming.entry() === "pending" ? () => {
-                  nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true);
-                } : undefined}
-              />
-            </Show>
             <PersonaSwitcherSheet
               title={namingCopy().profileTitle}
               open={localSwitcherOpen()}

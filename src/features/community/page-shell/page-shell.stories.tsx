@@ -148,7 +148,7 @@ export const SortAndManagement: Story = {
     // Focus returns to the trigger a couple of frames after the menu closes.
     await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(canvas.getByRole("button", { name: "More community options" }));
-    await expect(await body.findByRole("menuitem", { name: "Manage community" })).toBeInTheDocument();
+    await expect(await body.findByRole("menuitem", { name: "Manage" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
   },
 };

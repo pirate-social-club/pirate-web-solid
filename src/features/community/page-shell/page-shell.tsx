@@ -11,28 +11,23 @@ import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
 import { RewardSponsorDialog } from "../../rewards/reward-sponsor-dialog.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { For, Loading, Show, createMemo, createSignal } from "solid-js";
+import { For, Loading, Show, createEffect, createMemo, createSignal } from "solid-js";
 
 import {
   Button,
   Card,
   CardContent,
   CommunityAvatar,
+  createMediaQuery,
   FlatTabBar,
   FlatTabButton,
   IconArrowLeft,
-  IconDotsThree,
   IconMusicNote,
-  IconPlus,
-  IconShield,
   IconButton,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Type,
 } from "@pirate/web-solid-ui";
 import { CommunityFeedSort } from "./community-feed-sort.tsx";
+import { CommunityMoreMenu, shareCommunityLink, type CommunityManageAuthority, type CommunityMoreAction } from "./community-more-menu.tsx";
 import {
   membershipLine,
   orderedCommunityRules,
@@ -57,6 +52,13 @@ export interface CommunityPageShellProps {
   joinDisabled?: boolean;
   joinLabel?: string;
   onManage?: () => void;
+  /**
+   * The viewer's profile for this community, drawn as a round button in the
+   * banner beside More. The host owns what it opens.
+   */
+  profileControl?: JSX.Element;
+  /** The community's public address for Share; the current page when absent. */
+  shareUrl?: string;
   onCreatePost?: () => void;
   createPostBusy?: boolean;
   createPostLabel?: string;
@@ -104,6 +106,9 @@ export interface CommunityPageShellProps {
 }
 
 type CommunityTab = "feed" | "songs" | "about";
+
+/** The lift Paper gives the header's primary action (Join, Post). */
+const primaryShadowClass = "shadow-[0_8px_22px_#0000000F]";
 
 function formatCount(value: number): string {
   return value.toLocaleString("en-US");
@@ -244,38 +249,42 @@ function FeedPending() {
   );
 }
 
+/** A card on desktop, a plain section on a phone's About tab. */
+const aboutCardClass = "md:rounded-[var(--radius-3xl)] md:shadow-none max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none";
+const aboutHeadingClass = "leading-7 tracking-normal";
+
 function CommunityAbout(props: { community: CommunityData }) {
   const community = () => props.community;
   return (
     <div class="flex flex-col gap-4 max-md:gap-8">
-      <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <Card class={aboutCardClass}>
         <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
-          <Type variant="h3">About</Type>
+          <Type class={aboutHeadingClass} variant="h3">About</Type>
           <Type variant="body">{community().description}</Type>
           <Show when={community().handle}>
-            {handle => <Type variant="caption">{handle()}</Type>}
+            {handle => <Type class="text-sm" variant="caption">{handle()}</Type>}
           </Show>
           <Show when={membershipLine(community().membershipMode)}>
-            {line => <Type variant="caption">{line()}</Type>}
+            {line => <Type class="text-sm" variant="caption">{line()}</Type>}
           </Show>
         </CardContent>
       </Card>
       <Show when={community().rules?.length}>
-        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <Card class={aboutCardClass}>
           <CardContent class="flex flex-col gap-4 p-5 max-md:p-0">
-            <Type variant="h3">Community rules</Type>
+            <Type class={aboutHeadingClass} variant="h3">Rules</Type>
             <ol class="flex flex-col gap-4">
               <For each={orderedCommunityRules(community().rules ?? [])}>
-                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index() + 1}</span><div class="flex flex-col gap-0.5"><Type variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}
+                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold leading-4 text-foreground">{index() + 1}</span><div class="flex flex-col gap-0.5"><Type variant="body-strong">{rule.title}</Type><Type class="text-sm" variant="caption">{rule.body}</Type></div></li>}
               </For>
             </ol>
           </CardContent>
         </Card>
       </Show>
       <Show when={community().referenceLinks?.length}>
-        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <Card class={aboutCardClass}>
           <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
-            <Type variant="h3">Links</Type>
+            <Type class={aboutHeadingClass} variant="h3">Links</Type>
             <nav aria-label="Community reference links">
               <ul class="flex flex-col gap-2">
                 <For each={orderedReferenceLinks(community().referenceLinks ?? [])}>
@@ -290,54 +299,43 @@ function CommunityAbout(props: { community: CommunityData }) {
   );
 }
 
+/**
+ * The Paper banner gradient, interpolated in oklab as drawn. It is the cover
+ * when the community has no image, so it carries no scrim of its own.
+ */
+const bannerGradientClass = "bg-linear-120/oklab from-[oklab(27.8%_-0.024_-0.018)] via-[oklab(53.9%_-0.028_0.008)] via-45% to-[oklab(78%_0.0007_0.062)]";
+
 function CommunityBanner(props: {
   community: CommunityData;
-  /** Reported on the trigger so a surface can read it without opening it. */
-  manage: "available" | "pending" | "unavailable";
+  /** Reported on the More triggers so a surface can read it without opening them. */
+  manage: CommunityManageAuthority;
+  moreActions: readonly CommunityMoreAction[];
   onBack?: () => void;
-  onManage?: () => void;
-  /** Feed sort, rendered left of the overflow menu when the shell has one. */
+  /** Feed sort, rendered left of More when the shell has one. */
   sortControl?: JSX.Element;
+  /** The viewer's profile here, rendered right of More. */
+  profileControl?: JSX.Element;
 }) {
   return (
-    <div class="relative h-36 overflow-hidden bg-[linear-gradient(120deg,#162c32_0%,#5f746a_45%,#c7b68a_100%)] md:h-56">
+    <div class={`relative h-36 overflow-hidden md:h-56 ${bannerGradientClass}`} data-community-banner>
       <Show when={props.community.bannerSrc}>
-        {src => <img alt="" class="size-full object-cover" src={src()} />}
+        {src => <>
+          <img alt="" class="size-full object-cover" src={src()} />
+          {/* A photo can be light or busy, so only a photo cover darkens
+              beneath the overlay controls. */}
+          <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" data-community-banner-scrim />
+        </>}
       </Show>
-      {/* The scrim darkens the lower cover so the overlay controls stay
-          readable over a light or busy image. */}
-      <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" />
       <div class="absolute inset-x-0 top-0 flex items-center justify-between px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:p-5">
-        <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
+        <IconButton aria-label="Go back" class="size-10 bg-background/75 text-foreground backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
         </IconButton>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-community-banner-actions>
           {props.sortControl}
-          {/* An overlay, so the sort holds its place while authority settles:
-              a same-size, non-interactive placeholder holds the trigger's spot
-              on first paint, the real menu appears only for a manager, and
-              everyone else gets nothing. */}
-          <Show when={props.onManage !== undefined} fallback={
-            <Show when={props.manage === "pending"}>
-              <div aria-hidden="true" class="invisible size-10" data-community-manage="pending" />
-            </Show>
-          }>
-            <DropdownMenu placement="bottom-end" gutter={4}>
-              <DropdownMenuTrigger
-                aria-label="More community options"
-                class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-community-manage="available"
-              >
-                <IconDotsThree class="size-5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent class="w-56">
-                <DropdownMenuItem onSelect={() => props.onManage?.()}>
-                  <IconShield class="size-4" />
-                  <span>Manage community</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </Show>
+          {/* More is there for every viewer; its rows follow the viewer:
+              Share always, Unfollow for a follower, Manage for a manager. */}
+          <CommunityMoreMenu actions={props.moreActions} manage={props.manage} />
+          {props.profileControl}
         </div>
       </div>
     </div>
@@ -346,14 +344,39 @@ function CommunityBanner(props: {
 
 export function CommunityPageShell(props: CommunityPageShellProps) {
   const [sort, setSort] = createSignal("Best");
-  const [tab, setTab] = createSignal<CommunityTab>("feed");
+  // ownedWrite: the width effect below returns a desktop viewer from About.
+  const [tab, setTab] = createSignal<CommunityTab>("feed", { ownedWrite: true });
   const community = () => props.community;
+  // About is a tab on a phone and a card beside the feed on desktop, so a
+  // viewer who widens the window on About returns to the feed it sits beside.
+  const desktop = createMediaQuery("(min-width: 768px)");
+  createEffect(() => desktop() && tab() === "about", aboutOnDesktop => { if (aboutOnDesktop) setTab("feed"); });
   // Reading this is what suspends; a host that passes no feed has its posts
   // already in hand, so nothing waits.
   // Both header slots are this size in every state, so a label change cannot
   // resize them and a viewport change cannot make them wrap.
   const slotClass = "h-11 w-full min-w-0 md:w-32";
-  const confirmedMember = () => props.joined && !props.authorityPending && !props.viewerUnknown;
+  const settledViewer = () => !props.authorityPending && !props.viewerUnknown;
+  const confirmedMember = () => props.joined && settledViewer();
+  /**
+   * A follower who has not joined has one thing left to do here, so Join takes
+   * the whole row and Unfollow moves into More. An account that cannot join
+   * keeps its follow control, which is then its only action.
+   */
+  const followerOnly = () => props.following && !props.joined && settledViewer() && props.canJoin !== false;
+  const membershipSlotClass = () => followerOnly() ? "col-span-2 h-11 w-full min-w-0" : slotClass;
+  /**
+   * More's rows for this viewer. Unfollow is offered only to a settled
+   * follower who is not a member: a member may not unfollow (spec 016 §4.6).
+   * Leave has no API endpoint yet, so it is not offered.
+   */
+  const moreActions = (): CommunityMoreAction[] => [
+    { id: "share", label: "Share", run: () => void shareCommunityLink(props.shareUrl ?? window.location.href, community().name) },
+    ...(props.following && !props.joined && settledViewer() && !props.followBusy && props.onFollowToggle !== undefined
+      ? [{ id: "unfollow" as const, label: "Unfollow", run: () => props.onFollowToggle?.() }]
+      : []),
+    ...(props.onManage !== undefined ? [{ id: "manage" as const, label: "Manage", run: () => props.onManage?.() }] : []),
+  ];
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   const hasAgeLocks = () => { const current = feed(); return current.kind === "ready" && (current.ageLockedCount ?? 0) > 0; };
@@ -414,8 +437,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         manage={props.onManage !== undefined
           ? "available"
           : (props.managePending ?? props.authorityPending) ? "pending" : "unavailable"}
+        moreActions={moreActions()}
         onBack={props.onBack}
-        onManage={props.onManage}
+        profileControl={props.profileControl}
         sortControl={props.composer || tab() === "about" ? undefined : sortControl()}
       />
 
@@ -426,9 +450,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 the title and counts are centered against it. */}
             <div class="flex min-w-0 items-center gap-3 md:gap-4">
               <div class="shrink-0">
+                {/* Initials are 0.85em of the disc's font size: 24px on a
+                    phone and 28px on desktop, both semibold. */}
                 <CommunityAvatar
                   avatarSrc={community().avatarSrc}
-                  class="size-20 border-4 border-background md:size-24"
+                  class="size-20 border-0 text-[calc(24px/0.85)] md:size-24 md:text-[calc(28px/0.85)]"
                   communityId={community().id ?? community().handle}
                   displayName={community().name}
                   size="lg"
@@ -436,49 +462,48 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               </div>
               <div class="min-w-0 flex-1">
                 <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
-                <Type class="mt-1 block truncate" variant="caption">
+                <Type class="mt-1 block truncate text-sm" variant="caption">
                   {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
                   <span class={confirmedMember() ? "" : "invisible"} data-community-membership-status aria-hidden={confirmedMember() ? undefined : "true"}> · Member</span>
                 </Type>
               </div>
             </div>
-            {/* Full width above the actions on phones, with equal space above
-                and below. Desktop keeps the description in the About card. */}
-            <div class="mt-4 md:hidden">
-              <Type variant="body">{community().description}</Type>
-            </div>
+            {/* The description is the About tab's on a phone and the About
+                card's on desktop; the header carries none. */}
           </div>
           {/* The reserved group keeps its size while authority settles. A
               member gets one useful command spanning the two visitor slots. */}
           <div
             aria-label="Community actions"
-            class={props.composer ? "hidden" : "mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:w-[16.75rem] md:shrink-0"}
+            class={props.composer ? "hidden" : "mt-5 grid h-11 grid-cols-2 gap-3 md:mt-0 md:w-[16.75rem] md:shrink-0"}
             data-community-actions-reserved
             role="group"
           >
             <Show when={confirmedMember()} fallback={
               <>
-                <Button
-                  aria-label={followLabel().description}
-                  class={slotClass}
-                  data-community-follow-slot
-                  disabled={props.followBusy || props.authorityPending}
-                  loading={props.followBusy || props.authorityPending}
-                  onClick={() => props.onFollowToggle?.()}
-                  variant={props.following ? "secondary" : "outline"}
-                ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
+                <Show when={!followerOnly()}>
+                  <Button
+                    aria-label={followLabel().description}
+                    class={slotClass}
+                    data-community-follow-slot
+                    disabled={props.followBusy || props.authorityPending}
+                    loading={props.followBusy || props.authorityPending}
+                    onClick={() => props.onFollowToggle?.()}
+                    variant={props.following ? "secondary" : "outline"}
+                  ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
+                </Show>
                 <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                   <Show when={props.joinDisabled && !props.authorityPending && !props.viewerUnknown && !props.joinBusy} fallback={
                     <Button
                       aria-label={joinLabel().description}
-                      class={slotClass}
+                      class={`${membershipSlotClass()} ${primaryShadowClass}`}
                       data-community-membership-slot
                       disabled={props.authorityPending || props.joinBusy}
                       loading={props.authorityPending || props.joinBusy}
                       onClick={() => props.onJoin?.()}
                     ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
                   }>
-                    <div class={`${slotClass} flex items-center justify-center`} data-community-membership-slot role="status">
+                    <div class={`${membershipSlotClass()} flex items-center justify-center`} data-community-membership-slot role="status">
                       <Type variant="caption" class="truncate">{props.joinLabel ?? "Unavailable"}</Type>
                     </div>
                   </Show>
@@ -486,11 +511,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               </>
             }>
               <Button
-                class="col-span-2 h-11 w-full min-w-0"
+                class={`col-span-2 h-11 w-full min-w-0 ${primaryShadowClass}`}
                 data-community-post-slot
                 disabled={props.createPostBusy || props.composer !== undefined}
                 loading={props.createPostBusy}
-                leadingIcon={<IconPlus class="size-4" />}
                 onClick={() => { setTab("feed"); props.onCreatePost?.(); }}
               >{props.createPostBusy ? "Opening…" : props.createPostLabel ?? "Post"}</Button>
             </Show>
@@ -501,15 +525,18 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
 
       <Show when={!props.composer}>
         <div data-community-tabs>
-        <FlatTabBar class="px-5 md:px-8" columns={3}>
-        <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
-        <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
-        <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
+        {/* A phone shares the width among three tabs. Desktop keeps Feed and
+            Songs at their own width on the left; About is the card beside
+            the feed there. */}
+        <FlatTabBar class="px-5 md:px-8 [&>div]:gap-0 max-md:[&>div]:flex-1 md:[&>div]:gap-2">
+        <FlatTabButton active={tab() === "feed"} class="max-md:flex-1 md:px-4" onClick={() => setTab("feed")}>Feed</FlatTabButton>
+        <FlatTabButton active={tab() === "songs"} class="max-md:flex-1 md:px-4" onClick={() => setTab("songs")}>Songs</FlatTabButton>
+        <FlatTabButton active={tab() === "about"} class="max-md:flex-1 md:hidden" onClick={() => setTab("about")}>About</FlatTabButton>
         </FlatTabBar>
         </div>
       </Show>
 
-      <div class={props.composer ? "grid gap-8 px-4 pb-6 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8" : "grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8"}>
+      <div class={props.composer ? "grid gap-8 px-4 pb-6 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8" : tab() === "about" ? "grid gap-8 px-5 pb-8 pt-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8" : "grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8"}>
         {/* About is a view at every width. It used to be a mobile-only tab:
             at desktop the main column came back through md:block and rendered
             nothing, so asking for the community's details replaced the feed

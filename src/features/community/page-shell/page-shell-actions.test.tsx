@@ -2,9 +2,10 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { screen, waitFor, within } from "storybook/test";
 import { CommunityFeedSort } from "./community-feed-sort.tsx";
+import { shareCommunityLink } from "./community-more-menu.tsx";
 import { userEvent } from "@testing-library/user-event";
 import { createRoot, createSignal } from "solid-js";
-import { beforeAll, afterAll, afterEach, describe, expect, test, vi } from "vitest";
+import { beforeAll, afterAll, afterEach, describe, expect, onTestFinished, test, vi } from "vitest";
 
 import type { CommunityData, CommunityPost } from "./page-shell-model.ts";
 import { CommunityPageShell } from "./page-shell.tsx";
@@ -74,15 +75,46 @@ describe("community page shell header actions", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  test("a follower can unfollow but cannot post even when a host supplies a callback", () => {
-    const unfollow = vi.fn();
-    const container = render(() => <CommunityPageShell community={community} following joined={false} onFollowToggle={unfollow} onCreatePost={() => undefined} />);
-    const follow = container.querySelector<HTMLButtonElement>("[data-community-follow-slot]")!;
-    expect(follow.getAttribute("aria-label")).toBe("Unfollow this community");
-    expect(follow.disabled).toBe(false);
-    follow.click();
-    expect(unfollow).toHaveBeenCalledOnce();
+  test("a follower who has not joined gets only Join, across the row, and cannot post", () => {
+    const join = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined={false} onJoin={join} onFollowToggle={() => undefined} onCreatePost={() => undefined} />);
+    const group = container.querySelector("[data-community-actions-reserved]");
+    if (group === null) throw new Error("Expected the action group");
+    expect(group.querySelector("[data-community-follow-slot]")).toBeNull();
+    const membership = group.querySelector<HTMLButtonElement>("[data-community-membership-slot]");
+    if (membership === null) throw new Error("Expected the Join slot");
+    expect(group.querySelectorAll("button")).toHaveLength(1);
+    expect(membership.textContent).toBe("Join");
+    expect(membership.className).toContain("col-span-2");
+    membership.click();
+    expect(join).toHaveBeenCalledOnce();
     expect(container.querySelector("[data-community-post-slot]")).toBeNull();
+  });
+
+  test.each([
+    ["Request to join", false, null],
+    ["Verify to join", false, null],
+    ["Request pending", true, "status"],
+  ] as const)("a follower keeps the membership-mode label %s across the row", (label, disabled, role) => {
+    const container = render(() => <CommunityPageShell community={community} following joined={false} joinLabel={label} joinDisabled={disabled} />);
+    const slot = container.querySelector<HTMLElement>("[data-community-membership-slot]");
+    expect(slot?.textContent).toBe(label);
+    expect(slot?.getAttribute("role")).toBe(role);
+    expect(slot?.className).toContain("col-span-2");
+    expect(container.querySelector("[data-community-follow-slot]")).toBeNull();
+  });
+
+  test("an account that cannot join keeps its follow control as its only action", () => {
+    const container = render(() => <CommunityPageShell community={community} following joined={false} canJoin={false} />);
+    expect(container.querySelector("[data-community-follow-slot]")?.textContent).toBe("Following");
+    expect(container.querySelector("[data-community-membership-slot]")).toBeNull();
+  });
+
+  test("the Post command is text only", () => {
+    const container = render(() => <CommunityPageShell community={community} following joined onCreatePost={() => undefined} />);
+    const post = container.querySelector("[data-community-post-slot]");
+    expect(post?.textContent).toBe("Post");
+    expect(post?.querySelector("svg")).toBeNull();
   });
 
   test.each(["Request pending", "Unavailable"])("%s is passive while follow remains actionable", (label) => {
@@ -119,6 +151,141 @@ describe("community page shell header actions", () => {
   });
 });
 
+
+describe("the banner's More menu", () => {
+  const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+  beforeAll(() => Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() }));
+  afterAll(() => {
+    if (scrollDescriptor) Object.defineProperty(Element.prototype, "scrollIntoView", scrollDescriptor);
+    else Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+
+  function trigger(container: HTMLElement, kind: "menu" | "sheet"): HTMLElement {
+    const element = container.querySelector<HTMLElement>(`[data-community-more="${kind}"]`);
+    if (element === null) throw new Error(`Expected the More ${kind} trigger`);
+    return element;
+  }
+
+  async function openMenu(container: HTMLElement): Promise<string[]> {
+    await userEvent.setup().click(trigger(container, "menu"));
+    const menu = await screen.findByRole("menu");
+    return [...menu.querySelectorAll("[role='menuitem']")].map(item => item.textContent?.trim() ?? "");
+  }
+
+  test.each([
+    ["a visitor", { following: false, joined: false }, ["Share"]],
+    ["a follower", { following: true, joined: false }, ["Share", "Unfollow"]],
+    ["a member", { following: true, joined: true }, ["Share"]],
+    ["a managing member", { following: true, joined: true, onManage: () => undefined }, ["Share", "Manage"]],
+    ["a follower whose read is pending", { following: true, joined: false, authorityPending: true }, ["Share"]],
+  ] as const)("is always there and holds the rows for %s", async (_viewer, viewer, rows) => {
+    const container = render(() => <CommunityPageShell community={community} onFollowToggle={() => undefined} {...viewer} />);
+    expect(trigger(container, "menu").getAttribute("aria-label")).toBe("More community options");
+    expect(trigger(container, "sheet").getAttribute("aria-label")).toBe("More community options");
+    expect(await openMenu(container)).toEqual(rows);
+  });
+
+  test("reports management authority on its triggers without being opened", () => {
+    const pending = render(() => <CommunityPageShell community={community} following={false} joined={false} managePending />);
+    expect(trigger(pending, "menu").getAttribute("data-community-manage")).toBe("pending");
+    const available = render(() => <CommunityPageShell community={community} following joined onManage={() => undefined} />);
+    expect(trigger(available, "menu").getAttribute("data-community-manage")).toBe("available");
+    const none = render(() => <CommunityPageShell community={community} following={false} joined={false} />);
+    expect(trigger(none, "menu").hasAttribute("data-community-manage")).toBe(false);
+  });
+
+  test("Unfollow uses the follow toggle once", async () => {
+    const toggle = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined={false} onFollowToggle={toggle} />);
+    await openMenu(container);
+    await userEvent.setup().click(screen.getByRole("menuitem", { name: "Unfollow" }));
+    expect(toggle).toHaveBeenCalledOnce();
+  });
+
+  test("Manage calls the host's management entry", async () => {
+    const manage = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined onManage={manage} />);
+    await openMenu(container);
+    await userEvent.setup().click(screen.getByRole("menuitem", { name: "Manage" }));
+    expect(manage).toHaveBeenCalledOnce();
+  });
+
+  test("Share hands the community address to the platform share sheet", async () => {
+    const share = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    onTestFinished(() => { Reflect.deleteProperty(navigator, "share"); });
+    const container = render(() => <CommunityPageShell community={community} following={false} joined={false} shareUrl="https://pirate.sc/c/tameimpala" />);
+    await openMenu(container);
+    await userEvent.setup().click(screen.getByRole("menuitem", { name: "Share" }));
+    await waitFor(() => expect(share).toHaveBeenCalledExactlyOnceWith({ title: "Tame Impala", url: "https://pirate.sc/c/tameimpala" }));
+  });
+
+  test("Share copies the address when the browser has no share sheet", async () => {
+    const writeText = vi.fn(async () => undefined);
+    const copied = await shareCommunityLink("https://pirate.sc/c/tameimpala", "Tame Impala", { clipboard: { writeText } });
+    expect(copied).toBe("copied");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith("https://pirate.sc/c/tameimpala");
+  });
+
+  test("a dismissed share sheet neither copies nor reports a failure", async () => {
+    const writeText = vi.fn(async () => undefined);
+    const share = vi.fn(async () => { throw new DOMException("dismissed", "AbortError"); });
+    const outcome = await shareCommunityLink("https://pirate.sc/c/tameimpala", "Tame Impala", { share, clipboard: { writeText } });
+    expect(outcome).toBe("dismissed");
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  test("the phone sheet holds the same rows as plain buttons", async () => {
+    const toggle = vi.fn();
+    const container = render(() => <CommunityPageShell community={community} following joined={false} onFollowToggle={toggle} onManage={() => undefined} />);
+    await userEvent.setup().click(trigger(container, "sheet"));
+    const sheet = await screen.findByRole("dialog", { name: "More community options" });
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-community-more-action]")];
+    expect(rows.map(row => row.textContent)).toEqual(["Share", "Unfollow", "Manage"]);
+    expect(rows[0]?.className).toContain("h-14");
+    expect(rows[1]?.className).toContain("border-t");
+    rows[1]?.click();
+    expect(toggle).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the community header and About", () => {
+  test("the phone header carries no description and About states the rules under Rules", () => {
+    const container = render(() => <CommunityPageShell community={{ ...community, membershipMode: "open", rules: [{ title: "Be kind", body: "No personal attacks.", position: 1 }] }} following={false} joined={false} />);
+    const overview = container.querySelector("[aria-label='Community overview']");
+    expect(overview?.textContent).not.toContain(community.description);
+    const about = container.querySelector("[data-community-about]");
+    expect(about?.textContent).toContain("Anyone can join.");
+    expect(about?.textContent).toContain("Rules");
+    expect(about?.textContent).not.toContain("Community rules");
+  });
+
+  test("About is a phone tab only; desktop keeps Feed and Songs at their own width", () => {
+    const container = render(() => <CommunityPageShell community={community} following={false} joined={false} />);
+    const tabs = [...container.querySelectorAll<HTMLButtonElement>("[data-community-tabs] button")];
+    expect(tabs.map(tab => tab.textContent)).toEqual(["Feed", "Songs", "About"]);
+    expect(tabs[2]?.className).toContain("md:hidden");
+    expect(tabs[0]?.className).toContain("md:px-4");
+    expect(container.querySelector("[data-community-tabs] [style*='grid-template-columns']")).toBeNull();
+  });
+
+  test("the banner darkens only a photo cover", () => {
+    const plain = render(() => <CommunityPageShell community={community} following={false} joined={false} />);
+    expect(plain.querySelector("[data-community-banner-scrim]")).toBeNull();
+    const photo = render(() => <CommunityPageShell community={{ ...community, bannerSrc: "/banner.jpg" }} following={false} joined={false} />);
+    expect(photo.querySelector("[data-community-banner-scrim]")).not.toBeNull();
+  });
+
+  test("the banner places the host's profile control after More", () => {
+    const container = render(() => <CommunityPageShell community={community} following joined profileControl={<button type="button" data-test-profile>H</button>} />);
+    const group = container.querySelector("[data-community-banner-actions]");
+    const children = [...(group?.children ?? [])];
+    const more = children.findIndex(child => child.querySelector("[data-community-more]") !== null);
+    const profile = children.findIndex(child => child.hasAttribute("data-test-profile"));
+    expect(more).toBeGreaterThanOrEqual(0);
+    expect(profile).toBe(more + 1);
+  });
+});
 
 describe("community desktop sort dismissal", () => {
   const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
