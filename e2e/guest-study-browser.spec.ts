@@ -36,8 +36,8 @@ async function enter(page: Page) {
 }
 async function configure(page: Page) {
   await page.getByRole("checkbox").check();
-  await page.getByLabel("Translation language", { exact: true }).selectOption("ar");
-  await page.getByLabel("Learner level", { exact: true }).selectOption("A1");
+  await page.getByRole("combobox", { name: "Translation language", exact: true }).selectOption("ar");
+  await page.getByRole("combobox", { name: "Learner level", exact: true }).selectOption("A1");
 }
 async function start(page: Page) {
   await configure(page);
