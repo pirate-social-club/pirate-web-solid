@@ -1,0 +1,14 @@
+{
+  "control_head": "e0a2c5aac540c4c130f01f74360966d066f80c0f",
+  "record_commits": {
+    "tasks/records/telegram-cloud-coordinator-takeover.md": "e73317982a58405e1156817a41db1961e865c2f9",
+    "tasks/records/telegram-post-lesson-account-connection-spike.md": "5cef448ed9a84b53585961f3f020760f7dc2686b",
+    "tasks/records/solid-telegram-privy-identity-probe.md": "43d72b88dce7258d49a6c46f1ff131e1247c961c",
+    "tasks/records/api-telegram-practice-delivery-hardening.md": "e0a2c5aac540c4c130f01f74360966d066f80c0f"
+  },
+  "foreign_paths_preserved_sha256": {
+    "tasks/records/solid-hns-claim-persona-picker.md": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f"
+  },
+  "receiving_acknowledgement": false,
+  "local_source_writer": "suspended; preserved checkout retirement follows publication"
+}

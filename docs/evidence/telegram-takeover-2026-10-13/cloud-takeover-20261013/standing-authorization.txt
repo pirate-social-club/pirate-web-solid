@@ -1,0 +1,62 @@
+Relevant verbatim excerpt from authoritative workspace AGENTS.md, read under control head abdf5bef. This is an excerpt, not a full-file Git inclusion proof.
+
+
+Standing task authorization, workspace_owner decision, 2026-10-04 local
+(2026-10-03 UTC), clarified 2026-10-04: all agents have indefinite approval
+for tasks opened or explicitly confirmed by the workspace_owner in the task
+register, including the implementation, repair and verification steps needed
+to complete them. An agent-created record alone does not enlarge this scope.
+
+Within that scope, approval covers local implementation, builds, tests,
+preservation commits, source publication through the repository's sanctioned
+path, reviewed merges, staging releases and deployments, staging configuration
+and bindings, device preparation and acceptance capture, repairs, recovery and
+reversible task-owned cleanup. Do not ask for repeated owner approval because
+a task, agent session, reviewed package or operational window continues or
+changes within this scope. Approval remains in force until the workspace_owner
+revokes or narrows it.
+
+Production deployment or mutation is excluded. Enabling Rewards or another
+mechanism that distributes or transfers funds is excluded. Creating or rotating
+credentials, changing their permissions, or exporting secret values outside
+approved credential stores and runtime workflows is excluded. Irreversible
+actions, including dropping databases, deleting protected recovery evidence,
+force-pushing and destructive branch or history deletion, are excluded.
+These actions require a task-specific explicit workspace_owner instruction;
+they are not authorized by this standing rule. Existing production and Rewards
+holds remain in force.
+
+Routine use of existing managed credentials through established login,
+diagnostic and reviewed staging binding workflows remains authorized. Do not
+show credential values in chat, logs or evidence. Missing administrator access
+is a practical blocker to resolve with the workspace_owner; standing approval
+does not manufacture credentials or grant account permissions.
+
+Where this file, child AGENTS.md files or task records require explicit human
+authorization, this recorded owner instruction supplies that authorization
+only for the in-scope actions above. It supersedes separate or renewed owner
+approval requirements for those actions, including dated owner approval
+windows. Excluded actions retain their explicit owner authorization requirement.
+Repository publication paths and technical restrictions remain unchanged.
+
+Coordinators and reviewers may establish or renew finite execution, decision
+and recovery bounds under this standing authorization. Expired evidence and
+callbacks must still be refreshed and reviewed before execution. Independent
+review, exact source and package checks, acceptance criteria, resource ownership
+and handback, credential and inventory validity, and cleanup verification remain
+required. Resolve those gates without another owner permission question.
+Do not race an active writer or silently discard protected evidence. Ask for
+missing information, a genuinely unclear scope or physical device readiness
+when needed. External communication follows the task's explicit instructions.
+
+Review this policy on 2026-11-04. The workspace coordinator records whether its
+scope still matches the owner-confirmed task register. This is a governance
+review date, not an expiry or a requirement to seek renewed approval. Changing
+the approved scope requires an actual workspace_owner instruction.
+
+When the user has authorized publication and no human reviewer is participating,
+an authorized coordinator agent may perform the independent PR review and merge
+after the repository's required checks are green. Record the reviewed scope,
+commit SHA, checks, and merge rationale in the task file. This repository-review
+exception does not waive any separate domain, safety, language-qualified, or
+content-review gate defined by the task or its policy documents.

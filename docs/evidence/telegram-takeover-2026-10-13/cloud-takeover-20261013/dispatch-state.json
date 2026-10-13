@@ -1,0 +1,124 @@
+{
+  "prepared_at": "2026-10-13 06:28:18 UTC",
+  "owner_instruction": "need to get this cloud agent to fully take over the task",
+  "receiving_role": "cloud_telegram_coordinator",
+  "assignment": "Full Telegram coordination and staging acceptance; receiving acknowledgement pending",
+  "branch_writer_transfer": "Pending actual checkpoint and writer handback; own assigned branch may receive scoped fixes",
+  "selected_integration_order": "Accepted learning first, alignment next free ordinal currently0264; verify actual ledger and accepted predecessor",
+  "current_observations": [
+    {
+      "pr": 598,
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "base": "4a791f27fb7c983689fe75150953be67ed25f709",
+      "state": "open",
+      "draft": false,
+      "url": "https://github.com/pirate-social-club/api-next/pull/598"
+    },
+    {
+      "pr": 597,
+      "head": "30d3667000f4bf909087ed4144ac41286b2e3c30",
+      "base": "4a791f27fb7c983689fe75150953be67ed25f709",
+      "state": "open",
+      "draft": true,
+      "url": "https://github.com/pirate-social-club/api-next/pull/597"
+    }
+  ],
+  "pr598_checks": [
+    {
+      "name": "postgres17",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115153856078"
+    },
+    {
+      "name": "secret-boundary",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353910565/job/115152286902"
+    },
+    {
+      "name": "hns-regtest",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539400"
+    },
+    {
+      "name": "postgres17-general-3",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539397"
+    },
+    {
+      "name": "postgres17-general-1",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539382"
+    },
+    {
+      "name": "postgres17-recovery",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539325"
+    },
+    {
+      "name": "postgres18-shape",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539280"
+    },
+    {
+      "name": "check",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539268"
+    },
+    {
+      "name": "postgres17-general-2",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539246"
+    },
+    {
+      "name": "postgres17-general-0",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539200"
+    },
+    {
+      "name": "postgres17-namespace",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539002"
+    },
+    {
+      "name": "Advisory policy",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353040635/job/115149538004"
+    },
+    {
+      "name": "secret-boundary",
+      "head": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/pirate-social-club/api-next/actions/runs/38353038210/job/115149532457"
+    }
+  ],
+  "source_candidate": "c584a347bce8481bbf0ab389ef3259059e11dd68",
+  "historical_package_head": "ea96f72c5bb85053834c0666eb34c8f955da83ab",
+  "source_expires_at": "2026-10-17T00:00:00Z",
+  "cloud_acknowledgement_observed": false,
+  "live_ledger_or_staging_readiness_verified": false
+}
