@@ -1,0 +1,34 @@
+{
+  "task": "solid-storybook-state-coverage-map",
+  "role": "workspace_state_coverage_coordinator",
+  "base": "45d07cb25b3267ad16f158aa40eff7d11ad49c5e",
+  "states": {
+    "video": 17,
+    "text": 6,
+    "song": 9
+  },
+  "actorMapCases": 35,
+  "focusedTests": 498,
+  "appTests": 1788,
+  "apiTests": 377,
+  "ssrTests": 63,
+  "solidUiTests": 420,
+  "storyInteractions": 63,
+  "axeIncompleteChecks": 13,
+  "files": {
+    "src/features/posts/video-submission/video-composer-coverage.test.ts": "095dd0487b0935bbd4f9b0a739f75bf98199534d0dddf1fb790618c653671db7",
+    "src/features/posts/text-submission/text-submission-coverage.test.ts": "2bd1c8b621d103ac72be9f225c3b9402e0da83e65f74f4ca12d4718db35cbe73",
+    "src/features/posts/song-submission/song-observation-coverage.test.ts": "9c4d6e8a60882da0b8a25f188f6980b1329271ae48d919f214ed698814181da1"
+  },
+  "commands": {
+    "verify": "passed",
+    "build": "passed",
+    "build-storybook": "passed",
+    "focused-final": "passed",
+    "types-final": "passed",
+    "story-sweep": "passed"
+  },
+  "hostedCiClaim": false,
+  "runtimeChanges": false,
+  "deployedAcceptance": false
+}
