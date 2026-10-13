@@ -113,5 +113,5 @@ if (failed || cleanup.length > 0) {
   throw new AggregateError(failed ? [primary, ...cleanup] : cleanup, "Owned guest browser gate failed; no acceptance credit");
 }
 process.stdout.write(logs.join(""));
-console.log(JSON.stringify({ ok: true, scope: "Chromium native IndexedDB/WebLock with API boundary mock", cases: 5,
+console.log(JSON.stringify({ ok: true, scope: "Chromium native IndexedDB/WebLock with Guest and Account API boundaries scripted", cases: 8,
   https: true, childrenExited: true, localTlsRemoved: true, nativeApiProviderDeviceHnsStagingAccepted: false }));
