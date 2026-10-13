@@ -6,8 +6,17 @@ export type SpacesClaimDisplay = {
 };
 
 export function spacesClaimStatus(claim: SpacesClaimDisplay) {
-  if (claim.state === "issued" && claim.grant?.status === "active") {
-    return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
+  if (claim.state === "issued") {
+    if (claim.grant?.status === "active") {
+      return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
+    }
+    if (claim.grant?.status === "revoked") {
+      return { title: "Name revoked here", detail: "This name is no longer active here." };
+    }
+    if (claim.grant?.status === "tombstoned") {
+      return { title: "Name removed here", detail: "This name is no longer active here." };
+    }
+    return { title: "Name status unavailable", detail: "Refresh status to check again." };
   }
   if (claim.state === "issuance_failed") {
     return { title: "Registration needs attention", detail: "This name could not be registered. Contact the community owner before requesting it again." };
