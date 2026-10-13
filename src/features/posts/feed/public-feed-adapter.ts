@@ -42,6 +42,8 @@ export interface PublicFeedCommunity {
   readonly viewCount: number | null;
 }
 
+export type ViewerMembershipStatus = "member" | "not_member" | "banned";
+
 export interface PublicFeedItem {
   readonly id: string;
   readonly canonicalPath?: string | null;
@@ -49,6 +51,12 @@ export interface PublicFeedItem {
   readonly communityName: string;
   readonly communityRouteSlug: string | null;
   readonly communityAvatarRef: string | null;
+  /**
+   * The viewer's membership in the post's community, as the feed's community
+   * preview projects it. Absent or null when the server does not say (e.g.
+   * the signed-out public feed); only "member" grants member actions.
+   */
+  readonly viewerMembershipStatus?: ViewerMembershipStatus | null;
   readonly authorUser: string | null;
   readonly authorPersonaId?: string | null;
   readonly authorDisplayName?: string | null;
@@ -209,6 +217,9 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
   if (!id || !community || !created || !identityMode || !authorshipMode || !postType || !status || !visibility || !analysisState || !contentSafetyState || !ageGatePolicy || !translationState) return null;
 
   const viewerVote = envelope.viewer_vote === -1 || envelope.viewer_vote === 1 ? envelope.viewer_vote : null;
+  const viewerMembershipStatus = isRecord(value.community)
+    ? oneOf(value.community.viewer_membership_status, ["member", "not_member", "banned"] as const)
+    : null;
   const authorPersona = isRecord(post.author_persona) ? post.author_persona : null;
   return {
     id,
@@ -217,6 +228,7 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
     communityName: community.displayName,
     communityRouteSlug: community.routeSlug,
     communityAvatarRef: community.avatarRef,
+    viewerMembershipStatus,
     authorUser: nullableString(post.author_user),
     authorPersonaId: nullableString(authorPersona?.persona_id),
     authorDisplayName: nullableString(authorPersona?.display_name),

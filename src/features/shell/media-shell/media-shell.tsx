@@ -341,17 +341,16 @@ export function ApplicationChrome(props: MediaShellProps) {
           <NavigationDrawer state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />
         </SheetContent>
       </Sheet>
-      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : (composing() ? "min-h-[100dvh] bg-background md:min-h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0")}>
+      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-background md:h-screen" : (composing() ? "min-h-[100dvh] bg-background md:min-h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0")}>
         <Show when={!props.hideMobileHeader}>
         <div class="md:hidden">
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
             mobileCenterContent={<Show when={props.mobileTitle}>{title => <Type as="span" variant="h4" class={immersive() ? "text-white" : undefined}>{title()}</Type>}</Show>}
-            mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open navigation" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "text-white hover:bg-white/10" : undefined}><IconList class="size-6" /></IconButton>}
+            mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open navigation" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "-ms-1.5 text-white hover:bg-white/10" : "-ms-1.5"}><IconList class="size-6" /></IconButton>}
             mobileTrailingContent={
               <div class="flex items-center gap-1">
-                <Show when={immersive() && scope().kind === "platform"}>
-                  <Button aria-label="Choose a community to post in" onClick={() => go("/communities")} class="text-white" size="sm" variant="ghost">Post</Button>
-                </Show>
+                {/* No Post on the immersive home: a post belongs to a community
+                    the home feed cannot choose (owner design change). */}
                 <Show when={!signedIn() && !props.sessionResolving && !props.sessionUnavailable}>
                   <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>
                 </Show>

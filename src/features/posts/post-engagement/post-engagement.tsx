@@ -35,16 +35,21 @@ import {
   submittingComment,
 } from "./post-engagement-model.ts";
 import {
+  REPORT_REASONS,
+  definitiveRejectionIssue,
+  issueFromPending,
+  preparePendingEngagementRecord,
+  unavailablePendingStorage,
+} from "./pending-engagement-flow.ts";
+import {
   commentReportSlot,
   commentSubmissionSlot,
   createDefaultPendingEngagementStorage,
-  createPendingEngagementRecord,
   decodePendingEngagementAction,
   moderationCaseSlot,
   postVoteSlot,
   postReportSlot,
   type PendingEngagementAction,
-  type PendingEngagementIssue,
   type PendingEngagementRecord,
   type PendingEngagementStorage,
 } from "./post-engagement-pending.ts";
@@ -84,62 +89,12 @@ type ComposeTarget =
   | { readonly kind: "comment" }
   | { readonly kind: "reply"; readonly parentId: string };
 
-const REPORT_REASONS: ReadonlyArray<{ readonly value: CommentReportReason; readonly label: string }> = [
-  { value: "spam", label: "Spam" },
-  { value: "harassment", label: "Harassment" },
-  { value: "hate", label: "Hate" },
-  { value: "sexual_content", label: "Sexual content" },
-  { value: "graphic_content", label: "Graphic content" },
-  { value: "misleading", label: "Misleading" },
-  { value: "other", label: "Other" },
-];
-
 function defaultIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
 function reportReasonFromValue(value: string): CommentReportReason {
   return REPORT_REASONS.find(reason => reason.value === value)?.value ?? "other";
-}
-
-function unavailablePendingStorage(): PendingEngagementStorage {
-  const unavailable = async (): Promise<never> => { throw new Error("Durable pending storage is unavailable"); };
-  return { load: unavailable, listForPost: unavailable, saveNew: unavailable, save: unavailable, remove: unavailable };
-}
-
-function sameIntent(left: PendingEngagementAction, right: PendingEngagementAction): boolean {
-  switch (left.kind) {
-    case "comment": return right.kind === "comment" && left.postId === right.postId && left.personaId === right.personaId && left.body === right.body;
-    case "reply": return right.kind === "reply" && left.commentId === right.commentId && left.personaId === right.personaId && left.body === right.body;
-    case "post_report": return right.kind === "post_report" && left.postId === right.postId && left.reasonCode === right.reasonCode;
-    case "report": return right.kind === "report" && left.commentId === right.commentId && left.reasonCode === right.reasonCode;
-    case "moderate": return right.kind === "moderate"
-      && left.caseRef === right.caseRef
-      && left.action === right.action
-      && left.expectedCaseRevision === right.expectedCaseRevision;
-    case "vote": return right.kind === "vote" && left.postId === right.postId && left.value === right.value;
-    case "clear_vote": return right.kind === "clear_vote" && left.postId === right.postId;
-  }
-}
-
-function issueFromPending(issue: PendingEngagementIssue): EngagementIssue {
-  return issue.kind === "idempotency_conflict"
-    ? { kind: "idempotency_conflict", identity: issue.identity }
-    : issue.code === "auth_error"
-      ? { kind: "auth_required" }
-      : issue.code === "membership_required"
-        ? { kind: "membership_required" }
-        : issue.code === "not_found"
-          ? { kind: "not_found" }
-          : issue.code === "comments_locked"
-            ? { kind: "comments_locked" }
-            : issue.code === "gate_unsatisfied"
-              ? { kind: "gate_unsatisfied" }
-              : issue.code === "reply_depth_exceeded"
-                ? { kind: "reply_depth_exceeded" }
-                : issue.code === "bad_request"
-                  ? { kind: "bad_request" }
-                  : { kind: "conflict" };
 }
 
 export function PostEngagement(props: PostEngagementProps) {
@@ -215,48 +170,27 @@ export function PostEngagement(props: PostEngagementProps) {
     slot: string,
     createAction: (idempotencyKey: string) => PendingEngagementAction,
   ): Promise<PendingEngagementRecord | null> => {
-    try {
-      const existing = await pendingStorage.load(slot);
-      if (existing !== null) {
-        if (existing.issue !== undefined) {
-          setDiscardableRecord(existing);
-          setIssue(issueFromPending(existing.issue));
-          return null;
-        }
-        const retained = await decodePendingEngagementAction(existing.envelope);
-        if (!sameIntent(retained, createAction(retained.idempotencyKey))) {
-          setRetainedRecord(existing);
-          setIssue({ kind: "pending_action" });
-          return null;
-        }
-        return existing;
-      }
-      const record = await createPendingEngagementRecord(createAction(generateKey()), {
-        principalId: props.principalId,
-        postId: props.post.id,
-      });
-      try {
-        await pendingStorage.saveNew(record);
-        return record;
-      } catch {
-        const winner = await pendingStorage.load(slot);
-        if (winner === null) throw new Error("Pending engagement record was not committed");
-        if (winner.issue !== undefined) {
-          setDiscardableRecord(winner);
-          setIssue(issueFromPending(winner.issue));
-          return null;
-        }
-        const retained = await decodePendingEngagementAction(winner.envelope);
-        if (!sameIntent(retained, createAction(retained.idempotencyKey))) {
-          setRetainedRecord(winner);
-          setIssue({ kind: "pending_action" });
-          return null;
-        }
-        return winner;
-      }
-    } catch {
-      setIssue({ kind: "durable_storage_failed" });
-      return null;
+    const prepared = await preparePendingEngagementRecord({
+      storage: pendingStorage,
+      slot,
+      principalId: props.principalId,
+      postId: props.post.id,
+      generateKey,
+      createAction,
+    });
+    switch (prepared.kind) {
+      case "ready": return prepared.record;
+      case "rejected":
+        setDiscardableRecord(prepared.record);
+        setIssue(issueFromPending(prepared.issue));
+        return null;
+      case "occupied":
+        setRetainedRecord(prepared.record);
+        setIssue({ kind: "pending_action" });
+        return null;
+      case "storage_failed":
+        setIssue({ kind: "durable_storage_failed" });
+        return null;
     }
   };
 
@@ -275,11 +209,8 @@ export function PostEngagement(props: PostEngagementProps) {
       }
       return;
     }
-    const definitiveRejection = projected.kind === "idempotency_conflict" || error.status === 400 || error.status === 403;
-    if (!definitiveRejection) return;
-    const retainedIssue: PendingEngagementIssue = projected.kind === "idempotency_conflict"
-      ? { kind: "idempotency_conflict", identity: projected.identity }
-      : { kind: "server_rejection", status: error.status, code: error.code };
+    const retainedIssue = definitiveRejectionIssue(error, projected);
+    if (retainedIssue === undefined) return;
     const rejected = { ...record, issue: retainedIssue };
     try {
       await pendingStorage.save(rejected);

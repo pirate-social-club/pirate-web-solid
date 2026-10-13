@@ -212,8 +212,9 @@
     color: var(--primary-foreground);
   }
 
+  /* 96px under a 64px header: black/50 fading to transparent (Paper feed). */
   .media-overlay-scrim {
-    background: linear-gradient(to bottom, rgb(0 0 0 / 0.75) 0%, rgb(0 0 0 / 0.35) 60%, transparent 100%);
+    background: linear-gradient(to bottom, rgb(0 0 0 / 0.5) 0%, transparent 100%);
   }
 
   [data-appearance="media-overlay"] button[data-app-header-icon] {

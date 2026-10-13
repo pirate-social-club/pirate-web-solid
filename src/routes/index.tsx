@@ -156,6 +156,7 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
     <div data-route-path="/" data-home-session={sessionStatus()}>
         <HomeVideoFeed
           sourceIdentity={authenticatedSession() ? `user:${authenticatedSession()?.userId}` : "anonymous"}
+          principalId={authenticatedSession()?.userId}
           data={authenticatedSession() ? props.homeData : publicData}
           loadPage={({ cursor, locale, sort }) => authenticatedSession()
             ? fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })

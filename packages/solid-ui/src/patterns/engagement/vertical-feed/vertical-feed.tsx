@@ -8,6 +8,7 @@ import { MediaPost } from "./media-post";
 import type {
   HapticKind,
   MediaActivityAction,
+  MediaMoreAction,
   MediaPostData,
   VideoSourceAttacher,
 } from "./types";
@@ -79,6 +80,10 @@ export interface VerticalFeedProps {
   /** Host-offered activities per post (e.g. Study, Karaoke), shown in the rail. */
   activities?: (postId: string) => readonly MediaActivityAction[] | undefined;
   onActivityClick?: (postId: string, activityId: string) => void;
+  /** Host rows per post for its More menu, after the built-in Mute/Unmute. */
+  moreActions?: (postId: string) => readonly MediaMoreAction[] | undefined;
+  /** Leave the phone top right to the host's header (e.g. Sign in). */
+  hideMobileMore?: boolean;
   onMuteToggle?: (postId: string, muted: boolean) => void;
   /** Reports playback progress for the exact post that emitted it. */
   onTimeUpdate?: (postId: string, currentTime: number, duration: number) => void;
@@ -117,7 +122,8 @@ function PlaceholderRow(props: {
  * MediaPostData, autoplays the active post behind a first-interaction gate,
  * supports ArrowUp/ArrowDown navigation, and reports every intent
  * (like, share, follow, author, soundtrack, mute, view, end-of-feed) through
- * callbacks. It never routes, notifies, or fetches by itself.
+ * callbacks. Mute lives in each post's More menu with any host rows. It
+ * never routes, notifies, or fetches by itself.
  */
 export function VerticalFeed(props: VerticalFeedProps) {
   let containerRef: HTMLDivElement | undefined;
@@ -286,6 +292,8 @@ export function VerticalFeed(props: VerticalFeedProps) {
                       ? (activityId) => props.onActivityClick?.(entry().id, activityId)
                       : undefined
                   }
+                  moreActions={props.moreActions?.(entry().id)}
+                  hideMobileMore={props.hideMobileMore}
                   onMuteToggle={(muted) => props.onMuteToggle?.(entry().id, muted)}
                   onTimeUpdate={props.onTimeUpdate}
                   onViewed={props.onViewed}

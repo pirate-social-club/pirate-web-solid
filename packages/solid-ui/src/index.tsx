@@ -378,6 +378,7 @@ export {
   type HapticKind,
   type MediaActionsProps,
   type MediaActivityAction,
+  type MediaMoreAction,
   type MediaPostData,
   type MediaPostProps,
   type VerticalFeedPlaceholderContext,
