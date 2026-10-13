@@ -1,0 +1,1010 @@
+[
+  {
+    "id": "flows-posts-videopost-authoring--age-restricted-song",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 21,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2504
+  },
+  {
+    "id": "flows-posts-videopost-authoring--backgrounded",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2145
+  },
+  {
+    "id": "flows-posts-videopost-authoring--camera-denied",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1866
+  },
+  {
+    "id": "flows-posts-videopost-authoring--desktop-review",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1856
+  },
+  {
+    "id": "flows-posts-videopost-authoring--desktop-upload",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1658
+  },
+  {
+    "id": "flows-posts-videopost-authoring--excerpt-selection",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1933
+  },
+  {
+    "id": "flows-posts-videopost-authoring--guide-blocked",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1925
+  },
+  {
+    "id": "flows-posts-videopost-authoring--guide-interrupted",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2038
+  },
+  {
+    "id": "flows-posts-videopost-authoring--guided-recording",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 17,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2005
+  },
+  {
+    "id": "flows-posts-videopost-authoring--no-posting-profile",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 20,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1165
+  },
+  {
+    "id": "flows-posts-videopost-authoring--no-song-chosen",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1477
+  },
+  {
+    "id": "flows-posts-videopost-authoring--orientation-lost",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2528
+  },
+  {
+    "id": "flows-posts-videopost-authoring--preflight-pending",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1230
+  },
+  {
+    "id": "flows-posts-videopost-authoring--preflight-refused",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 21,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1778
+  },
+  {
+    "id": "flows-posts-videopost-authoring--recording-ready",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1409
+  },
+  {
+    "id": "flows-posts-videopost-authoring--recording-stopped",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2585
+  },
+  {
+    "id": "flows-posts-videopost-authoring--recording-unavailable",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1949
+  },
+  {
+    "id": "flows-posts-videopost-authoring--review-error",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 20,
+      "incomplete": 2
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1904
+  },
+  {
+    "id": "flows-posts-videopost-authoring--review-playback",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2020
+  },
+  {
+    "id": "flows-posts-videopost-authoring--review-posting-as",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2069
+  },
+  {
+    "id": "flows-posts-videopost-authoring--review-stall",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 20,
+      "incomplete": 2
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1879
+  },
+  {
+    "id": "flows-posts-videopost-authoring--song-forbidden",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 21,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1317
+  },
+  {
+    "id": "flows-posts-videopost-authoring--song-loading",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 21,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1223
+  },
+  {
+    "id": "flows-posts-videopost-authoring--song-unavailable",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 21,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1112
+  },
+  {
+    "id": "flows-posts-videopost-authoring--submitted-upload-expired",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 18,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1154
+  },
+  {
+    "id": "flows-posts-videopost-authoring--submitted-upload-in-another-community",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 19,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1223
+  },
+  {
+    "id": "flows-posts-videopost-authoring--submitted-upload-needs-another-try",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 18,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1221
+  },
+  {
+    "id": "flows-posts-videopost-authoring--submitted-upload-resumes",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 18,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1291
+  },
+  {
+    "id": "flows-posts-videopost-authoring--upload-progress",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 15,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2243
+  },
+  {
+    "id": "flows-posts-videopost-authoring--uploaded-video-too-long",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 16,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1854
+  },
+  {
+    "id": "flows-posts-videopost-authoring--video-not-accepted",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 18,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2099
+  },
+  {
+    "id": "flows-posts-videopost-authoring--video-not-accepted-by-song",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 18,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2171
+  },
+  {
+    "id": "screens-community-communitypage-posting--cancel-keeps-the-draft",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 27,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2032
+  },
+  {
+    "id": "screens-community-communitypage-posting--composer-replaces-the-feed",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 27,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1647
+  },
+  {
+    "id": "screens-community-communitypage-posting--connection-lost",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4878
+  },
+  {
+    "id": "screens-community-communitypage-posting--dismissed-while-sending",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3308
+  },
+  {
+    "id": "screens-community-communitypage-posting--full-width-composer-on-mobile",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 24,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1866
+  },
+  {
+    "id": "screens-community-communitypage-posting--left-the-page-while-sending",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4845
+  },
+  {
+    "id": "screens-community-communitypage-posting--lost-acknowledgement",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4489
+  },
+  {
+    "id": "screens-community-communitypage-posting--mobile-back-keeps-the-draft",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 23,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4656
+  },
+  {
+    "id": "screens-community-communitypage-posting--mobile-back-respects-the-song-guard",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 22,
+      "incomplete": 1
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 5162
+  },
+  {
+    "id": "screens-community-communitypage-posting--mobile-composer-inside-the-app-shell",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 24,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1758
+  },
+  {
+    "id": "screens-community-communitypage-posting--posts-instantly",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1914
+  },
+  {
+    "id": "screens-community-communitypage-posting--published-but-answer-lost",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4666
+  },
+  {
+    "id": "screens-community-communitypage-posting--rejected",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 27,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1423
+  },
+  {
+    "id": "screens-community-communitypage-posting--session-expired-then-signed-in",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3928
+  },
+  {
+    "id": "screens-community-communitypage-posting--session-lost-while-pending",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1683
+  },
+  {
+    "id": "screens-community-communitypage-posting--signed-out-while-pending",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3618
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-composer-in-main",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 29,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1291
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-composer-in-main-on-mobile",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2017
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-left-while-processing",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4990
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-moves-through-its-stages",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 4737
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-needs-original",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3815
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-original-unanswered",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3946
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-processing-failed-then-rerun",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 3316
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-status-unanswered",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 6029
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-steps-return-to-feed",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1952
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-steps-return-to-feed-on-mobile",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 24,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1993
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-upload-progress",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2936
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-upload-stop-then-cancel",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 29,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2460
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-upload-stop-then-retry",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 2340
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-upload-unknown-size",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 26,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1768
+  },
+  {
+    "id": "screens-community-communitypage-posting--song-waiting-for-review",
+    "axe": {
+      "status": "pass",
+      "reason": null,
+      "violations": 0,
+      "passes": 25,
+      "incomplete": 0
+    },
+    "interaction": {
+      "status": "pass",
+      "reason": null
+    },
+    "storyStatus": "success",
+    "elapsedMs": 1608
+  }
+]

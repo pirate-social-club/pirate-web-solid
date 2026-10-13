@@ -108,10 +108,11 @@ export function createTextSubmissionMachine(transport: TextSubmissionTransport) 
     },
     actors: {
       deliver: fromPromise<Outcome, { readonly envelope: PendingSubmissionEnvelopeV1; readonly submissionId: string | null }>(
-        async ({ input }) => {
+        async ({ input, signal }) => {
           try {
             if (input.submissionId !== null) {
               const known = await withTimeout(transport.read(input.submissionId));
+              signal.throwIfAborted();
               if (known !== null) return projectSnapshot(known);
             }
             // A stalled connection must not hold the post on its first

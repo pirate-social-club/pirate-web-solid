@@ -58,6 +58,12 @@ async function run(transport: TextSubmissionTransport) {
   return actor;
 }
 
+function controlledStatusRead() {
+  let resolve!: (snapshot: TextContentSubmissionV1 | null) => void;
+  const response = new Promise<TextContentSubmissionV1 | null>((settle) => { resolve = settle; });
+  return { read: vi.fn(() => response), resolve };
+}
+
 describe("text submission machine", () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
@@ -147,6 +153,92 @@ describe("text submission machine", () => {
     actor.send({ type: "RESUME" });
     await vi.advanceTimersByTimeAsync(0);
     expect(actor.getSnapshot().value).toBe("published");
+  });
+
+  it("does not dispatch after PAUSE while a known-submission read is pending", async () => {
+    const originalEnvelope = { ...await envelope(), submission_id: "sub-1" };
+    const statusRead = controlledStatusRead();
+    const dispatch = vi.fn<TextSubmissionTransport["dispatch"]>(async () => published);
+    const actor = createActor(createTextSubmissionMachine({ dispatch, read: statusRead.read }), {
+      input: { envelope: originalEnvelope },
+    });
+    actor.start();
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(statusRead.read).toHaveBeenCalledWith("sub-1");
+      expect(dispatch).not.toHaveBeenCalled();
+      actor.send({ type: "PAUSE" });
+      statusRead.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(actor.getSnapshot().value).toBe("signInRequired");
+    } finally {
+      actor.stop();
+    }
+  });
+
+  it("does not dispatch after actor.stop while a known-submission read is pending", async () => {
+    const originalEnvelope = { ...await envelope(), submission_id: "sub-1" };
+    const statusRead = controlledStatusRead();
+    const dispatch = vi.fn<TextSubmissionTransport["dispatch"]>(async () => published);
+    const actor = createActor(createTextSubmissionMachine({ dispatch, read: statusRead.read }), {
+      input: { envelope: originalEnvelope },
+    });
+    actor.start();
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(statusRead.read).toHaveBeenCalledWith("sub-1");
+      expect(dispatch).not.toHaveBeenCalled();
+      actor.stop();
+      statusRead.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(actor.getSnapshot().status).toBe("stopped");
+    } finally {
+      actor.stop();
+    }
+  });
+
+  it("dispatches the original envelope once after a live known-submission read returns null", async () => {
+    const originalEnvelope = { ...await envelope(), submission_id: "sub-1" };
+    const statusRead = controlledStatusRead();
+    const dispatch = vi.fn<TextSubmissionTransport["dispatch"]>(async () => published);
+    const actor = createActor(createTextSubmissionMachine({ dispatch, read: statusRead.read }), {
+      input: { envelope: originalEnvelope },
+    });
+    actor.start();
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(statusRead.read).toHaveBeenCalledWith("sub-1");
+      expect(dispatch).not.toHaveBeenCalled();
+      statusRead.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch.mock.calls[0]![0]).toBe(originalEnvelope);
+      expect(actor.getSnapshot().value).toBe("published");
+    } finally {
+      actor.stop();
+    }
+  });
+
+  it("does not replay a paused status read reached through an idempotency conflict", async () => {
+    const statusRead = controlledStatusRead();
+    const dispatch = vi.fn<TextSubmissionTransport["dispatch"]>()
+      .mockRejectedValueOnce(new IdempotencyConflictError("sub-1"))
+      .mockResolvedValue(published);
+    const actor = await run({ dispatch, read: statusRead.read });
+    try {
+      await vi.advanceTimersByTimeAsync(retryDelayMs(1));
+      expect(statusRead.read).toHaveBeenCalledWith("sub-1");
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      actor.send({ type: "PAUSE" });
+      statusRead.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(actor.getSnapshot().value).toBe("signInRequired");
+    } finally {
+      actor.stop();
+    }
   });
 
   it("stops on a definitive refusal", async () => {
