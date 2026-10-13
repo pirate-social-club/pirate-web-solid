@@ -30,12 +30,12 @@ describe("private Spaces registration status", () => {
   });
 
   test.each([
-    { grant: { status: "revoked" }, title: "Name grant revoked",
-      detail: "Pirate's grant for this name has been revoked. This does not change ownership of the native Spaces name." },
-    { grant: { status: "tombstoned" }, title: "Name grant removed",
-      detail: "Pirate's grant for this name has been removed. This does not change ownership of the native Spaces name." },
-    { grant: null, title: "Grant status unavailable",
-      detail: "This name is registered, but its current Pirate grant status is unavailable. Refresh status to check again." },
+    { grant: { status: "revoked" }, title: "Name revoked here",
+      detail: "This name is no longer active here." },
+    { grant: { status: "tombstoned" }, title: "Name removed here",
+      detail: "This name is no longer active here." },
+    { grant: null, title: "Name status unavailable",
+      detail: "Refresh status to check again." },
   ] satisfies Array<{ grant: SpacesClaimDisplay["grant"]; title: string; detail: string }>)(
     "shows $title for an issued claim instead of pending registration",
     ({ grant, title, detail }) => {

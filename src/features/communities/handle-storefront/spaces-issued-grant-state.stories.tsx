@@ -22,9 +22,9 @@ export const Revoked: Story = {
   args: { claim: { ...issued, grant: { status: "revoked" } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Name grant revoked" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Name revoked here" })).toBeVisible();
     await expect(canvas.getByRole("status")).toHaveAttribute("data-spaces-claim-state", "issued");
-    await expect(canvas.getByText(/does not change ownership/)).toBeVisible();
+    await expect(canvas.getByText("This name is no longer active here.")).toBeVisible();
     await expect(canvas.queryByText("Registration pending")).not.toBeInTheDocument();
   },
 };
@@ -33,9 +33,9 @@ export const Removed: Story = {
   args: { claim: { ...issued, delayed: true, grant: { status: "tombstoned" } } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Name grant removed" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Name removed here" })).toBeVisible();
     await expect(canvas.getByRole("status")).toHaveAttribute("data-spaces-claim-state", "issued");
-    await expect(canvas.getByText(/does not change ownership/)).toBeVisible();
+    await expect(canvas.getByText("This name is no longer active here.")).toBeVisible();
     await expect(canvas.queryByText("Registration pending")).not.toBeInTheDocument();
   },
 };
@@ -43,9 +43,9 @@ export const Removed: Story = {
 export const Unavailable: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Grant status unavailable" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Name status unavailable" })).toBeVisible();
     await expect(canvas.getByRole("status")).toHaveAttribute("data-spaces-claim-state", "issued");
-    await expect(canvas.getByText(/This name is registered/)).toBeVisible();
+    await expect(canvas.getByText("Refresh status to check again.")).toBeVisible();
     await expect(canvas.queryByText("Registration pending")).not.toBeInTheDocument();
   },
 };

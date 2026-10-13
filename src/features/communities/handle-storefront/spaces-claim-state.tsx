@@ -11,12 +11,12 @@ export function spacesClaimStatus(claim: SpacesClaimDisplay) {
       return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
     }
     if (claim.grant?.status === "revoked") {
-      return { title: "Name grant revoked", detail: "Pirate's grant for this name has been revoked. This does not change ownership of the native Spaces name." };
+      return { title: "Name revoked here", detail: "This name is no longer active here." };
     }
     if (claim.grant?.status === "tombstoned") {
-      return { title: "Name grant removed", detail: "Pirate's grant for this name has been removed. This does not change ownership of the native Spaces name." };
+      return { title: "Name removed here", detail: "This name is no longer active here." };
     }
-    return { title: "Grant status unavailable", detail: "This name is registered, but its current Pirate grant status is unavailable. Refresh status to check again." };
+    return { title: "Name status unavailable", detail: "Refresh status to check again." };
   }
   if (claim.state === "issuance_failed") {
     return { title: "Registration needs attention", detail: "This name could not be registered. Contact the community owner before requesting it again." };
