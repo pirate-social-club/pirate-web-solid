@@ -147,13 +147,13 @@ function navigateTo(href: string, navigate?: (href: string) => void): void {
   else globalThis.location?.assign(href);
 }
 
-/** The feed's 32px loading ring: a border-coloured track and a primary arc. */
+/**
+ * The feed's 32px loading ring: a 3px border-coloured track and a primary
+ * quarter arc, drawn with borders (the repository allows no hand-authored SVG).
+ */
 function FeedLoadingRing() {
   return (
-    <svg role="status" aria-label="Loading videos" width="32" height="32" viewBox="0 0 32 32" class="animate-spin motion-reduce:animate-none">
-      <circle cx="16" cy="16" r="13" fill="none" stroke="var(--color-border)" stroke-width="3" />
-      <path d="M16 3a13 13 0 0 1 13 13" fill="none" stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round" />
-    </svg>
+    <div role="status" aria-label="Loading videos" class="size-8 animate-spin rounded-full border-[3px] border-border border-t-primary motion-reduce:animate-none" />
   );
 }
 
