@@ -93,9 +93,7 @@ describe("PublicProfilePage", () => {
     expect(container.querySelector("a[href^='/c/']")).toBeNull();
     expect(container.querySelectorAll("img")[1]?.getAttribute("src")).toBe(new URL("/media/avatar-public", window.location.origin).toString());
     expect(container.querySelectorAll("img")[0]?.getAttribute("src")).toBe(new URL("/media/cover-public", window.location.origin).toString());
-    // The header offers no actions. Profile activity loads separately and may
-    // show its own retry, so only buttons outside that section count.
-    expect([...container.querySelectorAll("button:not([role=tab])")].filter(button => !button.closest("[data-profile-activity]"))).toHaveLength(0);
+    expect(container.querySelector("button:not([role=tab])")).toBeNull();
     expect(container.querySelectorAll("[role=tab]")).toHaveLength(3);
   });
 
