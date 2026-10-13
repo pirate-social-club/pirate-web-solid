@@ -68,7 +68,20 @@ The bare captures beside them also include `MixedKinds` @1280, `VideoDeliverySta
 | 1–2 | No other Storybook running | Passed, 68 s each |
 | 3–4 | A warm dev server on 6006, as at the original failure | Passed, 73 s and 67 s |
 
-**The cause is not established.** The failure did not reproduce in 4 attempts. The check gives the first lazily compiled story 60 s after readiness, and an unproven explanation is CPU contention at that moment. This is recorded as an unexplained single failure, not as a known flake.
+**Follow-up investigation (2026-10-13): cause established, and it predates this work.**
+
+- **Where it reproduced:** the check failed again inside the repository's full `bun run verify`. Under that sequence it then failed on every run, whether the cache was cold or warm.
+- **What the time goes on:** the check starts a fresh Storybook dev server and gives the first story 60 s to become clickable. A fresh server compiles the story's module graph on first visit, after one optimizer reload at about 9 s. The same story on an already-warm server renders in 2 s.
+- **Timing:** I timed a fresh server, alternating the two commits, with 4 CPUs and a load average of about 2:
+
+  | Commit | Time to the play button |
+  | --- | --- |
+  | `45d07cb` (baseline) | 89.0 s, 87.4 s |
+  | `f7bd144` source | 78.4 s, 77.5 s |
+
+- **Baseline result:** the check itself, run in a clean `45d07cb` worktree, **fails the same way** after 82 s.
+- **Conclusion:** first-load compile time in this container exceeds the check's 60 s budget at both commits, and this work makes it faster, not slower. The earlier passes, at 67–73 s for the whole check, came while the container was running faster.
+- **Not changed here:** the check is unchanged in this work. Whether GitHub's runners fit inside the budget shows in CI. A robustness fix, such as waiting for the first story render before the 60 s action timeout, belongs to the check's owner.
 
 ## Not covered
 

@@ -147,7 +147,7 @@ Run on Node 24.21.0 for each slice:
 
 For 1a, the naming-locale hydration, text-post and song-post checks also passed.
 
-At 1b, `song-feed-playback-check` timed out once on its spawned Storybook's first story. An immediate rerun passed. Four deliberate reproductions of the original sequence also passed, with and without a second dev server, so **the cause is not established**. See `evidence/final/EVIDENCE.md`.
+At 1b, `song-feed-playback-check` timed out once on its spawned Storybook's first story. An immediate rerun passed. Four isolated reproductions passed. A later full `verify` run reproduced it consistently, and the cause is now established. A fresh Storybook takes 77–89 s to compile the story's first load in this container, against the check's 60 s budget. The baseline `45d07cb` fails identically, and is slower. See `evidence/final/EVIDENCE.md`.
 
 **Final acceptance evidence for `f7bd144`** is in `evidence/final/`:
 - both Storybook production builds;
