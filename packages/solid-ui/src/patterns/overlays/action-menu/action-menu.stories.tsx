@@ -81,17 +81,6 @@ export const Open: Story = {
     triggerVariant: "outline",
     placement: "bottom-end",
   },
-  parameters: {
-    a11y: {
-      config: {
-        // While the modal menu is open Kobalte aria-hides the page around it,
-        // trigger included, and focus is held in the menu. ActionMenu does not
-        // forward DropdownMenu's `modal` prop, so the open state cannot be shown
-        // without this rule firing on the hidden trigger.
-        rules: [{ id: "aria-hidden-focus", enabled: false }],
-      },
-    },
-  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(document.body);
@@ -106,6 +95,11 @@ export const Open: Story = {
     const menuBox = menu.getBoundingClientRect();
     await expect(menuBox.top).toBeGreaterThanOrEqual(triggerBox.bottom);
     await expect(Math.round(menuBox.right)).toBe(Math.round(triggerBox.right));
+
+    // Close before the a11y check: an open modal menu hides the page, trigger
+    // included, from assistive tech, so axe runs on the settled page instead.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("menu")).not.toBeInTheDocument());
   },
 };
 
