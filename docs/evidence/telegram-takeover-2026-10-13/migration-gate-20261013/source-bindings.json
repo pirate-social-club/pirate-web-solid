@@ -1,0 +1,58 @@
+[
+  {
+    "export_path": "sources/main-checksums.json",
+    "path": "db/postgres/migrations/checksums.json",
+    "commit": "4a791f27fb7c983689fe75150953be67ed25f709",
+    "git_blob": "d7cb8b696fc8f6af3fa92a8fd96174971de1bfde",
+    "url": "https://github.com/pirate-social-club/api-next/blob/4a791f27fb7c983689fe75150953be67ed25f709/db/postgres/migrations/checksums.json",
+    "sha256": "057e028031b7429cfa393a1fbbde2dc0d46e65d7d88169aa7d8f1328ffe07a58"
+  },
+  {
+    "export_path": "sources/pr598-checksums.json",
+    "path": "db/postgres/migrations/checksums.json",
+    "commit": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+    "git_blob": "fdafb397a76e86dc7b744fd9fc78ca93403ccd05",
+    "url": "https://github.com/pirate-social-club/api-next/blob/efe07c5acda838041b3e47a6ef7f1a48ea9b16d3/db/postgres/migrations/checksums.json",
+    "sha256": "2368f2ddba45b370e738ebbdca3f98533432dde3f7fe311f5f99fccccc93b7cc"
+  },
+  {
+    "export_path": "sources/pr597-before-checksums.json",
+    "path": "db/postgres/migrations/checksums.json",
+    "commit": "2071aea3a064e01f9db30726a5c4ca78ff980666",
+    "git_blob": "17f3238afc518c3d998edbaee4079314b3e7ee53",
+    "url": "https://github.com/pirate-social-club/api-next/blob/2071aea3a064e01f9db30726a5c4ca78ff980666/db/postgres/migrations/checksums.json",
+    "sha256": "8d559649f23f350878ec8087a408c1cdbfd0ae6c9a556f6de7ca59f354f37ff8"
+  },
+  {
+    "export_path": "sources/pr597-proposed-checksums.json",
+    "path": "db/postgres/migrations/checksums.json",
+    "commit": "6fb1014ba3679fb8452daaf493d2da2a6f3c4af6",
+    "git_blob": "af6028b8322de6529c574baaafb938899c19fbdc",
+    "url": "https://github.com/pirate-social-club/api-next/blob/6fb1014ba3679fb8452daaf493d2da2a6f3c4af6/db/postgres/migrations/checksums.json",
+    "sha256": "1a248b38bc07f755fcd4b813453d66f93cdbb1464c3ba21a21235862af20f43b"
+  },
+  {
+    "export_path": "sources/0248_guest_learning_authority_foundation.sql",
+    "path": "db/postgres/migrations/0248_guest_learning_authority_foundation.sql",
+    "commit": "efe07c5acda838041b3e47a6ef7f1a48ea9b16d3",
+    "git_blob": "f995519d5a14957b7b5237542148b394cfbea7f2",
+    "url": "https://github.com/pirate-social-club/api-next/blob/efe07c5acda838041b3e47a6ef7f1a48ea9b16d3/db/postgres/migrations/0248_guest_learning_authority_foundation.sql",
+    "sha256": "2c99571cedbe0640733b3509c657e81d4a89f505ba6d3fed61ea7e0c4befaed1"
+  },
+  {
+    "export_path": "sources/0248_media_alignment_alert_cursor.sql",
+    "path": "db/postgres/migrations/0248_media_alignment_alert_cursor.sql",
+    "commit": "2071aea3a064e01f9db30726a5c4ca78ff980666",
+    "git_blob": "1b1842116de4d2b2aab122fae33b61d0139c35dc",
+    "url": "https://github.com/pirate-social-club/api-next/blob/2071aea3a064e01f9db30726a5c4ca78ff980666/db/postgres/migrations/0248_media_alignment_alert_cursor.sql",
+    "sha256": "0fb7c6942df232ac0350c7a0b65afe5323f50705b7d4aeff8793948379338862"
+  },
+  {
+    "export_path": "sources/0264_media_alignment_alert_cursor.sql",
+    "path": "db/postgres/migrations/0264_media_alignment_alert_cursor.sql",
+    "commit": "6fb1014ba3679fb8452daaf493d2da2a6f3c4af6",
+    "git_blob": "1b1842116de4d2b2aab122fae33b61d0139c35dc",
+    "url": "https://github.com/pirate-social-club/api-next/blob/6fb1014ba3679fb8452daaf493d2da2a6f3c4af6/db/postgres/migrations/0264_media_alignment_alert_cursor.sql",
+    "sha256": "0fb7c6942df232ac0350c7a0b65afe5323f50705b7d4aeff8793948379338862"
+  }
+]

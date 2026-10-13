@@ -1,0 +1,37 @@
+Selected hosted failure output; full logs are not included.
+This audit does not infer root causes from the excerpts.
+Fetched at 2026-10-13T06:06:35.550075+00:00
+
+https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539382
+2026-10-13T05:48:28.3094302Z error: account owner must be provisioned before activity
+2026-10-13T05:48:28.3137390Z error: Root exact actual263 source inventory required
+2026-10-13T05:48:39.9563513Z error: null value in column "participation_owner_id" of relation "learner_audio_artifacts" violates not-null constraint
+2026-10-13T05:49:08.4632491Z error: Root exact actual expiry source/version inventory required
+2026-10-13T05:53:06.9608594Z error: expect(received).toEqual(expected)
+2026-10-13T05:54:43.3427706Z error: expect(received).toMatchObject(expected)
+2026-10-13T05:55:12.4240568Z error: script "test:postgres" exited with code 1
+2026-10-13T05:55:12.3970222Z 14 tests failed:
+2026-10-13T05:55:12.3970678Z (fail) Study v2 Postgres foundation > keeps versions immutable and review identity stable across regeneration [1668.80ms]
+2026-10-13T05:55:12.3971215Z (fail) future-only NEW capture deadline, native exact cleanup and permanent original namespace preserve siblings/history [0.42ms]
+2026-10-13T05:55:12.3971711Z (fail) genuine owner deletion during pending exact cleanup known DELETE reconciles the SAME command [0.06ms]
+2026-10-13T05:55:12.3972325Z (fail) genuine owner deletion during pending exact cleanup unknown first DELETE reconciles the SAME command [0.05ms]
+2026-10-13T05:55:12.3972873Z (fail) unknown provider and unfinished/unknown writer stay held; SAME late original CP then finalizes and cleans [0.05ms]
+2026-10-13T05:55:12.3973256Z (fail) actual prepare and confirm COMMIT ACK loss retain SAME pending/completed original cleanup [0.04ms]
+2026-10-13T05:55:12.3973639Z (fail) learner audio deletion repository > deletes bytes first, tombstones both producers, and is account scoped [1628.43ms]
+2026-10-13T05:55:12.3974035Z (fail) learner audio deletion repository > blocks live producers but ignores an expired Study lease [1729.29ms]
+2026-10-13T05:55:12.3974424Z (fail) two actual abandoned captured sessions release unspent holds and restore original owner admission capacity [0.45ms]
+2026-10-13T05:55:12.3974835Z (fail) expired remainder release keeps reserved/unknown calls held at all ages and accepts the same late checkpoint [0.06ms]
+2026-10-13T05:55:12.3975233Z (fail) actual uncaptured expiry absence stays held; no native abort producer or absence inference is invented [0.05ms]
+2026-10-13T05:55:12.3975666Z (fail) Postgres 17 product and gates v2 foundation > matches migration and normalized-baseline catalogs and HNS resolver behavior [4191.06ms]
+2026-10-13T05:55:12.3976240Z (fail) Composed never-joined activity and reward acceptance > prepares, activates and completes Study with independent monetary admission and no replay duplication [1927.27ms]
+2026-10-13T05:55:12.3977205Z (fail) Composed never-joined activity and reward acceptance > completes Karaoke with a qualifying score and allocates one funded credit across a finalization replay [1988.53ms]
+2026-10-13T05:55:12.3977573Z  348 pass
+2026-10-13T05:55:12.3977675Z  14 fail
+2026-10-13T05:55:12.3977906Z Ran 362 tests across 49 files. [540.05s]
+2026-10-13T05:55:12.4217345Z general PostgreSQL shard 2/4 failed with exit 1
+2026-10-13T05:55:12.4251322Z ##[error]Process completed with exit code 1.
+
+https://github.com/pirate-social-club/api-next/actions/runs/38353040821/job/115149539246
+2026-10-13T06:01:09.9714384Z error: script "test:postgres" exited with code 1
+2026-10-13T06:01:09.9672377Z general PostgreSQL shard 3/4 failed with exit 143
+2026-10-13T06:01:09.9738604Z ##[error]Process completed with exit code 1.

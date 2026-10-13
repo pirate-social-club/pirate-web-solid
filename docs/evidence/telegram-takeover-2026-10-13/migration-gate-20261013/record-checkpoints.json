@@ -1,0 +1,14 @@
+{
+  "control_head_before": "a4812fc4fd56c78378e31d6cdd5af3cc3b3d4047",
+  "control_head": "abdf5befbebffcf64d7706ad8565a7121ebd8a87",
+  "own_record_commits": {
+    "tasks/records/telegram-post-lesson-account-connection-spike.md": "4f7196144c82c353e99801892e660668539d2022",
+    "tasks/records/solid-telegram-privy-identity-probe.md": "1af40b3afab35de4ae4b2d8972ae5e31b9a43333",
+    "tasks/records/api-telegram-practice-delivery-hardening.md": "abdf5befbebffcf64d7706ad8565a7121ebd8a87"
+  },
+  "foreign_paths_preserved_sha256": {
+    "tasks/records/solid-hns-claim-persona-picker.md": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f"
+  },
+  "product_parent": "30e2caa0691013aa4cf6082be1a1ec4d9dc0690d",
+  "scope": "Only the three own tracked task records changed; live headers preserved. Internal binding is not external acceptance."
+}
