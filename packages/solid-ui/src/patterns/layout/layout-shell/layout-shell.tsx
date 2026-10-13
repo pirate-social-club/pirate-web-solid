@@ -3,21 +3,6 @@ import { createMemo, omit, type ParentProps } from "solid-js";
 
 import { cn } from "@/lib/cn";
 
-export function CardShell(
-  props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { class?: string }>,
-) {
-  const className = createMemo(() =>
-    cn("rounded-[var(--radius-3xl)] border border-border-soft bg-card", props.class),
-  );
-  const rest = omit(props, "class", "children");
-
-  return (
-    <div class={className()} {...rest}>
-      {props.children}
-    </div>
-  );
-}
-
 const pageSizeClasses = {
   default: "max-w-5xl",
   feed: "max-w-[46rem]",
