@@ -34,7 +34,7 @@ function browserLocks(): GuestStudyAnswerLocks | undefined {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2_000);
     try {
-      return await navigator.locks.request<T>("pirate.guest-authority.v1", { mode: "exclusive", signal: controller.signal }, async () => {
+      return await navigator.locks.request<Promise<T>>("pirate.guest-authority.v1", { mode: "exclusive", signal: controller.signal }, async () => {
         clearTimeout(timer); return work();
       });
     } catch (error) {
