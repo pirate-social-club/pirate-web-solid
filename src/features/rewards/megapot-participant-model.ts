@@ -30,7 +30,7 @@ export function participantMessage({ pool, standing }: ParticipantRewardSnapshot
   if (standing.participant_state === "sent") return "Your winnings were sent to your wallet.";
   if (standing.participant_state === "payout_pending") return "Your winnings are being sent to your wallet.";
   if (standing.participant_state === "won") return "Your share won. Open Wallet to review your winnings and claim.";
-  return `You have a share in drawing ${pool.drawing?.drawing_id}. Qualifying again in this drawing does not add another share.`;
+  return "You’re entered. Qualifying again in this drawing does not add another entry.";
 }
 
 export function rewardTime(value: string): string {

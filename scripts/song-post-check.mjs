@@ -442,7 +442,7 @@ async function publishSong(page, community, { lyrics }) {
   // Lyrics are optional and live on the Song step; they are bound when the
   // song is published rather than saved from a separate step.
   if (lyrics !== "") {
-    await form.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
+    await form.getByLabel("Lyrics", { exact: true }).fill(lyrics);
   }
 
   // The footer's forward control advances Song -> Rights -> Review.

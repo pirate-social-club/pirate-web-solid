@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
 import { Show, createSignal, createEffect } from "solid-js";
 import { ActionMenu } from "@pirate/web-solid-ui";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
@@ -18,6 +19,17 @@ export const SongMenuToFunding: Story = {
     </div><p>Study or sing to qualify for song rewards.</p>
       <Show when={open()}><RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={dependencies} onClose={() => setOpen(false)} /></Show>
     </article>;
+  },
+};
+
+export const PaperWidth: Story = {
+  parameters: { docs: { description: { story: "Browser check: the dialog is Paper's 440 px wide on desktop." } } },
+  render: () => <RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static"
+    dependencies={rewardSponsorFixture()} onClose={() => {}} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByRole("heading", { name: "Create a bounty" })).toBeVisible();
+    if (window.innerWidth >= 768) await expect(Math.round(dialog.getBoundingClientRect().width)).toBe(440);
   },
 };
 

@@ -15,11 +15,11 @@ export const SongDetail: Story = { render: () => <main class="mx-auto max-w-xl p
 export const SongCard: Story = { render: () => <main class="mx-auto max-w-xl p-4"><MegapotPoolView pool={pool} compact /></main> };
 export const StudyComplete: Story = {
   render: () => <StudyingSurface state={{ kind: "complete", correctCount: 8, scorePercent: 80, totalCount: 10 }} lessonProgress={{ resolvedCount: 10, totalCount: 10 }} rewardSlot={share()} onExit={() => {}} onStudyAgain={() => {}} />,
-  play: async ({ canvasElement }) => { await expect(await within(canvasElement).findByText(/You have a share in drawing 42/)).toBeVisible(); },
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(await canvas.findByText(/You’re entered\./)).toBeVisible(); await expect(canvas.getByText("Daily lottery")).toBeVisible(); },
 };
 export const KaraokeComplete: Story = {
   render: () => <KaraokePracticeSurface onStartSinging={() => {}} title="Reward song" lines={[]} singingStatus="ended" rewardSlot={share()} onExit={() => {}} />,
-  play: async ({ canvasElement }) => { await expect(await within(canvasElement).findByText(/You have a share in drawing 42/)).toBeVisible(); },
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(await canvas.findByText(/You’re entered\./)).toBeVisible(); await expect(canvas.getByText("Daily lottery")).toBeVisible(); },
 };
 export const NotYetConfirmed: Story = {
   render: () => <main class="mx-auto max-w-md p-4"><MegapotShareStatus communityId="community-1" postId="post-1" data={{ ...data, standing: async () => ({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open" } }) }} /></main>,
@@ -48,7 +48,7 @@ export const ServiceUnavailable: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText(/You have a share in drawing 42/)).toBeVisible();
+    await expect(await canvas.findByText(/You’re entered\./)).toBeVisible();
     await userEvent.click(canvas.getByRole("button", { name: "Check reward status" }));
     await expect(await canvas.findByText(/temporarily unavailable/)).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Check reward status" })).toBeEnabled();

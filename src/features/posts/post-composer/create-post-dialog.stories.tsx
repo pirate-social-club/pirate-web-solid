@@ -338,9 +338,9 @@ export const SongStepLongLyricsMobile: Story = {
     const doc = canvasElement.ownerDocument;
     const canvas = within(doc.body);
     await uploadStorySong(canvas);
-    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    const lyrics = await canvas.findByLabelText("Lyrics");
     await waitFor(async () => {
-      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics (optional)");
+      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics");
       if (field.value === "") {
         field.value = Array.from({ length: 80 }, (_, line) => `Line ${line + 1} of a very long song`).join("\n");
         field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -369,7 +369,7 @@ export const SongLyricsOnSongStep: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
-    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    const lyrics = await canvas.findByLabelText("Lyrics");
     await userEvent.type(lyrics, "A line carried on the tide");
     await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },

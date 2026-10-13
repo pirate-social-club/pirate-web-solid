@@ -27,12 +27,21 @@ const signInCopy = {
  */
 export function SignInModal(props: SignInModalProps): JSX.Element {
   const copy = () => signInCopy;
+  // Paper: the dialog cannot be closed while signing in. The close control is
+  // removed and Escape or an outside press leaves it open until the attempt
+  // settles, which returns to a phase that can close.
+  const signingIn = () => props.session.state().phase === "working";
+  const changeOpen = (open: boolean) => {
+    if (!open && signingIn()) return;
+    props.onOpenChange(open);
+  };
 
   return (
-    <Modal forceMobile={props.forceMobile} onOpenChange={props.onOpenChange} open={props.open}>
+    <Modal forceMobile={props.forceMobile} onOpenChange={changeOpen} open={props.open}>
       <ModalContent
         aria-label={copy().title}
-        class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:px-8 sm:pb-8 sm:pt-8"
+        class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:max-h-[90vh] sm:max-w-[440px] sm:rounded-[var(--radius-2xl)] sm:px-5 sm:pb-5 sm:pt-4"
+        hideCloseButton={signingIn()}
         mobileSide="bottom"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >

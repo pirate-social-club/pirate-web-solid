@@ -173,7 +173,7 @@ export function SongStep(props: {
       </section>
 
       <section>
-        <FieldLabel htmlFor="song-lyrics" label="Lyrics (optional)" />
+        <FieldLabel htmlFor="song-lyrics" label="Lyrics" />
         <Textarea
           id="song-lyrics"
           class="min-h-32 resize-y"
