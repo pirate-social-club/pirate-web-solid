@@ -1,4 +1,4 @@
-// @vitest-environment-options {"jsdom":{"url":"https://app.pirate.test"}}
+// @vitest-environment-options {"url":"https://app.pirate.test"}
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";

@@ -1,4 +1,4 @@
-// @vitest-environment-options {"jsdom":{"url":"https://app.pirate.test"}}
+// @vitest-environment-options {"url":"https://app.pirate.test"}
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -119,9 +119,9 @@ test("B cannot mint a replacement command for an unresolved original A credit", 
 
 test("missing storage and WebLocks preserve Account liability reads but cannot submit a financial command", async () => {
   vi.stubGlobal("indexedDB", undefined);
-  const withoutLocks = Object.create(navigator);
-  Object.defineProperty(withoutLocks, "locks", { value: undefined });
-  vi.stubGlobal("navigator", withoutLocks);
+  const lockDescriptor = Object.getOwnPropertyDescriptor(navigator, "locks");
+  Object.defineProperty(navigator, "locks", { value: undefined, configurable: true });
+  try {
   const api = finance(), claims = vi.fn<GuestStudyAccountingApi["claimCredit"]>();
   const node = mount(() => <OwnerStudyRecoveryControls finance={api} resolveAccount={async () => actor}
     accounting={{ prepareAttachment: unused, confirmAttachment: unused, getAttachment: unused, selectCreditRecipient: unused, claimCredit: claims }} />);
@@ -129,4 +129,8 @@ test("missing storage and WebLocks preserve Account liability reads but cannot s
   expect(api.listParticipations).toHaveBeenCalledOnce(); expect(api.listCredits).toHaveBeenCalledOnce();
   button(node, "Claim or retry original credit").click(); await vi.waitFor(() => expect(node.textContent).toContain("Original selection or claim is unresolved"));
   expect(claims).not.toHaveBeenCalled(); expect(api.getCredit).not.toHaveBeenCalled();
+  } finally {
+    if (lockDescriptor !== undefined) Object.defineProperty(navigator, "locks", lockDescriptor);
+    else Reflect.deleteProperty(navigator, "locks");
+  }
 });
