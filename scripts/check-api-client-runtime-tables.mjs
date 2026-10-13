@@ -189,13 +189,15 @@ if (args.length === 0) {
   throw new Error("Usage: check-api-client-runtime-tables.mjs [--compare <client-a.ts> <client-b.ts>]");
 }
 
+// Historical --compare retains its original103-operation contract; current118 also requires guest16.
+const includeGuestOperations = args.length === 0;
 const results = checked.map((path) => ({
   path,
   digest: runtimeTableDigest(path),
-  guestDigest: runtimeTableDigest(path, guestOperations),
+  guestDigest: includeGuestOperations ? runtimeTableDigest(path, guestOperations) : null,
 }));
 for (const result of results) {
-  if (result.guestDigest !== expectedGuestDigest) {
+  if (includeGuestOperations && result.guestDigest !== expectedGuestDigest) {
     throw new Error(`${result.path} guest runtime-table digest mismatch: expected ${expectedGuestDigest}, found ${result.guestDigest}`);
   }
   if (result.digest !== expectedDigest) {
@@ -205,4 +207,4 @@ for (const result of results) {
   }
 }
 
-console.log(JSON.stringify({ operations: operations.length, guestOperations: guestOperations.length, expectedDigest, expectedGuestDigest, clients: results }, null, 2));
+console.log(JSON.stringify({ operations: operations.length, guestOperations: includeGuestOperations ? guestOperations.length : 0, expectedDigest, expectedGuestDigest: includeGuestOperations ? expectedGuestDigest : null, clients: results }, null, 2));

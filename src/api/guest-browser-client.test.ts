@@ -11,10 +11,7 @@ describe("separate guest browser CSRF", () => {
     const options = guestRequestOptions(csrf, controller.signal);
     expect(options.credentials).toBe("same-origin");
     expect(options.signal).toBe(controller.signal);
-    const headers = new Headers(options.headers);
-    expect(headers.get("x-guest-csrf-token")).toBe(csrf);
-    expect(headers.get("x-csrf-token")).toBeNull();
-    expect(headers.get("authorization")).toBeNull();
+    expect(options.headers).toEqual({ "x-guest-csrf-token": csrf });
   });
 
   test.each([
