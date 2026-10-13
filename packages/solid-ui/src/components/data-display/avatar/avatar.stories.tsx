@@ -62,12 +62,18 @@ export const Variants: Story = {
 export const Sizes: Story = {
   render: () => (
     <StoryRow class="items-end">
-      <Avatar fallback="JD" size="xs" />
-      <Avatar fallback="JD" size="sm" />
-      <Avatar fallback="JD" size="md" />
-      <Avatar fallback="JD" size="lg" />
+      <Avatar fallback="Jane Doe" size="xs" />
+      <Avatar fallback="Jane Doe" size="sm" />
+      <Avatar fallback="Jane Doe" size="md" />
+      <Avatar fallback="Jane Doe" size="lg" />
     </StoryRow>
   ),
+  play: async ({ canvasElement }) => {
+    // Paper shows the two-letter initials "JD" at every size (24/36/48/56).
+    const avatars = within(canvasElement).getAllByRole("img", { name: "Jane Doe" });
+    await expect(avatars.map((avatar) => avatar.textContent)).toEqual(["JD", "JD", "JD", "JD"]);
+    await expect(avatars.map((avatar) => Math.round(avatar.getBoundingClientRect().width))).toEqual([24, 36, 48, 56]);
+  },
 };
 
 export const Empty: Story = {

@@ -72,7 +72,40 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Paper's resting state: the placeholder, closed and unfocused. */
 export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", { name: "Sort order" });
+    await expect(trigger).toHaveTextContent("Pick one");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).not.toHaveFocus();
+  },
+};
+
+/** Paper's Open state: Top rated selected and the list showing beneath. */
+export const Open: Story = {
+  args: {
+    value: "top",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", { name: "Sort order" });
+    await expect(trigger).toHaveTextContent("Top rated");
+
+    await userEvent.click(trigger);
+    const listbox = await within(document.body).findByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await expect(within(listbox).getAllByRole("option")).toHaveLength(3);
+    await expect(
+      within(listbox).getByRole("option", { name: "Top rated" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  },
+};
+
+/** Picking an option commits its value; kept apart so Default rests on the board state. */
+export const Interaction: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole("button", { name: "Sort order" });

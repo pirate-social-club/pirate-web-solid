@@ -66,13 +66,20 @@ export const Variants: Story = {
         <IconCheck class="size-5" />
       </IconButton>
       <IconButton {...args} aria-label="Destructive" variant="destructive">
-        <IconX class="size-5" />
+        <IconCheck class="size-5" />
       </IconButton>
       <IconButton {...args} aria-label="Active" variant="secondary" active>
         <IconCheck class="size-5" />
       </IconButton>
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    const buttons = within(canvasElement).getAllByRole("button");
+    await expect(buttons).toHaveLength(6);
+    // Paper draws every variant swatch, Destructive included, with the check glyph.
+    const glyphs = buttons.map((button) => button.querySelector("svg")?.innerHTML);
+    await expect(new Set(glyphs).size).toBe(1);
+  },
 };
 
 export const Loading: Story = {

@@ -5,6 +5,7 @@ import { expect, userEvent, within } from "storybook/test";
 
 import { Button } from "@/components/actions/button/button";
 import { Type } from "@/components/data-display/type/type";
+import { untilViewportBelow } from "@/stories/lib/story-measure";
 
 import {
   Modal,
@@ -55,6 +56,8 @@ function ModalShell(shellProps: {
               ? "border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3"
               : "border-border bg-background p-6 sm:w-[min(100%-2rem,34rem)] sm:max-w-[34rem]"
           }
+          // Paper's phone sheet has the grabber only, no close X.
+          hideCloseButtonOnMobile
           mobileSide={shellProps.mobileSide}
         >
           {isBottomSheet() ? (
@@ -70,7 +73,7 @@ function ModalShell(shellProps: {
           </ModalHeader>
           {shellProps.body}
           {shellProps.footer ? (
-            <ModalFooter class="mt-6 border-t border-border/70 pt-4 sm:pt-5">
+            <ModalFooter class="mt-2 border-t border-border/70 pt-4 sm:pt-5">
               {shellProps.footer}
             </ModalFooter>
           ) : null}
@@ -84,11 +87,11 @@ export const DesktopDialog: Story = {
   name: "Desktop (Dialog)",
   render: () => (
     <ModalShell
-      description="Add a small amount to your wallet to unlock the full track and keep it in your library."
+      description="Add funds to continue."
       forceMobile={false}
       footer={
         <>
-          <Button size="lg" variant="outline">Maybe later</Button>
+          <Button size="lg" variant="outline">Cancel</Button>
           <Button size="lg">Add funds</Button>
         </>
       }
@@ -100,6 +103,9 @@ export const DesktopDialog: Story = {
     await expect(
       within(dialog).getByText("Unlock this content"),
     ).toBeVisible();
+    // Paper copy: one terse description line, then Cancel and the primary action.
+    await expect(within(dialog).getByText("Add funds to continue.")).toBeVisible();
+    await expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeVisible();
     // Escape closes and focus returns to the page.
     await userEvent.keyboard("{Escape}");
     await expect(within(document.body).queryByRole("dialog")).toBeNull();
@@ -120,18 +126,30 @@ export const MobileSheetBottom: Story = {
   },
   render: () => (
     <ModalShell
-      description="Add a small amount to your wallet to unlock the full track and keep it in your library."
+      description="Add funds to continue."
       forceMobile
       footer={
         <>
-          <Button class="w-full" size="lg" variant="outline">Maybe later</Button>
+          <Button class="w-full" size="lg" variant="outline">Cancel</Button>
           <Button class="w-full" size="lg">Add funds</Button>
         </>
       }
       mobileSide="bottom"
       title="Unlock this content"
     />
-  ),
+  ),  play: async () => {
+    const sheet = await within(document.body).findByRole("dialog");
+    await expect(within(sheet).getByText("Add funds to continue.")).toBeVisible();
+    // The phone sheet has no close X; Cancel and the grabber dismiss it.
+    await expect(within(sheet).queryByRole("button", { name: "Close" })).toBeNull();
+    const buttons = within(sheet).getAllByRole("button");
+    await expect(buttons.map((button) => button.textContent)).toEqual(["Cancel", "Add funds"]);
+    // On a phone the primary action stacks on top (the footer only stacks
+    // below sm, so wait for the viewport global to narrow the canvas).
+    if (await untilViewportBelow(640)) {
+      await expect(buttons[1].getBoundingClientRect().top).toBeLessThan(buttons[0].getBoundingClientRect().top);
+    }
+  },
 };
 
 export const DesktopCompact: Story = {

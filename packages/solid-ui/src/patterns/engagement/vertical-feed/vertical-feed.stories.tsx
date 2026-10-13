@@ -3,7 +3,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
-import { Type } from "@/components/data-display/type/type";
+import { MobileFooterNav } from "@/patterns/navigation/mobile-footer-nav/mobile-footer-nav";
 import { brokenPost, fixturePosts, longCaptionPost } from "./fixtures";
 import { VerticalFeed, type VerticalFeedProps } from "./vertical-feed";
 
@@ -15,9 +15,10 @@ const meta = {
     posts: fixturePosts,
     onActivePostChange: fn(),
     onEndReached: fn(),
-    onLikeClick: fn(),
+    // No onLikeClick or onFollowClick: Paper draws no Like or Follow badge and
+    // the app does not wire them, so the controls stay hidden here. The
+    // LikeAndFollow story shows them for hosts that do pass the callbacks.
     onShareClick: fn(),
-    onFollowClick: fn(),
     onAuthorClick: fn(),
     onSoundtrackClick: fn(),
     onActivityClick: fn(),
@@ -76,7 +77,13 @@ function InteractiveFeed(props: VerticalFeedProps) {
     props.onLikeClick?.(postId);
   };
 
-  return <VerticalFeed {...rest} posts={posts()} onLikeClick={handleLike} />;
+  return (
+    <VerticalFeed
+      {...rest}
+      posts={posts()}
+      onLikeClick={props.onLikeClick ? handleLike : undefined}
+    />
+  );
 }
 
 export const Default: Story = {
@@ -88,15 +95,9 @@ export const Default: Story = {
     await expect(region).toBeVisible();
     await expect(canvas.getAllByText("@wavemaker").length).toBeGreaterThan(0);
 
-    // Like toggles through the callback and updates the visible state.
-    const likeButton = canvas.getAllByRole("button", { name: "Like video" })[0];
-    await userEvent.click(likeButton);
-    await expect(args.onLikeClick).toHaveBeenCalledWith("post-1");
-    await waitFor(async () => {
-      await expect(
-        canvas.getAllByRole("button", { name: "Unlike video" })[0],
-      ).toHaveAttribute("aria-pressed", "true");
-    });
+    // Paper's rail has no Like control and no Follow badge on the avatar.
+    await expect(canvas.queryByRole("button", { name: /like video/i })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: /^Follow / })).toBeNull();
 
     // Keyboard navigation advances the active post.
     region.focus();
@@ -108,6 +109,36 @@ export const Default: Story = {
     await waitFor(() =>
       expect(args.onActivePostChange).toHaveBeenCalledWith("post-1", 0),
     );
+  },
+};
+
+/**
+ * The optional Like control and Follow badge, which render only when the host
+ * passes onLikeClick and onFollowClick. Paper does not draw them and the app
+ * does not wire them today; this story keeps their callback coverage.
+ */
+export const LikeAndFollow: Story = {
+  args: {
+    onLikeClick: fn(),
+    onFollowClick: fn(),
+  },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    // Like toggles through the callback and updates the visible state.
+    const likeButton = canvas.getAllByRole("button", { name: "Like video" })[0];
+    await userEvent.click(likeButton);
+    await expect(args.onLikeClick).toHaveBeenCalledWith("post-1");
+    await waitFor(async () => {
+      await expect(
+        canvas.getAllByRole("button", { name: "Unlike video" })[0],
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    await expect(
+      canvas.getAllByRole("button", { name: "Follow wavemaker" })[0],
+    ).toBeVisible();
   },
 };
 
@@ -188,19 +219,24 @@ export const Mobile: Story = {
   render: (args) => (
     <div class="relative">
       <InteractiveFeed {...args} />
-      {/* Simulated host-app tab bar the overlays must clear */}
-      <div class="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-border bg-background/90">
-        <Type as="span" variant="caption">Home</Type>
-        <Type as="span" variant="caption">Search</Type>
-        <Type as="span" variant="caption">Activity</Type>
-        <Type as="span" variant="caption">Profile</Type>
-      </div>
+      {/* The real four-tab footer the overlays must clear, as on the board. */}
+      <MobileFooterNav
+        activeItem="home"
+        forceMobile
+        onHomeClick={fn()}
+        onProfileClick={fn()}
+        onSongsClick={fn()}
+        onWalletClick={fn()}
+      />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getAllByRole("button", { name: "Follow wavemaker" })[0],
-    ).toBeVisible();
+    const footer = canvas.getByRole("navigation", { name: "Primary navigation" });
+    await expect(within(footer).getAllByRole("button")).toHaveLength(4);
+    await expect(within(footer).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
+    // The rail keeps its share control; there is no Follow badge.
+    await expect(canvas.getAllByRole("button", { name: /share/i }).length).toBeGreaterThan(0);
+    await expect(canvas.queryByRole("button", { name: /^Follow / })).toBeNull();
   },
 };

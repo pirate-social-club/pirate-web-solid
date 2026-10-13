@@ -26,7 +26,8 @@ const meta = {
   tags: ["autodocs"],
   args: {
     title: "Edit profile",
-    description: "Make changes to your profile here. Click save when you're done.",
+    // Paper draws the Default dialog with a title and footer only.
+    description: "",
     hideCloseButton: false,
     footer: true,
   } satisfies DialogStoryArgs,
@@ -44,7 +45,9 @@ const meta = {
       <DialogContent hideCloseButton={args.hideCloseButton}>
         <DialogHeader>
           <DialogTitle>{args.title}</DialogTitle>
-          <DialogDescription>{args.description}</DialogDescription>
+          {args.description ? (
+            <DialogDescription>{args.description}</DialogDescription>
+          ) : null}
         </DialogHeader>
         {args.footer ? (
           <StoryDialogFooter
@@ -80,7 +83,7 @@ export const Default: Story = {
     const dialog = await body.findByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleName("Edit profile");
-    await expect(dialog).toHaveAccessibleDescription(/Make changes/);
+    await expect(dialog).toHaveAccessibleDescription("");
 
     await expect(body.getByRole("button", { name: "Close" })).toBeVisible();
     await expect(body.getByRole("button", { name: "Cancel" })).toBeVisible();
@@ -133,6 +136,15 @@ export const LongContent: Story = {
       </DialogContent>
     </Dialog>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Open release notes" }));
+    const dialog = await body.findByRole("dialog");
+    await expect(dialog).toHaveAccessibleName("Release notes");
+    await expect(dialog).toHaveAccessibleDescription(/scrollable content/);
+  },
 };
 
 export const Mobile: Story = {

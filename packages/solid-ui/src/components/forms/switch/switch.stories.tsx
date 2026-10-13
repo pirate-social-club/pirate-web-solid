@@ -54,7 +54,34 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Paper's resting state: a bare switch, off and unfocused. */
 export const Default: Story = {
+  render: controlledRender(
+    (args) => args.checked ?? false,
+    (checked, setChecked, args) => (
+      <Switch
+        {...args}
+        aria-label="Dark mode"
+        checked={checked()}
+        onChange={(next) => {
+          setChecked(next);
+          args.onChange?.(next);
+        }}
+      />
+    ),
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("switch", { name: "Dark mode" });
+    await expect(input).not.toBeChecked();
+    await expect(input).not.toHaveFocus();
+    // No visible label: the board draws the bare 48 by 28 track.
+    await expect(canvas.queryByText("Dark mode")).toBeNull();
+  },
+};
+
+/** Toggling the labelled switch; kept apart so Default rests on the board state. */
+export const Interaction: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByRole("switch", { name: "Dark mode" });
