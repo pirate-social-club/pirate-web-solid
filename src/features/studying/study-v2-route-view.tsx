@@ -63,7 +63,7 @@ type RouteState =
 
 export interface StudyV2RouteViewProps {
   communityId?: string;
-  guest?: Pick<GuestStudyRouteViewProps, "api" | "publicReader" | "startCoordinator">;
+  guest?: Pick<GuestStudyRouteViewProps, "api" | "publicReader" | "startCoordinator" | "answerJournal">;
   verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
   preparationApi?: ActivityPersonaPreparationApi;

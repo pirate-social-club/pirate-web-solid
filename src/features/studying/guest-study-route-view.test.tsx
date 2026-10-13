@@ -4,6 +4,8 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { StudyV2Api } from "./study-v2-api";
 import type { GuestStudyApi } from "./guest-study-api";
+import { createGuestStudyAnswerJournal, type GuestStudyAnswerJournal } from "./guest-study-answer-journal";
+import { createPageGuestStudyAnswerStorage } from "./guest-study-answer-storage";
 import { refreshSession } from "../../api/session";
 import { GuestStudyRouteView, type GuestStudyRouteViewProps } from "./guest-study-route-view";
 import { StudyV2RouteView } from "./study-v2-route-view";
@@ -31,6 +33,16 @@ function coordinator(): NonNullable<GuestStudyRouteViewProps["startCoordinator"]
     selectedCredentialId: () => "proof-1",
   };
 }
+
+/** Protocol fixture only: actual metadata adapter/lock logic, no native IDB claim. */
+function answerJournal(storage = createPageGuestStudyAnswerStorage(window.location.origin)): GuestStudyAnswerJournal {
+  let tail: Promise<unknown> = Promise.resolve();
+  return createGuestStudyAnswerJournal({ origin: window.location.origin, profile: "persistent",
+    storage, locks: { exclusive: work => {
+      const run = tail.then(work); tail = run.then(() => undefined, () => undefined); return run;
+    } } });
+}
+
 const publicReader = { load: async () => ({ communityId: "community-1", prepared: prepared() }) };
 async function consentAndStart(node: HTMLElement): Promise<void> {
   const checkbox = node.querySelector<HTMLInputElement>('input[type="checkbox"]');
@@ -51,13 +63,47 @@ function accountApi(): StudyV2Api {
 
 describe("Guest public Study route", () => {
 
+  test("clean initialized reload continues without registering a recovered session", async () => {
+    const selected = coordinator(), session = guestSession();
+    const storage = createPageGuestStudyAnswerStorage(window.location.origin);
+    const original = answerJournal(storage), restored = answerJournal(storage);
+    const scope = { origin: window.location.origin, ownerId: session.owner_id, communityId: session.community_id, sessionId: session.session_id };
+    await original.registerNewSession(scope, { entryKind: "new_session", session });
+    const register = vi.spyOn(restored, "registerNewSession");
+    const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1" api={guestApi({ getSession: async () => session })}
+      publicReader={publicReader} startCoordinator={selected} answerJournal={restored} />);
+    await vi.waitFor(() => expect(button(node, "Resume previous lesson").disabled).toBe(false));
+    button(node, "Resume previous lesson").click();
+    await vi.waitFor(() => expect(node.textContent).toContain("Sing line 1"));
+    expect(register).not.toHaveBeenCalled(); expect(node.querySelector("[data-guest-study-read-only-recovery]")).toBeNull();
+    expect(selected.start).not.toHaveBeenCalled();
+  });
+
+  test("unknown persisted answer stays readonly and a session read never clears its marker", async () => {
+    const selected = coordinator(), session = guestSession();
+    const storage = createPageGuestStudyAnswerStorage(window.location.origin);
+    const original = answerJournal(storage), restored = answerJournal(storage);
+    const scope = { origin: window.location.origin, ownerId: session.owner_id, communityId: session.community_id, sessionId: session.session_id };
+    await original.registerNewSession(scope, { entryKind: "new_session", session });
+    const marker = { ...scope, sessionItemId: "item-1", attemptNumber: 1, idempotencyKey: "original-key" };
+    await expect(original.submit(marker, async () => { throw new Error("Owned original answer uncertainty"); })).rejects.toThrow();
+    const submit = vi.fn<GuestStudyApi["submitAnswer"]>();
+    const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1" api={guestApi({ getSession: async () => session, submitAnswer: submit })}
+      publicReader={publicReader} startCoordinator={selected} answerJournal={restored} />);
+    await vi.waitFor(() => expect(button(node, "Resume previous lesson").disabled).toBe(false));
+    button(node, "Resume previous lesson").click();
+    await vi.waitFor(() => expect(node.querySelector("[data-guest-study-read-only-recovery]")).not.toBeNull());
+    expect(await restored.read(scope)).toEqual(marker); expect(submit).not.toHaveBeenCalled(); expect(selected.start).not.toHaveBeenCalled();
+  });
+
+
   test("unresolved account resolver cannot block public preparation or a Guest start", async () => {
     const selected = coordinator(); const ordinary = accountApi();
     let resolveAccount: (() => void) | undefined;
     const resolution = new Promise<"anonymous">(resolve => { resolveAccount = () => resolve("anonymous"); });
     const resolve = vi.fn(() => resolution);
     const node = render(() => <StudyV2RouteView communityId="community-1" postId="post-1" api={ordinary} resolveSession={resolve}
-      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected }} />);
+      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected, answerJournal: answerJournal() }} />);
     try {
       await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
       expect(resolve).toHaveBeenCalledOnce(); expect(ordinary.loadAvailability).not.toHaveBeenCalled();
@@ -71,7 +117,7 @@ describe("Guest public Study route", () => {
     const selected = coordinator(); const ordinary = accountApi();
     const node = render(() => <StudyV2RouteView communityId="community-1" postId="post-1" api={ordinary}
       resolveSession={async () => { throw new Error("Owned account lookup failure"); }}
-      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected }} />);
+      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected, answerJournal: answerJournal() }} />);
     await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
     expect(node.textContent).not.toContain("Sign in to study"); expect(ordinary.loadAvailability).not.toHaveBeenCalled();
     await consentAndStart(node);
@@ -86,7 +132,7 @@ describe("Guest public Study route", () => {
       resolveAccount = () => resolve({ status: "authenticated", userId: "ordinary-account", personas: [] });
     });
     const node = render(() => <StudyV2RouteView communityId="community-1" postId="post-1" api={ordinary} resolveSession={() => resolution}
-      guest={{ api: guestApi(), publicReader, startCoordinator: selected }} />);
+      guest={{ api: guestApi(), publicReader, startCoordinator: selected, answerJournal: answerJournal() }} />);
     try {
       await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
       expect(selected.start).not.toHaveBeenCalled(); expect(ordinary.loadAvailability).not.toHaveBeenCalled();
@@ -104,7 +150,7 @@ describe("Guest public Study route", () => {
       resolveAccount = () => resolve({ status: "authenticated", userId: "ordinary-account", personas: [] });
     });
     const node = render(() => <StudyV2RouteView communityId="community-1" postId="post-1" api={ordinary} resolveSession={() => resolution}
-      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected }} />);
+      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected, answerJournal: answerJournal() }} />);
     try {
       await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
       await consentAndStart(node);
@@ -118,7 +164,7 @@ describe("Guest public Study route", () => {
   test("shows actual public disclosure without sign-in/persona and starts only after consent", async () => {
     const selected = coordinator();
     const api = guestApi({ getSession: async () => guestSession() });
-    const node = render(() => <GuestStudyRouteView postId="post-1" api={api} publicReader={publicReader} startCoordinator={selected} />);
+    const node = render(() => <GuestStudyRouteView postId="post-1" api={api} publicReader={publicReader} startCoordinator={selected} answerJournal={answerJournal()} />);
     await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
     expect(node.textContent).toContain("Practice only. This lesson does not create a drawing entry.");
     expect(node.textContent).not.toContain("Sign in to study");
@@ -141,7 +187,7 @@ describe("Guest public Study route", () => {
   test("pending start offers original recovery and hides new-start controls", async () => {
     const selected = coordinator();
     selected.start = vi.fn(async () => ({ status: "pending" as const, phase: "start" as const, message: "Unconfirmed original", originalKey: "original-key" }));
-    const node = render(() => <GuestStudyRouteView postId="post-1" api={guestApi()} publicReader={publicReader} startCoordinator={selected} />);
+    const node = render(() => <GuestStudyRouteView postId="post-1" api={guestApi()} publicReader={publicReader} startCoordinator={selected} answerJournal={answerJournal()} />);
     await vi.waitFor(() => expect(node.querySelector('input[type="checkbox"]')).not.toBeNull());
     await consentAndStart(node);
     await vi.waitFor(() => expect(node.textContent).toContain("The original start is awaiting confirmation"));
@@ -156,7 +202,7 @@ describe("Guest public Study route", () => {
     const submit = vi.fn<GuestStudyApi["submitAnswer"]>(); const startCapture = vi.fn(async () => {});
     const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1"
       api={guestApi({ submitAnswer: submit })} publicReader={{ load: async () => { throw new Error("Current disclosure unavailable"); } }}
-      startCoordinator={selected} recorder={{ start: startCapture, stop: async () => { throw new Error("unused"); } }} />);
+      startCoordinator={selected} answerJournal={answerJournal()} recorder={{ start: startCapture, stop: async () => { throw new Error("unused"); } }} />);
     await vi.waitFor(() => expect(button(node, "Resume previous lesson").disabled).toBe(false));
     button(node, "Resume previous lesson").click();
     await vi.waitFor(() => expect(node.querySelector("[data-guest-study-read-only-recovery]")).not.toBeNull());
@@ -168,7 +214,7 @@ describe("Guest public Study route", () => {
     const selected = coordinator(); let account = false;
     const resolve = vi.fn(async () => account ? { status: "authenticated" as const, userId: "ordinary-account", personas: [] } : "anonymous" as const);
     const node = render(() => <StudyV2RouteView communityId="community-1" postId="post-1" resolveSession={resolve}
-      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected }} />);
+      guest={{ api: guestApi({ getSession: async () => guestSession() }), publicReader, startCoordinator: selected, answerJournal: answerJournal() }} />);
     await vi.waitFor(() => expect(node.querySelector('input[type="checkbox"]')).not.toBeNull());
     await consentAndStart(node);
     await vi.waitFor(() => expect(node.textContent).toContain("Sing line 1")); account = true; refreshSession(); await Promise.resolve();
@@ -179,7 +225,7 @@ describe("Guest public Study route", () => {
   test("disposed public read is aborted and its late result does not start authority", async () => {
     const selected = coordinator(); let finish: ((value: Awaited<ReturnType<typeof publicReader.load>>) => void) | undefined;
     let signal: AbortSignal | undefined;
-    const node = render(() => <GuestStudyRouteView postId="post-1" api={guestApi()} startCoordinator={selected}
+    const node = render(() => <GuestStudyRouteView postId="post-1" api={guestApi()} startCoordinator={selected} answerJournal={answerJournal()}
       publicReader={{ load: (_postId, requestSignal) => { signal = requestSignal; return new Promise(resolve => { finish = resolve; }); } }} />);
     await vi.waitFor(() => expect(signal).toBeDefined());
     for (const dispose of disposers.splice(0)) dispose();

@@ -1,10 +1,11 @@
 import { Title } from "@solidjs/meta";
 import { isServer } from "@solidjs/web";
-import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { Button, Type } from "../../design-system";
 import { usePageUiLocale } from "../../lib/ui-locale.tsx";
 import { getLocaleMessages } from "../../locales";
 import { createGuestStudyApi, type GuestStudyApi, type GuestStudyPreparedContent, type GuestStudySession } from "./guest-study-api";
+import { createGuestStudyAnswerJournal, createPageGuestStudyAnswerJournal, type GuestStudyAnswerJournal } from "./guest-study-answer-journal";
 import { GuestStudyDataControls } from "./guest-study-data-controls";
 import { createGuestStudyPublicReader, type GuestStudyPublicReader } from "./guest-study-public-reader";
 import { createGuestStudyRuntimeClient } from "./guest-study-runtime-client";
@@ -26,6 +27,8 @@ export interface GuestStudyRouteViewProps {
   api?: GuestStudyApi;
   publicReader?: GuestStudyPublicReader;
   startCoordinator?: StartCoordinator;
+  /** Immutable injected protocol factory for this mounted route instance. */
+  answerJournal?: GuestStudyAnswerJournal;
   recorder?: StudyingRecorder;
   onExit?: () => void;
   onKaraoke?: () => void;
@@ -50,11 +53,21 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
   let generation = 0;
   let loadController: AbortController | undefined;
   let actionController: AbortController | undefined;
-  let api = props.api;
-  let publicReader = props.publicReader;
-  let coordinator = props.startCoordinator;
+  // These injected factories are owned once by this mounted route. Changing
+  // song scope is tracked separately below; it must not swap an in-flight
+  // original dispatch or browser inventory into another factory instance.
+  let api = untrack(() => props.api);
+  let publicReader = untrack(() => props.publicReader);
+  let coordinator = untrack(() => props.startCoordinator);
+  let answerJournal = untrack(() => props.answerJournal);
   const client = (): GuestStudyApi => api ??= createGuestStudyApi();
   const authority = (): StartCoordinator => coordinator ??= createGuestStudyStartCoordinator({ api: client(), origin: window.location.origin });
+  const journal = (profile: "persistent" | "page_only"): GuestStudyAnswerJournal => {
+    answerJournal ??= profile === "persistent"
+      ? createGuestStudyAnswerJournal({ origin: window.location.origin })
+      : createPageGuestStudyAnswerJournal(window.location.origin);
+    return answerJournal;
+  };
   const exit = () => { if (props.onExit) props.onExit(); else window.location.assign("/"); };
   const load = async () => {
     if (!active) return;
@@ -135,12 +148,26 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
       }
       if (result.session.community_id !== communityId || result.session.post_id !== postId)
         throw new Error("The returned practice session belongs to another route.");
-      // A successful lookup/old original-key replay is not a newly initialized
-      // browser answer inventory. Until the typed coordinator successor
-      // supplies actual fresh-start provenance, fail closed to review only.
-      const readOnlyRecovery = resume || !("entryKind" in result && result.entryKind === "new_session");
+      const originalScope = {
+        origin: window.location.origin, ownerId: result.session.owner_id,
+        communityId: result.session.community_id, sessionId: result.session.session_id,
+      };
+      const answers = journal(result.recoveryProfile);
+      let readOnlyRecovery = true;
+      // A recovered session may continue only with actual known clean local
+      // inventory. Missing/evicted/corrupt/pending data never means absence.
+      // Only the fresh acknowledged original start may register new inventory.
+      if (answers.profile === result.recoveryProfile) {
+        try {
+          if (result.entryKind === "new_session")
+            await answers.registerNewSession(originalScope, { entryKind: "new_session", session: result.session });
+          readOnlyRecovery = await answers.read(originalScope) !== null;
+        } catch { readOnlyRecovery = true; }
+      }
+      if (!active || controller.signal.aborted) return;
       const runtime = createGuestStudyRuntimeClient({
         api: client(), initialSession: result.session, readOnlyRecovery,
+        origin: originalScope.origin, answerJournal: answers,
         credentialId: () => selected.selectedCredentialId(),
       });
       setPending(false);
