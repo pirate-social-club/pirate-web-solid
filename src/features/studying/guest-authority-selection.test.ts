@@ -8,7 +8,7 @@ import { createIndexedDbGuestAuthorityStore, GuestSelectionStorageError } from "
 class Request<T> extends EventTarget implements IDBRequest<T> {
   result: T;
   error = null;
-  source = null;
+  get source(): IDBRequest<T>["source"] { throw new Error("unused IDL source operation"); }
   transaction: IDBTransaction | null = null;
   readyState: IDBRequestReadyState = "pending";
   onsuccess: IDBRequest<T>["onsuccess"] = null;
@@ -25,7 +25,7 @@ class OpenRequest extends Request<IDBDatabase> implements IDBOpenDBRequest {
   onupgradeneeded: IDBOpenDBRequest["onupgradeneeded"] = null;
   blocked() { this.onblocked?.call(this, new VersionEvent("blocked")); }
 }
-const names: DOMStringList = { length: 1, contains: (name) => name === "journal", item: (index) => index === 0 ? "journal" : null };
+const names: DOMStringList = { length: 1, contains: (name) => name === "journal", item: (index) => index === 0 ? "journal" : null, [Symbol.iterator]: () => ["journal"].values() };
 class Store implements IDBObjectStore {
   name = "journal"; keyPath = null; autoIncrement = false; indexNames = names;
   readonly getRequest = new Request<unknown>(undefined);
@@ -68,7 +68,7 @@ class Database extends EventTarget implements IDBDatabase {
   onversionchange: IDBDatabase["onversionchange"] = null;
   readonly close = vi.fn(() => undefined);
   readonly transactions: Transaction[] = [];
-  transaction(_name: string | string[], mode: IDBTransactionMode = "readonly") {
+  transaction(_name: string | Iterable<string>, mode: IDBTransactionMode = "readonly") {
     const tx = new Transaction(this, mode); this.transactions.push(tx); return tx;
   }
   createObjectStore(): never { throw new Error("unexpected upgrade"); }
