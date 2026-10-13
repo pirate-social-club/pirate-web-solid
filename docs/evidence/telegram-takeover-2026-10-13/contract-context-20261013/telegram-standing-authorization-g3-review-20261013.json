@@ -1,0 +1,470 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-13T17:44:55Z",
+  "purpose": "Standing Telegram authorization, delegated contract choices and corrected G3 source acceptance",
+  "owner_direction": {
+    "quote": "you have indefinite approval and ideally you unlobk it from doing anything it needs to",
+    "scope": "Necessary nonmonetary Telegram staging work. Unrelated production, financial and excluded release effects remain outside this task.",
+    "receipt": {
+      "id": 6151444309,
+      "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6151444309",
+      "created_at": "2026-10-13T17:35:45Z",
+      "body": "The workspace_owner has now renewed indefinite authority for the Telegram outcome: “you have indefinite approval and ideally you unlobk it from doing anything it needs to”.\n\nTreat this as the task-specific approval that was pending for G1. Applying only the independently reviewed 23-function EXECUTE section from roles.sql.example is authorized on staging's freshly verified effective serving principal after the reviewed migrations/readiness gates. The exact trimmed block is SHA256 474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814; it is unchanged in merged PR605 source b8efd833af7e9729c1e988f81aa8804776cf74fe. Do not run the entire roles example. Record the actual target, effective privileges, required denials and before/after receipts. No further owner confirmation is required for that exact in-scope grant.\n\nThe owner also delegates the necessary in-scope judgment to unblock this task. Under that authority I select the previously recommended #604 choices: R1 limited practice-history session; R2 practice-only status until a separately reviewed successor; C1 private read-only linked history with new bot lessons continuing the original practice profile, without a persona swap or added login authority; E1 one “Open my progress” action. Record these as coordinator selections under the owner's standing delegation, not as a claim that the owner literally answered “use all four”. Provider choice remains evidence-dependent: real phone proof and managed subject/numeric-ID/freshness lookup are required.\n\nCloud retains full Telegram ownership. Continue source repair/integration, exact-head review and CI, guarded staging migrations, the approved incremental grant, effective bindings/configuration, deploys and recovery preparation, and acceptance coordination without another broad permission question. The necessary workstation operator steps are authorized; ask for a concrete custody, managed-access or physical-phone dependency if one is actually missing. Do not list independent review as something the owner must perform: the coordinator review path is already authorized.\n\nI am reviewing the corrected G3 recovery candidate 4fdcdb550577c379b9e50ad91ad47c02eeffa82f now. Its technical acceptance is separate from authorization. PR605's thirteen exact-head checks and squash merge b8efd833 are independently verified. Before PartA/PartB execution, keep exact source/artifact/serving/app/config binding, resource custody, fresh applied ledger/effective roles, HNS/browser readiness and bounded recovery. This approval removes permission waiting; it does not manufacture a credential, phone interaction or serving proof. The task remains the nonmonetary staging Telegram outcome, with the current probe expiry 2026-10-17T00:00:00Z. Preserve unrelated production/financial holds and sealed evidence."
+    }
+  },
+  "permission_change": {
+    "approved": true,
+    "kind": "Only incremental twenty-three-function staging EXECUTE block",
+    "grant_block_sha256": "474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814",
+    "grant_block_utf8": "GRANT EXECUTE ON FUNCTION provision_account_participation_owner_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION lock_original_account_audio_source_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION capture_account_study_audio_private_v1(\n  TEXT, TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_account_spoken_success_private_v1(TEXT, JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_account_spoken_archive_private_v1(\n  TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION find_account_spoken_success_private_v1(\n  TEXT, TEXT, TEXT, INTEGER, TEXT, TEXT, TEXT, BIGINT, INTEGER\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION begin_account_spoken_provider_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION mark_account_spoken_provider_unknown_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION persist_account_spoken_success_private_v1(TEXT, JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION load_account_spoken_success_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION list_closed_account_spoken_checkpoints_private_v1(\n  INTEGER\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION claim_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION settle_learner_audio_terminal_fact_private_v1(\n  TEXT, TEXT, BOOLEAN, TEXT, JSONB\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION continue_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION note_learner_audio_multipart_id_private_v1(TEXT, TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION prepare_account_audio_delete_private_v1(TEXT, INTEGER) TO api_next_app;\nGRANT EXECUTE ON FUNCTION fail_account_audio_delete_private_v1(TEXT, BIGINT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION confirm_account_audio_delete_private_v1(\n  TEXT, BIGINT, TIMESTAMPTZ\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION capture_account_karaoke_audio_private_v1(\n  TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_captured_karaoke_recording_result_private_v1(\n  TEXT, TEXT, TEXT, TEXT, JSONB\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION read_account_karaoke_audio_capture_private_v1(\n  TEXT, TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION cancel_unclaimed_account_karaoke_audio_private_v1(\n  TEXT, TEXT, TEXT, TEXT, JSONB\n) TO api_next_app;",
+    "whole_roles_example_authorized": false,
+    "managed_execution_occurred": false,
+    "technical_gates": [
+      "Fresh actual staging target and effective serving-principal/Hyperdrive-origin binding",
+      "Reviewed ordered migrations through 0265 and matching applied ledger",
+      "Effective EXECUTE partition and all 147 denials before and after",
+      "Exclusive resource custody, source/artifact/serving/config binding and bounded recovery"
+    ]
+  },
+  "api605": {
+    "reviewed_head": "87458855174643c9ef29a25c9d4def16d81880b6",
+    "merge_commit": "b8efd833af7e9729c1e988f81aa8804776cf74fe",
+    "merged_at": "2026-10-13T17:16:07Z",
+    "reviewed_tree": "0896818c84ec3820e3ab72d4cbe490966972bdec",
+    "merged_tree": "0896818c84ec3820e3ab72d4cbe490966972bdec",
+    "tree_identity_recomputed": true,
+    "checks": [
+      {
+        "name": "postgres17",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:14:35Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115433597586"
+      },
+      {
+        "name": "postgres17-general-1",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:10:53Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020725"
+      },
+      {
+        "name": "postgres17-namespace",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:02:28Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020637"
+      },
+      {
+        "name": "postgres17-general-3",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:13:17Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020569"
+      },
+      {
+        "name": "hns-regtest",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:03:20Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020463"
+      },
+      {
+        "name": "check",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:10:57Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020451"
+      },
+      {
+        "name": "postgres17-general-2",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:08:54Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020411"
+      },
+      {
+        "name": "postgres17-recovery",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:05:43Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020309"
+      },
+      {
+        "name": "postgres17-general-0",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:13:30Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020225"
+      },
+      {
+        "name": "postgres17-general-4",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:14:20Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427020200"
+      },
+      {
+        "name": "postgres18-shape",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:02:03Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435134079/job/115427019893"
+      },
+      {
+        "name": "Advisory policy",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:00:57Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435133563/job/115427017970"
+      },
+      {
+        "name": "secret-boundary",
+        "head_sha": "87458855174643c9ef29a25c9d4def16d81880b6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:00:35Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38435126702/job/115427005330"
+      }
+    ],
+    "prior_source_review": "https://github.com/pirate-social-club/api-next/pull/605#pullrequestreview-5507231844"
+  },
+  "contract604": {
+    "reviewed_head": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+    "document_blob": "d1a43772cc4d8682ffe0e86eca2b1658b418430f",
+    "decision_authority": "Coordinator selections under standing owner delegation, not a literal use-all-four owner response",
+    "R1": "Limited practice-history principal with declarative default refusal and no ordinary full-account authority",
+    "R2": "Practice-only until a separately reviewed transition",
+    "C1": "Private read-only history relation; bot lessons retain the original practice profile; relation alone adds no login or ownership authority",
+    "E1": "One Open my progress action",
+    "provider_status": "Open pending real-phone and managed numeric-ID/subject/freshness evidence",
+    "source_review": {
+      "id": 5507641207,
+      "url": "https://github.com/pirate-social-club/api-next/pull/604#pullrequestreview-5507641207",
+      "submitted_at": "2026-10-13T17:43:22Z",
+      "commit_id": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+      "body": "Provider-independent contract re-review at 9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763 clears the three source findings identified in review5505231370. The draft now records a durable same-target provider intent with refused/uncertain reconciliation, a declarative limited principal that ordinary authentication must not accept, and a private read-only Connect projection whose association alone grants no login, ownership or practice-account write authority. Any future provider login effect remains a separate explicit learner consent and provider acceptance gate. I did not rerun native tests in this source review.\n\nThe workspace_owner's latest instruction grants indefinite approval and delegates the necessary in-scope judgment to unblock Telegram. The auditable direction is issue595 comment6151444309. Under that delegation, R1 is the limited practice-history session, R2 retains practice-only status until a separately reviewed successor, C1 is the private read-only history relation retaining the original bot practice profile, and E1 is one Open my progress action. Record these as coordinator selections under standing owner delegation, not a literal use-all-four answer or merely unapproved recommendations.\n\nUpdate the draft and its description to record those four choices and replace stale owner-decision-pending wording for them. Provider acceptance remains open: the phone probe and managed numeric-ID/subject/freshness evidence must determine Privy versus a native OIDC investigation. After the corrected docs head has its required review/checks, integrate the narrow successor through the repository's spec process. Continue provider-independent implementation preparation under existing authority; no further broad approval question is needed. Keep actual provider-specific implementation acceptance bound to the reviewed contract and real provider proof. Unrelated product and monetary designs remain follow-up work.",
+      "state": "COMMENTED"
+    },
+    "native_tests_rerun_by_reviewer": false
+  },
+  "g3": {
+    "head": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+    "tree": "2e55eeacb73185f2c9a4a8c404782bd65ef66590",
+    "parent": "bd319b438e6e8ef92235050fb6475f957efe110b",
+    "current_main": "f668c090e00b1a5792406075476620aad49f8890",
+    "source_review": {
+      "id": 6151569798,
+      "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6151569798",
+      "created_at": "2026-10-13T17:42:53Z",
+      "body": "Independent source review clears the identified G3 privacy finding at Solid recovery commit 4fdcdb550577c379b9e50ad91ad47c02eeffa82f, tree 2e55eeacb73185f2c9a4a8c404782bd65ef66590. Use this corrected candidate, not held bd319b438e6e8ef92235050fb6475f957efe110b.\n\nI compared the corrected head with current Solid main f668c090e00b1a5792406075476620aad49f8890. The fifteen-file diff removes the probe and retains the existing Telegram-link privacy boundary, the PR65 fixture change and unrelated main. The unchanged middleware continues to apply private response and error headers through the shared classifier. The four-file correction from the held revert restores the alias refusal and callback scrubbing and adds existing-link regression coverage.\n\nAn independent bounded reproduction evaluated the fetched privacy and actual entry-server render modules with the installed pinned router 2.0.0-next.16. Thirty route spellings agree with the router classification. All twenty-four matching noncanonical aliases across the three existing link routes return an empty private 404, scrub synthetic callback values from the effective SSR request and avoid downstream rendering/preflight. Source blobs are privacy 0f93ca3ba80f7c3f6cb0e63abc362cd6e7572ffe, entry-server a6d543aaf0e061ac7514702fe41def59dc6391c8 and middleware 894f129e43802d4c8e5799a5952468003461b885. This is source/control-flow evidence with downstream dependencies stubbed; I did not rerun the full Solid suite or observe a deployed Worker. The cloud-reported full suites, build and fingerprint remain separately attributed evidence.\n\nThis clears the requested independent source review of the prepared recovery candidate. It does not instruct deployment or merging of the revert while the probe is needed. If recovery is invoked, publish it through the normal reviewed revert-PR and guarded-main release path, obtain the applicable exact-head checks and bind it to the actual compatible serving predecessor. A draft CI vehicle may be prepared now under existing authority. Preserve the active probe and its deadline.\n\nThe owner authorization at issue595 comment6151444309 removes the G1 permission wait and selects the four recommended contract choices under delegated task judgment. Cloud retains complete Telegram execution and acceptance ownership. Update the live packet/task wording and #604 to reflect that approval rather than continuing to list it as an owner decision pending. Ask only for a concrete missing credential custody, resource handover or physical-phone interaction. Local coordinator support is available for the bounded workstation steps from a current, reviewable packet; do not stop at asking the owner to find an unspecified operator. No managed grant, migration, deploy, reset or phone acceptance occurred in this review."
+    },
+    "diff_summary": "Fifteen paths remove only the probe and add retained existing-link privacy regressions; PR65 and unrelated main are preserved.",
+    "source_blobs": {
+      "privacy": "0f93ca3ba80f7c3f6cb0e63abc362cd6e7572ffe",
+      "entry_server": "a6d543aaf0e061ac7514702fe41def59dc6391c8",
+      "middleware": "894f129e43802d4c8e5799a5952468003461b885"
+    },
+    "proof_exit_code": 0,
+    "independent_source_proof": {
+      "head": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+      "privacyBlob": "0f93ca3ba80f7c3f6cb0e63abc362cd6e7572ffe",
+      "entryBlob": "a6d543aaf0e061ac7514702fe41def59dc6391c8",
+      "middlewareBlob": "894f129e43802d4c8e5799a5952468003461b885",
+      "routerVersion": "2.0.0-next.16",
+      "parityCount": 30,
+      "aliasesTested": 24,
+      "aliases": [
+        {
+          "alias": "/telegram/link/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/link//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "//telegram/link//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/l%69nk",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%74elegram/link",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%54elegram/link",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/link/callback/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK/CALLBACK",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK/CALLBACK/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/link/callback//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "//telegram/link/callback//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/l%69nk/callback",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%74elegram/link/callback",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%54elegram/link/callback",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/link/account/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK/ACCOUNT",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/TELEGRAM/LINK/ACCOUNT/",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/link/account//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "//telegram/link/account//",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/telegram/l%69nk/account",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%74elegram/link/account",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        },
+        {
+          "alias": "/%54elegram/link/account",
+          "status": 404,
+          "callbackScrubbed": true,
+          "privateHeaders": true,
+          "bodyEmpty": true
+        }
+      ],
+      "preflightCalls": 0,
+      "result": "passed",
+      "limits": "Exact fetched privacy and entry-server modules transpiled/evaluated in memory. Real pinned router matcher; downstream render/preflight dependencies stubbed to refuse alias execution. No full renderer, build, staging mutation or phone interaction."
+    },
+    "runnable_source_proof": "\nimport {resolve} from 'node:path';\nimport {pathToFileURL} from 'node:url';\nimport {readFileSync} from 'node:fs';\nimport {SourceTextModule,SyntheticModule} from 'node:vm';\nconst dependencyRoot=process.env.REVIEW_DEPENDENCY_ROOT??process.cwd();\nconst {default:ts}=await import(pathToFileURL(resolve(dependencyRoot,'node_modules/typescript/lib/typescript.js')).href);\nconst {createMatcher,comparablePath}=await import(pathToFileURL(resolve(dependencyRoot,'node_modules/@solidjs/router/dist/utils.js')).href);\nconst input={\"head\":\"4fdcdb550577c379b9e50ad91ad47c02eeffa82f\",\"privacy\":{\"content\":\"const TELEGRAM_PRIVATE_PATHS: readonly string[] = [\\\"/telegram/link\\\", \\\"/telegram/link/callback\\\", \\\"/telegram/link/account\\\"];\\n\\n/**\\n * The spelling @solidjs/router matches a pathname by: leading and repeated trailing slashes\\n * trimmed, one trailing slash dropped, percent-decoded with decodeURI and case-folded. Every\\n * privacy decision uses this key, so no spelling the router routes can bypass it.\\n */\\nexport function routerPathKey(pathname: string): string {\\n  const trimmed = pathname.replace(/^\\\\/+|(\\\\/)\\\\/+$/g, \\\"$1\\\");\\n  const comparable = (trimmed ? `/${trimmed}` : \\\"\\\").toLowerCase().replace(/\\\\/$/, \\\"\\\");\\n  try { return decodeURI(comparable).toLowerCase(); } catch { return comparable; }\\n}\\n\\nexport function isTelegramLinkPage(pathname: string): boolean {\\n  return TELEGRAM_PRIVATE_PATHS.includes(routerPathKey(pathname));\\n}\\n\\n/** Another spelling of a private Telegram route. It is refused before routing or rendering. */\\nexport function isTelegramPageAlias(pathname: string): boolean {\\n  return isTelegramLinkPage(pathname) && !TELEGRAM_PRIVATE_PATHS.includes(pathname);\\n}\\n\\n/** SSR must not serialize callbacks into router state, metadata or HTML. */\\nexport function telegramPageRequest(request: Request): Request {\\n  const url = new URL(request.url);\\n  url.search = \\\"\\\";\\n  url.hash = \\\"\\\";\\n  return new Request(url.href, request);\\n}\\n\\nexport function telegramPageResponse(response: Response): Response {\\n  const headers = new Headers(response.headers);\\n  headers.set(\\\"cache-control\\\", \\\"private, no-store\\\");\\n  headers.set(\\\"referrer-policy\\\", \\\"no-referrer\\\");\\n  headers.set(\\\"x-robots-tag\\\", \\\"noindex, nofollow\\\");\\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"0f93ca3ba80f7c3f6cb0e63abc362cd6e7572ffe\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/4fdcdb550577c379b9e50ad91ad47c02eeffa82f/src/features/identity/telegram-linking/telegram-linking-privacy.ts\",\"display_title\":\"telegram-linking-privacy.ts\"},\"entry\":{\"content\":\"import { isTelegramLinkPage, isTelegramPageAlias, telegramPageRequest } from \\\"./features/identity/telegram-linking/telegram-linking-privacy.ts\\\";\\nimport { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from \\\"./features/community/owner-settings/owner-settings-preflight\\\";\\nimport { getRequestEvent, httpHeader, httpStatus, renderToStream } from \\\"@solidjs/web\\\";\\nimport type { Component } from \\\"solid-js\\\";\\nimport manifest from \\\"virtual:solid-manifest\\\";\\nimport App from \\\"./App\\\";\\nimport Document from \\\"./Document\\\";\\nimport {\\n  communityPageResponsePolicy,\\n  resolveCommunityPagePreflight,\\n  type CommunityPagePreflight,\\n} from \\\"./features/communities/community-page/community-page-preflight.ts\\\";\\nimport {\\n  publicProfileResponsePolicy,\\n  resolvePublicProfilePreflight,\\n  type PublicProfilePreflight,\\n} from \\\"./features/profiles/public-profile-page/public-profile-preflight.ts\\\";\\nimport {\\n  personaPublicProfileResponsePolicy,\\n  resolvePersonaPublicProfilePreflight,\\n  type PersonaPublicProfilePreflight,\\n} from \\\"./features/profiles/persona-public-profile/persona-public-profile-preflight.ts\\\";\\nimport {\\n  publicPostResponsePolicy,\\n  resolvePublicPostPreflight,\\n  type PublicPostPreflight,\\n} from \\\"./features/posts/public-post/public-post-preflight.ts\\\";\\nimport { bindCommunityCreationAvatarAuthoringRequest } from \\\"./features/community/community-creation-avatar-authoring.ts\\\";\\nimport {\\n  handleStorefrontResponsePolicy,\\n  resolveHandleStorefrontPreflight,\\n  type HandleStorefrontPreflight,\\n} from \\\"./features/communities/handle-storefront/handle-storefront-preflight.ts\\\";\\n\\nexport interface EntryServerRenderDependencies {\\n  readonly Application?: Component;\\n}\\n\\nexport async function render(\\n  request: Request,\\n  context?: {\\n    readonly clientEntry?: string;\\n    readonly API_NEXT_ORIGIN?: string;\\n    readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;\\n    readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;\\n    readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;\\n    readonly CANONICAL_ASSET_ORIGIN?: string;\\n    readonly DISABLE_HYDRATION?: boolean;\\n    readonly PUBLIC_POST_PREFLIGHT?: PublicPostPreflight;\\n  },\\n  dependencies: EntryServerRenderDependencies = {},\\n) {\\n  const event = getRequestEvent();\\n  // The router also routes other spellings of these pages (case, slashes, percent-encoding).\\n  // Only the canonical spelling is served, so callbacks never reach an unscrubbed render.\\n  if (isTelegramPageAlias(new URL(request.url).pathname)) {\\n    if (event !== undefined) event.request = telegramPageRequest(request);\\n    return new Response(null, { status: 404, headers: {\\n      \\\"cache-control\\\": \\\"private, no-store\\\", \\\"referrer-policy\\\": \\\"no-referrer\\\", \\\"x-robots-tag\\\": \\\"noindex, nofollow\\\",\\n    } });\\n  }\\n  if (isTelegramLinkPage(new URL(request.url).pathname)) {\\n    request = telegramPageRequest(request);\\n    // The router reads the request event, not this function's argument.\\n    // Scrub both before preflights, routing or hydration serialization starts.\\n    if (event !== undefined) event.request = request;\\n  }\\n  if (event !== undefined) {\\n    // SAFETY: entry-server owns this presentation-only hydration flag.\\n    const locals = event.locals as typeof event.locals & { profileActivityHydrationDisabled?: boolean };\\n    locals.profileActivityHydrationDisabled = context?.DISABLE_HYDRATION === true;\\n  }\\n  const nonce = event?.locals.cspNonce;\\n  const Application = dependencies.Application ?? App;\\n  if (event !== undefined) {\\n    bindCommunityCreationAvatarAuthoringRequest(\\n      event,\\n      context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,\\n      context?.PUBLIC_APP_CANONICAL_ORIGIN,\\n    );\\n    // SAFETY: this request-local value comes directly from the typed Worker\\n    // render context and is read only as that same optional string.\\n    const locals = event.locals as typeof event.locals & {\\n      apiNextOrigin?: string;\\n    };\\n    locals.apiNextOrigin = context?.API_NEXT_ORIGIN;\\n  }\\n  // SAFETY: Vite's runtime manifest includes the `_base` member used by the\\n  // Solid asset resolver even though AssetManifest's public index signature\\n  // omits it. Every chunk record is preserved; only that resolver base changes.\\n  const renderManifest = (context?.CANONICAL_ASSET_ORIGIN === undefined\\n    ? manifest\\n    : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;\\n  const postPreflight = context?.PUBLIC_POST_PREFLIGHT ??\\n    await resolvePublicPostPreflight(\\n      request,\\n      context?.API_NEXT_ORIGIN,\\n      context?.PUBLIC_APP_CANONICAL_ORIGIN,\\n    );\\n  if (postPreflight !== undefined) {\\n    if (postPreflight.state.kind === \\\"redirect\\\") {\\n      return new Response(null, {\\n        status: 308,\\n        headers: {\\n          \\\"Cache-Control\\\": \\\"private, no-store\\\",\\n          Location: postPreflight.state.location,\\n          Vary: \\\"Accept-Language, Cookie\\\",\\n        },\\n      });\\n    }\\n    if (event !== undefined) {\\n      // SAFETY: this request-local key is written and read only as the\\n      // PublicPostPreflight produced immediately above.\\n      const locals = event.locals as typeof event.locals & { publicPostPreflight?: PublicPostPreflight };\\n      locals.publicPostPreflight = postPreflight;\\n    }\\n    const policy = publicPostResponsePolicy(postPreflight.state);\\n    httpStatus(policy.status, policy.statusText);\\n    policy.headers.forEach((value, name) => httpHeader(name, value));\\n  }\\n  const personaPreflight = context?.PERSONA_PUBLIC_PROFILE_PREFLIGHT ??\\n    await resolvePersonaPublicProfilePreflight(request, context?.API_NEXT_ORIGIN);\\n  if (personaPreflight !== undefined) {\\n    if (event !== undefined) {\\n      // SAFETY: this request-local key is written and read only as the\\n      // PersonaPublicProfilePreflight produced immediately above.\\n      const locals = event.locals as typeof event.locals & {\\n        personaPublicProfilePreflight?: PersonaPublicProfilePreflight;\\n      };\\n      locals.personaPublicProfilePreflight = personaPreflight;\\n    }\\n    const policy = personaPublicProfileResponsePolicy(personaPreflight.state);\\n    httpStatus(policy.status, policy.statusText);\\n    policy.headers.forEach((value, name) => httpHeader(name, value));\\n  }\\n  const ownerSettingsPreflight = await resolveOwnerSettingsPreflight(request, context?.API_NEXT_ORIGIN);\\n  if (ownerSettingsPreflight !== undefined) {\\n    if (event !== undefined) {\\n      // SAFETY: this request-local key is written only with the preflight result above.\\n      const locals = event.locals as typeof event.locals & { ownerSettingsPreflight?: OwnerSettingsPreflight };\\n      locals.ownerSettingsPreflight = ownerSettingsPreflight;\\n    }\\n    httpStatus(ownerSettingsResponseStatus(ownerSettingsPreflight.state));\\n    httpHeader(\\\"Cache-Control\\\", \\\"private, no-store\\\");\\n    httpHeader(\\\"Vary\\\", \\\"Cookie\\\");\\n  }\\n  const communityPreflight = await resolveCommunityPagePreflight(request, context?.API_NEXT_ORIGIN);\\n  if (communityPreflight !== undefined) {\\n    if (event !== undefined) {\\n      // SAFETY: this request-local key is written and read only as the\\n      // CommunityPagePreflight produced immediately above.\\n      const locals = event.locals as typeof event.locals & { communityPagePreflight?: CommunityPagePreflight };\\n      locals.communityPagePreflight = communityPreflight;\\n    }\\n    const policy = communityPageResponsePolicy(communityPreflight.state);\\n    httpStatus(policy.status, policy.statusText);\\n    policy.headers.forEach((value, name) => httpHeader(name, value));\\n  }\\n  const storefrontPreflight = await resolveHandleStorefrontPreflight(request, context?.API_NEXT_ORIGIN);\\n  if (storefrontPreflight !== undefined) {\\n    if (event !== undefined) {\\n      // SAFETY: entry-server alone writes this typed request-local result.\\n      const locals = event.locals as typeof event.locals & { handleStorefrontPreflight?: HandleStorefrontPreflight };\\n      locals.handleStorefrontPreflight = storefrontPreflight;\\n    }\\n    const policy = handleStorefrontResponsePolicy(storefrontPreflight.state);\\n    httpStatus(policy.status, policy.statusText);\\n    policy.headers.forEach((value, name) => httpHeader(name, value));\\n  }\\n  const preflight = await resolvePublicProfilePreflight(request, context?.API_NEXT_ORIGIN);\\n  if (preflight !== undefined) {\\n    if (event !== undefined) {\\n      // SAFETY: this request-scoped key is written and read only as the\\n      // PublicProfilePreflight produced immediately above.\\n      const locals = event.locals as typeof event.locals & { publicProfilePreflight?: PublicProfilePreflight };\\n      locals.publicProfilePreflight = preflight;\\n    }\\n    const policy = publicProfileResponsePolicy(request, preflight.state);\\n    if (policy.status === 302) {\\n      return new Response(null, {\\n        status: policy.status,\\n        statusText: policy.statusText,\\n        headers: policy.headers,\\n      });\\n    }\\n    httpStatus(policy.status, policy.statusText);\\n    policy.headers.forEach((value, name) => httpHeader(name, value));\\n  }\\n  return renderToStream(\\n    () => (\\n      <Document\\n        clientEntry={context?.clientEntry}\\n        canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}\\n        communityCreationAvatarAuthoring={\\n          context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === \\\"true\\\"\\n        }\\n        publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}\\n        hydrate={context?.DISABLE_HYDRATION !== true}\\n      >\\n        <Application />\\n      </Document>\\n    ),\\n    { nonce, manifest: renderManifest },\\n  );\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"a6d543aaf0e061ac7514702fe41def59dc6391c8\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/4fdcdb550577c379b9e50ad91ad47c02eeffa82f/src/entry-server.tsx\",\"display_title\":\"entry-server.tsx\"},\"middleware\":{\"content\":\"import { isTelegramLinkPage, telegramPageResponse } from \\\"./features/identity/telegram-linking/telegram-linking-privacy.ts\\\";\\nimport { getRequestEvent } from \\\"@solidjs/web\\\";\\n\\nimport { WALLET_RPC_ORIGINS } from \\\"./features/wallet/wallet-network-catalog\\\";\\n\\n// One R2 account host serves the ingress upload target and the immutable\\n// originals bucket whose signed GET grants song playback in the audio element.\\nconst MEDIA_R2_ORIGIN = \\\"https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com\\\";\\n\\nfunction makeNonce(): string {\\n  const bytes = new Uint8Array(18);\\n  crypto.getRandomValues(bytes);\\n  return btoa(String.fromCharCode(...bytes)).replace(/\\\\+/g, \\\"-\\\").replace(/\\\\//g, \\\"_\\\").replace(/=+$/g, \\\"\\\");\\n}\\n\\n/**\\n * The karaoke route connects directly to the api-next WebSocket issued by the\\n * session response (`websocket_url`), so its exact origin must be admitted by\\n * `connect-src`. The origin comes from the configured API origin per\\n * environment; a malformed or absent value adds nothing and keeps the policy\\n * closed. This is an exact origin, never a wildcard.\\n */\\nfunction apiNextWebSocketOrigin(apiNextOrigin: string | undefined): string | null {\\n  if (apiNextOrigin === undefined || apiNextOrigin.trim() === \\\"\\\") return null;\\n  try {\\n    const url = new URL(apiNextOrigin);\\n    if (url.protocol === \\\"https:\\\") return `wss://${url.host}`;\\n    if (url.protocol === \\\"http:\\\") return `ws://${url.host}`;\\n    return null;\\n  } catch {\\n    return null;\\n  }\\n}\\n\\nasync function standaloneMiddleware(request: Request, next: () => Promise<Response>) {\\n  const event = getRequestEvent();\\n  const privateTelegram = isTelegramLinkPage(new URL(request.url).pathname);\\n  const nonce = event === undefined ? undefined : makeNonce();\\n  if (event !== undefined && nonce !== undefined) event.locals.cspNonce = nonce;\\n  let response: Response;\\n  try {\\n    response = await next();\\n  } catch (error) {\\n    if (!privateTelegram) throw error;\\n    // A framework-generated error outside middleware would miss private headers.\\n    response = new Response(\\\"Unable to load Telegram linking.\\\", { status: 500 });\\n  }\\n  if (privateTelegram) response = telegramPageResponse(response);\\n  if (event === undefined || nonce === undefined) return response;\\n  const headers = new Headers(response.headers);\\n  // SAFETY: this request-local value comes directly from the typed Worker\\n  // render context and is read only as that same optional string.\\n  const locals = event.locals as typeof event.locals & { apiNextOrigin?: string };\\n  const policy = securityPolicy(new URL(request.url).pathname, nonce, locals.apiNextOrigin);\\n  headers.set(\\\"content-security-policy\\\", policy);\\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\\n}\\n\\n// The Privy embedded wallet reads reward funding balances and fees through\\n// Privy's own Base Sepolia RPC, not the chain's public endpoint.\\nexport const PRIVY_REWARD_RPC_ORIGIN = \\\"https://base-sepolia.rpc.privy.systems\\\";\\n\\nexport function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: string): string {\\n  const verificationRoute = pathname === \\\"/verify/zkpassport\\\";\\n  const veryRoute = pathname === \\\"/verify/very\\\";\\n  const signInRoute = pathname === \\\"/auth/sign-in\\\";\\n  const apiSocketOrigin = apiNextWebSocketOrigin(apiNextOrigin);\\n  const karaokeConnectSrc = `connect-src 'self' https://auth.privy.io ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com${\\n    apiSocketOrigin === null ? \\\"\\\" : ` ${apiSocketOrigin}`\\n  }`;\\n  const policy = verificationRoute\\n    ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'; img-src 'self' data:; frame-src https://auth.privy.io https://challenges.cloudflare.com; connect-src 'self' https://auth.privy.io wss://bridge.zkpassport.id https://certificates.zkpassport.id https://circuits2.zkpassport.id https://ipfs.zkpassport.id https://eth-sepolia.g.alchemy.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`\\n    : veryRoute\\n      // Route-scoped compatibility exception: pinned @veryai/widget 1.0.22\\n      // injects its bundled stylesheet at runtime, which requires unsafe-inline.\\n      ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://assets.very.org; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io https://bridge.very.org https://verify.very.org; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`\\n      : signInRoute\\n        ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; img-src 'self' data: https://auth.privy.io; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`\\n        : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; ${karaokeConnectSrc}; media-src 'self' blob: ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;\\n  // SPA navigation keeps the initial document policy, including entry through\\n  // sign-in, so every document policy admits the wallet's read-only RPC origins.\\n  return policy.replace(/connect-src ([^;]+);/u, (_directive, origins: string) => `connect-src ${origins} ${[...WALLET_RPC_ORIGINS, PRIVY_REWARD_RPC_ORIGIN].join(\\\" \\\")};`);\\n}\\n\\nexport default [standaloneMiddleware];\\n\",\"encoding\":\"utf-8\",\"sha\":\"894f129e43802d4c8e5799a5952468003461b885\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/4fdcdb550577c379b9e50ad91ad47c02eeffa82f/src/middleware.ts\",\"display_title\":\"middleware.ts\"}};\nconst compile=(source,jsx=false)=>ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.React,jsxFactory:'h'}}).outputText;\nconst privacy=new SourceTextModule(compile(input.privacy.content));\nawait privacy.link(()=>{throw Error('Unexpected privacy dependency')});await privacy.evaluate();\nconst p=privacy.namespace, routes=['/telegram/link','/telegram/link/callback','/telegram/link/account'];\nconst spellings=route=>[route,route+'/',route.toUpperCase(),route.toUpperCase()+'/',route+'//','//'+route.slice(1)+'//',route.replace('i','%69'),route.replace('t','%74'),route.replace('t','%54'),route.replace('/','/%2F')];\nconst parity=routes.flatMap(route=>spellings(route).map(pathname=>{\n const routed=routes.some(r=>createMatcher(r)(decodeURI(comparablePath(pathname)))!==null);\n if(p.isTelegramLinkPage(pathname)!==routed||p.isTelegramPageAlias(pathname)!==(routed&&!routes.includes(pathname)))throw Error('Router parity failure '+pathname);\n return {pathname,routed,private:p.isTelegramLinkPage(pathname),alias:p.isTelegramPageAlias(pathname)};\n}));\nlet event={request:null,locals:{}},preflightCalls=0;\nconst synth=exports=>new SyntheticModule(Object.keys(exports),function(){for(const [key,value]of Object.entries(exports))this.setExport(key,value);});\nconst core=synth({getRequestEvent:()=>event,httpHeader:()=>{},httpStatus:()=>{},renderToStream:()=>{throw Error('Alias reached renderer')}});\nconst entryModule=new SourceTextModule(compile(input.entry.content,true));\nconst unresolved=[];\nawait entryModule.link(async specifier=>{\n if(specifier.includes('telegram-linking-privacy'))return privacy;\n if(specifier==='@solidjs/web')return core;\n if(specifier==='virtual:solid-manifest')return synth({default:{}});\n if(specifier==='./App'||specifier==='./Document')return synth({default:()=>{}});\n const exported=[...compile(input.entry.content,true).matchAll(/import\\s*\\{([^}]+)\\}\\s*from\\s*[\"']([^\"']+)[\"']/g)].filter(m=>m[2]===specifier).flatMap(m=>m[1].split(',').map(x=>x.trim().split(/\\s+as\\s+/)[0]));\n if(exported.length===0)throw Error('Unhandled dependency '+specifier);\n return synth(Object.fromEntries(exported.map(name=>[name,()=>{preflightCalls++;throw Error('Alias reached preflight '+name)}])));\n});await entryModule.evaluate();\nconst aliases=parity.filter(r=>r.alias).map(r=>r.pathname);\nconst results=[];\nfor(const alias of aliases){\n const request=new Request('https://pirate.test'+alias+'?code=fixture-code&state=fixture-state#fixture-fragment');\n event={request,locals:{}};\n const response=await entryModule.namespace.render(request);\n const body=await response.text();\n if(response.status!==404||body!==''||event.request.url.includes('fixture-')||response.headers.get('cache-control')!=='private, no-store'||response.headers.get('referrer-policy')!=='no-referrer'||response.headers.get('x-robots-tag')!=='noindex, nofollow')throw Error('Alias refusal failure '+alias);\n results.push({alias,status:response.status,callbackScrubbed:!event.request.url.includes('fixture-'),privateHeaders:true,bodyEmpty:true});\n}\nconst routerVersion=JSON.parse(readFileSync(resolve(dependencyRoot,'node_modules/@solidjs/router/package.json'),'utf8')).version;\nif(routerVersion!=='2.0.0-next.16'||preflightCalls!==0)throw Error('Unexpected router or alias side effect');\nfor(const path of ['/internal/telegram-login-probe','/internal/telegram-login-probe/callback'])if(p.isTelegramLinkPage(path))throw Error('Probe retained in private path list');\nconsole.log(JSON.stringify({head:input.head,privacyBlob:input.privacy.sha,entryBlob:input.entry.sha,middlewareBlob:input.middleware.sha,routerVersion,parityCount:parity.length,aliasesTested:results.length,aliases:results,preflightCalls,result:'passed',limits:'Exact fetched privacy and entry-server modules transpiled/evaluated in memory. Real pinned router matcher; downstream render/preflight dependencies stubbed to refuse alias execution. No full renderer, build, staging mutation or phone interaction.'}));\n",
+    "proof_command": "REVIEW_DEPENDENCY_ROOT=/absolute/path/to/existing/pirate-web-solid node --experimental-vm-modules --input-type=module < g3-reproducer.mjs",
+    "proof_limit": "Fetched exact source modules evaluated with real pinned router; downstream dependencies are stubbed to reject unexpected execution. No full SSR renderer, native full Solid suite, build, deployed Worker, serving readback or phone acceptance was observed by this reviewer.",
+    "cloud_reported_results": "Cloud reports lint/typecheck, 73 SSR, 377 API, 1807 app, staging build and pinned HNS fingerprint pass. These full results were not independently rerun here.",
+    "use_condition": "Prepared reviewed recovery candidate. Do not merge or deploy the revert while the active probe is needed. Actual recovery uses normal reviewed revert PR, exact-head checks and guarded published-main release against a freshly verified compatible serving predecessor.",
+    "changed_paths_against_main": [
+      {
+        "path": "docs/telegram-identity-probe.md",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 61
+      },
+      {
+        "path": "src/entry-server.tsx",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 10
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-client.test.tsx",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 80
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 17
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.test.ts",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 78
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.ts",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 178
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-page.tsx",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 51
+      },
+      {
+        "path": "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 126
+      },
+      {
+        "path": "src/features/identity/telegram-linking/telegram-linking-privacy.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "src/features/identity/telegram-linking/telegram-linking-ssr.test.tsx",
+        "status": "modified",
+        "additions": 18,
+        "deletions": 0
+      },
+      {
+        "path": "src/features/identity/telegram-linking/telegram-linking.test.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "src/routes/internal/telegram-login-probe/callback.tsx",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 2
+      },
+      {
+        "path": "src/routes/internal/telegram-login-probe/index.tsx",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 2
+      },
+      {
+        "path": "vitest.app.config.ts",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 2
+      },
+      {
+        "path": "vitest.ssr.config.ts",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 1
+      }
+    ]
+  },
+  "task": {
+    "cloud_retains_full_execution_and_acceptance": true,
+    "repeat_broad_approval_questions_required": false,
+    "missing_input_rule": "Request only a concrete credential custody/resource handover/physical phone dependency that is actually absent.",
+    "probe_expiry": "2026-10-17T00:00:00Z",
+    "managed_mutations_by_this_reviewer": [],
+    "phone_acceptance_by_this_reviewer": false
+  },
+  "previous_cloud_handoff": "074802e41836d7eb79d054d3b442930b66582c04"
+}
