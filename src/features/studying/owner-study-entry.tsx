@@ -1,6 +1,6 @@
 import type { GuestAuthorityStore } from "./guest-authority-selection";
 import type { OwnerStudyLocks } from "./owner-study-start-coordinator";
-import { ErrorBoundary, For, Show, createSignal, onCleanup } from "solid-js";
+import { Errored, For, Show, createSignal, onCleanup } from "solid-js";
 import type { AuthenticatedSession } from "../../api/session";
 import { usePageUiLocale } from "../../lib/ui-locale";
 import { getLocaleMessages } from "../../locales";
@@ -25,10 +25,10 @@ export interface OwnerStudyEntryProps {
 export function OwnerStudyEntry(props: OwnerStudyEntryProps) {
   return <For each={[JSON.stringify([props.account.userId, props.communityId, props.postId])]}>{() => {
     const account = props.account, communityId = props.communityId, postId = props.postId;
-    return <ErrorBoundary fallback={<section data-owner-study-unavailable>
+    return <Errored fallback={<section data-owner-study-unavailable>
       <p>Original financial recovery is unavailable in this browser. Saved operations and owed rewards remain unchanged.</p>
       <Button onClick={props.onPractice}>Ordinary practice</Button>
-    </section>}><OwnerStudyEntryForAccount {...props} account={account} communityId={communityId} postId={postId} /></ErrorBoundary>;
+    </section>}><OwnerStudyEntryForAccount {...props} account={account} communityId={communityId} postId={postId} /></Errored>;
   }}</For>;
 }
 function OwnerStudyEntryForAccount(props: OwnerStudyEntryProps) {
@@ -46,7 +46,8 @@ function OwnerStudyEntryForAccount(props: OwnerStudyEntryProps) {
   const [started, setStarted] = createSignal<Extract<OwnerStudyStartResult, { status: "started" }>>();
   const [runtime, setRuntime] = createSignal<StudyingClient>();
   let active = true, generation = 0;
-  onCleanup(() => { active = false; generation++; });
+  let repairController: AbortController | undefined;
+  onCleanup(() => { active = false; generation++; repairController?.abort(); });
   const invalidate = () => { generation++; setPreview(undefined); setDisclosure(undefined); setAccept(false); };
   const review = async () => {
     if (!active || busy() || persona() === "" || (language() !== "" && band() === "")) return;
@@ -93,7 +94,7 @@ function OwnerStudyEntryForAccount(props: OwnerStudyEntryProps) {
     <OperationPersonaControl label="Studying as" placeholder="Choose your Study persona" selectedPersonaId={persona()}
       personas={toOperationPersonas(communityOperationPersonas(props.account.personas, props.communityId))}
       onSelect={id => { setPersona(id); invalidate(); }} disabled={busy()} />
-    <Show when={communityOperationPersonas(props.account.personas, props.communityId).length === 1}>{() => {
+    <Show when={communityOperationPersonas(props.account.personas, props.communityId).length === 1}>{_available => {
       const sole = communityOperationPersonas(props.account.personas, props.communityId)[0];
       return <Button disabled={busy() || sole === undefined} onClick={() => { if (sole !== undefined) { setPersona(sole.personaId); invalidate(); } }}>Use {sole?.displayName} for this entry</Button>;
     }}</Show>
@@ -122,7 +123,14 @@ function OwnerStudyEntryForAccount(props: OwnerStudyEntryProps) {
           practiceLabel: `Original drawing ${value().result.reward_terms.original_drawing_id}`, pendingTitle: "Original answer pending",
           pendingDescription: "Keep the original audio/choice, item, attempt and key. Reload cannot authorize a replacement answer.", retryOriginalLabel: "Retry original request",
           authorityDescription: "Restore your ordinary Account session before retrying the same request.", onRecoverAccess: async () => {
-            if (!await requestGlobalSignInCompletion()) throw new Error("Ordinary Account recovery unresolved");
+            repairController?.abort();
+            const controller = new AbortController();
+            repairController = controller;
+            try {
+              if (!await requestGlobalSignInCompletion(controller.signal)) throw new Error("Ordinary Account recovery unresolved");
+            } finally {
+              if (repairController === controller) repairController = undefined;
+            }
           } }} />}</Show>
     </Show>
     <OwnerStudyRecoveryControls finance={api} store={coordinator.store} locks={coordinator.locks} />

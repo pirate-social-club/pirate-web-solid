@@ -19,7 +19,7 @@ test("original body/terms/hash/key commit beforePOST and two tabs create only on
     startSession: vi.fn(async request => {
       const record = (await store.read()).ownerStarts?.[0]; expect(record?.body).toEqual(request.body);
       expect(record?.state).toBe("submitted"); expect(record?.acceptedTerms.original_drawing_id).toBe("7"); return session;
-    }), findStartOperation: vi.fn(async () => ({ state: "completed" as const, result: session })),
+    }), findStartOperation: vi.fn<OwnerStudyFinancialApi["findStartOperation"]>(async () => ({ state: "completed" as const, result: session })),
   };
   const a = createOwnerStudyStartCoordinator({ origin, verifyAccount: async () => "account-A", api, store, locks, createKey: () => "original-key" });
   const b = createOwnerStudyStartCoordinator({ origin, verifyAccount: async () => "account-A", api, store, locks, createKey: () => "must-not-replace" });
@@ -37,7 +37,7 @@ test("lost POSTresponse+missing lookup keep originalbody/key; completedlookup ne
   const c = createOwnerStudyStartCoordinator({ origin, verifyAccount: async () => "account-A", api, store, locks: serializedOwnerLocks(), createKey: () => "original-key" });
   expect((await c.start(input)).status).toBe("pending"); expect(committed).toBe(true);
   expect((await store.read()).ownerStarts?.[0]?.body.idempotency_key).toBe("original-key");
-  api.findStartOperation = vi.fn(async () => ({ state: "completed", result: ownerSession() }));
+  api.findStartOperation = vi.fn<OwnerStudyFinancialApi["findStartOperation"]>(async () => ({ state: "completed", result: ownerSession() }));
   expect(await c.resume("account-A", "community-1", "post-1")).toMatchObject({ status: "started", entryKind: "recovered_session", readOnlyRecovery: true });
   expect((await store.read()).ownerStarts?.[0]?.inventory).toBeNull(); expect(api.startSession).toHaveBeenCalledOnce();
 });

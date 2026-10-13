@@ -167,7 +167,7 @@ export function OwnerStudyRecoveryControls(props: OwnerStudyRecoveryControlsProp
         <OperationPersonaControl label="Payout recipient" placeholder="Choose the payout persona" selectedPersonaId={chosen().get(credit.credit_id)}
           personas={toOperationPersonas(communityOperationPersonas(session()?.personas ?? [], credit.community_id))}
           onSelect={id => setChosen(old => new Map(old).set(credit.credit_id, id))} disabled={busy() || session() === undefined} />
-        <Show when={communityOperationPersonas(session()?.personas ?? [], credit.community_id).length === 1}>{() => {
+        <Show when={communityOperationPersonas(session()?.personas ?? [], credit.community_id).length === 1}>{_available => {
           const sole = communityOperationPersonas(session()?.personas ?? [], credit.community_id)[0];
           return <Button disabled={busy() || session() === undefined || sole === undefined} onClick={() => { if (sole !== undefined) setChosen(old => new Map(old).set(credit.credit_id, sole.personaId)); }}>Use {sole?.displayName} as payout recipient</Button>;
         }}</Show>

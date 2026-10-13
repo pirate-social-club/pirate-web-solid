@@ -21,13 +21,15 @@ test("verified Account switch remounts consent and helper choices without deleti
   const node = mount(() => <OwnerStudyEntry account={account()} communityId="community-1" postId="post-1" availability={availability}
     store={store} locks={serializedOwnerLocks()} onPractice={() => {}} onExit={() => {}} />);
   const firstEntry = node.querySelector("[data-owner-study-consent]");
-  const language = node.querySelector<HTMLSelectElement>("select[aria-label='Helper language for rewarded Study']");
-  if (language === null) throw new Error("Missing original helper control");
+  const language = node.querySelector("select[aria-label='Helper language for rewarded Study']");
+  if (language === null || language === undefined || !("value" in language) || typeof language.value !== "string") throw new Error("Missing original helper control");
   language.value = "ar"; language.dispatchEvent(new Event("change", { bubbles: true }));
   expect(language.value).toBe("ar"); const before = await store.read();
   setAccount({ status: "authenticated", userId: "account-B", personas: [] });
   await vi.waitFor(() => expect(node.querySelector("[data-owner-study-consent]")).not.toBe(firstEntry));
-  expect(node.querySelector<HTMLSelectElement>("select[aria-label='Helper language for rewarded Study']")?.value).toBe("");
+  const resetLanguage = node.querySelector("select[aria-label='Helper language for rewarded Study']");
+  if (resetLanguage === null || resetLanguage === undefined || !("value" in resetLanguage)) throw new Error("Missing reset helper control");
+  expect(resetLanguage.value).toBe("");
   const start = [...node.querySelectorAll("button")].find(v => v.textContent === "Start with accepted original terms");
   expect(start?.disabled).toBe(true); expect(await store.read()).toEqual(before);
 });

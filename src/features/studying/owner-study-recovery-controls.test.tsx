@@ -25,8 +25,8 @@ function button(node: HTMLElement, text: string) { const b = [...node.querySelec
 const actor = { status: "authenticated", userId: "current-canonical-B", personas: [] } as const;
 const unused = async (): Promise<never> => { throw new Error("Unexpected effect"); };
 function finance(): OwnerStudyFinancialApi { return { getRewardPreview: unused, startSession: unused, getSession: unused, findStartOperation: unused, submitAnswer: unused,
-  listParticipations: vi.fn(async () => ({ object: "owner_participation_list_v1", items: [participation], next_cursor: null })), getParticipation: unused,
-  listCredits: vi.fn(async () => ({ object: "owner_reward_credit_list_v1", items: [credit], next_cursor: null })), getCredit: vi.fn(async () => credit) }; }
+  listParticipations: vi.fn<OwnerStudyFinancialApi["listParticipations"]>(async () => ({ object: "owner_participation_list_v1", items: [participation], next_cursor: null })), getParticipation: unused,
+  listCredits: vi.fn<OwnerStudyFinancialApi["listCredits"]>(async () => ({ object: "owner_reward_credit_list_v1", items: [credit], next_cursor: null })), getCredit: vi.fn(async () => credit) }; }
 
 test("after binding Account reads original participations/held credits with no persona or Guest proof prerequisite", async () => {
   const api = finance(); const node = mount(() => <OwnerStudyRecoveryControls finance={api} originalAccountId="original-A" store={createPageGuestAuthorityStore()}
@@ -45,7 +45,7 @@ test("unknown claim reload retries persisted original revision/key before consid
   await store.update(j => { j.ownerCreditCommands = [{ accountId: actor.userId, creditId: credit.credit_id, kind: "owner_claim", state: "submitted",
     body: { idempotency_key: "original-claim", selection_revision: 1 } }]; });
   const newer = { ...credit, recipient: { kind: "guest_owner" as const, selection: { revision: 2, persona_id: "later-persona", selected_at: "2026-10-13T01:00:00.000Z" }, binding: null } };
-  const api = finance(); api.getCredit = vi.fn(async () => newer); api.listCredits = vi.fn(async () => ({ object: "owner_reward_credit_list_v1", items: [newer], next_cursor: null }));
+  const api = finance(); api.getCredit = vi.fn(async () => newer); api.listCredits = vi.fn<OwnerStudyFinancialApi["listCredits"]>(async () => ({ object: "owner_reward_credit_list_v1", items: [newer], next_cursor: null }));
   const claims = vi.fn<GuestStudyAccountingApi["claimCredit"]>(async input => {
     expect((await store.read()).ownerCreditCommands?.[0]?.body.idempotency_key).toBe("original-claim");
     expect(input).toEqual({ path: { creditId: "credit-original" }, body: { idempotency_key: "original-claim", selection_revision: 1 } }); throw new Error("Original COMMIT unresolved");
@@ -62,8 +62,8 @@ test("A to B pagination resets cursors, visible rewards and choices without dele
   await store.update(j => { j.ownerCreditCommands = [{ accountId: "account-A", creditId: credit.credit_id, kind: "owner_claim", state: "submitted", body: { idempotency_key: "A-key", selection_revision: 1 } }]; });
   let account = { ...actor, userId: "account-A" };
   const api = finance();
-  api.listCredits = vi.fn(async () => ({ object: "owner_reward_credit_list_v1", items: account.userId === "account-A" ? [credit] : [], next_cursor: account.userId === "account-A" ? "A-cursor" : null }));
-  api.listParticipations = vi.fn(async () => ({ object: "owner_participation_list_v1", items: account.userId === "account-A" ? [participation] : [], next_cursor: null }));
+  api.listCredits = vi.fn<OwnerStudyFinancialApi["listCredits"]>(async () => ({ object: "owner_reward_credit_list_v1", items: account.userId === "account-A" ? [credit] : [], next_cursor: account.userId === "account-A" ? "A-cursor" : null }));
+  api.listParticipations = vi.fn<OwnerStudyFinancialApi["listParticipations"]>(async () => ({ object: "owner_participation_list_v1", items: account.userId === "account-A" ? [participation] : [], next_cursor: null }));
   const node = mount(() => <OwnerStudyRecoveryControls finance={api} store={store} locks={serializedOwnerLocks()} resolveAccount={async () => account}
     accounting={{ prepareAttachment: unused, confirmAttachment: unused, getAttachment: unused, selectCreditRecipient: unused, claimCredit: unused }} />);
   button(node, "Read Account rewards").click(); await vi.waitFor(() => expect(node.textContent).toContain("from original drawing 7"));
@@ -87,7 +87,7 @@ test("a foreign asset response cannot clear the original command or enter Very",
   expect((await store.read()).ownerCreditCommands?.[0]?.state).toBe("submitted");
 });
 test("paid original credit says sent rather than held", async () => {
-  const api = finance(); api.listCredits = vi.fn(async () => ({ object: "owner_reward_credit_list_v1", items: [{ ...credit, claim: { status: "accepted", payout_status: "confirmed" } }], next_cursor: null }));
+  const api = finance(); api.listCredits = vi.fn<OwnerStudyFinancialApi["listCredits"]>(async () => ({ object: "owner_reward_credit_list_v1", items: [{ ...credit, claim: { status: "accepted", payout_status: "confirmed" } }], next_cursor: null }));
   const node = mount(() => <OwnerStudyRecoveryControls finance={api} store={createPageGuestAuthorityStore()} locks={serializedOwnerLocks()} resolveAccount={async () => actor}
     accounting={{ prepareAttachment: unused, confirmAttachment: unused, getAttachment: unused, selectCreditRecipient: unused, claimCredit: unused }} />);
   button(node, "Read Account rewards").click(); await vi.waitFor(() => expect(node.textContent).toContain("Sent to your wallet"));
