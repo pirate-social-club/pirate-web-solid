@@ -6,8 +6,17 @@ export type SpacesClaimDisplay = {
 };
 
 export function spacesClaimStatus(claim: SpacesClaimDisplay) {
-  if (claim.state === "issued" && claim.grant?.status === "active") {
-    return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
+  if (claim.state === "issued") {
+    if (claim.grant?.status === "active") {
+      return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
+    }
+    if (claim.grant?.status === "revoked") {
+      return { title: "Name grant revoked", detail: "Pirate's grant for this name has been revoked. This does not change ownership of the native Spaces name." };
+    }
+    if (claim.grant?.status === "tombstoned") {
+      return { title: "Name grant removed", detail: "Pirate's grant for this name has been removed. This does not change ownership of the native Spaces name." };
+    }
+    return { title: "Grant status unavailable", detail: "This name is registered, but its current Pirate grant status is unavailable. Refresh status to check again." };
   }
   if (claim.state === "issuance_failed") {
     return { title: "Registration needs attention", detail: "This name could not be registered. Contact the community owner before requesting it again." };
