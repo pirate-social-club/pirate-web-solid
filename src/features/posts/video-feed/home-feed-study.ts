@@ -1,3 +1,4 @@
+import type { GuestStudyPublicReader } from "../../studying/guest-study-public-reader.ts";
 import type { StudyV2Api } from "../../studying/study-v2-api.ts";
 
 /** The authoritative referenced song for a feed video, or null when unlinked. */
@@ -133,5 +134,15 @@ export function makeStudyAvailabilityLookup(
   return createStudyAvailabilityLookup(async (songPostId) => {
     const loaded = await api.loadAvailability(songPostId);
     return loaded.availability.state === "ready" ? "ready" : "unavailable";
+  }, options);
+}
+
+/** Anonymous feed eligibility derives only from the public prepared reader. */
+export function makePublicStudyAvailabilityLookup(
+  reader: GuestStudyPublicReader, options: StudyAvailabilityLookupOptions = {},
+): StudyAvailabilityLookup {
+  return createStudyAvailabilityLookup(async songPostId => {
+    const result = await reader.load(songPostId);
+    return result.prepared.availability.state === "ready" ? "ready" : "unavailable";
   }, options);
 }

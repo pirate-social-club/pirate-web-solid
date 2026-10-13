@@ -127,6 +127,46 @@ describe("same-origin API transport", () => {
     },
   );
 
+  it("forwards raw guest cookies and preserves original-origin CSRF through the real proxy", async () => {
+    const credential = "A".repeat(22), successor = "B".repeat(21) + "A";
+    const csrf = "A".repeat(43);
+    const cookie = `__Host-pirate_guest_${credential}=original; __Host-pirate_guest_csrf=${csrf}; __Host-pirate_guest_${credential}=duplicate`;
+    const request = new Request("https://member.solid.test/api/guest/bootstrap/confirm", {
+      method: "POST",
+      headers: { cookie, origin: "https://member.solid.test", authorization: "Bearer drop",
+        "content-type": "application/json", "x-guest-credential-id": credential,
+        "x-guest-csrf-token": csrf, "x-internal-credential": "drop" },
+      body: JSON.stringify({ credential_id: credential, expected_owner_id: "owner-original" }),
+    });
+    let calls = 0;
+    const response = await proxyApiRequest(request, { API_NEXT_ORIGIN: origin }, {
+      fetchImpl: async (input, init) => {
+        calls += 1;
+        expect(String(input)).toBe(`${origin}/guest/bootstrap/confirm`);
+        const headers = new Headers(init?.headers);
+        expect(headers.get("origin")).toBe("https://member.solid.test");
+        expect(headers.get("cookie")).toBe(cookie);
+        expect(headers.get("x-guest-credential-id")).toBe(credential);
+        expect(headers.get("x-guest-csrf-token")).toBe(csrf);
+        expect(headers.get("x-csrf-token")).toBeNull();
+        expect(headers.get("authorization")).toBeNull();
+        expect(headers.get("x-internal-credential")).toBeNull();
+        const upstream = new Response(null, { status: 204, headers: { "cache-control": "private, no-store" } });
+        upstream.headers.append("set-cookie", `__Host-pirate_guest_${credential}=old; Secure; HttpOnly; Path=/; SameSite=Lax`);
+        upstream.headers.append("set-cookie", `__Host-pirate_guest_${successor}=new; Secure; HttpOnly; Path=/; SameSite=Lax`);
+        return upstream;
+      },
+    });
+    expect(calls).toBe(1);
+    expect(response.status).toBe(204);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const cookies = response.headers.getSetCookie();
+    expect(cookies).toHaveLength(2);
+    expect(cookies[0]).toContain(`__Host-pirate_guest_${credential}=old`);
+    expect(cookies[1]).toContain(`__Host-pirate_guest_${successor}=new`);
+    expect(cookies.every(value => !value.toLowerCase().includes("domain="))).toBe(true);
+  });
+
   it("enforces request and cookie limits before an upstream call", async () => {
     let calls = 0;
     const fetchImpl = async (): Promise<Response> => {

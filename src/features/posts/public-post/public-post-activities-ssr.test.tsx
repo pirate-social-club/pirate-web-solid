@@ -56,7 +56,8 @@ test.each(["study", "karaoke"] as const)(
 
     const markup = renderToString(() => <PublicPostRouteView state={activityState(activity)} />);
 
-    expect(markup).toContain(`aria-label="Loading ${activity}"`);
+    const loadingLabel = activity === "study" ? "Loading public Study" : "Loading karaoke";
+    expect(markup).toContain(`aria-label="${loadingLabel}"`);
     expect(markup).toContain('aria-busy="true"');
     expect(markup).not.toContain("data-pool-hold-notice");
     expect(fetch).not.toHaveBeenCalled();

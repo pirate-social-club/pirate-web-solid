@@ -23,7 +23,8 @@ import {
   type HomeVideoPost,
 } from "./home-video-feed-model.ts";
 import { signedStreamSource } from "./signed-stream-source.ts";
-import { makeStudyAvailabilityLookup, type StudyAvailabilityLookup } from "./home-feed-study.ts";
+import { createGuestStudyPublicReader } from "../../studying/guest-study-public-reader.ts";
+import { makePublicStudyAvailabilityLookup, makeStudyAvailabilityLookup, type StudyAvailabilityLookup } from "./home-feed-study.ts";
 import { resolveSongActivities, type HomeSongActivity } from "./home-feed-song-activities.ts";
 import { createStudyV2Api } from "../../studying/study-v2-api.ts";
 
@@ -31,8 +32,10 @@ import { createStudyV2Api } from "../../studying/study-v2-api.ts";
  * resolves its route once. */
 const feedSongLinks = createSongAttributionLinkResolver();
 let feedStudyReady: StudyAvailabilityLookup | undefined;
-const defaultStudyReady = (songPostId: string, scope: string) =>
-  (feedStudyReady ??= makeStudyAvailabilityLookup(createStudyV2Api()))(songPostId, scope);
+let feedPublicStudyReady: StudyAvailabilityLookup | undefined;
+const defaultStudyReady = (songPostId: string, scope: string) => scope === "anonymous"
+  ? (feedPublicStudyReady ??= makePublicStudyAvailabilityLookup(createGuestStudyPublicReader()))(songPostId, scope)
+  : (feedStudyReady ??= makeStudyAvailabilityLookup(createStudyV2Api()))(songPostId, scope);
 
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;

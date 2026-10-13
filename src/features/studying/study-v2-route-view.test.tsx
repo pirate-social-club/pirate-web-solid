@@ -1,3 +1,4 @@
+import { prepared } from "./guest-study-test-fixtures";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -46,6 +47,8 @@ function testCoordinator(api: StudyV2Api, key = "test-session-key") {
     timezone: () => "UTC",
   });
 }
+
+const anonymousPublicReader = { load: async () => ({ communityId: "community-1", prepared: prepared() }) };
 
 const disposers: Array<() => void> = [];
 
@@ -174,6 +177,17 @@ function routeSession(): StudySession {
   };
 }
 
+async function enterOrdinaryPractice(container: HTMLElement, createSession: unknown): Promise<void> {
+  let start: HTMLButtonElement | undefined;
+  await vi.waitFor(() => {
+    start = [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start");
+    expect(start?.disabled).toBe(false);
+  });
+  expect(createSession).not.toHaveBeenCalled(); // Consent/configure is visible before any ordinary start POST.
+  if (start === undefined) throw new Error("Explicit ordinary practice Start required");
+  start.click();
+}
+
 describe("Study v2 production route", () => {
   test("explains missing stems without offering to start or generate a lesson", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
@@ -182,7 +196,7 @@ describe("Study v2 production route", () => {
       availability: { state: "unavailable", reason: "stems_missing" }, communityId: "community-1",
     });
     const requestGeneration = vi.spyOn(api, "requestGeneration");
-    const container = render(() => <StudyV2RouteView api={api} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "account-1", personas: [] })} />);
     await vi.waitFor(() => expect(container.textContent).toContain("audio is still being prepared for Study"));
     expect(createSession).not.toHaveBeenCalled();
@@ -194,7 +208,7 @@ describe("Study v2 production route", () => {
     let unavailable = true;
     const api = studyApi();
     const availability = vi.spyOn(api, "loadAvailability");
-    const container = render(() => <StudyV2RouteView api={api} postId="post-1" startCoordinator={testCoordinator(api)}
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" startCoordinator={testCoordinator(api)}
       resolveSession={async () => ({ status: "authenticated", userId: "user-1",
         personas: unavailable ? [] : [{ personaId: "here", displayName: "Here", avatarRef: null, primaryPublicHandle: null,
           communityBinding: { communityId: "community-1", bindingSource: "first_membership" } }],
@@ -204,14 +218,14 @@ describe("Study v2 production route", () => {
     expect(availability).not.toHaveBeenCalled();
     unavailable = false;
     [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try Again")!.click();
-    // A single prepared persona opens the first exercise directly; the retry
-    // no longer lands on a Start gate.
+    // Successful profile retry opens explicit configuration, never an automatic entry.
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(api.createSession).toHaveBeenCalledOnce());
   });
 
   test("several community-bound personas have no default", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas:
         ["first", "second"].map(personaId => ({
           personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null,
@@ -235,7 +249,7 @@ describe("Study v2 production route", () => {
       persona_id: "persona-new",
       persona_status: "pending_wallet" as const,
     }));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
         communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
@@ -271,7 +285,7 @@ describe("Study v2 production route", () => {
       }, { once: true });
     });
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: confirmed
@@ -285,7 +299,8 @@ describe("Study v2 production route", () => {
     confirmed = true;
     [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
     (await completion).complete(true);
-    // The prepared single persona continues straight into the session.
+    // Wallet confirmation does not accept chance terms or auto-start practice.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -309,7 +324,7 @@ describe("Study v2 production route", () => {
         resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
       }, { once: true });
     });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: null,
@@ -342,7 +357,7 @@ describe("Study v2 production route", () => {
         resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
       }, { once: true });
     });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: null,
@@ -380,7 +395,7 @@ describe("Study v2 production route", () => {
     let activeAccount = "user-1";
     let activated = false;
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: activeAccount, personas: activated ? [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: { communityId: "community-1", bindingSource: "activity_participation" as const },
@@ -396,7 +411,8 @@ describe("Study v2 production route", () => {
     activeAccount = "user-2";
     activated = true;
     (await completion).complete(true);
-    // The activated account's single bound persona continues into the session.
+    // The activated Account explicitly starts practice as its prepared persona.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -418,7 +434,7 @@ describe("Study v2 production route", () => {
       };
     });
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "unbound", displayName: "Unbound", avatarRef: null, primaryPublicHandle: null,
         communityBinding: bound
@@ -431,7 +447,8 @@ describe("Study v2 production route", () => {
     await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
       choice: { kind: "existing", personaId: "unbound" },
     })));
-    // The bound single persona continues straight into the session.
+    // Persona preparation opens configuration; practice still requires a click.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       learnerBand: null,
@@ -444,10 +461,10 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+      <StudyV2RouteView api={api} postId="post-1" guest={{ publicReader: anonymousPublicReader }} resolveSession={async () => "anonymous"} />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     expect(loadAvailability).not.toHaveBeenCalled();
   });
 
@@ -455,7 +472,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
     const api = studyApi(createSession);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         startCoordinator={testCoordinator(api)}
@@ -473,7 +490,8 @@ describe("Study v2 production route", () => {
       />
     ));
 
-    // No Start gate: the prepared single persona starts source-only directly.
+    // Explicit ordinary practice preserves the original null helper/level payload.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledTimes(1));
     expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
       communityId: "community-1",
@@ -498,7 +516,7 @@ describe("Study v2 production route", () => {
   };
 
   const enterLesson = async (container: HTMLElement, createSession: ReturnType<typeof vi.fn>) => {
-    // Auto-start opens the first exercise without a Start gate.
+    await enterOrdinaryPractice(container, createSession);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(container.textContent).toContain("Record"));
     return [...container.querySelectorAll("button")]
@@ -513,7 +531,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(async () => session);
     const api = studyApi(createSession, async () => session);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         recorder={recorder}
@@ -560,7 +578,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(async () => session);
     const api = studyApi(createSession, async () => session);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         recorder={recorder}
@@ -583,14 +601,16 @@ describe("Study v2 production route", () => {
       <StudyV2RouteView
         api={api}
         postId="post-1"
+        guest={{ publicReader: anonymousPublicReader }}
         resolveSession={async () => authenticated ? learnerSession : "anonymous"}
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     expect(loadAvailability).not.toHaveBeenCalled();
     authenticated = true;
     refreshSession();
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
@@ -605,17 +625,19 @@ describe("Study v2 production route", () => {
       <StudyV2RouteView
         api={api}
         postId="post-1"
+        guest={{ publicReader: anonymousPublicReader }}
         resolveSession={() => authenticated ? resolveContinuation() : Promise.resolve("anonymous")}
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     authenticated = true;
     refreshSession();
     refreshSession();
     await vi.waitFor(() => expect(resolveContinuation).toHaveBeenCalledOnce());
     expect(requests).toHaveLength(1);
     requests[0]!(learnerSession);
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
@@ -632,7 +654,7 @@ describe("Study v2 production route", () => {
     };
     let calls = 0;
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         resolveSession={() => {
@@ -649,6 +671,7 @@ describe("Study v2 production route", () => {
     retry.click();
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     requests[1]!(learnerSession);
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     requests[0]!("anonymous");
     await new Promise(resolve => setTimeout(resolve, 20));
@@ -661,9 +684,10 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => learnerSession} />
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" resolveSession={async () => learnerSession} />
     ));
 
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
     refreshSession();
@@ -675,10 +699,10 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+      <StudyV2RouteView api={api} postId="post-1" guest={{ publicReader: anonymousPublicReader }} resolveSession={async () => "anonymous"} />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     for (const dispose of disposers.splice(0)) dispose();
     refreshSession();
     await Promise.resolve();
@@ -690,13 +714,14 @@ test("an age-locked Study entry verifies in place and continues into the session
   const api=studyApi(); const available=api.loadAvailability;
   let verified=false;
   api.loadAvailability=async (...args)=>{if(!verified) throw new StudyV2LocalError("age_locked","Age required");return available(...args);};
-  const container=render(()=><StudyV2RouteView api={api} postId="post-1" verifyAge={async()=>{verified=true;return true;}}
+  const container=render(()=><StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" verifyAge={async()=>{verified=true;return true;}}
     startCoordinator={testCoordinator(api)}
     resolveSession={async()=>({status:"authenticated",userId:"user-a",personas:[{personaId:"here",displayName:"Here",avatarRef:null,primaryPublicHandle:null,
       communityBinding:{communityId:"community-1",bindingSource:"first_membership"}}]})} />);
   await vi.waitFor(()=>expect(container.textContent).toContain("Verify 18+ to view"));
   [...container.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
-  // Verification reloads and the prepared persona continues without a Start gate.
+  // Verification reloads configuration; it does not choose chance terms or start a session.
+  await enterOrdinaryPractice(container, api.createSession);
   await vi.waitFor(()=>expect(api.createSession).toHaveBeenCalledOnce());
   expect(container.textContent).not.toContain("Verify 18+ to view");
 });
@@ -705,7 +730,7 @@ test("fails visibly when cross-tab coordination is unavailable", async () => {
   const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
   const api = studyApi(createSession);
   const container = render(() => (
-    <StudyV2RouteView
+    <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
       api={api}
       postId="post-1"
       startCoordinator={createStudySessionStartCoordinator({ api, storage: null, locks: null })}
@@ -722,9 +747,10 @@ test("fails visibly when cross-tab coordination is unavailable", async () => {
       })}
     />
   ));
+  await enterOrdinaryPractice(container, createSession);
   await vi.waitFor(() => expect(container.textContent).toContain("Study cannot coordinate this session"));
   expect(createSession).not.toHaveBeenCalled();
-  // A failed auto-start stays visible without sending a single-persona user to setup.
+  // A failed explicit start stays visible without inventing a persona setup requirement.
   expect(container.textContent).toContain("Try Again");
   expect(container.textContent).not.toContain("Start Study");
 });

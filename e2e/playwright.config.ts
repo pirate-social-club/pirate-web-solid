@@ -9,7 +9,8 @@ export default defineConfig({
   testDir: ".",
   // The M1 suite has a stricter attempt runner and global preflight. It is
   // selected only through e2e/happy-path.config.ts.
-  testIgnore: ["happy-path.spec.ts"],
+  // This HTTPS/native component suite owns its separate local runner/config.
+  testIgnore: ["happy-path.spec.ts", "guest-study-browser.spec.ts", "owner-study-browser.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

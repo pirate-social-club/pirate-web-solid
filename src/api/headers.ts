@@ -29,6 +29,8 @@ const SAFE_REQUEST_HEADERS = new Set([
   "range",
   "referer",
   "x-csrf-token",
+  "x-guest-csrf-token",
+  "x-guest-credential-id",
   "x-request-id",
   // Study v2 raw-answer headers: the API's answer contract requires both for
   // spoken submissions, so the same-origin proxy must forward them.

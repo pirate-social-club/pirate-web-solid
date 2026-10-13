@@ -15,6 +15,8 @@ export interface ApiClientFactoryOptions {
   /** The current Solid request origin. SSR callers must pass this explicitly. */
   readonly origin?: string | URL;
   readonly fetchImpl?: ApiFetch;
+  /** Guest proof/lease refusals must not renew or invalidate an account session. */
+  readonly sessionRecovery?: "account" | "none";
 }
 
 export type GeneratedApiClientFactory<Client> = (
@@ -74,7 +76,7 @@ export function createGeneratedApiClient<Client>(
     if (rewritten.pathname === "/api/auth/session/logout") browserIdentitySession.clear();
     const response = await fetchImpl(rewritten, init);
     const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : requestOptions.credentials);
-    if (response.status === 401 && requestOptions.credentials === "same-origin"
+    if (options.sessionRecovery !== "none" && response.status === 401 && requestOptions.credentials === "same-origin"
       && credentials === "same-origin"
       && !rewritten.pathname.startsWith("/api/auth/")
       && isCurrentSessionAuthority(authority)) {

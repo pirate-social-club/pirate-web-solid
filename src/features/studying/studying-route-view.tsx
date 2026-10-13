@@ -42,7 +42,24 @@ import {
 // delay) is injected; the view only sequences the surface state machine.
 // Mirrors the legacy `study-route.tsx` controller minus Telegram handoff.
 
+export interface GuestStudyPresentation {
+  disclosure: { version: string; text: string } | undefined;
+  disclosureAccepted: boolean;
+  noDisclosureDescription: string;
+  exitLabel: string;
+  practiceLabel: string;
+  pendingTitle: string;
+  pendingDescription: string;
+  retryOriginalLabel: string;
+  authorityDescription: string;
+  onRecoverAccess: () => Promise<void>;
+}
+
 export interface StudyingRouteViewProps {
+  /** Opt-in Guest presentation; ordinary account defaults remain unchanged. */
+  guestPresentation?: GuestStudyPresentation;
+  /** Same original-request presentation for ordinary Account answers; no Guest authority is fabricated. */
+  recoveryPresentation?: GuestStudyPresentation;
   rewardSlot?: JSX.Element;
   postId: string;
   client: StudyingClient;
@@ -54,6 +71,10 @@ export interface StudyingRouteViewProps {
   onKaraoke?: () => void;
   onStudyAgain?: () => void;
   onConnect?: () => void;
+}
+
+function recoveryPresentation(props: StudyingRouteViewProps): GuestStudyPresentation | undefined {
+  return props.recoveryPresentation ?? props.guestPresentation;
 }
 
 type SayItBackSurfaceState = Extract<StudyingSurfaceState, { kind: "say_it_back" }>;
@@ -82,8 +103,13 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           totalCount: props.payload.served_count ?? 0,
         }),
   });
+  let active = true;
+  const [pendingAttempt, setPendingAttempt] = createSignal<Parameters<StudyingClient["submitAttempt"]>[0]>();
+  const [pendingAuthority, setPendingAuthority] = createSignal(false);
+  const [pendingBusy, setPendingBusy] = createSignal(false);
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
+  let guestDisclosureAcknowledged = recoveryPresentation(props)?.disclosureAccepted ?? false;
   const [micDisclosure, setMicDisclosure] = createSignal<string | null>(null);
 
   // Spec 019 §5.1: learner-facing microphone capture requires a first-use
@@ -92,6 +118,8 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   const MIC_DISCLOSURE_STORAGE_KEY = "study:microphone-disclosure:v1";
 
   const micDisclosureAcknowledged = (): boolean => {
+    // The exact server disclosure is acknowledged before starting Guest Study.
+    if (recoveryPresentation(props) !== undefined) return guestDisclosureAcknowledged && recoveryPresentation(props)?.disclosure !== undefined;
     try {
       return globalThis.localStorage?.getItem(MIC_DISCLOSURE_STORAGE_KEY) === "1";
     } catch {
@@ -101,7 +129,10 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 
   const acknowledgeMicDisclosure = () => {
     const pending = micDisclosure();
-    try {
+    if (recoveryPresentation(props) !== undefined) {
+      if (recoveryPresentation(props)?.disclosure === undefined) return;
+      guestDisclosureAcknowledged = true;
+    } else try {
       globalThis.localStorage?.setItem(MIC_DISCLOSURE_STORAGE_KEY, "1");
     } catch {
       // Storage can be unavailable (private mode); the disclosure simply
@@ -160,8 +191,14 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   };
 
   const submitAttempt = (input: Parameters<StudyingClient["submitAttempt"]>[0]) => {
+    if (!active) return;
+    setPendingBusy(true);
     const exerciseId = input.exercise_id;
     void props.client.submitAttempt(input).then((result) => {
+      if (!active) return;
+      setPendingAttempt(undefined);
+      setPendingBusy(false);
+      setPendingAuthority(false);
       // A landed attempt proves we are back in step with the server; spend the
       // recovery budget again only if we drift a second time.
       divergenceRecoveries = 0;
@@ -188,6 +225,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
             // the lesson moves to the server's next card without a "correct"
             // banner.
             (props.scheduleAdvance ?? defaultScheduleAdvance)(() => {
+              if (!active) return;
               updateMultipleChoice(exerciseId, (latest, state) => latest.result === "correct"
                 ? applyServerLesson(state, result)
                 : state);
@@ -241,6 +279,15 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         };
       });
     }).catch((rejection: StudyingAttemptRejection) => {
+      if (!active) return;
+      setPendingBusy(false);
+      if (recoveryPresentation(props) !== undefined) {
+        // Every unknown journaled answer keeps exact audio/choice, item, attempt
+        // and key. It never enters account auth or divergence rerecord paths.
+        setPendingAttempt(input);
+        setPendingAuthority(isStudyingAuthError(rejection));
+        return;
+      }
       if (isStudyingAuthError(rejection)) {
         props.onAuthRequired();
         return;
@@ -287,6 +334,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   };
 
   const beginCapture = (card: SayItBackSurfaceState) => {
+    if (!active || pendingAttempt() !== undefined) return;
     unlockStudyFeedbackAudio();
     rotateAttemptIdempotencyKey(card.exercise.id, card.attemptNumber);
     const recorder = props.recorder;
@@ -313,6 +361,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       },
     }));
     void recorder.start().catch((rejection: StudyingAttemptRejection) => {
+      if (!active) return;
       updateSayItBack(card.exercise.id, (latest, current) => ({
         ...current,
         surface: {
@@ -325,6 +374,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   };
 
   const handlePrimaryAction = () => {
+    if (!active || pendingAttempt() !== undefined) return;
     const surface = lesson().surface;
     if (surface.kind === "multiple_choice") {
       if (surface.result) {
@@ -378,6 +428,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         surface: { ...latest, phase: "checking" as const },
       }));
       void recorder.stop().then(({ audio, contentType, durationMs }) => {
+        if (!active) return;
         submitAttempt({
           audio,
           audio_duration_ms: durationMs,
@@ -389,6 +440,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           type: "say_it_back",
         });
       }).catch((rejection: StudyingAttemptRejection) => {
+        if (!active) return;
         updateSayItBack(card.exercise.id, (latest, current) => ({
           ...current,
           surface: {
@@ -402,6 +454,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   };
 
   const handleOptionSelect = (optionId: string) => {
+    if (!active || pendingAttempt() !== undefined) return;
     const surface = lesson().surface;
     if (surface.kind !== "multiple_choice" || surface.result || surface.submitting) return;
     // Selecting an answer submits immediately, matching the legacy flow where
@@ -417,6 +470,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   // Capture cannot outlive this surface: disposal stops any live recording
   // and invalidates permission still being granted.
   onCleanup(() => {
+    active = false;
     void props.recorder?.cancel?.();
   });
 
@@ -434,11 +488,13 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
             <Type as="h2" variant="h3">Before you record</Type>
             <Type as="p" class="mt-3 text-muted-foreground" variant="body">
+              <Show when={recoveryPresentation(props) === undefined} fallback={recoveryPresentation(props)?.disclosure?.text ?? recoveryPresentation(props)?.noDisclosureDescription}>
               Your voice recording is sent to our speech provider, ElevenLabs,
               for transcription. Under its standard terms, ElevenLabs may retain
               the recording. Pirate also stores your recording privately for 24
               months for your study review history, and you can delete it from
               Settings at any time.
+              </Show>
             </Type>
             <div class="mt-6 flex gap-3">
               <Button
@@ -451,6 +507,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
               <Button
                 class="flex-1"
                 data-study-mic-disclosure-accept
+                disabled={recoveryPresentation(props) !== undefined && recoveryPresentation(props)?.disclosure === undefined}
                 onClick={acknowledgeMicDisclosure}
               >
                 Continue to record
@@ -459,6 +516,25 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           </div>
         </div>
       </Show>
+      <Show when={pendingAttempt() === undefined} fallback={(
+        <div class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-5" data-guest-answer-pending role="status">
+          <Type as="h2" variant="h2">{recoveryPresentation(props)?.pendingTitle}</Type>
+          <Type as="p" variant="body">{recoveryPresentation(props)?.pendingDescription}</Type>
+          <Show when={pendingAuthority()}><Type as="p" variant="body">{recoveryPresentation(props)?.authorityDescription}</Type></Show>
+          <Type as="p" variant="caption">{recoveryPresentation(props)?.practiceLabel}</Type>
+          <Button disabled={pendingBusy()} onClick={() => {
+            const input = pendingAttempt();
+            if (input === undefined || pendingBusy()) return;
+            if (pendingAuthority() && recoveryPresentation(props) !== undefined) {
+              setPendingBusy(true);
+              void recoveryPresentation(props)?.onRecoverAccess().then(() => {
+                if (active) submitAttempt(input);
+              }).catch(() => { if (active) setPendingBusy(false); });
+            } else submitAttempt(input);
+          }}>{recoveryPresentation(props)?.retryOriginalLabel}</Button>
+          <Button variant="secondary" onClick={props.onExit}>{recoveryPresentation(props)?.exitLabel}</Button>
+        </div>
+      )}>
       <StudyingSurface
         lessonProgress={lessonProgressOf(lesson())}
         onExit={props.onExit}
@@ -470,6 +546,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         rewardSlot={props.rewardSlot}
         state={lesson().surface}
       />
+      </Show>
     </>
   );
 }
@@ -480,19 +557,31 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
   const [loading, setLoading] = createSignal(true);
   const [authRequired, setAuthRequired] = createSignal(false);
 
+  let active = true;
+  let generation = 0;
+  let controller: AbortController | undefined;
+  onCleanup(() => { active = false; controller?.abort(); });
   const load = () => {
+    if (!active) return;
+    const request = ++generation;
+    controller?.abort();
+    controller = new AbortController();
+    const signal = controller.signal;
     setLoading(true);
     setLoadError(null);
-    void props.client.loadLesson(props.postId)
+    void props.client.loadLesson(props.postId, signal)
       .then((next) => {
+        if (!active || request !== generation) return;
+        setAuthRequired(false);
         if (!next.locked && next.exercises.length > 0) preloadStudyFeedbackSounds();
         setPayload(next);
       })
       .catch((rejection: StudyingAttemptRejection) => {
+        if (!active || request !== generation) return;
         if (isStudyingAuthError(rejection)) setAuthRequired(true);
         setLoadError(rejection);
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (active && request === generation) setLoading(false); });
   };
   if (typeof window !== "undefined") queueMicrotask(load);
 
@@ -500,6 +589,13 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
     <Show
       when={!authRequired()}
       fallback={(
+        <Show when={recoveryPresentation(props) === undefined} fallback={(
+          <div class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-5" role="status">
+            <Type as="p" variant="body">{recoveryPresentation(props)?.authorityDescription}</Type>
+            <Button onClick={() => { void recoveryPresentation(props)?.onRecoverAccess().then(load).catch(() => {}); }}>{recoveryPresentation(props)?.retryOriginalLabel}</Button>
+            <Button variant="secondary" onClick={props.onExit}>{recoveryPresentation(props)?.exitLabel}</Button>
+          </div>
+        )}>
         <StudyAuthRequiredState
           ctaLabel="Sign in"
           description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
@@ -509,6 +605,7 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
           onExit={props.onExit}
           title="Sign in to study"
         />
+        </Show>
       )}
     >
       <Show
