@@ -4,11 +4,19 @@ import { usePageUiLocale } from "../../lib/ui-locale";
 import { getLocaleMessages, interpolateMessage } from "../../locales";
 import { createGuestStudyDataController, type GuestDataApi, type GuestDataState } from "./guest-study-data-controller";
 
-export function GuestStudyDataControls(props: {
+interface GuestStudyDataControlsProps {
   readonly api: GuestDataApi;
   readonly ownerId: string;
   readonly credentialId: string;
-}) {
+}
+
+export function GuestStudyDataControls(props: GuestStudyDataControlsProps) {
+  return <Show when={props.ownerId} keyed>{ownerId =>
+    <GuestStudyOwnerDataControls api={props.api} ownerId={ownerId} credentialId={props.credentialId} />
+  }</Show>;
+}
+
+function GuestStudyOwnerDataControls(props: GuestStudyDataControlsProps) {
   const locale = usePageUiLocale();
   const text = () => getLocaleMessages(locale, "routes").guestStudyData;
   const [state, setState] = createSignal<GuestDataState>({ retention: null, retentionStatus: "unknown",
