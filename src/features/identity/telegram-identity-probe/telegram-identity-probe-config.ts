@@ -1,11 +1,14 @@
+import { routerPathKey } from "../telegram-linking/telegram-linking-privacy.ts";
 export const TELEGRAM_PROBE_PATH = "/internal/telegram-login-probe";
 export const TELEGRAM_PROBE_CALLBACK_PATH = `${TELEGRAM_PROBE_PATH}/callback`;
 export const TELEGRAM_PROBE_ORIGIN = "https://web-next-staging.pirate.sc";
 export const TELEGRAM_PROBE_APP_ID = "cmsw5pis300b80cladbxx7bsr";
 export const TELEGRAM_PROBE_EXPIRES_AT = Date.parse("2026-10-17T00:00:00Z");
 
+/** Every spelling the router routes to the probe, not only the canonical one. */
 export function isTelegramProbePage(pathname: string): boolean {
-  return pathname === TELEGRAM_PROBE_PATH || pathname === TELEGRAM_PROBE_CALLBACK_PATH;
+  const key = routerPathKey(pathname);
+  return key === TELEGRAM_PROBE_PATH || key === TELEGRAM_PROBE_CALLBACK_PATH;
 }
 
 export function telegramProbeEnabled(origin: string, canonicalOrigin: string | undefined, now = Date.now()): boolean {
