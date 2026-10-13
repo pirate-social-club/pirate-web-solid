@@ -1,3 +1,4 @@
+import { prepared } from "./guest-study-test-fixtures";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -46,6 +47,8 @@ function testCoordinator(api: StudyV2Api, key = "test-session-key") {
     timezone: () => "UTC",
   });
 }
+
+const anonymousPublicReader = { load: async () => ({ communityId: "community-1", prepared: prepared() }) };
 
 const disposers: Array<() => void> = [];
 
@@ -182,7 +185,7 @@ describe("Study v2 production route", () => {
       availability: { state: "unavailable", reason: "stems_missing" }, communityId: "community-1",
     });
     const requestGeneration = vi.spyOn(api, "requestGeneration");
-    const container = render(() => <StudyV2RouteView api={api} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "account-1", personas: [] })} />);
     await vi.waitFor(() => expect(container.textContent).toContain("audio is still being prepared for Study"));
     expect(createSession).not.toHaveBeenCalled();
@@ -194,7 +197,7 @@ describe("Study v2 production route", () => {
     let unavailable = true;
     const api = studyApi();
     const availability = vi.spyOn(api, "loadAvailability");
-    const container = render(() => <StudyV2RouteView api={api} postId="post-1" startCoordinator={testCoordinator(api)}
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" startCoordinator={testCoordinator(api)}
       resolveSession={async () => ({ status: "authenticated", userId: "user-1",
         personas: unavailable ? [] : [{ personaId: "here", displayName: "Here", avatarRef: null, primaryPublicHandle: null,
           communityBinding: { communityId: "community-1", bindingSource: "first_membership" } }],
@@ -211,7 +214,7 @@ describe("Study v2 production route", () => {
 
   test("several community-bound personas have no default", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas:
         ["first", "second"].map(personaId => ({
           personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null,
@@ -235,7 +238,7 @@ describe("Study v2 production route", () => {
       persona_id: "persona-new",
       persona_status: "pending_wallet" as const,
     }));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
         communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
@@ -271,7 +274,7 @@ describe("Study v2 production route", () => {
       }, { once: true });
     });
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: confirmed
@@ -309,7 +312,7 @@ describe("Study v2 production route", () => {
         resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
       }, { once: true });
     });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: null,
@@ -342,7 +345,7 @@ describe("Study v2 production route", () => {
         resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
       }, { once: true });
     });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: null,
@@ -380,7 +383,7 @@ describe("Study v2 production route", () => {
     let activeAccount = "user-1";
     let activated = false;
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: activeAccount, personas: activated ? [{
         personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
         communityBinding: { communityId: "community-1", bindingSource: "activity_participation" as const },
@@ -418,7 +421,7 @@ describe("Study v2 production route", () => {
       };
     });
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
+    const container = render(() => <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "unbound", displayName: "Unbound", avatarRef: null, primaryPublicHandle: null,
         communityBinding: bound
@@ -444,10 +447,10 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+      <StudyV2RouteView api={api} postId="post-1" guest={{ publicReader: anonymousPublicReader }} resolveSession={async () => "anonymous"} />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     expect(loadAvailability).not.toHaveBeenCalled();
   });
 
@@ -455,7 +458,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
     const api = studyApi(createSession);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         startCoordinator={testCoordinator(api)}
@@ -513,7 +516,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(async () => session);
     const api = studyApi(createSession, async () => session);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         recorder={recorder}
@@ -560,7 +563,7 @@ describe("Study v2 production route", () => {
     const createSession = vi.fn(async () => session);
     const api = studyApi(createSession, async () => session);
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         recorder={recorder}
@@ -583,11 +586,12 @@ describe("Study v2 production route", () => {
       <StudyV2RouteView
         api={api}
         postId="post-1"
+        guest={{ publicReader: anonymousPublicReader }}
         resolveSession={async () => authenticated ? learnerSession : "anonymous"}
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     expect(loadAvailability).not.toHaveBeenCalled();
     authenticated = true;
     refreshSession();
@@ -605,11 +609,12 @@ describe("Study v2 production route", () => {
       <StudyV2RouteView
         api={api}
         postId="post-1"
+        guest={{ publicReader: anonymousPublicReader }}
         resolveSession={() => authenticated ? resolveContinuation() : Promise.resolve("anonymous")}
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     authenticated = true;
     refreshSession();
     refreshSession();
@@ -632,7 +637,7 @@ describe("Study v2 production route", () => {
     };
     let calls = 0;
     const container = render(() => (
-      <StudyV2RouteView
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
         api={api}
         postId="post-1"
         resolveSession={() => {
@@ -661,7 +666,7 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => learnerSession} />
+      <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" resolveSession={async () => learnerSession} />
     ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
@@ -675,10 +680,10 @@ describe("Study v2 production route", () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
-      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+      <StudyV2RouteView api={api} postId="post-1" guest={{ publicReader: anonymousPublicReader }} resolveSession={async () => "anonymous"} />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study without signing in"));
     for (const dispose of disposers.splice(0)) dispose();
     refreshSession();
     await Promise.resolve();
@@ -690,7 +695,7 @@ test("an age-locked Study entry verifies in place and continues into the session
   const api=studyApi(); const available=api.loadAvailability;
   let verified=false;
   api.loadAvailability=async (...args)=>{if(!verified) throw new StudyV2LocalError("age_locked","Age required");return available(...args);};
-  const container=render(()=><StudyV2RouteView api={api} postId="post-1" verifyAge={async()=>{verified=true;return true;}}
+  const container=render(()=><StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" verifyAge={async()=>{verified=true;return true;}}
     startCoordinator={testCoordinator(api)}
     resolveSession={async()=>({status:"authenticated",userId:"user-a",personas:[{personaId:"here",displayName:"Here",avatarRef:null,primaryPublicHandle:null,
       communityBinding:{communityId:"community-1",bindingSource:"first_membership"}}]})} />);
@@ -705,7 +710,7 @@ test("fails visibly when cross-tab coordination is unavailable", async () => {
   const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
   const api = studyApi(createSession);
   const container = render(() => (
-    <StudyV2RouteView
+    <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }}
       api={api}
       postId="post-1"
       startCoordinator={createStudySessionStartCoordinator({ api, storage: null, locks: null })}

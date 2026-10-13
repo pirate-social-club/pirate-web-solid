@@ -289,5 +289,29 @@
       "unknown": "尚未确认服务提供商完成删除。",
       "unavailable": "无法获取服务提供商的删除状态。"
     }
+  },
+  "guestStudy": {
+    "title": "无需登录即可学习",
+    "loading": "正在加载公开学习内容",
+    "practiceOnly": "仅供练习。此课程不会产生抽奖名额。",
+    "unavailable": "这首歌曲目前没有可用的公开预备课程。",
+    "retry": "重试",
+    "acceptDisclosure": "我已阅读录音说明，并希望开始练习。",
+    "language": "翻译语言",
+    "sourceOnly": "仅练习口语",
+    "level": "学习等级",
+    "chooseLevel": "请选择翻译练习的学习等级。",
+    "start": "开始练习",
+    "resume": "继续之前的课程",
+    "exit": "退出",
+    "pendingStart": "原始开始请求正在等待确认。请用同一请求继续，不要开始另一课程。",
+    "recoveryRequired": "需要恢复访客访问权限。原始请求已保留；登录不会转移此课程。",
+    "pageOnly": "此浏览器仅支持当前页面内的练习。关闭或重新加载页面可能会失去访问权限；不支持跨标签页或重新加载后的恢复。",
+    "pendingAnswerTitle": "答案等待确认",
+    "pendingAnswer": "原始答案已保留。请重试该答案，不要重新录音或选择其他答案。",
+    "retryOriginal": "重试原始请求",
+    "recordingUnavailable": "当前录音说明不可用。你可以查看课程，但暂时无法录制新答案。",
+    "reloadReadOnly": "之前的课程已打开供查看。重新加载后的答案恢复暂不可用，需要先确认原始答案。不会录制或评分新答案。",
+    "learningComplete": "学习已完成。"
   }
 }

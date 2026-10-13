@@ -189,6 +189,7 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
             postId={props.state.response.post_id}
           />
           <StudyV2RouteView
+            communityId={props.state.response.content.post.community}
             exitPath={detailPath()}
             karaokePath={karaokePath()}
             postId={props.state.response.post_id}

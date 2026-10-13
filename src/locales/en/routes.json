@@ -289,5 +289,29 @@
       "unknown": "Provider deletion has not been confirmed.",
       "unavailable": "Provider deletion status is unavailable."
     }
+  },
+  "guestStudy": {
+    "title": "Study without signing in",
+    "loading": "Loading public Study",
+    "practiceOnly": "Practice only. This lesson does not create a drawing entry.",
+    "unavailable": "This song does not have a public prepared lesson available right now.",
+    "retry": "Try again",
+    "acceptDisclosure": "I have read the recording disclosure and want to practise.",
+    "language": "Translation language",
+    "sourceOnly": "Speaking practice only",
+    "level": "Learner level",
+    "chooseLevel": "Choose a learner level for translated practice.",
+    "start": "Start practice",
+    "resume": "Resume previous lesson",
+    "exit": "Exit",
+    "pendingStart": "The original start is awaiting confirmation. Resume it with the same request; do not start another lesson.",
+    "recoveryRequired": "Guest access needs to be restored. Your original request is preserved; signing in does not transfer this lesson.",
+    "pageOnly": "This browser supports practice for this page only. Closing or reloading it can lose access; cross-tab and reload recovery are unavailable.",
+    "pendingAnswerTitle": "Answer awaiting confirmation",
+    "pendingAnswer": "The original answer is preserved. Retry that answer without recording again or choosing a different answer.",
+    "retryOriginal": "Retry original request",
+    "recordingUnavailable": "The current recording disclosure is unavailable. You can review the lesson, but recording a new answer is unavailable.",
+    "reloadReadOnly": "Previous lesson opened for review. Answer recovery after reloading is unavailable until the original answer can be confirmed. No new answer will be recorded or graded.",
+    "learningComplete": "Learning complete."
   }
 }

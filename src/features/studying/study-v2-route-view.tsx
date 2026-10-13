@@ -1,3 +1,4 @@
+import { GuestStudyRouteView, type GuestStudyRouteViewProps } from "./guest-study-route-view";
 import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
 import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
@@ -46,6 +47,7 @@ type RouteState =
   | { kind: "loading" }
   | { kind: "starting" }
   | { kind: "auth-required" }
+  | { kind: "guest" }
   | { kind: "age-required" }
   | { kind: "failed"; message: string }
   | { kind: "unavailable"; message: string }
@@ -60,6 +62,8 @@ type RouteState =
   | { kind: "lesson"; session: StudySession };
 
 export interface StudyV2RouteViewProps {
+  communityId?: string;
+  guest?: Pick<GuestStudyRouteViewProps, "api" | "publicReader" | "startCoordinator">;
   verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
   preparationApi?: ActivityPersonaPreparationApi;
@@ -113,7 +117,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const recorder = props.recorder ?? createStudyingBrowserRecorder();
   const startCoordinator =
     props.startCoordinator ?? createStudySessionStartCoordinator({ api });
-  const [state, setState] = createSignal<RouteState>({ kind: "loading" });
+  const [state, setState] = createSignal<RouteState>({ kind: "guest" });
   const [personaId, setPersonaId] = createSignal("");
   const [preparePersonaId, setPreparePersonaId] = createSignal("");
   const [targetLanguage, setTargetLanguage] = createSignal("");
@@ -123,6 +127,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const [walletConfirmationRequired, setWalletConfirmationRequired] = createSignal(false);
   const [walletConfirming, setWalletConfirming] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  let guestFlowEntered = false;
   let active = true;
   let loadStarted = false;
   let loadInFlight = false;
@@ -179,15 +184,21 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     // Set synchronously so a burst of refresh callbacks cannot each start a
     // request before the queued `loading` state is visible.
     loadInFlight = true;
-    setState({ kind: "loading" });
+    const publicResolution = state().kind === "guest";
+    let authenticatedKnown = false;
+    // Public preparation remains visible while ordinary account resolution
+    // is pending. Only a confirmed account may enter its loading branch.
+    if (!publicResolution) setState({ kind: "loading" });
     setMessage("");
     try {
       const resolved = await (props.resolveSession ?? resolveSession)();
-      if (!active || generation !== requestGeneration) return;
+      if (!active || generation !== requestGeneration || guestFlowEntered) return;
       if (resolved === "anonymous") {
-        setState({ kind: "auth-required" });
+        setState({ kind: "guest" });
         return;
       }
+      authenticatedKnown = true;
+      setState({ kind: "loading" });
       if (sessionPersonasUnavailable(resolved)) {
         setState({ kind: "failed", message: "We couldn't load your community profiles. Retry before starting Study." });
         return;
@@ -241,7 +252,13 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         session: resolved,
       });
     } catch (error) {
-      if (!active || generation !== requestGeneration) return;
+      if (!active || generation !== requestGeneration || guestFlowEntered) return;
+      if (publicResolution && !authenticatedKnown) {
+        // Account lookup failure establishes no account actor and cannot
+        // remove public Guest practice or turn it into a sign-in requirement.
+        setState({ kind: "guest" });
+        return;
+      }
       if (error instanceof StudyV2LocalError && error.code === "age_locked") { setState({ kind: "age-required" }); return; }
       const message = safeFailure(error, "We couldn't load Study for this song.");
       setState(message.startsWith("Sign in")
@@ -268,7 +285,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   // overwrite a newer state.
   if (!isServer) {
     onCleanup(onSessionRefreshed(() => {
-      if (!active || loadInFlight || state().kind !== "auth-required") return;
+      if (!active || loadInFlight || guestFlowEntered || (state().kind !== "auth-required" && state().kind !== "guest")) return;
       void load();
     }));
   }
@@ -402,6 +419,17 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         when={state().kind !== "loading" && state().kind !== "starting"}
         fallback={<StudyRouteLoadingState label={state().kind === "starting" ? "Starting study" : "Loading study"} />}
       >
+        <Show when={state().kind !== "guest"} fallback={(
+          <GuestStudyRouteView {...props.guest} communityId={props.communityId} postId={props.postId}
+            recorder={recorder} onGuestFlowEntered={() => {
+              guestFlowEntered = true;
+              // Invalidate unresolved account work before any Guest authority
+              // or original-start request. Its late success/failure is stale.
+              requestGeneration += 1; loadInFlight = false;
+            }}
+            onExit={() => navigate(props.exitPath ?? "/")}
+            onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)} />
+        )}>
         <Show when={state().kind !== "auth-required"} fallback={(
           <StudyAuthRequiredState
             description="Study packs follow the song's community. Sign in to start a lesson."
@@ -578,6 +606,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
               }}
             </Show>
           </Show>
+        </Show>
         </Show>
       </Show>
     </main>
