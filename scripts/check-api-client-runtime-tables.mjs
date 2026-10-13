@@ -119,6 +119,28 @@ const operations = [
   "get_assetBonusLegsLegIdFundingFundingEffectId",
 ];
 
+
+// Accepted client 0.118.0 learning-only contract; the existing operation digest stays pinned.
+const guestOperations = [
+  "get_communitiesCommunityIdPostsPostIdStudyPublic",
+  "get_guestAuthority",
+  "post_guestBootstrap",
+  "post_guestBootstrapConfirm",
+  "post_guestAuthorityRenew",
+  "post_guestCredentialsRotate",
+  "post_guestCredentialsAcknowledge",
+  "post_guestCredentialsCleanup",
+  "post_communitiesCommunityIdPostsPostIdStudyGuestV1Sessions",
+  "get_communitiesCommunityIdPostsPostIdStudyGuestV1SessionOperationsIdempotencyKey",
+  "get_communitiesCommunityIdStudyGuestV1SessionsSessionId",
+  "post_communitiesCommunityIdStudyGuestV1SessionsSessionIdItemsSessionItemIdAnswers",
+  "get_guestParticipations",
+  "put_guestLearningRetention",
+  "delete_guestLearnerAudio",
+  "post_guestAttachmentIntents"
+];
+const expectedGuestDigest = "6c68b7cbb7020c9ca010cd4b2ef599c950c6920ebb181fec753a55171d383e71";
+
 const tables = [
   ["RESPONSE_SCHEMAS", "Record<string, JsonSchema>"],
   ["SUCCESS_STATUSES", "Record<string, readonly number[]>"],
@@ -137,12 +159,12 @@ function readGeneratedTable(source, name, type) {
   return JSON.parse(objectSource);
 }
 
-function runtimeTableDigest(path) {
+function runtimeTableDigest(path, reviewedOperations = operations) {
   const source = readFileSync(path, "utf8");
   const hash = createHash("sha256");
   for (const [name, type] of tables) {
     const table = readGeneratedTable(source, name, type);
-    for (const operation of operations) {
+    for (const operation of reviewedOperations) {
       if (!(operation in table)) {
         throw new Error(`${path} is missing ${name}.${operation}`);
       }
@@ -167,8 +189,15 @@ if (args.length === 0) {
   throw new Error("Usage: check-api-client-runtime-tables.mjs [--compare <client-a.ts> <client-b.ts>]");
 }
 
-const results = checked.map((path) => ({ path, digest: runtimeTableDigest(path) }));
+const results = checked.map((path) => ({
+  path,
+  digest: runtimeTableDigest(path),
+  guestDigest: runtimeTableDigest(path, guestOperations),
+}));
 for (const result of results) {
+  if (result.guestDigest !== expectedGuestDigest) {
+    throw new Error(`${result.path} guest runtime-table digest mismatch: expected ${expectedGuestDigest}, found ${result.guestDigest}`);
+  }
   if (result.digest !== expectedDigest) {
     throw new Error(
       `${result.path} runtime-table digest mismatch: expected ${expectedDigest}, found ${result.digest}`,
@@ -176,4 +205,4 @@ for (const result of results) {
   }
 }
 
-console.log(JSON.stringify({ operations: operations.length, expectedDigest, clients: results }, null, 2));
+console.log(JSON.stringify({ operations: operations.length, guestOperations: guestOperations.length, expectedDigest, expectedGuestDigest, clients: results }, null, 2));

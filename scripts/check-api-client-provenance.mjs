@@ -11,6 +11,23 @@ const clients = [
     dependency: "@pirate/api-client",
     provenance: "vendor/api-client-provenance.json",
     expectedScope: [
+      "get_communitiesCommunityIdPostsPostIdStudyPublic",
+      "get_guestAuthority",
+      "post_guestBootstrap",
+      "post_guestBootstrapConfirm",
+      "post_guestAuthorityRenew",
+      "post_guestCredentialsRotate",
+      "post_guestCredentialsAcknowledge",
+      "post_guestCredentialsCleanup",
+      "post_communitiesCommunityIdPostsPostIdStudyGuestV1Sessions",
+      "get_communitiesCommunityIdPostsPostIdStudyGuestV1SessionOperationsIdempotencyKey",
+      "get_communitiesCommunityIdStudyGuestV1SessionsSessionId",
+      "post_communitiesCommunityIdStudyGuestV1SessionsSessionIdItemsSessionItemIdAnswers",
+      "get_guestParticipations",
+      "put_guestLearningRetention",
+      "delete_guestLearnerAudio",
+      "post_guestAttachmentIntents",
+
       "post_communitiesCommunityIdSpacesRouteAttachments",
       "get_communitiesCommunityIdSpacesRouteAttachmentsCurrent",
       "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdProve",
@@ -162,6 +179,7 @@ for (const client of clients) {
     || generated.version !== provenance.version
     || generated.openapiSha256 !== provenance.openapiSha256
     || generated.clientSha256 !== provenance.clientSha256
+    || sha256(resolve(installedRoot, "src/generated/client.ts")) !== provenance.clientSha256
   ) {
     throw new Error(`${client.dependency} installed client does not match its recorded provenance`);
   }
