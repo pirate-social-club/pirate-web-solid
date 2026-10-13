@@ -65,6 +65,17 @@ export async function installApi(context: BrowserContext, origin: string, option
       expect(headers.cookie).toBeUndefined(); expect(headers.authorization).toBeUndefined();
       return fulfill(route, prepared());
     }
+    if (path === "/communities/community-1/posts/post-1/study/public/v2") {
+      // Optional financial preview is public and cannot require Guest proof.
+      expect(headers.cookie).toBeUndefined();
+      expect(headers.authorization).toBeUndefined();
+      expect(headers["x-guest-credential-id"]).toBeUndefined();
+      return fulfill(route, {
+        ...prepared(),
+        object: "guest_study_prepared_content_v2",
+        reward_preview_terms_hash: null,
+      });
+    }
     if (path === "/guest/authority") {
       if (url.origin === namedOrigin) {
         expect(headers.cookie?.includes(proofCookie) ?? false).toBe(false);
