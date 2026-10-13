@@ -1,0 +1,222 @@
+{
+  "schema": "telegram-independent-source-review/v1",
+  "reviewed_at": "2026-10-13T14:00:18Z",
+  "api": {
+    "head": "440e738110c632cc62d8096624b086b7c30f0bfc",
+    "base": "97a48303a654ae1d2bf3c0e167f5a94590cea8aa",
+    "review": "Independent source review at 440e738110c632cc62d8096624b086b7c30f0bfc, against base 97a48303a654ae1d2bf3c0e167f5a94590cea8aa: no identified blocking findings.\n\nI reviewed all 14 changed paths and traced the production changes through the SQL scanner and claim paths, delivery retry scheduling, inbox outcome propagation, persisted lesson state, prompt lookup and catalogue filtering. The scanner and claimant use the same predecessor-waiting predicate; an exhausted pending or failed predecessor releases its follower, while a sending predecessor with a live lease still blocks. Retryable outcomes schedule a delayed queue wake after the store records the retry; a lost wake retains the scanner backstop. Caught handler failures no longer log as handled. Newly persisted turns require the delivered force-reply text to match the saved prompt in the same chat. Historical turns without promptText retain the documented force-reply fallback. The catalogue length bound and chat backstop avoid grading an unseen truncated line.\n\nThe GitHub read at 2026-10-13 14:00 UTC shows all 13 hosted checks successful on this exact head, including the required PostgreSQL aggregate and its five general shards, namespace, recovery, PostgreSQL 18 shape, check and secret-boundary. Source: https://github.com/pirate-social-club/api-next/actions/runs/38402056308 . I inspected the added assertions and hosted check bindings; I did not rerun the native API suites in this reviewer session.\n\nOne nonblocking documentation correction: the retry comment says Queues accepts at most 12 hours. The current primary documentation permits integer delaySeconds from 0 through 86400 (24 hours): https://developers.cloudflare.com/queues/configuration/javascript-apis/ . The chosen 43200 cap is valid and longer waits retain the scanner fallback; describe it as the selected cap rather than the platform maximum.\n\nThe cloud coordinator remains the product writer and may integrate this reviewed head through the authorized squash-merge path after its fresh head/check/custody checks. This review clears the six delivery source findings. Staging migration and effective-role readiness, serving bindings and the new phone acceptance remain separate technical requirements.",
+    "publication": "https://github.com/pirate-social-club/api-next/pull/603#pullrequestreview-5504708370",
+    "checks": [
+      {
+        "name": "postgres17",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115318064143"
+      },
+      {
+        "name": "secret-boundary",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056309/job/115311903157"
+      },
+      {
+        "name": "postgres17-general-1",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901908"
+      },
+      {
+        "name": "postgres17-general-3",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901861"
+      },
+      {
+        "name": "postgres17-namespace",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901828"
+      },
+      {
+        "name": "postgres17-recovery",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901802"
+      },
+      {
+        "name": "postgres17-general-4",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901760"
+      },
+      {
+        "name": "postgres18-shape",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901739"
+      },
+      {
+        "name": "postgres17-general-0",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901720"
+      },
+      {
+        "name": "postgres17-general-2",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901660"
+      },
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901648"
+      },
+      {
+        "name": "Advisory policy",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056310/job/115311901481"
+      },
+      {
+        "name": "hns-regtest",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "440e738110c632cc62d8096624b086b7c30f0bfc",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38402056308/job/115311901364"
+      }
+    ]
+  },
+  "solid": {
+    "head": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+    "base": "5dae654a688c81851961bfaa84bb17648a9460ed",
+    "review": "Independent source review at e86f34d118b56d7e0d9405c5bdea7ba41ee989eb, against base 5dae654a688c81851961bfaa84bb17648a9460ed: hold integration for one blocking finding.\n\nThe probe gate and privacy classifier compare exact, case-sensitive path strings, but the pinned @solidjs/router 2.0.0-next.16 matcher accepts one trailing slash and compares static segments case-insensitively. For example, /internal/telegram-login-probe/, /INTERNAL/TELEGRAM-LOGIN-PROBE and /internal/telegram-login-probe/callback/ match the probe routes while both isTelegramProbePage and isTelegramLinkPage return false.\n\nThis skips the SSR refusal in src/entry-server.tsx:55-60 for production, unconfigured, expired and non-hydrating/alternate-asset contexts. It also skips request/query scrubbing at entry-server.tsx:62-66 and the private/no-store, no-referrer and noindex middleware response policy. Callback code and state remain available to the request event and router during SSR. Browser origin and expiry checks still refuse provider actions, but they do not restore the missing server gate or prevent SSR from seeing those callback values.\n\nI reproduced this using the actual installed matcher at version 2.0.0-next.16 and TypeScript-transpiled, in-memory copies of the exact fetched PR modules: config blob a4fd9330008d9f23d35d891e920a2d5ab00ee564 and privacy blob c8cc8925fe353bb96accce9e541d6a57cdf8090d. Of eight URLs (the two canonical routes, each with a trailing slash, uppercase segments and uppercase plus slash), all eight match their routes. Only the two canonical URLs trigger the gate and scrub; the other six retain fixture callback values in the effective SSR request. This is a router/classifier/control-flow reproduction, not a deployed Worker or full SSR-render observation.\n\nPlease make the gate and privacy classifier cover every route spelling the router admits, or reject/canonicalize those aliases before routing and privacy-sensitive rendering. Add actual entry-server plus middleware regression cases for mixed-case and trailing-slash entry and callback URLs: production, missing canonical origin, expiry, disabled hydration and alternate asset origin must refuse; allowed staging callbacks must remove fixture code/state from the request event, router search and HTML, including error responses, and retain the private response headers. Carry equivalent coverage for the existing Telegram linking routes if their shared classifier changes.\n\nAll three applicable hosted checks passed on this exact head; Solid Doctor (main) was skipped. Those checks currently cover only canonical probe paths, so they do not clear this finding. Source: https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38402093458 .\n\nThe cloud coordinator keeps exclusive source custody. Please fix this on the designated branch, publish the corrected head, rerun hosted checks and return it for independent re-review. The fixed expiry remains 2026-10-17T00:00:00Z; the pending owner decision and follow-up Recovery/Connect design remain outside this probe source acceptance.",
+    "publication": "https://github.com/pirate-social-club/pirate-web-solid/pull/64#pullrequestreview-5504708618",
+    "checks": [
+      {
+        "name": "Solid Doctor (main)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "head_sha": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38402093760/job/115312035623"
+      },
+      {
+        "name": "Solid Doctor (PR)",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38402093760/job/115312033591"
+      },
+      {
+        "name": "verify",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38402093458/job/115312031574"
+      },
+      {
+        "name": "storybook-audit",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38402093458/job/115312031273"
+      }
+    ],
+    "route_alias_reproduction": {
+      "source": "import { createMatcher } from './node_modules/@solidjs/router/dist/utils.js';\nimport ts from 'typescript';\nimport { readFileSync } from 'node:fs';\nconst input = {\"commit\":\"e86f34d118b56d7e0d9405c5bdea7ba41ee989eb\",\"config\":{\"content\":\"export const TELEGRAM_PROBE_PATH = \\\"/internal/telegram-login-probe\\\";\\nexport const TELEGRAM_PROBE_CALLBACK_PATH = `${TELEGRAM_PROBE_PATH}/callback`;\\nexport const TELEGRAM_PROBE_ORIGIN = \\\"https://web-next-staging.pirate.sc\\\";\\nexport const TELEGRAM_PROBE_APP_ID = \\\"cmsw5pis300b80cladbxx7bsr\\\";\\nexport const TELEGRAM_PROBE_EXPIRES_AT = Date.parse(\\\"2026-10-17T00:00:00Z\\\");\\n\\nexport function isTelegramProbePage(pathname: string): boolean {\\n  return pathname === TELEGRAM_PROBE_PATH || pathname === TELEGRAM_PROBE_CALLBACK_PATH;\\n}\\n\\nexport function telegramProbeEnabled(origin: string, canonicalOrigin: string | undefined, now = Date.now()): boolean {\\n  return origin === TELEGRAM_PROBE_ORIGIN && canonicalOrigin === TELEGRAM_PROBE_ORIGIN &&\\n    Number.isFinite(now) && now < TELEGRAM_PROBE_EXPIRES_AT;\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"a4fd9330008d9f23d35d891e920a2d5ab00ee564\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/e86f34d118b56d7e0d9405c5bdea7ba41ee989eb/src/features/identity/telegram-identity-probe/telegram-identity-probe-config.ts\",\"display_title\":\"telegram-identity-probe-config.ts\"},\"privacy\":{\"content\":\"export function isTelegramLinkPage(pathname: string): boolean {\\n  return pathname === \\\"/telegram/link\\\" || pathname === \\\"/telegram/link/callback\\\" || pathname === \\\"/telegram/link/account\\\" ||\\n    pathname === \\\"/internal/telegram-login-probe\\\" || pathname === \\\"/internal/telegram-login-probe/callback\\\";\\n}\\n\\n/** SSR must not serialize callbacks into router state, metadata or HTML. */\\nexport function telegramPageRequest(request: Request): Request {\\n  const url = new URL(request.url);\\n  url.search = \\\"\\\";\\n  url.hash = \\\"\\\";\\n  return new Request(url.href, request);\\n}\\n\\nexport function telegramPageResponse(response: Response): Response {\\n  const headers = new Headers(response.headers);\\n  headers.set(\\\"cache-control\\\", \\\"private, no-store\\\");\\n  headers.set(\\\"referrer-policy\\\", \\\"no-referrer\\\");\\n  headers.set(\\\"x-robots-tag\\\", \\\"noindex, nofollow\\\");\\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\\n}\\n\",\"encoding\":\"utf-8\",\"sha\":\"c8cc8925fe353bb96accce9e541d6a57cdf8090d\",\"display_url\":\"https://github.com/pirate-social-club/pirate-web-solid/blob/e86f34d118b56d7e0d9405c5bdea7ba41ee989eb/src/features/identity/telegram-linking/telegram-linking-privacy.ts\",\"display_title\":\"telegram-linking-privacy.ts\"}};\nconst moduleFrom = async (s) => import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));\nconst config=await moduleFrom(input.config.content), privacy=await moduleFrom(input.privacy.content);\nconst routerVersion=JSON.parse(readFileSync('./node_modules/@solidjs/router/package.json','utf8')).version;\nconst paths=[config.TELEGRAM_PROBE_PATH,config.TELEGRAM_PROBE_CALLBACK_PATH];\nconst results=paths.flatMap(route=>[route,route+'/',route.toUpperCase(),route.toUpperCase()+'/'].map(pathname=>{\n const request=new Request('https://pirate.sc'+pathname+'?privy_oauth_code=fixture-code&privy_oauth_state=fixture-state');\n const recognized=config.isTelegramProbePage(pathname);\n const privatePage=privacy.isTelegramLinkPage(pathname);\n const effectiveRequest=privatePage?privacy.telegramPageRequest(request):request;\n const enabled=config.telegramProbeEnabled(new URL(request.url).origin,'https://pirate.sc',Date.parse('2026-10-13T00:00:00Z'));\n return {pathname,routerMatches:!!createMatcher(route)(pathname),probeGateRecognizesPath:recognized,productionGateReturns404:recognized&&!enabled,privacyRecognizesPath:privatePage,ssrRequestStillHasFixtureCredentials:effectiveRequest.url.includes('fixture-code')};\n}));\nconsole.log(JSON.stringify({commit:input.commit,configBlob:input.config.sha,privacyBlob:input.privacy.sha,routerVersion,verification:'Actual router matcher and exact fetched PR classifier modules; server guard and scrub condition evaluated without starting a Worker or SSR renderer.',results},null,2));\n",
+      "exit_code": 0,
+      "result": {
+        "commit": "e86f34d118b56d7e0d9405c5bdea7ba41ee989eb",
+        "configBlob": "a4fd9330008d9f23d35d891e920a2d5ab00ee564",
+        "privacyBlob": "c8cc8925fe353bb96accce9e541d6a57cdf8090d",
+        "routerVersion": "2.0.0-next.16",
+        "verification": "Actual router matcher and exact fetched PR classifier modules; server guard and scrub condition evaluated without starting a Worker or SSR renderer.",
+        "results": [
+          {
+            "pathname": "/internal/telegram-login-probe",
+            "routerMatches": true,
+            "probeGateRecognizesPath": true,
+            "productionGateReturns404": true,
+            "privacyRecognizesPath": true,
+            "ssrRequestStillHasFixtureCredentials": false
+          },
+          {
+            "pathname": "/internal/telegram-login-probe/",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          },
+          {
+            "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          },
+          {
+            "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          },
+          {
+            "pathname": "/internal/telegram-login-probe/callback",
+            "routerMatches": true,
+            "probeGateRecognizesPath": true,
+            "productionGateReturns404": true,
+            "privacyRecognizesPath": true,
+            "ssrRequestStillHasFixtureCredentials": false
+          },
+          {
+            "pathname": "/internal/telegram-login-probe/callback/",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          },
+          {
+            "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/CALLBACK",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          },
+          {
+            "pathname": "/INTERNAL/TELEGRAM-LOGIN-PROBE/CALLBACK/",
+            "routerMatches": true,
+            "probeGateRecognizesPath": false,
+            "productionGateReturns404": false,
+            "privacyRecognizesPath": false,
+            "ssrRequestStillHasFixtureCredentials": true
+          }
+        ]
+      }
+    }
+  },
+  "coordinator_checkpoint": {
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6147306841",
+    "body": "Independent reviews are now published and read back against the exact candidate heads.\n\nAPI #603 at 440e738110c632cc62d8096624b086b7c30f0bfc has no identified blocking source findings; all 13 hosted checks pass on that head. Review: https://github.com/pirate-social-club/api-next/pull/603#pullrequestreview-5504708370 . The cloud coordinator may proceed with the authorized squash integration after fresh head/check/custody verification. The queue-delay documentation correction is nonblocking.\n\nSolid #64 at e86f34d118b56d7e0d9405c5bdea7ba41ee989eb is held for a reproduced route-alias blocker. The router accepts mixed-case static segments and one trailing slash, but the probe gate and privacy classifier recognize only exact canonical strings. Six tested aliases match a route while bypassing the server refusal and leaving fixture callback values in the effective SSR request. Review and concrete correction/coverage requirements: https://github.com/pirate-social-club/pirate-web-solid/pull/64#pullrequestreview-5504708618 . The three applicable hosted checks pass, but their canonical-path coverage does not clear this finding.\n\nThe cloud coordinator remains the exclusive product writer. Fix the Solid classifier/gate on the assigned branch, publish the corrected head, rerun hosted checks and request exact-head re-review. This local session has not modified either product or rerun the native product suites. The reproduction evaluated the actual pinned router matcher and the exact fetched classifier modules in memory; it did not operate a deployed Worker.\n\nContinue staging preparation under the existing standing authorization while that repair runs. Before execution, preserve the actual 0246 staging predecessor and applied identities, the 0247–0264 migration plan, fresh effective readiness for the four restricted runtime roles, the effective jobs-database permission preflight, exact reviewed release sources and artifact/serving bindings, exclusive resource custody and bounded recovery. The frozen six-host legacy Karaoke settlement exercise has no current staging subject in the read-only receipt at issue595 comment 6145068891; that dated not-applicable result does not prove that other producers are settled or authorize a reset.\n\nThe provider probe phone run must occur before 2026-10-17T00:00:00Z. That run informs the separately reviewed nonmonetary recovery/association/Connect contract and source work; final completion still needs acceptance of the resulting composed journey, with fresh serving and phone receipts. Keep owner decision pending for unresolved product-design recommendations, and keep the unrelated remaining mute design work in its follow-up PR. No production, credential/permission change, financial activation or irreversible operation is added by these reviews.",
+    "read_back_exactly": true
+  },
+  "verification_limits": "Independent source and hosted check review. API native suites and full Solid SSR/Worker were not run in this reviewer session. The route-alias reproduction evaluated the installed pinned router matcher and exact fetched classifier modules in memory. No product source, managed resource, deployment or phone operation was performed."
+}
