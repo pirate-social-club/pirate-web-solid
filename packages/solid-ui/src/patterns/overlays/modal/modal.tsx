@@ -166,8 +166,10 @@ export function ModalTitle(props: ParentProps<ModalTypographyProps>) {
 
 export function ModalDescription(props: ParentProps<ModalTypographyProps>) {
   const isMobile = createModalIsMobile();
+  // Paper Modal: the one line of description is muted on both presentations.
   const className = () =>
     cn(
+      "text-muted-foreground",
       props.variant || props.leading
         ? typeVariants({
             leading: props.leading,

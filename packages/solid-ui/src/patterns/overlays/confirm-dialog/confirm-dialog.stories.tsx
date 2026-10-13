@@ -13,7 +13,7 @@ const meta = {
     confirmLabel: "Delete",
     cancelLabel: "Keep",
     triggerLabel: "Delete song",
-    destructive: false,
+    destructive: true,
     onConfirm: fn(),
   },
   argTypes: {
