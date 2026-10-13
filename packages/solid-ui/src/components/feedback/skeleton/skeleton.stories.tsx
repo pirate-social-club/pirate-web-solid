@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
+import { boardWidth } from "@/stories/lib/story-measure";
 import { Skeleton } from "./skeleton";
 
 const meta = {
@@ -30,13 +31,17 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: (args) => (
-    <div class="w-[calc(100vw-2rem)] max-w-full p-4">
+    <div class="w-80 max-w-full">
       <Skeleton class={args.class} />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const skeleton = canvasElement.querySelector(".animate-pulse");
     await expect(skeleton).toHaveClass("bg-surface-skeleton");
+    // Paper draws the Default block 320 by 80.
+    const box = (skeleton as Element).getBoundingClientRect();
+    await expect(Math.round(box.width)).toBe(boardWidth(320));
+    await expect(Math.round(box.height)).toBe(80);
   },
 };
 

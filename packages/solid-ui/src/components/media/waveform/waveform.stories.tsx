@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
 import { StoryStack } from "@/stories/lib/story-layout";
+import { boardWidth, widthOf } from "@/stories/lib/story-measure";
 import { Waveform } from "./waveform";
 
 const meta = {
@@ -32,19 +33,30 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: (args) => (
-    <div class="max-w-xl rounded-[var(--radius-lg)] border border-border-soft bg-card p-5">
+    <div
+      class="w-[36rem] max-w-full rounded-[var(--radius-lg)] border border-border-soft bg-card p-5"
+      data-testid="waveform-card"
+    >
       <Waveform {...args} />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryAllByRole("img")).toHaveLength(0);
+    // Paper: a 576px card whose 72 bars draw at their full 2px width.
+    const card = canvas.getByTestId("waveform-card");
+    await expect(widthOf(card)).toBe(boardWidth(576));
+    const bars = Array.from(card.querySelectorAll("[aria-hidden=true] > span"));
+    await expect(bars).toHaveLength(72);
+    if (boardWidth(576) === 576) {
+      for (const bar of bars) await expect(bar.getBoundingClientRect().width).toBe(2);
+    }
   },
 };
 
 export const Variants: Story = {
   render: () => (
-    <StoryStack class="max-w-xl">
+    <StoryStack class="w-[36rem] max-w-full">
       <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card p-5">
         <Waveform
           peaks={[0.18, 0.42, 0.7, 0.35, 0.88, 0.54, 0.3, 0.62, 0.22, 0.76, 0.48, 0.31]}
@@ -57,4 +69,9 @@ export const Variants: Story = {
       </div>
     </StoryStack>
   ),
+  play: async ({ canvasElement }) => {
+    const cards = Array.from(canvasElement.querySelectorAll(".bg-card"));
+    await expect(cards).toHaveLength(2);
+    for (const card of cards) await expect(widthOf(card)).toBe(boardWidth(576));
+  },
 };

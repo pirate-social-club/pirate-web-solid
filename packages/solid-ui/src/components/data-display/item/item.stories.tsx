@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/actions/button/button";
 import { IconMusicNote, IconPlay } from "@/components/media/icons";
+import { demoArtworkImage } from "@/stories/lib/fixtures";
 import { StoryStack, StoryRow } from "@/stories/lib/story-layout";
 import {
   Item,
@@ -14,7 +15,7 @@ import {
   ItemTitle,
 } from "./item";
 
-const artworkSrc = "/mascots/error-ghost-256.png";
+const artworkSrc = demoArtworkImage;
 
 const meta = {
   title: "Components/Data Display/Item",
@@ -104,6 +105,12 @@ export const Variants: Story = {
       </StoryRow>
     </StoryStack>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The image tile loads a real fixture rather than a broken-image glyph.
+    const artwork = canvas.getByRole("img", { name: "Album artwork" }) as HTMLImageElement;
+    await waitFor(() => expect(artwork.complete && artwork.naturalWidth > 0).toBe(true));
+  },
 };
 
 export const Sizes: Story = {
