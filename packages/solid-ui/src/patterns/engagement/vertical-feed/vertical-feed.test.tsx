@@ -371,11 +371,25 @@ describe("VerticalFeed", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("can leave the phone top right to the host while keeping desktop More", () => {
-    const container = render(() => <VerticalFeed posts={testPosts.slice(0, 1)} hideMobileMore />);
+  it("keeps phone Mute reachable below the host header when the header owns the top right", async () => {
+    const user = userEvent.setup();
+    const onMuteToggle = vi.fn();
+    const container = render(() => (
+      <VerticalFeed posts={testPosts.slice(0, 1)} muted mobileMoreBelowHeader onMuteToggle={onMuteToggle} />
+    ));
     flush();
-    expect(container.querySelector('[data-media-more="phone"]')).toBeNull();
+    const phone = container.querySelector<HTMLElement>('[data-media-more="phone"]');
+    if (!phone) throw new Error("no phone More");
+    expect(phone.style.top).toContain("4rem");
     expect(container.querySelector('[data-media-more="desktop"] button')).not.toBeNull();
+
+    const trigger = phone.querySelector<HTMLButtonElement>("button");
+    if (!trigger) throw new Error("no phone More trigger");
+    await user.click(trigger);
+    flush();
+    await user.click(await screen.findByRole("button", { name: "Unmute" }));
+    flush();
+    expect(onMuteToggle).toHaveBeenCalledWith(testPosts[0]?.id, false);
   });
 
   it("reports an implicit unmute when play is pressed on controlled muted media", async () => {

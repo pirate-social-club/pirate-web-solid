@@ -458,6 +458,26 @@ test("the feed starts muted, and More's Unmute row unmutes; the rail has no mute
   play.mockRestore();
 });
 
+test("signed-out viewers keep Mute after a tap unmutes, from a More below the Sign in header", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const feed = streamedFeed({});
+  await vi.waitFor(() => expect(feed.mints()).toBe(1));
+  const more = await phoneMore(feed.container);
+  expect(more.closest<HTMLElement>('[data-media-more="phone"]')?.style.top).toContain("4rem");
+  more.click();
+  const rows = await moreSheetRows();
+  expect(rows.map(row => row.textContent)).toEqual(["Unmute"]);
+  rows[0]!.click();
+  await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(false));
+  await vi.waitFor(() => expect(document.body.querySelector("[data-media-more-row]")).toBeNull());
+  (await phoneMore(feed.container)).click();
+  const muteRows = await moreSheetRows();
+  expect(muteRows.map(row => row.textContent)).toEqual(["Mute"]);
+  muteRows[0]!.click();
+  await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(true));
+  play.mockRestore();
+});
+
 describe("Report in the feed", () => {
   test("is left out while the API does not accept reports on video posts", async () => {
     const member = streamedFeed({ principalId: "user-1", membership: "member", videoReportsSupported: false });
@@ -478,11 +498,10 @@ describe("Report in the feed", () => {
     for (const dispose of disposers.splice(0)) dispose();
     document.body.replaceChildren();
 
-    // Signed out: no phone More (the header's Sign in owns the top right),
-    // and the desktop menu offers no Report without an account.
+    // Signed out: More offers no Report without an account.
     const signedOut = streamedFeed({ membership: "member" });
-    await vi.waitFor(() => expect(signedOut.container.querySelector('[data-media-more="desktop"] button')).not.toBeNull());
-    expect(signedOut.container.querySelector('[data-media-more="phone"]')).toBeNull();
+    (await phoneMore(signedOut.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute"]);
   });
 
   test("one tap on a reason sends it once with its idempotency key", async () => {

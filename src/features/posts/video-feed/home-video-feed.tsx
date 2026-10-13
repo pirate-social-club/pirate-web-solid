@@ -525,7 +525,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 activities={postActivities}
                 onActivityClick={openActivity}
                 moreActions={moreActions}
-                hideMobileMore={!props.principalId}
+                mobileMoreBelowHeader={!props.principalId}
                 renderPlaceholder={() => (
                   <div class="grid h-full place-items-center px-4 text-white">
                     <AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} />

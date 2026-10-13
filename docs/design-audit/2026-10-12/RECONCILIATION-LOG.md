@@ -120,6 +120,7 @@ Each screen was audited against Paper by a read-only pass first, then implemente
   - phone: a 56 px button opening a bottom sheet;
   - it always holds Mute/Unmute;
   - **mute left the rail**, as Paper's VerticalFeed sheet requires.
+  - **Signed-out phone:** the header's Sign in owns the top right, so More sits below the header instead. It is never hidden, because it holds the only Mute. Hiding it, as first shipped, let a tap unmute a signed-out viewer with no way to mute again (review fix, PR #60).
 - **Desktop layout:** card and rail are one centred row, gap 20.
 - **States:**
   - error: "Couldn't load the feed." with Try again;
@@ -207,6 +208,7 @@ This section gives the facts the coordinator needs to reconcile the authoritativ
 | No Report in the feed's More | api-next accepts post reports for text posts only. The flow is built and off (`videoReportsSupported`). |
 | No Dance activity in the feed rail | No Dance capability or route. Dance is blocked by its prerequisites. |
 | Feed's first More row reads "Unmute" | The feed starts muted so autoplay can run. Paper draws "Mute". |
+| Signed-out phone More sits below the header | Paper's feed sheets draw a signed-in viewer. Signed out, the header's Sign in owns the top right, and More still has to hold the only Mute. |
 | Signed-out viewers see no comments on the post page | `GET /posts/:postId/comments` requires a signed-in user. |
 | No comment vote pill; oldest-first comments | No comment-vote endpoint; the server orders oldest first. |
 | Replies need "View replies" on the post page | Loading them all would cost one request per comment. Owner decision pending. |

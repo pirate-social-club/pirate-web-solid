@@ -82,8 +82,8 @@ export interface VerticalFeedProps {
   onActivityClick?: (postId: string, activityId: string) => void;
   /** Host rows per post for its More menu, after the built-in Mute/Unmute. */
   moreActions?: (postId: string) => readonly MediaMoreAction[] | undefined;
-  /** Leave the phone top right to the host's header (e.g. Sign in). */
-  hideMobileMore?: boolean;
+  /** Drop the phone More below the host's header when it owns the top right (e.g. Sign in). */
+  mobileMoreBelowHeader?: boolean;
   onMuteToggle?: (postId: string, muted: boolean) => void;
   /** Reports playback progress for the exact post that emitted it. */
   onTimeUpdate?: (postId: string, currentTime: number, duration: number) => void;
@@ -293,7 +293,7 @@ export function VerticalFeed(props: VerticalFeedProps) {
                       : undefined
                   }
                   moreActions={props.moreActions?.(entry().id)}
-                  hideMobileMore={props.hideMobileMore}
+                  mobileMoreBelowHeader={props.mobileMoreBelowHeader}
                   onMuteToggle={(muted) => props.onMuteToggle?.(entry().id, muted)}
                   onTimeUpdate={props.onTimeUpdate}
                   onViewed={props.onViewed}

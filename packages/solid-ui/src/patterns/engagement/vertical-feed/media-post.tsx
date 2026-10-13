@@ -45,10 +45,11 @@ export interface MediaPostProps extends MediaPostData {
    */
   moreActions?: readonly MediaMoreAction[];
   /**
-   * Hide the phone More button when the host's header owns the top right
-   * (e.g. a Sign in action). The desktop More button is unaffected.
+   * Place the phone More button below the host's header when the header owns
+   * the top right (e.g. a Sign in action). Mute/Unmute stays reachable. The
+   * desktop More button is unaffected.
    */
-  hideMobileMore?: boolean;
+  mobileMoreBelowHeader?: boolean;
   onMuteToggle?: (muted: boolean) => void;
   onTimeUpdate?: (postId: string, currentTime: number, duration: number) => void;
   /** Called once per post after 3 seconds of cumulative watch time. */
@@ -256,7 +257,7 @@ export function MediaPost(props: MediaPostProps) {
             isMuted={playback.isMuted()}
             onToggleMute={handleToggleMute}
             actions={props.moreActions}
-            hideMobile={props.hideMobileMore}
+            belowHeader={props.mobileMoreBelowHeader}
           />
         </Show>
       </div>

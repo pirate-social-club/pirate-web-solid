@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For } from "solid-js";
 
 import {
   DropdownMenu,
@@ -21,8 +21,11 @@ export interface MediaMoreProps {
   readonly onToggleMute: () => void;
   /** Host rows listed after the built-in Mute/Unmute row. */
   readonly actions?: readonly MediaMoreAction[];
-  /** Leave the phone top-right to the host's header (e.g. a Sign in action). */
-  readonly hideMobile?: boolean;
+  /**
+   * The host's header owns the phone top right (e.g. a Sign in action): sit
+   * below it instead. Never hidden, since it holds the only Mute/Unmute.
+   */
+  readonly belowHeader?: boolean;
 }
 
 interface MoreRow {
@@ -32,6 +35,9 @@ interface MoreRow {
 }
 
 const MORE_LABEL = "More options";
+const PHONE_TOP = "calc(env(safe-area-inset-top, 0px) + 4px)";
+/** Clears the host's 4rem mobile header. */
+const PHONE_TOP_BELOW_HEADER = "calc(env(safe-area-inset-top, 0px) + 4rem + 4px)";
 
 /**
  * MediaMore - the post's More control: three dots at the top right of the
@@ -105,69 +111,67 @@ export function MediaMore(props: MediaMoreProps) {
       </div>
 
       {/* Phone: 56px unfilled hit area at the top right, rows in a sheet */}
-      <Show when={!props.hideMobile}>
-        <div
-          class="absolute right-1 z-40 md:hidden"
-          style={{ top: "calc(env(safe-area-inset-top, 0px) + 4px)" }}
-          data-media-more="phone"
+      <div
+        class="absolute right-1 z-40 md:hidden"
+        style={{ top: props.belowHeader ? PHONE_TOP_BELOW_HEADER : PHONE_TOP }}
+        data-media-more="phone"
+      >
+        <button
+          type="button"
+          aria-label={MORE_LABEL}
+          aria-haspopup="dialog"
+          aria-expanded={sheetOpen() ? "true" : "false"}
+          class="flex size-14 cursor-pointer items-center justify-center rounded-full text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={(event) => {
+            event.stopPropagation();
+            setSheetOpen(true);
+          }}
         >
-          <button
-            type="button"
-            aria-label={MORE_LABEL}
-            aria-haspopup="dialog"
-            aria-expanded={sheetOpen() ? "true" : "false"}
-            class="flex size-14 cursor-pointer items-center justify-center rounded-full text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={(event) => {
-              event.stopPropagation();
-              setSheetOpen(true);
-            }}
-          >
-            <IconDotsThree class="size-8" />
-          </button>
-        </div>
-        <Sheet open={sheetOpen()} onOpenChange={setSheetOpen}>
-          <SheetContent
-            side="bottom"
-            hideCloseButton
-            class="gap-0 border-x-0 border-b-0 border-t border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_24px_80px_#0000002E] md:hidden"
-            onCloseAutoFocus={() => {
-              const action = pendingSheetAction;
-              pendingSheetAction = undefined;
-              runAfterClose(action);
-            }}
-          >
-            <SheetTitle class="sr-only">{MORE_LABEL}</SheetTitle>
-            <div aria-hidden="true" class="justify-self-center pb-3">
-              <div class="h-1.5 w-12 rounded-full bg-border" />
-            </div>
-            <div class="flex flex-col">
-              <For each={rows()}>
-                {(row, index) => (
-                  <button
-                    type="button"
-                    class={cn(
-                      "flex w-full cursor-pointer items-center text-start text-base leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                      index() === 0 ? "h-14 pt-2" : "h-12 border-t border-border-soft",
-                    )}
-                    data-media-more-row={row.id}
-                    onClick={() => {
-                      if (row.id === "mute") {
-                        row.onSelect();
-                        setSheetOpen(false);
-                        return;
-                      }
-                      pendingSheetAction = row.onSelect;
+          <IconDotsThree class="size-8" />
+        </button>
+      </div>
+      <Sheet open={sheetOpen()} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="bottom"
+          hideCloseButton
+          class="gap-0 border-x-0 border-b-0 border-t border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_24px_80px_#0000002E] md:hidden"
+          onCloseAutoFocus={() => {
+            const action = pendingSheetAction;
+            pendingSheetAction = undefined;
+            runAfterClose(action);
+          }}
+        >
+          <SheetTitle class="sr-only">{MORE_LABEL}</SheetTitle>
+          <div aria-hidden="true" class="justify-self-center pb-3">
+            <div class="h-1.5 w-12 rounded-full bg-border" />
+          </div>
+          <div class="flex flex-col">
+            <For each={rows()}>
+              {(row, index) => (
+                <button
+                  type="button"
+                  class={cn(
+                    "flex w-full cursor-pointer items-center text-start text-base leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    index() === 0 ? "h-14 pt-2" : "h-12 border-t border-border-soft",
+                  )}
+                  data-media-more-row={row.id}
+                  onClick={() => {
+                    if (row.id === "mute") {
+                      row.onSelect();
                       setSheetOpen(false);
-                    }}
-                  >
-                    {row.label}
-                  </button>
-                )}
-              </For>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </Show>
+                      return;
+                    }
+                    pendingSheetAction = row.onSelect;
+                    setSheetOpen(false);
+                  }}
+                >
+                  {row.label}
+                </button>
+              )}
+            </For>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
