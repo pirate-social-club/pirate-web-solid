@@ -610,6 +610,7 @@ describe("Study v2 production route", () => {
     expect(loadAvailability).not.toHaveBeenCalled();
     authenticated = true;
     refreshSession();
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
@@ -636,6 +637,7 @@ describe("Study v2 production route", () => {
     await vi.waitFor(() => expect(resolveContinuation).toHaveBeenCalledOnce());
     expect(requests).toHaveLength(1);
     requests[0]!(learnerSession);
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
@@ -669,6 +671,7 @@ describe("Study v2 production route", () => {
     retry.click();
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     requests[1]!(learnerSession);
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     requests[0]!("anonymous");
     await new Promise(resolve => setTimeout(resolve, 20));
@@ -684,6 +687,7 @@ describe("Study v2 production route", () => {
       <StudyV2RouteView guest={{ publicReader: anonymousPublicReader }} api={api} postId="post-1" resolveSession={async () => learnerSession} />
     ));
 
+    await enterOrdinaryPractice(container, api.createSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
     refreshSession();
