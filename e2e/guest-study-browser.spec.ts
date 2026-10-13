@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "playwright/test";
 import { answerRead, authorityRead, installApi } from "./fixtures/guest-study-browser/api.ts";
-import { csrf, ownerId, proof, proofCookie } from "./fixtures/guest-study-browser/data.ts";
+import { credentialId, csrf, ownerId, proof, proofCookie } from "./fixtures/guest-study-browser/data.ts";
 
 const origin = process.env.GUEST_STUDY_BROWSER_ORIGIN;
 if (origin === undefined) throw new Error("Owned HTTPS browser runner required");
@@ -82,7 +82,7 @@ test.describe("Guest Study native browser protocol (API boundary scripted)", () 
         })).toEqual({ held: 1, pending: 1 });
         expect(api.counts.start).toBe(1);
         const saved = await authorityRead(second, base);
-        expect(saved).toMatchObject({ pointer: { owner_id: ownerId, credential_id: "200" }, starts: [{ state: "submitted" }] });
+        expect(saved).toMatchObject({ pointer: { owner_id: ownerId, credential_id: credentialId }, starts: [{ state: "submitted" }] });
         expect(JSON.stringify(saved)).not.toContain(proof);
         api.releaseStart.resolve();
         await expect(page.getByRole("button", { name: "Answer one", exact: true })).toBeEnabled();

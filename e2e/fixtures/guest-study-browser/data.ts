@@ -1,7 +1,7 @@
 import type { GuestAuthority, GuestStudySession, GuestStudyAnswerResult } from "../../../src/features/studying/guest-study-api.ts";
 import { guestSession, prepared } from "../../../src/features/studying/guest-study-test-fixtures.ts";
 export { prepared };
-export const ownerId = "100", credentialId = "200";
+export const ownerId = "100", credentialId = `${"C".repeat(21)}A`;
 // Synthetic public fixture values only, never managed credentials.
 export const csrf = "A".repeat(43), proof = `${"B".repeat(42)}A`;
 export const proofCookie = `__Host-pirate_guest_${credentialId}`;
