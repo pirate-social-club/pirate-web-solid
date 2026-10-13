@@ -1,5 +1,4 @@
-import { isTelegramLinkPage, isTelegramPageAlias, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
-import { isTelegramProbePage, telegramProbeEnabled } from "./features/identity/telegram-identity-probe/telegram-identity-probe-config.ts";
+import { isTelegramLinkPage, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
 import { getRequestEvent, httpHeader, httpStatus, renderToStream } from "@solidjs/web";
 import type { Component } from "solid-js";
@@ -52,20 +51,6 @@ export async function render(
   dependencies: EntryServerRenderDependencies = {},
 ) {
   const event = getRequestEvent();
-  const privateNotFound = () => new Response(null, { status: 404, headers: {
-    "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex, nofollow",
-  } });
-  // The router also routes other spellings of these pages (case, slashes, percent-encoding).
-  // Only the canonical spelling is served, so callbacks never reach an unscrubbed render.
-  if (isTelegramPageAlias(new URL(request.url).pathname)) {
-    if (event !== undefined) event.request = telegramPageRequest(request);
-    return privateNotFound();
-  }
-  if (isTelegramProbePage(new URL(request.url).pathname) &&
-      (!telegramProbeEnabled(new URL(request.url).origin, context?.PUBLIC_APP_CANONICAL_ORIGIN) ||
-       context?.CANONICAL_ASSET_ORIGIN !== undefined || context?.DISABLE_HYDRATION === true)) {
-    return privateNotFound();
-  }
   if (isTelegramLinkPage(new URL(request.url).pathname)) {
     request = telegramPageRequest(request);
     // The router reads the request event, not this function's argument.
