@@ -109,6 +109,8 @@ export default defineConfig({
       "src/features/communities/community-join-name/*.test.ts",
       "src/features/communities/community-join-name/*.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking.test.ts",
+      "src/features/identity/telegram-identity-probe/telegram-identity-probe-controller.test.ts",
+      "src/features/identity/telegram-identity-probe/telegram-identity-probe-client.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking-page.test.tsx",
       "src/features/identity/community-persona-choice-sheet.test.tsx",
       "src/features/identity/community-persona-choice.test.ts",

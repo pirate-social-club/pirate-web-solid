@@ -292,7 +292,13 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     try {
       const page = await props.loadPage({ cursor, locale: props.locale ?? "en", sort: props.sort ?? "best" });
       if (!active || identity !== requestIdentity || generation !== paginationGeneration) return;
-      const playable = projectRows(page, `cursor:${cursor}`, posterPath);
+      if (page.nextCursor === cursor) throw new Error("non_advancing_feed_cursor");
+      const seen = new Set(posts().map(post => post.id));
+      const playable = projectRows(page, `cursor:${cursor}`, posterPath).filter(post => {
+        if (seen.has(post.id)) return false;
+        seen.add(post.id);
+        return true;
+      });
       pages = [...pages, { cursor, page }];
       setPosts(previous => [...previous, ...playable]);
       setProcessingCount(count => count + processingVideoCount(page.items));

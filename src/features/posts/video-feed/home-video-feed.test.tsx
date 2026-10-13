@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
+import type { FeedPageLoader } from "../feed/public-feed.tsx";
 import { HomeVideoFeed } from "./home-video-feed.tsx";
 import { makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
@@ -253,7 +254,7 @@ test("offers retry in the direct-URL branch after a failed page request", async 
   const loadPage = vi.fn(async () => {
     calls += 1;
     if (calls === 1) throw new Error("offline");
-    return page([video([{ playback_url: "https://media.pirate.test/retry-direct.mp4" }])], null);
+    return page([{ ...video([{ playback_url: "https://media.pirate.test/retry-direct.mp4" }]), id: "video-retry" }], null);
   });
   const container = render(() => (
     <HomeVideoFeed
@@ -275,7 +276,7 @@ test("offers continuation when a direct-URL page adds no playable videos", async
   const loadPage = vi.fn(async () => {
     calls += 1;
     if (calls === 1) return page([video(["opaque-storage-ref"])], "page-3");
-    return page([video([{ playback_url: "https://media.pirate.test/after-stall.mp4" }])], null);
+    return page([{ ...video([{ playback_url: "https://media.pirate.test/after-stall.mp4" }]), id: "video-after-stall" }], null);
   });
   const container = render(() => (
     <HomeVideoFeed
@@ -284,8 +285,10 @@ test("offers continuation when a direct-URL page adds no playable videos", async
     />
   ));
   await vi.waitFor(() => expect(container.querySelector("[data-video-feed-continuation]")).not.toBeNull());
+  expect(loadPage).toHaveBeenLastCalledWith({ cursor: "page-2", locale: "en", sort: "best" });
   container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
   await vi.waitFor(() => expect(container.querySelector("video[src='https://media.pirate.test/after-stall.mp4']")).not.toBeNull());
+  expect(loadPage).toHaveBeenLastCalledWith({ cursor: "page-3", locale: "en", sort: "best" });
   expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
 });
 
@@ -358,6 +361,113 @@ const grantFixture = () => ({
   expiresAt: Date.now() + 300_000,
   renewAt: Date.now() + 240_000,
   url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
+});
+
+test("deduplicates appended rows against retained rows and within the incoming page", async () => {
+  const kept = { ...video([]), id: "video-kept", caption: "Original caption", videoDelivery: delivered };
+  const added = { ...kept, id: "video-added", caption: "Added caption" };
+  let releasePage: (value: FeedPage) => void = () => {};
+  const loadPage = vi.fn(() => new Promise<FeedPage>(resolve => { releasePage = resolve; }));
+  const mint = vi.fn(async () => grantFixture());
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([kept], "page-2")}
+      loadPage={loadPage}
+      mintPlaybackAccess={mint}
+      attachPlayback={async () => () => {}}
+      resolveSongLink={async () => null}
+    />
+  ));
+  await vi.waitFor(() => expect(loadPage).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(mint).toHaveBeenCalledOnce());
+  const retained = container.querySelector('[data-media-post="video-kept"]');
+  const player = retained?.querySelector("video");
+  expect(player).not.toBeNull();
+
+  releasePage(page([
+    { ...kept, caption: "Duplicate retained caption" },
+    added,
+    { ...added, caption: "Duplicate incoming caption" },
+  ], null));
+  await vi.waitFor(() => expect(container.querySelector('[data-media-post="video-added"]')).not.toBeNull());
+  expect([...container.querySelectorAll("[data-media-post]")].map(row => row.getAttribute("data-media-post")))
+    .toEqual(["video-kept", "video-added"]);
+  expect(container.querySelector('[data-media-post="video-kept"]')).toBe(retained);
+  expect(retained?.querySelector("video")).toBe(player);
+  expect(container.textContent).toContain("Original caption");
+  expect(container.textContent).toContain("Added caption");
+  expect(container.textContent).not.toContain("Duplicate");
+  await vi.waitFor(() => expect(mint).toHaveBeenCalledTimes(2));
+  expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
+  expect(loadPage).toHaveBeenCalledOnce();
+});
+
+test("rejects a repeated next cursor without accepting rows and retries the same cursor", async () => {
+  const kept = { ...video([]), id: "video-kept", caption: "Kept caption", videoDelivery: delivered };
+  const rejected = { ...kept, id: "video-rejected", caption: "Rejected caption" };
+  const accepted = { ...kept, id: "video-accepted", caption: "Accepted caption" };
+  let releasePage: (value: FeedPage) => void = () => {};
+  const loadPage = vi.fn<FeedPageLoader>()
+    .mockImplementationOnce(() => new Promise<FeedPage>(resolve => { releasePage = resolve; }))
+    .mockResolvedValueOnce(page([accepted], null));
+  const mint = vi.fn(async () => grantFixture());
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([kept], "page-2")}
+      loadPage={loadPage}
+      mintPlaybackAccess={mint}
+      attachPlayback={async () => () => {}}
+      resolveSongLink={async () => null}
+    />
+  ));
+  await vi.waitFor(() => expect(loadPage).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(mint).toHaveBeenCalledOnce());
+  const retained = container.querySelector('[data-media-post="video-kept"]');
+  const player = retained?.querySelector("video");
+  expect(player).not.toBeNull();
+  releasePage(page([rejected], "page-2"));
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")?.disabled).toBe(false));
+  expect(container.querySelector('[data-media-post="video-rejected"]')).toBeNull();
+  expect(container.textContent).not.toContain("Rejected caption");
+  expect(container.querySelectorAll("[data-media-post]")).toHaveLength(1);
+  expect(retained?.querySelector("video")).toBe(player);
+  expect(mint).toHaveBeenCalledOnce();
+
+  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
+  await vi.waitFor(() => expect(container.querySelector('[data-media-post="video-accepted"]')).not.toBeNull());
+  expect(loadPage).toHaveBeenCalledTimes(2);
+  for (const [request] of loadPage.mock.calls) expect(request).toEqual({ cursor: "page-2", locale: "en", sort: "best" });
+  expect(container.querySelector('[data-media-post="video-kept"]')).toBe(retained);
+  expect(retained?.querySelector("video")).toBe(player);
+  expect(container.querySelectorAll("[data-media-post]")).toHaveLength(2);
+  await vi.waitFor(() => expect(mint).toHaveBeenCalledTimes(2));
+  expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
+});
+
+test("keeps continuation actionable when an advancing page contains only duplicate rows", async () => {
+  const kept = video([{ playback_url: "https://media.test/kept.mp4" }]);
+  let calls = 0;
+  const loadPage = vi.fn<FeedPageLoader>(async ({ cursor }) => {
+    calls += 1;
+    expect(cursor).toBe(calls === 1 ? "page-2" : "page-3");
+    return calls === 1
+      ? page([{ ...kept, mediaRefs: [{ playback_url: "https://media.test/duplicate.mp4" }] }], "page-3")
+      : page([{ ...kept, id: "video-next", mediaRefs: [{ playback_url: "https://media.test/next.mp4" }] }], null);
+  });
+  const container = render(() => <HomeVideoFeed data={page([kept], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(loadPage).toHaveBeenCalledOnce());
+  const player = container.querySelector("video");
+  expect(player).not.toBeNull();
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")?.disabled).toBe(false));
+  expect(container.querySelectorAll("video")).toHaveLength(1);
+  expect(container.querySelector("video")).toBe(player);
+  expect(player?.getAttribute("src")).toBe("https://media.test/kept.mp4");
+  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
+  await vi.waitFor(() => expect(container.querySelector("video[src='https://media.test/next.mp4']")).not.toBeNull());
+  expect(loadPage).toHaveBeenCalledTimes(2);
+  expect(container.querySelectorAll("video")).toHaveLength(2);
+  expect(container.querySelector("video")).toBe(player);
+  expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
 });
 
 function streamedFeed(options: {
