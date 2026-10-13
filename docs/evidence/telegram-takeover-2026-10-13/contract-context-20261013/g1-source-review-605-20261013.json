@@ -1,0 +1,507 @@
+{
+  "schema": "telegram-independent-source-review/v1",
+  "observed_at_utc": "2026-10-13 17:00:26 UTC",
+  "reviewer_role": "telegram_coordinator",
+  "scope": "Independent exact-head source review; portable reproductions and cloud continuation direction",
+  "api": {
+    "pull_request": "https://github.com/pirate-social-club/api-next/pull/605",
+    "head": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+    "base": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+    "files": [
+      {
+        "path": "db/postgres/migrations/0265_account_karaoke_unclaimed_cancellation.sql",
+        "blob_sha": "64945d9687b74b69487177482761edfa37d7ff04",
+        "status": "added",
+        "additions": 44,
+        "deletions": 0
+      },
+      {
+        "path": "db/postgres/migrations/checksums.json",
+        "blob_sha": "c7eb36923cd6883413ec2c07d61df6a7c7a912d0",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 1
+      },
+      {
+        "path": "db/postgres/roles.sql.example",
+        "blob_sha": "2c04813a488b9de27aaea81416c87bae460c22d7",
+        "status": "modified",
+        "additions": 57,
+        "deletions": 0
+      },
+      {
+        "path": "db/postgres/schema.sql",
+        "blob_sha": "f35f6ceb9920ce767f50d75cc68eb5447a215364",
+        "status": "modified",
+        "additions": 32,
+        "deletions": 0
+      },
+      {
+        "path": "package.json",
+        "blob_sha": "2a1d3fffabd1efcc70048eeef945fe9dc9ba0d03",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "packages/platform-cf/src/captured-karaoke-bindings.ts",
+        "blob_sha": "ca9bbfa113cc8069d7ae4cacd22c98d21bd10fd4",
+        "status": "modified",
+        "additions": 13,
+        "deletions": 6
+      },
+      {
+        "path": "packages/platform-cf/src/guest-study-managed-readiness.pg-fixture.ts",
+        "blob_sha": "e4e53cb04fe9d74e7830e0055f0d7e9598250730",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 3
+      },
+      {
+        "path": "packages/platform-cf/src/guest-study-readiness-candidate.ts",
+        "blob_sha": "9d79843f12a33c4d6a4fda7223dbb36a4fbde77a",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 0
+      },
+      {
+        "path": "packages/platform-cf/src/serving-function-privileges.pg.test.ts",
+        "blob_sha": "ef879db67cd372fea5fcbfa769d77a0f03c09af7",
+        "status": "added",
+        "additions": 395,
+        "deletions": 0
+      },
+      {
+        "path": "packages/platform-cf/src/serving-function-privileges.ts",
+        "blob_sha": "3b8b56494e95cf5dd68e62303788ccca4fe04242",
+        "status": "added",
+        "additions": 319,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/deploy-worker-with-provenance.ts",
+        "blob_sha": "83464a0054239e74b5c5c6c85b4bec10c4c0c38a",
+        "status": "modified",
+        "additions": 44,
+        "deletions": 40
+      },
+      {
+        "path": "scripts/postgres-test-suite-manifest.ts",
+        "blob_sha": "dfc7d8e43ef2df600c7ff29ea66b1653b0c6bb2d",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/serving-function-privileges-preflight.test.ts",
+        "blob_sha": "f8d70a6b90315826ee17aad14c5eb318bf6d501f",
+        "status": "added",
+        "additions": 173,
+        "deletions": 0
+      },
+      {
+        "path": "scripts/serving-function-privileges-preflight.ts",
+        "blob_sha": "5b2383c3379aeef72c531e301a7478f4b307fda8",
+        "status": "added",
+        "additions": 83,
+        "deletions": 0
+      },
+      {
+        "path": "tests/workerd-http/karaoke-attempt-captured.fixture.ts",
+        "blob_sha": "f97456b5ff81db87312bc085968237a805d5b539",
+        "status": "modified",
+        "additions": 8,
+        "deletions": 2
+      }
+    ],
+    "ci": [
+      {
+        "name": "postgres17",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115410355994",
+        "started_at": "2026-10-13T16:24:51Z",
+        "completed_at": "2026-10-13T16:25:03Z"
+      },
+      {
+        "name": "postgres17-general-0",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958659",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:23:04Z"
+      },
+      {
+        "name": "postgres17-general-2",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958607",
+        "started_at": "2026-10-13T16:11:33Z",
+        "completed_at": "2026-10-13T16:24:48Z"
+      },
+      {
+        "name": "postgres18-shape",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958588",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:13:06Z"
+      },
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958578",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:21:54Z"
+      },
+      {
+        "name": "hns-regtest",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958376",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:14:19Z"
+      },
+      {
+        "name": "postgres17-general-1",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958365",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:22:04Z"
+      },
+      {
+        "name": "postgres17-recovery",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958364",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:15:32Z"
+      },
+      {
+        "name": "postgres17-general-3",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958352",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:24:20Z"
+      },
+      {
+        "name": "postgres17-general-4",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403958340",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:21:00Z"
+      },
+      {
+        "name": "Advisory policy",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448505/job/115403958204",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:11:55Z"
+      },
+      {
+        "name": "postgres17-namespace",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428448475/job/115403957947",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:13:21Z"
+      },
+      {
+        "name": "secret-boundary",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+        "url": "https://github.com/pirate-social-club/api-next/actions/runs/38428446717/job/115403956275",
+        "started_at": "2026-10-13T16:11:32Z",
+        "completed_at": "2026-10-13T16:11:45Z"
+      }
+    ],
+    "independent_recomputation": {
+      "ledger_count": 265,
+      "ledger_matches_manifest": true,
+      "prior264_manifest_unchanged": true,
+      "migration_sha256": "337b5469bdf01595413349517f1c0750530280a4a38ac8fd007a2d2e3c4e106f",
+      "function_body_sha256": "ae7c0121308ecf6b544682d5ba0d7aba89db91eb68bb1e805c2faa960a2964e4",
+      "body_pin_matches": true,
+      "grant_count": 23,
+      "denial_count": 147,
+      "sql_block_matches_module": true,
+      "grant_block_sha256": "474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814",
+      "private_generic_and_legacy_helpers_denied": true
+    },
+    "grant_block_utf8_trimmed": "GRANT EXECUTE ON FUNCTION provision_account_participation_owner_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION lock_original_account_audio_source_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION capture_account_study_audio_private_v1(\n  TEXT, TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_account_spoken_success_private_v1(TEXT, JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_account_spoken_archive_private_v1(\n  TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION find_account_spoken_success_private_v1(\n  TEXT, TEXT, TEXT, INTEGER, TEXT, TEXT, TEXT, BIGINT, INTEGER\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION begin_account_spoken_provider_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION mark_account_spoken_provider_unknown_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION persist_account_spoken_success_private_v1(TEXT, JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION load_account_spoken_success_private_v1(TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION list_closed_account_spoken_checkpoints_private_v1(\n  INTEGER\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION claim_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION settle_learner_audio_terminal_fact_private_v1(\n  TEXT, TEXT, BOOLEAN, TEXT, JSONB\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION continue_captured_learner_audio_private_v1(JSONB) TO api_next_app;\nGRANT EXECUTE ON FUNCTION note_learner_audio_multipart_id_private_v1(TEXT, TEXT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION prepare_account_audio_delete_private_v1(TEXT, INTEGER) TO api_next_app;\nGRANT EXECUTE ON FUNCTION fail_account_audio_delete_private_v1(TEXT, BIGINT) TO api_next_app;\nGRANT EXECUTE ON FUNCTION confirm_account_audio_delete_private_v1(\n  TEXT, BIGINT, TIMESTAMPTZ\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION capture_account_karaoke_audio_private_v1(\n  TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION require_captured_karaoke_recording_result_private_v1(\n  TEXT, TEXT, TEXT, TEXT, JSONB\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION read_account_karaoke_audio_capture_private_v1(\n  TEXT, TEXT, TEXT, TEXT\n) TO api_next_app;\nGRANT EXECUTE ON FUNCTION cancel_unclaimed_account_karaoke_audio_private_v1(\n  TEXT, TEXT, TEXT, TEXT, JSONB\n) TO api_next_app;",
+    "source_result": "Source clearance pending owner-equivalence admission repair and exact-successor CI",
+    "satisfactory_parts": "Exact-capture account-bound cancellation, generic closure denied, 23/147 grant/denial partition and migration/readiness pins",
+    "finding": {
+      "head": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+      "sourceBlob": "3b8b56494e95cf5dd68e62303788ccca4fe04242",
+      "postgresImage": "postgres:17.11",
+      "preflightAcceptedRole": "g1_review_app",
+      "preflightRowCount": 170,
+      "roleFacts": {
+        "immediate_owner_usage": false,
+        "can_set_owner": true
+      },
+      "afterSetRole": {
+        "after_set_role": "g1_review_owner",
+        "formerly_denied_functions_executable": 147
+      },
+      "result": "preflight admits a role that can SET ROLE to owner and execute all 147 denials",
+      "limits": "Disposable isolated local catalog fixture with all 170 reviewed signatures and exact fetched SQL/assertion. No product migrations, staging credentials or managed mutation."
+    },
+    "source_module": {
+      "content": "/**\n * Function EXECUTE the ordinary serving role needs after migrations 0247-0265.\n *\n * Those migrations make every function they define owner-only and infer no\n * role grant. Ordinary account code calls the functions below directly, so the\n * serving role needs EXECUTE on exactly these. Every other function those\n * migrations define stays private to the schema owner: generic upload helpers,\n * operator and legacy settlement, and every guest-study authority, which the\n * separate guest-role ceremony binds. `db/postgres/roles.sql.example` carries\n * the matching grant block, and a test keeps the two equal.\n */\nexport const SERVING_FUNCTION_EXECUTE_GRANTS = [\n  {\n    signature: \"provision_account_participation_owner_v1(text)\",\n    purpose: \"registration and Telegram learner birth\",\n  },\n  {\n    signature: \"lock_original_account_audio_source_private_v1(text)\",\n    purpose: \"account Study and Karaoke capture\",\n  },\n  {\n    signature: \"capture_account_study_audio_private_v1(text,text,text,text)\",\n    purpose: \"account Study capture\",\n  },\n  {\n    signature: \"require_account_spoken_success_private_v1(text,jsonb)\",\n    purpose: \"account spoken Study\",\n  },\n  {\n    signature: \"require_account_spoken_archive_private_v1(text,text,text)\",\n    purpose: \"account spoken Study\",\n  },\n  {\n    signature:\n      \"find_account_spoken_success_private_v1(text,text,text,integer,text,text,text,bigint,integer)\",\n    purpose: \"account spoken Study\",\n  },\n  { signature: \"begin_account_spoken_provider_private_v1(text)\", purpose: \"account spoken Study\" },\n  {\n    signature: \"mark_account_spoken_provider_unknown_private_v1(text)\",\n    purpose: \"account spoken Study\",\n  },\n  {\n    signature: \"persist_account_spoken_success_private_v1(text,jsonb)\",\n    purpose: \"account spoken Study\",\n  },\n  { signature: \"load_account_spoken_success_private_v1(text)\", purpose: \"account spoken Study\" },\n  {\n    signature: \"list_closed_account_spoken_checkpoints_private_v1(integer)\",\n    purpose: \"account spoken recovery\",\n  },\n  { signature: \"claim_captured_learner_audio_private_v1(jsonb)\", purpose: \"learner audio archive\" },\n  {\n    signature: \"require_captured_learner_audio_private_v1(jsonb)\",\n    purpose: \"learner audio archive\",\n  },\n  {\n    signature: \"settle_learner_audio_terminal_fact_private_v1(text,text,boolean,text,jsonb)\",\n    purpose: \"learner audio archive\",\n  },\n  {\n    signature: \"continue_captured_learner_audio_private_v1(jsonb)\",\n    purpose: \"Karaoke multipart archive\",\n  },\n  {\n    signature: \"note_learner_audio_multipart_id_private_v1(text,text)\",\n    purpose: \"Karaoke multipart archive\",\n  },\n  {\n    signature: \"prepare_account_audio_delete_private_v1(text,integer)\",\n    purpose: \"account audio deletion\",\n  },\n  {\n    signature: \"fail_account_audio_delete_private_v1(text,bigint)\",\n    purpose: \"account audio deletion\",\n  },\n  {\n    signature: \"confirm_account_audio_delete_private_v1(text,bigint,timestamp with time zone)\",\n    purpose: \"account audio deletion\",\n  },\n  {\n    signature: \"capture_account_karaoke_audio_private_v1(text,text,text)\",\n    purpose: \"Karaoke capture\",\n  },\n  {\n    signature: \"require_captured_karaoke_recording_result_private_v1(text,text,text,text,jsonb)\",\n    purpose: \"Karaoke result\",\n  },\n  {\n    signature: \"read_account_karaoke_audio_capture_private_v1(text,text,text,text)\",\n    purpose: \"Karaoke attempt host\",\n  },\n  {\n    signature: \"cancel_unclaimed_account_karaoke_audio_private_v1(text,text,text,text,jsonb)\",\n    purpose: \"Karaoke attempt host\",\n  },\n] as const satisfies readonly { signature: string; purpose: string }[];\n\n/** Owner-only functions from migrations 0247-0265 the serving role must not execute. */\nexport const SERVING_FUNCTION_EXECUTE_DENIALS = [\n  // The attempt host exposes this deletion stop, but nothing calls it yet.\n  \"require_captured_audio_deletion_stop_private_v1(jsonb)\",\n  \"acknowledge_guest_rotation_v1(text,text[],text,text,text)\",\n  \"acknowledge_owner_guest_spoken_success_v1(jsonb,jsonb,text,text,jsonb,jsonb,text,bigint)\",\n  \"apply_guest_json_item_mutation_v1(jsonb,jsonb,jsonb,jsonb,text,text)\",\n  \"apply_guest_lesson_transition_private_v1(text,text,integer,text,integer,text,timestamp with time zone)\",\n  \"apply_guest_spoken_item_mutation_v1(text,jsonb,text,jsonb,jsonb,jsonb,jsonb,jsonb)\",\n  \"can_guest_access_activity_song_v1(text,text)\",\n  \"capture_guest_audio_retention_private_v1()\",\n  \"capture_guest_spoken_dispatch_private_v1(text,jsonb,text,text,text,text,text,bigint,boolean)\",\n  \"claim_guest_audio_io_private_v1(jsonb)\",\n  \"claim_learner_audio_upload_private_v1(text)\",\n  \"cleanup_guest_authority_v1(text,text[],text[],text,text[],text[])\",\n  \"close_unclaimed_learner_audio_private_v1(text)\",\n  \"commit_guest_study_start_v1(jsonb,jsonb,text,text,text,text,text,jsonb,jsonb,jsonb,text,text,text,text,boolean)\",\n  \"complete_guest_provider_call_v1(text,jsonb,text,text,text,text,text)\",\n  \"confirm_captured_audio_cleanup_private_v1(text,text,text,timestamp with time zone)\",\n  \"confirm_guest_ephemeral_audio_cleanup_private_v1(text,text,text,timestamp with time zone)\",\n  \"confirm_guest_owner_audio_delete_v1(jsonb,text,timestamp with time zone)\",\n  \"confirm_guest_pending_v1(text,text[],text,text)\",\n  \"confirm_learner_audio_delete_private_v1(text,bigint,text,timestamp with time zone)\",\n  \"converge_proved_empty_guest_sources_v1(text,text[])\",\n  \"create_guest_attachment_intent_v1(text,text[],text,text,text[],text,text,text,text,text)\",\n  \"discover_guest_authority_v1(text,text[],text,text,text)\",\n  \"fail_guest_owner_audio_delete_v1(jsonb,text)\",\n  \"fail_guest_spoken_answer_v1(text,jsonb,text,text,text,text,text)\",\n  \"fail_learner_audio_delete_private_v1(text,text)\",\n  \"find_guest_owner_audio_delete_v1(jsonb,text,text)\",\n  \"find_guest_study_start_operation_v1(jsonb,text,text,text,text)\",\n  \"find_owner_guest_spoken_success_for_audio_v1(jsonb,text,text,text,text,integer,text,text,integer,integer)\",\n  \"finish_guest_json_answer_v1(jsonb,text,jsonb,jsonb)\",\n  \"finish_guest_spoken_answer_v1(text,jsonb,text,jsonb,jsonb,jsonb,jsonb)\",\n  \"guard_account_audio_provider_call_private_v1()\",\n  \"guard_captured_audio_cleanup_private_v1()\",\n  \"guard_controlled_guest_study_session_v1()\",\n  \"guard_guest_credential_insert_v1()\",\n  \"guard_guest_credential_v1()\",\n  \"guard_guest_empty_alias_v1()\",\n  \"guard_guest_intent_v1()\",\n  \"guard_guest_issuance_lineage_v1()\",\n  \"guard_guest_operation_v1()\",\n  \"guard_guest_resource_provider_call_v1()\",\n  \"guard_guest_resource_session_v1()\",\n  \"guard_karaoke_recording()\",\n  \"guard_learner_audio_control_state_private_v1()\",\n  \"guard_learner_audio_legacy_settlement_private_v1()\",\n  \"guard_participation_owner_v1()\",\n  \"guest_attachment_operation_identity_v1(text)\",\n  \"guest_authority_component_is_empty_v1(text)\",\n  \"guest_authority_issue_operation_v1(text)\",\n  \"guest_authority_metadata_v1(text,text[],text)\",\n  \"guest_ephemeral_object_closed_private_v1(text)\",\n  \"guest_ephemeral_owner_delete_witness_private_v1(text)\",\n  \"guest_ephemeral_pending_cleanup_ready_private_v1(text)\",\n  \"guest_ephemeral_upload_ready_private_v1(text)\",\n  \"guest_owner_audio_delete_projection_private_v1(text)\",\n  \"guest_resource_component_has_history_v1(text[])\",\n  \"guest_resource_usage_v1(text[],timestamp with time zone)\",\n  \"guest_spoken_component_has_history_private_v1(text[])\",\n  \"guest_study_answer_resource_scope_v1(text,text,text,integer,text)\",\n  \"guest_study_prepared_rows_v1(text,text)\",\n  \"guest_study_start_resource_scope_v1(text,text)\",\n  \"issue_guest_pending_v1(text,text[],text,text,text,text,text,text,text)\",\n  \"issue_guest_rotation_v1(text,text[],text,text,text,text,text,text,text)\",\n  \"karaoke_audio_target_can_tombstone_private_v1(text,text,text)\",\n  \"learner_audio_component_has_history_private_v1(text[])\",\n  \"learner_audio_producer_component_has_history_private_v1(text[])\",\n  \"learner_audio_source_component_private_v1(text[])\",\n  \"list_guest_practice_participations_v1(jsonb,text,integer)\",\n  \"list_guest_spoken_closed_recovery_v1(integer)\",\n  \"load_guest_spoken_success_private_v1(text,jsonb,text,text)\",\n  \"lock_account_audio_group_private_v1(text)\",\n  \"lock_guest_authority_sources_v1(text,text[])\",\n  \"lock_guest_cleanup_components_v1(text,text[],text[])\",\n  \"lock_guest_resource_budget_v1(text,text)\",\n  \"lock_learner_audio_sources_private_v1(text[])\",\n  \"map_controlled_guest_learning_source_v1()\",\n  \"map_existing_account_learning_source_v1()\",\n  \"persist_guest_spoken_success_private_v1(text,jsonb,text,text,jsonb,jsonb)\",\n  \"persist_owner_guest_spoken_success_v1(jsonb,jsonb,text,text,jsonb,jsonb)\",\n  \"prepare_captured_audio_cleanup_private_v1(jsonb)\",\n  \"prepare_guest_attachment_target_v1(text,text[],text,text,text[],text,text,text)\",\n  \"prepare_guest_captured_audio_cleanup_private_v1(jsonb)\",\n  \"prepare_guest_json_answer_v1(jsonb,jsonb,text,text,text,integer,jsonb)\",\n  \"prepare_guest_owner_audio_delete_v1(jsonb,jsonb,integer)\",\n  \"prepare_guest_spoken_finalization_v1(text,jsonb,text)\",\n  \"prepare_guest_study_start_v1(jsonb,jsonb,text,text,text,text,text,jsonb)\",\n  \"prepare_learner_audio_delete_private_v1(text,text,text,text,text[],text,integer,text)\",\n  \"prepare_next_guest_ephemeral_audio_cleanup_private_v1()\",\n  \"preserve_learning_source_identity_v1()\",\n  \"project_owner_study_session_private_v1(text,text,text)\",\n  \"read_captured_learner_audio_private_v1(text)\",\n  \"read_guest_audio_io_capture_private_v1(text)\",\n  \"read_guest_browser_proof_snapshot_v1(text,jsonb,jsonb,boolean)\",\n  \"read_guest_credential_proof_matches_v1(text,jsonb,boolean)\",\n  \"read_guest_learning_lease_observation_v1(text,text,text)\",\n  \"read_guest_owner_audio_delete_batch_private_v1(text)\",\n  \"read_guest_spoken_capture_private_v1(text,jsonb,text,text)\",\n  \"read_guest_spoken_closed_recovery_v1(text)\",\n  \"read_guest_spoken_context_v1(jsonb,text,text,text,text)\",\n  \"read_guest_study_session_snapshot_v1(jsonb,text,text)\",\n  \"read_learner_audio_upload_status_private_v1(text)\",\n  \"read_original_account_study_answer_receipt_v1(jsonb,text,text,text,text,text)\",\n  \"read_original_account_study_source_v1(jsonb,text,text,text)\",\n  \"read_owner_guest_answer_operation_v1(jsonb,text,jsonb,text,text,text,integer)\",\n  \"read_owner_guest_answer_source_v1(jsonb,text,text,text)\",\n  \"read_owner_guest_spoken_capture_v1(jsonb,jsonb,text,text)\",\n  \"read_owner_guest_spoken_dispatch_context_v1(jsonb,text,text,text,text)\",\n  \"read_owner_guest_spoken_success_v1(jsonb,jsonb,text,text)\",\n  \"read_owner_study_session_snapshot_v1(jsonb,text,text)\",\n  \"register_learner_audio_upload_private_v1(text,text,text,text,text,text,text,text,bigint)\",\n  \"reject_guest_copresent_established_conflict_v1(text,text[],text)\",\n  \"reject_guest_immutable_mutation_v1()\",\n  \"release_guest_resource_session_v1(text,jsonb,text,text,text)\",\n  \"release_next_guest_study_resource_remainder_v1()\",\n  \"renew_guest_authority_v1(text,text[],text,text)\",\n  \"require_existing_account_participation_owner_v1(text)\",\n  \"require_guest_answer_operation_private_v1(text,jsonb,text,text,text,text,integer,text)\",\n  \"require_guest_audio_io_capture_private_v1(jsonb)\",\n  \"require_guest_audio_recovery_access_private_v1(jsonb,text)\",\n  \"require_guest_learning_runtime_role_v1(regrole)\",\n  \"require_guest_practice_only_schema_phase_v1()\",\n  \"require_guest_resource_success_checkpoint_v1(text,text,text,text,numeric)\",\n  \"require_guest_review_schedule_private_v1(jsonb,timestamp with time zone)\",\n  \"require_guest_spoken_resource_plan_v1(text,text,text,boolean)\",\n  \"require_guest_study_composition_v1()\",\n  \"require_guest_study_learning_access_v1(jsonb,text)\",\n  \"require_owner_guest_source_private_v1(jsonb)\",\n  \"reserve_guest_prepared_study_start_v1(jsonb,jsonb,text,text,text,text,text,text,jsonb,text)\",\n  \"reserve_guest_provider_call_v1(text,jsonb,text,text,integer,text,text)\",\n  \"reserve_guest_resource_session_v1(text,jsonb,text,integer,text,text,jsonb)\",\n  \"reserve_guest_spoken_answer_v1(jsonb,jsonb,text,jsonb,text,bigint,jsonb,text,boolean,text,text,text)\",\n  \"resolve_guest_audio_io_capture_private_v1(jsonb,jsonb,text,text,bigint,text)\",\n  \"resolve_guest_empty_owner_root_v1(text)\",\n  \"retain_learner_audio_immutable_private_v1()\",\n  \"select_guest_study_start_plan_v1(text,text,text,text,text)\",\n  \"set_guest_learning_retention_v1(jsonb,jsonb,text)\",\n  \"settle_guest_audio_io_private_v1(jsonb,text,boolean)\",\n  \"settle_learner_audio_upload_private_v1(text,text,boolean,text)\",\n  \"settle_legacy_learner_audio_upload_private_v1(text,text,jsonb)\",\n  \"transition_guest_json_answer_v1(jsonb,text,jsonb,jsonb,jsonb)\",\n  \"transition_guest_spoken_answer_v1(text,jsonb,text,jsonb,jsonb,jsonb)\",\n  \"validate_guest_alias_state_v1()\",\n  \"validate_guest_recovery_operation_private_v1(jsonb,text)\",\n  \"validate_guest_resource_operation_v1(text,jsonb,text)\",\n  \"validate_guest_resource_policy_v1(jsonb)\",\n  \"validate_study_attempt_audio_source_v1()\",\n  \"validate_study_command_audio_source_v1()\",\n] as const;\n\n/** First and last migrations whose private functions these lists classify. */\nexport const SERVING_FUNCTION_PRIVILEGE_MIGRATIONS = { first: 247, last: 265 } as const;\n\n/**\n * SELECT-only facts from the executing connection, including inherited access.\n * $1 is the schema, $2 the signatures and $3 whether each must be executable.\n */\nexport const SERVING_FUNCTION_PRIVILEGES_SQL = `SELECT\n  current_user::text AS runtime_role, required.signature, required.expected_execute,\n  COALESCE(has_schema_privilege(current_user, n.oid, 'USAGE'), FALSE) AS schema_usage,\n  p.oid IS NOT NULL AS function_exists,\n  COALESCE(p.pronamespace = anchor.relnamespace AND p.proowner = anchor.relowner, FALSE) AS anchored_owner,\n  COALESCE(p.prosecdef, FALSE) AS security_definer,\n  COALESCE(p.proconfig = ARRAY['search_path=pg_catalog, ' || quote_ident(n.nspname) || ', pg_temp'], FALSE) AS pinned_search_path,\n  COALESCE(pg_has_role(current_user, p.proowner, 'USAGE'), FALSE) AS owner_equivalent,\n  COALESCE(has_function_privilege(current_user, p.oid, 'EXECUTE'), FALSE) AS can_execute\nFROM unnest($2::text[], $3::boolean[]) AS required(signature, expected_execute)\nLEFT JOIN pg_catalog.pg_namespace n ON n.nspname = $1\nLEFT JOIN pg_catalog.pg_class anchor ON anchor.relnamespace = n.oid AND anchor.relname = 'participation_owners'\nLEFT JOIN pg_catalog.pg_proc p\n  ON p.oid = pg_catalog.to_regprocedure(quote_ident(n.nspname) || '.' || required.signature)`;\n\nexport function servingFunctionPrivilegeParameters(schema: string) {\n  const grants = SERVING_FUNCTION_EXECUTE_GRANTS.map((grant) => grant.signature);\n  return [\n    schema,\n    [...grants, ...SERVING_FUNCTION_EXECUTE_DENIALS],\n    [...grants.map(() => true), ...SERVING_FUNCTION_EXECUTE_DENIALS.map(() => false)],\n  ] as const;\n}\n\nexport class ServingFunctionPrivilegesRefused extends Error {\n  constructor(readonly failures: readonly string[]) {\n    super(\"Serving-role function privileges refused\");\n  }\n}\n\n/** Returns the serving role; failures name signatures and facts, never values. */\nexport function assertServingFunctionPrivileges(rows: readonly Record<string, unknown>[]): string {\n  const expected = SERVING_FUNCTION_EXECUTE_GRANTS.length + SERVING_FUNCTION_EXECUTE_DENIALS.length;\n  const role = rows[0]?.runtime_role;\n  if (rows.length !== expected || typeof role !== \"string\" || role.length === 0)\n    throw new ServingFunctionPrivilegesRefused([\"privilege facts incomplete\"]);\n  const failures: string[] = [];\n  const seen = new Set<unknown>();\n  for (const row of rows) {\n    const signature = String(row.signature);\n    if (row.runtime_role !== role || seen.has(row.signature))\n      failures.push(`${signature}: facts differ`);\n    seen.add(row.signature);\n    if (row.schema_usage !== true) failures.push(`${signature}: schema usage missing`);\n    if (row.function_exists !== true) failures.push(`${signature}: function missing`);\n    if (row.anchored_owner !== true) failures.push(`${signature}: schema or owner differs`);\n    // A granted entry point runs as the owner with a fixed search_path. Denied\n    // helpers and triggers keep whatever shape their migration gave them.\n    if (row.expected_execute === true && row.security_definer !== true)\n      failures.push(`${signature}: not security definer`);\n    if (row.expected_execute === true && row.pinned_search_path !== true)\n      failures.push(`${signature}: search_path not pinned`);\n    if (row.owner_equivalent !== false)\n      failures.push(`${signature}: serving role is owner-equivalent`);\n    if (row.can_execute !== row.expected_execute)\n      failures.push(\n        `${signature}: ${row.expected_execute === true ? \"EXECUTE missing\" : \"EXECUTE must be denied\"}`,\n      );\n  }\n  if (failures.length > 0) throw new ServingFunctionPrivilegesRefused(failures);\n  return role;\n}\n",
+      "encoding": "utf-8",
+      "sha": "3b8b56494e95cf5dd68e62303788ccca4fe04242",
+      "display_url": "https://github.com/pirate-social-club/api-next/blob/4a20cc598a9371536ad2dddbbd4269cc6a82c2fb/packages/platform-cf/src/serving-function-privileges.ts",
+      "display_title": "serving-function-privileges.ts"
+    }
+  },
+  "solid": {
+    "current_main": "f668c090e00b1a5792406075476620aad49f8890",
+    "unsafe_recovery_head": "bd319b438e6e8ef92235050fb6475f957efe110b",
+    "unsafe_recovery_tree": "ef7add135ebecd1cef780c3d383bfd28fa5a3bf4",
+    "source_result": "Prepared whole-PR revert restores existing Telegram-link alias privacy gap; needs successor retaining shared privacy protections",
+    "finding": {
+      "revertHead": "bd319b438e6e8ef92235050fb6475f957efe110b",
+      "revertPrivacyBlob": "3410398586b15639657c687630dc5775a0c69980",
+      "fixedHead": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+      "fixedPrivacyBlob": "8079b82967406f4efd889760d718b279a68ca1af",
+      "routerVersion": "2.0.0-next.16",
+      "rows": [
+        {
+          "pathname": "/telegram/link",
+          "routerMatches": true,
+          "revertClassifiesPrivate": true,
+          "revertRetainsFixtureCredentials": false,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": false,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link//",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/%74elegram/link",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/callback",
+          "routerMatches": true,
+          "revertClassifiesPrivate": true,
+          "revertRetainsFixtureCredentials": false,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": false,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/callback/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK/CALLBACK",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK/CALLBACK/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/callback//",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/%74elegram/link/callback",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/account",
+          "routerMatches": true,
+          "revertClassifiesPrivate": true,
+          "revertRetainsFixtureCredentials": false,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": false,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/account/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK/ACCOUNT",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/TELEGRAM/LINK/ACCOUNT/",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/telegram/link/account//",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        },
+        {
+          "pathname": "/%74elegram/link/account",
+          "routerMatches": true,
+          "revertClassifiesPrivate": false,
+          "revertRetainsFixtureCredentials": true,
+          "fixedClassifiesPrivate": true,
+          "fixedRefusesAlias": true,
+          "fixedRetainsFixtureCredentials": false
+        }
+      ],
+      "regressionCount": 15,
+      "limits": "Exact source modules and installed pinned router evaluated in memory, matching reviewed entry-server conditional. No deployed SSR renderer, callback credentials or staging operation."
+    },
+    "revert_privacy": {
+      "content": "export function isTelegramLinkPage(pathname: string): boolean {\n  return pathname === \"/telegram/link\" || pathname === \"/telegram/link/callback\" || pathname === \"/telegram/link/account\";\n}\n\n/** SSR must not serialize callbacks into router state, metadata or HTML. */\nexport function telegramPageRequest(request: Request): Request {\n  const url = new URL(request.url);\n  url.search = \"\";\n  url.hash = \"\";\n  return new Request(url.href, request);\n}\n\nexport function telegramPageResponse(response: Response): Response {\n  const headers = new Headers(response.headers);\n  headers.set(\"cache-control\", \"private, no-store\");\n  headers.set(\"referrer-policy\", \"no-referrer\");\n  headers.set(\"x-robots-tag\", \"noindex, nofollow\");\n  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });\n}\n",
+      "encoding": "utf-8",
+      "sha": "3410398586b15639657c687630dc5775a0c69980",
+      "display_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/bd319b438e6e8ef92235050fb6475f957efe110b/src/features/identity/telegram-linking/telegram-linking-privacy.ts",
+      "display_title": "telegram-linking-privacy.ts"
+    },
+    "revert_entry_server": {
+      "content": "import { isTelegramLinkPage, telegramPageRequest } from \"./features/identity/telegram-linking/telegram-linking-privacy.ts\";\nimport { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from \"./features/community/owner-settings/owner-settings-preflight\";\nimport { getRequestEvent, httpHeader, httpStatus, renderToStream } from \"@solidjs/web\";\nimport type { Component } from \"solid-js\";\nimport manifest from \"virtual:solid-manifest\";\nimport App from \"./App\";\nimport Document from \"./Document\";\nimport {\n  communityPageResponsePolicy,\n  resolveCommunityPagePreflight,\n  type CommunityPagePreflight,\n} from \"./features/communities/community-page/community-page-preflight.ts\";\nimport {\n  publicProfileResponsePolicy,\n  resolvePublicProfilePreflight,\n  type PublicProfilePreflight,\n} from \"./features/profiles/public-profile-page/public-profile-preflight.ts\";\nimport {\n  personaPublicProfileResponsePolicy,\n  resolvePersonaPublicProfilePreflight,\n  type PersonaPublicProfilePreflight,\n} from \"./features/profiles/persona-public-profile/persona-public-profile-preflight.ts\";\nimport {\n  publicPostResponsePolicy,\n  resolvePublicPostPreflight,\n  type PublicPostPreflight,\n} from \"./features/posts/public-post/public-post-preflight.ts\";\nimport { bindCommunityCreationAvatarAuthoringRequest } from \"./features/community/community-creation-avatar-authoring.ts\";\nimport {\n  handleStorefrontResponsePolicy,\n  resolveHandleStorefrontPreflight,\n  type HandleStorefrontPreflight,\n} from \"./features/communities/handle-storefront/handle-storefront-preflight.ts\";\n\nexport interface EntryServerRenderDependencies {\n  readonly Application?: Component;\n}\n\nexport async function render(\n  request: Request,\n  context?: {\n    readonly clientEntry?: string;\n    readonly API_NEXT_ORIGIN?: string;\n    readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;\n    readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;\n    readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;\n    readonly CANONICAL_ASSET_ORIGIN?: string;\n    readonly DISABLE_HYDRATION?: boolean;\n    readonly PUBLIC_POST_PREFLIGHT?: PublicPostPreflight;\n  },\n  dependencies: EntryServerRenderDependencies = {},\n) {\n  const event = getRequestEvent();\n  if (isTelegramLinkPage(new URL(request.url).pathname)) {\n    request = telegramPageRequest(request);\n    // The router reads the request event, not this function's argument.\n    // Scrub both before preflights, routing or hydration serialization starts.\n    if (event !== undefined) event.request = request;\n  }\n  if (event !== undefined) {\n    // SAFETY: entry-server owns this presentation-only hydration flag.\n    const locals = event.locals as typeof event.locals & { profileActivityHydrationDisabled?: boolean };\n    locals.profileActivityHydrationDisabled = context?.DISABLE_HYDRATION === true;\n  }\n  const nonce = event?.locals.cspNonce;\n  const Application = dependencies.Application ?? App;\n  if (event !== undefined) {\n    bindCommunityCreationAvatarAuthoringRequest(\n      event,\n      context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,\n      context?.PUBLIC_APP_CANONICAL_ORIGIN,\n    );\n    // SAFETY: this request-local value comes directly from the typed Worker\n    // render context and is read only as that same optional string.\n    const locals = event.locals as typeof event.locals & {\n      apiNextOrigin?: string;\n    };\n    locals.apiNextOrigin = context?.API_NEXT_ORIGIN;\n  }\n  // SAFETY: Vite's runtime manifest includes the `_base` member used by the\n  // Solid asset resolver even though AssetManifest's public index signature\n  // omits it. Every chunk record is preserved; only that resolver base changes.\n  const renderManifest = (context?.CANONICAL_ASSET_ORIGIN === undefined\n    ? manifest\n    : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;\n  const postPreflight = context?.PUBLIC_POST_PREFLIGHT ??\n    await resolvePublicPostPreflight(\n      request,\n      context?.API_NEXT_ORIGIN,\n      context?.PUBLIC_APP_CANONICAL_ORIGIN,\n    );\n  if (postPreflight !== undefined) {\n    if (postPreflight.state.kind === \"redirect\") {\n      return new Response(null, {\n        status: 308,\n        headers: {\n          \"Cache-Control\": \"private, no-store\",\n          Location: postPreflight.state.location,\n          Vary: \"Accept-Language, Cookie\",\n        },\n      });\n    }\n    if (event !== undefined) {\n      // SAFETY: this request-local key is written and read only as the\n      // PublicPostPreflight produced immediately above.\n      const locals = event.locals as typeof event.locals & { publicPostPreflight?: PublicPostPreflight };\n      locals.publicPostPreflight = postPreflight;\n    }\n    const policy = publicPostResponsePolicy(postPreflight.state);\n    httpStatus(policy.status, policy.statusText);\n    policy.headers.forEach((value, name) => httpHeader(name, value));\n  }\n  const personaPreflight = context?.PERSONA_PUBLIC_PROFILE_PREFLIGHT ??\n    await resolvePersonaPublicProfilePreflight(request, context?.API_NEXT_ORIGIN);\n  if (personaPreflight !== undefined) {\n    if (event !== undefined) {\n      // SAFETY: this request-local key is written and read only as the\n      // PersonaPublicProfilePreflight produced immediately above.\n      const locals = event.locals as typeof event.locals & {\n        personaPublicProfilePreflight?: PersonaPublicProfilePreflight;\n      };\n      locals.personaPublicProfilePreflight = personaPreflight;\n    }\n    const policy = personaPublicProfileResponsePolicy(personaPreflight.state);\n    httpStatus(policy.status, policy.statusText);\n    policy.headers.forEach((value, name) => httpHeader(name, value));\n  }\n  const ownerSettingsPreflight = await resolveOwnerSettingsPreflight(request, context?.API_NEXT_ORIGIN);\n  if (ownerSettingsPreflight !== undefined) {\n    if (event !== undefined) {\n      // SAFETY: this request-local key is written only with the preflight result above.\n      const locals = event.locals as typeof event.locals & { ownerSettingsPreflight?: OwnerSettingsPreflight };\n      locals.ownerSettingsPreflight = ownerSettingsPreflight;\n    }\n    httpStatus(ownerSettingsResponseStatus(ownerSettingsPreflight.state));\n    httpHeader(\"Cache-Control\", \"private, no-store\");\n    httpHeader(\"Vary\", \"Cookie\");\n  }\n  const communityPreflight = await resolveCommunityPagePreflight(request, context?.API_NEXT_ORIGIN);\n  if (communityPreflight !== undefined) {\n    if (event !== undefined) {\n      // SAFETY: this request-local key is written and read only as the\n      // CommunityPagePreflight produced immediately above.\n      const locals = event.locals as typeof event.locals & { communityPagePreflight?: CommunityPagePreflight };\n      locals.communityPagePreflight = communityPreflight;\n    }\n    const policy = communityPageResponsePolicy(communityPreflight.state);\n    httpStatus(policy.status, policy.statusText);\n    policy.headers.forEach((value, name) => httpHeader(name, value));\n  }\n  const storefrontPreflight = await resolveHandleStorefrontPreflight(request, context?.API_NEXT_ORIGIN);\n  if (storefrontPreflight !== undefined) {\n    if (event !== undefined) {\n      // SAFETY: entry-server alone writes this typed request-local result.\n      const locals = event.locals as typeof event.locals & { handleStorefrontPreflight?: HandleStorefrontPreflight };\n      locals.handleStorefrontPreflight = storefrontPreflight;\n    }\n    const policy = handleStorefrontResponsePolicy(storefrontPreflight.state);\n    httpStatus(policy.status, policy.statusText);\n    policy.headers.forEach((value, name) => httpHeader(name, value));\n  }\n  const preflight = await resolvePublicProfilePreflight(request, context?.API_NEXT_ORIGIN);\n  if (preflight !== undefined) {\n    if (event !== undefined) {\n      // SAFETY: this request-scoped key is written and read only as the\n      // PublicProfilePreflight produced immediately above.\n      const locals = event.locals as typeof event.locals & { publicProfilePreflight?: PublicProfilePreflight };\n      locals.publicProfilePreflight = preflight;\n    }\n    const policy = publicProfileResponsePolicy(request, preflight.state);\n    if (policy.status === 302) {\n      return new Response(null, {\n        status: policy.status,\n        statusText: policy.statusText,\n        headers: policy.headers,\n      });\n    }\n    httpStatus(policy.status, policy.statusText);\n    policy.headers.forEach((value, name) => httpHeader(name, value));\n  }\n  return renderToStream(\n    () => (\n      <Document\n        clientEntry={context?.clientEntry}\n        canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}\n        communityCreationAvatarAuthoring={\n          context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === \"true\"\n        }\n        publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}\n        hydrate={context?.DISABLE_HYDRATION !== true}\n      >\n        <Application />\n      </Document>\n    ),\n    { nonce, manifest: renderManifest },\n  );\n}\n",
+      "encoding": "utf-8",
+      "sha": "6a939f213d709559bcca20621dffd74883732522",
+      "display_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/bd319b438e6e8ef92235050fb6475f957efe110b/src/entry-server.tsx",
+      "display_title": "entry-server.tsx"
+    }
+  },
+  "packet": {
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6149649599",
+    "g2": "Ship compatible media processor in PartB with fresh serving/binding/Workflow version and alignment-progress evidence. After-deploy instance behavior not independently established by this review.",
+    "g3": "Remove probe while preserving corrected linking-route privacy; new exact-head build/check/fingerprint and independent recovery review required"
+  },
+  "contract": {
+    "pull_request": "https://github.com/pirate-social-club/api-next/pull/604",
+    "head": "9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763",
+    "hosted_check_count": 13,
+    "hosted_checks": "success",
+    "decisions": "R1/R2/C1/E1 owner decision pending",
+    "recommendation": "Limited practice recovery; practice-only status; private read-only history relation retaining the bot profile; one Open my progress action",
+    "provider": "Real-phone probe and managed numeric-ID/subject/freshness lookup pending"
+  },
+  "publications": {
+    "review": {
+      "id": 5507108723,
+      "url": "https://github.com/pirate-social-club/api-next/pull/605#pullrequestreview-5507108723",
+      "commit": "4a20cc598a9371536ad2dddbbd4269cc6a82c2fb",
+      "created_at": "2026-10-13T16:57:33Z",
+      "body": "Independent source review of exact head 4a20cc598a9371536ad2dddbbd4269cc6a82c2fb.\n\nOne blocking finding remains in packages/platform-cf/src/serving-function-privileges.ts, SERVING_FUNCTION_PRIVILEGES_SQL: owner_equivalent checks only pg_has_role(current_user, p.proowner, 'USAGE'). A serving role with an owner membership granted WITH INHERIT FALSE, SET TRUE returns false for USAGE and has no immediate access to the 147 denied functions, so the current preflight accepts all 170 facts. That role can then SET ROLE to the owner and execute every denied function.\n\nI reproduced this with the exact fetched SQL and assertServingFunctionPrivileges on a disposable, isolated postgres:17.11 catalog fixture containing all 170 reviewed signatures, correct ownership and search paths, and exactly the 23 proposed EXECUTE grants. Result: preflight accepted g1_review_app; immediate owner USAGE=false; owner SET=true; after SET ROLE, 147/147 denials were executable. This is a source admission failure, not a claim that staging currently has that membership. PostgreSQL 17 distinguishes USAGE from SET explicitly: https://www.postgresql.org/docs/17/functions-info.html#FUNCTIONS-INFO-ACCESS-TABLE .\n\nPlease reject both inherited owner access and the ability to SET ROLE to the owner, including indirect memberships, and add a native PostgreSQL regression for a NOINHERIT serving role with SET-enabled owner membership. Keep the ordinary limited role admitted. This repair does not require changing the proposed 23 grants or any managed role.\n\nThe rest of the reviewed source is satisfactory: the new account-bound cancellation validates the exact account/session/attempt/artifact/capture and serializes with claim, only closing registered uploads. The broad closure and legacy/guest helpers stay denied. The grant block contains exactly 23 signatures, matches the shared list, and is disjoint from the 147 denials. I independently recomputed migration 0265 SHA256 337b5469bdf01595413349517f1c0750530280a4a38ac8fd007a2d2e3c4e106f, body pin ae7c0121308ecf6b544682d5ba0d7aba89db91eb68bb1e805c2faa960a2964e4, and the 265-entry ledger; the prior 264 manifest entries are unchanged. The trimmed SQL between the ordinary-account grant markers hashes to 474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814.\n\nAll 13 hosted checks pass on this exact head. I did not rerun the full product suites locally; the two independent reproductions used fetched source modules and an isolated catalog fixture. A passing URL preflight still needs a fresh operator receipt binding that connection to the effective staging Hyperdrive origin and serving principal.\n\nSource clearance is pending the owner-equivalence repair and exact-successor CI. Actual staging grant application remains a separate, explicit permission change; no migration, grant, credential or deployment was performed by this review."
+    },
+    "direction": {
+      "id": 6150774342,
+      "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6150774342",
+      "created_at": "2026-10-13T16:58:26Z",
+      "body": "Independent review checkpoint and continuation direction.\n\nI reviewed api-next#605 at 4a20cc598a9371536ad2dddbbd4269cc6a82c2fb and verified all 13 hosted checks are green. The narrow cancellation boundary and the exact 23-function grant block are sound, but the preflight has one source blocker: its owner-equivalence check uses USAGE only. An owner membership with INHERIT FALSE and SET TRUE passes the exact SQL/assertion, then SET ROLE makes all 147 denied functions executable. I reproduced that on an isolated local PostgreSQL 17.11 catalog fixture. The exact-head review is https://github.com/pirate-social-club/api-next/pull/605#pullrequestreview-5507108723 . Please reject both inherited owner access and SET-enabled owner access, cover indirect memberships in the native regression, publish the successor and obtain exact-head CI. No staging role change is needed to implement or test this repair.\n\nG3 has a separate blocking regression. I fetched bd319b438e6e8ef92235050fb6475f957efe110b and confirmed its tree is the pre-#64 tree plus #65's test line. That also restores the old equality-only privacy classifier for the existing /telegram/link, /telegram/link/callback and /telegram/link/account routes. With the pinned @solidjs/router 2.0.0-next.16, all 18 tested spellings route; 15 aliases bypass the reverted private classification and retain synthetic callback query values in the request passed to the SSR conditional. /TELEGRAM/LINK/CALLBACK/ and /%74elegram/link/callback are two concrete examples. Current corrected privacy source refuses those aliases and scrubs them. This was an exact-module/control-flow reproduction, not a deployed SSR run or a real credential leak.\n\nDo not use bd319b43 as the Part A recovery candidate. Prepare a successor on the exclusively owned Solid branch that removes the probe while preserving the shared router-equivalent private classification, alias refusal, callback scrubbing, private response/error headers and regressions for the existing linking routes. Preserve #65 and unrelated main changes. Publish it normally, run the appropriate checks/build/fingerprint and send the exact source back for independent review. Tree equality to the vulnerable pre-#64 source is not an acceptance criterion. Preparing and reviewing this source repair is already authorized; it needs no new product-owner decision. Retain the held candidate as historical evidence and update the live packet explicitly.\n\nG2 remains in Part B, with matched API/media source and fresh bindings. Treat the packet's claim that every existing instance reaching alignment after deploy uses the new producer as unverified until actual Workflow version/step binding is established. Counts alone do not prove that binding. Record queued/running/waiting/retrying instance versions and alignment progress or use a reviewed bounded drain/compatibility condition, without terminating instances or fabricating readbacks.\n\nThe proposed grant is still exactly 23 EXECUTE statements between the ordinary-account markers in roles.sql.example; its trimmed UTF-8 text hashes to 474d70e56baef8874150f509c40207957affc10682934270c49e9d784604f814. Migration 0265 hashes to 337b5469bdf01595413349517f1c0750530280a4a38ac8fd007a2d2e3c4e106f. I recomputed the candidate's 265-entry ledger and body pin and confirmed the prior 264 checksums are unchanged. Do not run the entire roles example. Before actual grant application, bind the reviewed block to the fresh effective serving principal/Hyperdrive origin and obtain the workspace_owner's explicit permission-change approval. No managed migration, grant, credential change or staging deployment occurred in this review.\n\nFor #604, all 13 checks are green at 9a840c3ee8d9e1955c80d1aab7dde7bc29e5b763. Keep “owner decision pending” for R1/R2/C1/E1. The request for the specs' recommendations was not acceptance. The recommendation remains limited practice recovery, practice-only status, a private read-only history link with bot lessons continuing the same profile, and one “Open my progress” action. Provider acceptance still requires the real phone probe and managed read-only subject/numeric-ID/freshness lookup.\n\nCloud retains Telegram ownership. Continue both source repairs and the release-packet correction now. Part A needs a reviewed recovery successor and fresh serving/config/app/source/artifact receipts; Part B needs the corrected preflight, reviewed migration/grant bindings and the actual grant approval. Production, funds, new credentials, irreversible resets and owner decisions remain excluded. The probe deadline remains 2026-10-17T00:00:00Z."
+    }
+  },
+  "authority": {
+    "cloud_owner": "cloud_telegram_coordinator",
+    "source_repairs": "Authorized now; cloud continues implementation, independent review, CI and release-packet correction",
+    "actual_grant": "Explicit permission-change approval still required for exact reviewed block on fresh bound serving principal; no full roles example",
+    "exclusions": "Production, funds, new/rotated credentials, permission mutations without explicit owner approval, secret export and irreversible resets",
+    "probe_expires_at": "2026-10-17T00:00:00Z"
+  },
+  "limits": "No product migration suite rerun locally. Native PostgreSQL evidence is an isolated synthetic catalog fixture using the exact source admission SQL/assertion and all reviewed signatures. Route evidence evaluates exact fetched modules with installed pinned router and reviewed SSR conditional, not a deployed renderer or real credentials. No managed migration, grant, credential change, deploy or phone operation occurred."
+}
