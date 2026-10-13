@@ -77,6 +77,7 @@ export function ShellStory(props: Partial<MediaShellProps> & { readonly initialP
       mobileActiveItem={policy().mobileActiveItem}
       mobileTitle={policy().mobileTitle}
       hideMobileHeader={policy().hideMobileHeader}
+      hideMobileFooter={policy().hideMobileFooter}
       mode={policy().mode}
       {...shellProps}
     >

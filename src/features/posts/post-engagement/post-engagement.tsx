@@ -5,12 +5,22 @@ import type { ContentAction } from "../shared-engagement/content-overflow-menu.t
 import type { CommentThreadReader } from "./comment-thread-api.ts";
 import { createCommentThreadController } from "./comment-thread-controller.ts";
 import type { JSX } from "@solidjs/web";
-import { For, Show, createEffect, createMemo, createSignal, untrack } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onSettled, untrack } from "solid-js";
+import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
+import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 
 import {
   Button,
   FormattedTextarea,
+  IconArrowUp,
+  IconChatCircle,
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalHeader,
+  ModalTitle,
   Type,
+  buttonVariants,
 } from "../../../design-system.ts";
 import { FeedPanelLayout, FeedSidePanel } from "../feed-side-panel/feed-side-panel.tsx";
 import {
@@ -83,6 +93,20 @@ export interface PostEngagementProps {
   readonly generateIdempotencyKey?: () => string;
   readonly pendingStorage?: PendingEngagementStorage;
   readonly children?: (controls: JSX.Element, menuActions: readonly ContentAction[]) => JSX.Element;
+  /**
+   * `sheet` (feeds) opens the thread in the side panel from the comment pill.
+   * `inline` (the post page) lays the thread under the post with a one-line
+   * comment box: pinned to the phone's bottom edge, directly under the post
+   * on wider screens.
+   */
+  readonly presentation?: "sheet" | "inline";
+  /** Inline only: who the viewer comments as, drawn at the start of the box. */
+  readonly composerIdentity?: JSX.Element;
+  /**
+   * Inline only: the viewer is signed in but not a member. The comment box is
+   * replaced by Join to comment, and Reply leads to the same place.
+   */
+  readonly joinHref?: string;
 }
 
 type ComposeTarget =
@@ -93,9 +117,12 @@ function defaultIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-function reportReasonFromValue(value: string): CommentReportReason {
-  return REPORT_REASONS.find(reason => reason.value === value)?.value ?? "other";
-}
+type ReportTarget =
+  | { readonly kind: "post" }
+  | { readonly kind: "comment"; readonly item: CommentThreadItem };
+
+/** The comment pill's shape, so Reply reads as the same family of control. */
+const replyPillClass = "inline-flex h-11 w-fit cursor-pointer items-center gap-2 rounded-full border border-border-soft bg-background px-4 text-base font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function PostEngagement(props: PostEngagementProps) {
   const initial = untrack(() => ({
@@ -129,8 +156,10 @@ export function PostEngagement(props: PostEngagementProps) {
   const [discardableRecord, setDiscardableRecord] = createSignal<PendingEngagementRecord>();
   const [retainedRecord, setRetainedRecord] = createSignal<PendingEngagementRecord>();
   const [retainedBusy, setRetainedBusy] = createSignal(false);
-  const [reportReason, setReportReason] = createSignal<CommentReportReason>("spam");
+  const [reportTarget, setReportTarget] = createSignal<ReportTarget>();
   const [actionBusyId, setActionBusyId] = createSignal<string>();
+  const inline = untrack(() => props.presentation === "inline");
+  let composerInput: HTMLInputElement | undefined;
 
   const targetParent = createMemo(() => {
     const target = composeTarget();
@@ -151,11 +180,21 @@ export function PostEngagement(props: PostEngagementProps) {
   };
 
   const thread = createCommentThreadController({postId:props.post.id,readComments:props.readComments,comments,setComments});
-  const openComments = () => {
-    setPanelOpen(true);
-    setIssue(undefined);
+  const loadThread = () => {
     if (props.initialComments === undefined || props.readComments !== undefined) void thread.load();
   };
+  const openComments = () => {
+    if (inline) {
+      // The thread is already on the page; the pill takes the viewer to the box.
+      if (composerInput && !composerInput.disabled) composerInput.focus();
+      else document.querySelector<HTMLElement>(`[data-comment-thread="${props.post.id}"]`)?.scrollIntoView?.({ block: "start" });
+      return;
+    }
+    setPanelOpen(true);
+    setIssue(undefined);
+    loadThread();
+  };
+  if (inline) onSettled(loadThread);
 
   const selectReply = (item: CommentThreadItem) => {
     if (!canReplyToComment(item)) {
@@ -164,6 +203,7 @@ export function PostEngagement(props: PostEngagementProps) {
     }
     setComposeTarget({ kind: "reply", parentId: item.id });
     setDraft("");
+    if (inline) queueMicrotask(() => composerInput?.focus());
   };
 
   const prepareRecord = async (
@@ -256,10 +296,8 @@ export function PostEngagement(props: PostEngagementProps) {
     () => { void (async () => {
       try {
         const records = await pendingStorage.listForPost(props.principalId, props.post.id);
-        const decoded = await Promise.all(records.map(async record => ({
-          record,
-          action: await decodePendingEngagementAction(record.envelope),
-        })));
+        // Every retained envelope must still decode before the view trusts it.
+        await Promise.all(records.map(record => decodePendingEngagementAction(record.envelope)));
         const pendingSubmission = records.find(record => record.slot === commentSubmissionSlot(props.principalId, props.post.id));
         if (pendingSubmission !== undefined) {
           const action = await decodePendingEngagementAction(pendingSubmission.envelope);
@@ -274,8 +312,6 @@ export function PostEngagement(props: PostEngagementProps) {
         } else if (records.length > 0) {
           setIssue({ kind: "unavailable" });
         }
-        const pendingReport = decoded.find(entry => entry.action.kind === "report");
-        if (pendingReport?.action.kind === "report") setReportReason(pendingReport.action.reasonCode);
         const rejected = records.find(record => record.issue !== undefined);
         if (rejected?.issue !== undefined) {
           setDiscardableRecord(rejected);
@@ -372,21 +408,21 @@ export function PostEngagement(props: PostEngagementProps) {
     }
   };
 
-  const [postReportOpen, setPostReportOpen] = createSignal(false);
   const [postReportBusy, setPostReportBusy] = createSignal(false);
   const [postReported, setPostReported] = createSignal(false);
-  const reportPost = async () => {
+  const closeReport = () => setReportTarget(undefined);
+  const reportPost = async (reasonCode: CommentReportReason) => {
     if (postReportBusy()) return;
     setPostReportBusy(true);
     setIssue(undefined);
     const record = await prepareRecord(postReportSlot(props.principalId, props.post.id), key => ({
-      kind: "post_report", postId: props.post.id, reasonCode: reportReason(), idempotencyKey: key,
+      kind: "post_report", postId: props.post.id, reasonCode, idempotencyKey: key,
     }));
     try {
       if (record === null) return;
       await transport.reportPost(record.envelope);
       setPostReported(true);
-      setPostReportOpen(false);
+      closeReport();
       await resolveRecord(record);
     } catch (error) {
       if (record) await retainFailure(record, error);
@@ -395,17 +431,17 @@ export function PostEngagement(props: PostEngagementProps) {
     }
   };
   const postMenuActions = (): readonly ContentAction[] => props.canReportPost
-    ? [{ label: "Report", disabled: postReportBusy(), run: () => setPostReportOpen(true) }]
+    ? [{ label: "Report", disabled: postReportBusy(), run: () => setReportTarget({ kind: "post" }) }]
     : [];
 
-  const report = async (item: CommentThreadItem) => {
+  const report = async (item: CommentThreadItem, reasonCode: CommentReportReason) => {
     if (actionBusyId() || !commentCountsAsPublished(item) || !isCommentAddressable(item)) return;
     setActionBusyId(item.id);
     setIssue(undefined);
     const record = await prepareRecord(commentReportSlot(props.principalId, props.post.id, item.id), key => ({
       kind: "report",
       commentId: item.id,
-      reasonCode: reportReason(),
+      reasonCode,
       idempotencyKey: key,
     }));
     if (record === null) {
@@ -417,6 +453,7 @@ export function PostEngagement(props: PostEngagementProps) {
       setComments(items => items.map(comment => comment.id === item.id
         ? { ...comment, caseRef: response.case_ref, reportState: response.status }
         : comment));
+      closeReport();
       await resolveRecord(record);
     } catch (error) {
       await retainFailure(record, error);
@@ -554,7 +591,7 @@ export function PostEngagement(props: PostEngagementProps) {
         case "post_report": {
           await transport.reportPost(record.envelope);
           setPostReported(true);
-          setPostReportOpen(false);
+          closeReport();
           break;
         }
         case "report": {
@@ -608,7 +645,7 @@ export function PostEngagement(props: PostEngagementProps) {
   const commentMenuActions = (item: CommentThreadItem): readonly ContentAction[] => {
     const actions: ContentAction[] = [];
     const add = (label: string, run: () => void) => actions.push({ label, run, disabled: actionBusyId() === item.id });
-    if (commentCountsAsPublished(item) && isCommentAddressable(item)) add("Report", () => void report(item));
+    if (commentCountsAsPublished(item) && isCommentAddressable(item)) add("Report", () => setReportTarget({ kind: "comment", item }));
     return actions;
   };
 
@@ -636,26 +673,75 @@ export function PostEngagement(props: PostEngagementProps) {
         commentCount={commentCount()} onComment={openComments} />
       <Show when={!props.children}><ContentOverflowMenu label="Post options" actions={postMenuActions()} /></Show>
       <Show when={postReported()}><Type role="status" variant="caption">Post reported</Type></Show>
-      <Show when={issue()}>
+      {/* Inline, these are said in the comment bar, where the viewer is acting. */}
+      <Show when={!inline && issue()}>
         {(currentIssue) => <Type role="alert" variant="caption">{engagementIssueMessage(currentIssue())}</Type>}
       </Show>
-      <Show when={discardableRecord()?.issue && !panelOpen()}>
+      <Show when={!inline && discardableRecord()?.issue && !panelOpen()}>
         <Button onClick={() => void discardRejected()} size="sm" type="button" variant="outline">Discard rejected action</Button>
       </Show>
-      <Show when={retainedRecord() && !panelOpen()}>
+      <Show when={!inline && retainedRecord() && !panelOpen()}>
         <Button disabled={retainedBusy()} onClick={() => void retryRetained()} size="sm" type="button" variant="outline">Retry retained request</Button>
       </Show>
     </div>
+  );
+
+  const locale = usePageUiLocale();
+  /** Names whom a reply answers when the loaded parent says so. */
+  const replyingLabel = (parent: CommentThreadItem): string => {
+    const label = parent.authorProfile !== undefined ? publicProfileLabel(parent.authorProfile, locale) : parent.authorLabel;
+    return label ? `Replying to ${label}` : `Replying at depth ${parent.depth + 1}`;
+  };
+
+  const statusLines = (spacing: string) => (
+    <>
+      <Show when={issue()}>
+        {(currentIssue) => <Type class={spacing} role="alert" variant="caption">{engagementIssueMessage(currentIssue())}</Type>}
+      </Show>
+      <Show when={discardableRecord()?.issue}>
+        <Button class={spacing} onClick={() => void discardRejected()} size="sm" type="button" variant="outline">Discard rejected action</Button>
+      </Show>
+      <Show when={retainedRecord()}>
+        <Button class={spacing} disabled={retainedBusy()} onClick={() => void retryRetained()} size="sm" type="button" variant="outline">Retry retained request</Button>
+      </Show>
+    </>
+  );
+
+  const repliesPage = (item: CommentThreadItem) => thread.pages()[`parent:${item.id}`];
+  const canLoadReplies = (item: CommentThreadItem) => item.replyCount > 0 && (repliesPage(item)?.state !== "ready" || repliesPage(item)?.cursor !== null);
+  const canRefresh = (item: CommentThreadItem) => commentCountsAsPublished(item) && !isCommentAddressable(item) && item.submissionId !== null;
+  /** One level on the post page: a reply carries no Reply of its own. */
+  const showsInlineReply = (item: CommentThreadItem) => item.depth === 0 && canReplyToComment(item);
+
+  const commentRowActions = (item: CommentThreadItem, showReply: boolean) => (
+    <>
+      <For each={commentModerationActions(item)}>{action => <Button disabled={action.disabled} onClick={action.run} size="sm" type="button" variant="outline">{action.label}</Button>}</For>
+      <Show when={canLoadReplies(item)}>
+        <Button disabled={repliesPage(item)?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
+          {repliesPage(item)?.state === "loading" ? "Loading replies…" : repliesPage(item)?.state === "error" ? "Retry replies" : repliesPage(item) ? "More replies" : "View replies"}
+        </Button>
+      </Show>
+      <Show when={showReply}>{props.joinHref === undefined
+        ? <button class={replyPillClass} onClick={() => selectReply(item)} type="button"><IconChatCircle aria-hidden="true" class="size-[23px]" />Reply</button>
+        : <a class={replyPillClass} href={props.joinHref}><IconChatCircle aria-hidden="true" class="size-[23px]" />Reply</a>}
+      </Show>
+      <Show when={canRefresh(item)}>
+        <Button disabled={actionBusyId() === item.id} onClick={() => void refreshComment(item)} size="sm" type="button" variant="outline">Refresh comment</Button>
+      </Show>
+    </>
   );
 
   const panel = () => (
     <FeedSidePanel
       closeLabel="Close comments"
       description={`${commentCount()} comments reported by the post`}
-      onOpenChange={setPanelOpen}
+      onOpenChange={open => { setPanelOpen(open); if (!open && reportTarget()?.kind === "comment") closeReport(); }}
       open={panelOpen()}
       title="Comments"
     >
+      {/* A comment's report reasons open inside the panel; opening a second
+          sheet from a menu inside this one would be dismissed as it opens. */}
+      <Show when={reportTarget()?.kind === "comment"} fallback={
       <div class="flex h-full flex-col">
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4" data-comment-thread>
           <Show
@@ -691,7 +777,7 @@ export function PostEngagement(props: PostEngagementProps) {
           <Show when={composeTarget().kind === "reply" && targetParent()}>
             {(parent) => (
               <div class="mb-2 flex items-center justify-between gap-3">
-                <Type variant="caption">Replying at depth {parent().depth + 1}</Type>
+                <Type variant="caption">{replyingLabel(parent())}</Type>
                 <Button onClick={() => setComposeTarget({ kind: "comment" })} size="sm" type="button" variant="ghost">Cancel reply</Button>
               </div>
             )}
@@ -707,18 +793,7 @@ export function PostEngagement(props: PostEngagementProps) {
           <Show when={props.personaId === undefined}>
             <Type class="mt-2" variant="caption">Choose a profile to comment as.</Type>
           </Show>
-          <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <label class="flex items-center gap-2 text-sm text-muted-foreground">
-              Report reason
-              <select
-                aria-label="Report reason"
-                class="rounded-md border border-input bg-background px-2 py-1"
-                onChange={(event) => setReportReason(reportReasonFromValue(event.currentTarget.value))}
-                value={reportReason()}
-              >
-                <For each={REPORT_REASONS}>{reason => <option value={reason.value}>{reason.label}</option>}</For>
-              </select>
-            </label>
+          <div class="mt-3 flex flex-wrap items-center justify-end gap-3">
             <Button disabled={submissionBusy() || draft().trim() === "" || props.personaId === undefined} onClick={() => void submit()} type="button">
               {submissionBusy() ? "Submitting" : composeTarget().kind === "reply" ? "Post reply" : "Post comment"}
             </Button>
@@ -734,29 +809,149 @@ export function PostEngagement(props: PostEngagementProps) {
           </Show>
         </div>
       </div>
+      }>
+        <div class="flex h-full flex-col overflow-y-auto" data-comment-report>
+          <div class="flex items-center justify-between gap-3 px-5 pt-4">
+            <div class="min-w-0">
+              <Type as="h3" variant="body-strong">{reportTitle()}</Type>
+              <Type variant="caption">{reportDescription()}</Type>
+            </div>
+            <Button onClick={closeReport} size="sm" type="button" variant="ghost">Back to comments</Button>
+          </div>
+          {reportReasons()}
+        </div>
+      </Show>
     </FeedSidePanel>
   );
 
-  const postReportPanel = () => (
-    <FeedSidePanel closeLabel="Close report" title="Report post" description="Choose a reason for reporting this post" open onOpenChange={setPostReportOpen}>
-      <div class="flex flex-col gap-4 p-5">
-        <label class="flex flex-col gap-2 text-sm font-medium">
-          Report reason
-          <select aria-label="Post report reason" class="rounded-md border border-border bg-background px-3 py-2" value={reportReason()}
-            onChange={event => setReportReason(reportReasonFromValue(event.currentTarget.value))}>
-            <For each={REPORT_REASONS}>{reason => <option value={reason.value}>{reason.label}</option>}</For>
-          </select>
-        </label>
-        <Button disabled={postReportBusy()} onClick={() => void reportPost()}>Submit report</Button>
-        <Show when={issue()}>{current => <Type role="alert">{engagementIssueMessage(current())}</Type>}</Show>
-        <Show when={retainedRecord()}><Button disabled={retainedBusy()} onClick={() => void retryRetained()} variant="outline">Retry retained request</Button></Show>
-        <Show when={discardableRecord()?.issue}><Button onClick={() => void discardRejected()} variant="outline">Discard rejected action</Button></Show>
-      </div>
+  // Reporting is a list of reasons; one tap sends the report under the same
+  // retained-key envelope as before, so a retry replays rather than duplicates.
+  const reportTitle = () => reportTarget()?.kind === "comment" ? "Report comment" : "Report post";
+  const reportDescription = () => reportTarget()?.kind === "comment"
+    ? "Choose why you are reporting this comment. It is sent when you choose."
+    : "Choose why you are reporting this post. It is sent when you choose.";
+  const reportBusy = () => {
+    const target = reportTarget();
+    return target?.kind === "comment" ? actionBusyId() === target.item.id : postReportBusy();
+  };
+  const sendReport = (reasonCode: CommentReportReason) => {
+    const target = reportTarget();
+    if (target === undefined || reportBusy()) return;
+    if (target.kind === "post") void reportPost(reasonCode);
+    else void report(target.item, reasonCode);
+  };
+  const reportReasons = () => (
+    <div class="flex flex-col gap-1 px-5 pb-5 pt-2" data-report-reasons>
+      <ul aria-label="Report reasons" class="flex flex-col gap-1">
+        <For each={REPORT_REASONS}>{reason => (
+          <li><button class="flex min-h-11 w-full items-center rounded-[var(--radius-lg)] px-3 text-start text-base text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            disabled={reportBusy()} onClick={() => sendReport(reason.value)} type="button">{reason.label}</button></li>
+        )}</For>
+      </ul>
+      {statusLines("mt-2")}
+    </div>
+  );
+
+  const reportPanel = () => (
+    <FeedSidePanel closeLabel="Close report" title={reportTitle()} description={reportDescription()} open onOpenChange={open => { if (!open) closeReport(); }}>
+      {reportReasons()}
     </FeedSidePanel>
   );
+
+  const reportModal = () => (
+    <Modal onOpenChange={open => { if (!open) closeReport(); }} open={reportTarget() !== undefined}>
+      <ModalContent class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0" mobileSide="bottom">
+        <ModalHeader class="px-5 pb-2 text-start sm:px-6 sm:pt-6">
+          <ModalTitle leading="tight" variant="h3">{reportTitle()}</ModalTitle>
+          <ModalDescription>{reportDescription()}</ModalDescription>
+        </ModalHeader>
+        {reportReasons()}
+      </ModalContent>
+    </Modal>
+  );
+
+  const inlineEmptyText = () => {
+    const root = thread.pages().root?.state;
+    if (root === "error") return "Comments could not be loaded.";
+    if (root === "loading" || (root === undefined && props.readComments !== undefined)) return "Loading comments…";
+    if (root === undefined && props.initialComments === undefined) return "Loading comments…";
+    return "No comments yet.";
+  };
+
+  const inlineComposer = () => (
+    <>
+      <Show when={composeTarget().kind === "reply" && targetParent()}>
+        {(parent) => (
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <Type class="min-w-0 truncate" variant="caption">{replyingLabel(parent())}</Type>
+            <Button onClick={() => setComposeTarget({ kind: "comment" })} size="sm" type="button" variant="ghost">Cancel reply</Button>
+          </div>
+        )}
+      </Show>
+      {statusLines("mb-2")}
+      <form class="flex items-center gap-2" onSubmit={event => { event.preventDefault(); void submit(); }}>
+        {props.composerIdentity}
+        <input
+          aria-label={composeTarget().kind === "reply" ? "Write a reply" : "Write a comment"}
+          autocomplete="off"
+          class="h-11 min-w-0 flex-1 rounded-[var(--radius-lg)] border border-input bg-card px-4 text-base leading-6 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed"
+          disabled={submissionBusy() || props.personaId === undefined}
+          enterkeyhint="send"
+          onInput={event => updateDraft(event.currentTarget.value)}
+          placeholder={props.personaId === undefined ? "Choose a profile to comment" : composeTarget().kind === "reply" ? "Add a reply" : "Add a comment"}
+          ref={element => { composerInput = element; }}
+          type="text"
+          value={draft()}
+        />
+        <button
+          aria-busy={submissionBusy() ? "true" : undefined}
+          aria-label={composeTarget().kind === "reply" ? "Post reply" : "Post comment"}
+          class="grid size-11 shrink-0 place-items-center rounded-[var(--radius-lg)] bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background disabled:pointer-events-none disabled:opacity-50"
+          disabled={submissionBusy() || draft().trim() === "" || props.personaId === undefined}
+          type="submit"
+        ><IconArrowUp aria-hidden="true" class="size-5" /></button>
+      </form>
+    </>
+  );
+
+  const inlineBar = () => (
+    <div class="border-t border-border-soft bg-background px-5 pb-4 pt-3 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))]" data-comment-bar>
+      <Show when={props.joinHref} fallback={inlineComposer()}>
+        {href => <>{statusLines("mb-2")}<a class={buttonVariants({ class: "w-full" })} href={href()}>Join to comment</a></>}
+      </Show>
+    </div>
+  );
+
+  const inlineThread = () => (
+    <section aria-label="Comments" class="flex min-w-0 flex-col gap-5 pt-5" data-comment-thread={props.post.id}>
+      <Show when={comments().length > 0} fallback={<Type variant="caption">{inlineEmptyText()}</Type>}>
+        <For each={thread.ordered()}>{item => (
+          <CommentCard item={item} menuActions={commentMenuActions(item)} onAgeVerified={thread.refresh} variant="row">
+            <Show when={showsInlineReply(item) || canLoadReplies(item) || canRefresh(item) || commentModerationActions(item).length > 0}>
+              <div class="flex flex-wrap items-center gap-2">{commentRowActions(item, showsInlineReply(item))}</div>
+            </Show>
+          </CommentCard>
+        )}</For>
+      </Show>
+      <Show when={thread.pages().root?.state === "error" || (thread.pages().root?.state === "ready" && thread.pages().root?.cursor !== null)}>
+        <Button class="w-fit" onClick={() => void thread.load()} size="sm" type="button" variant="outline">{thread.pages().root?.state === "error" ? "Retry comments" : "More comments"}</Button>
+      </Show>
+    </section>
+  );
+
+  if (inline) {
+    return (
+      <div class="flex min-w-0 flex-col" data-post-engagement="inline">
+        {props.children ? props.children(controls(), postMenuActions()) : controls()}
+        {inlineBar()}
+        {inlineThread()}
+        {reportModal()}
+      </div>
+    );
+  }
 
   return (
-    <FeedPanelLayout panel={postReportOpen() ? postReportPanel() : panelOpen() ? panel() : undefined}>
+    <FeedPanelLayout panel={reportTarget()?.kind === "post" ? reportPanel() : panelOpen() ? panel() : undefined}>
       {props.children ? props.children(controls(), postMenuActions()) : controls()}
     </FeedPanelLayout>
   );

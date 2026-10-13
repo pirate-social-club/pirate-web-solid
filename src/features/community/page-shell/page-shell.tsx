@@ -172,7 +172,14 @@ function VideoPost(props: { post: CommunityVideoPost }) {
  */
 export const communityFeedListClass = "flex flex-col [&>*:first-child_[data-community-post]]:pt-0 [&>[data-community-post]:first-child]:pt-0 [&>*:last-child_[data-community-post]]:border-b-0 [&>[data-community-post]:last-child]:border-b-0";
 
-export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[]; flush?: boolean }) {
+export function CommunityPostCard(props: {
+  post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[]; flush?: boolean;
+  /**
+   * The post page's own post: the title is the page's heading and the body
+   * keeps its line breaks. Feed cards leave this off and are unchanged.
+   */
+  detail?: boolean;
+}) {
   const locale = usePageUiLocale();
   const [boosting, setBoosting] = createSignal(false);
   let card: HTMLElement | undefined;
@@ -221,8 +228,10 @@ export function CommunityPostCard(props: { post: CommunityPost; communityId?: st
       <Show when={props.post.kind !== "video"}>
       <Show when={props.post.kind === "song"} fallback={
         <>
-          <Type variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} aria-label={props.post.title.trim() ? undefined : props.post.body.trim().replace(/\s+/gu, " ").slice(0, 120) || "Open post"} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{props.post.title}</a>}</Show></Type>
-          <Type variant="body">{props.post.body}</Type>
+          <Type as={props.detail ? "h1" : undefined} class={props.detail ? "break-words leading-7" : undefined} variant="h3"><Show when={props.titleHref} fallback={props.post.title}>{href => <a href={href()} aria-label={props.post.title.trim() ? undefined : props.post.body.trim().replace(/\s+/gu, " ").slice(0, 120) || "Open post"} rel={props.nativeNavigation ? "external" : undefined} class="hover:underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring">{props.post.title}</a>}</Show></Type>
+          <Show when={!props.detail || props.post.body.trim()}>
+            <Type as={props.detail ? "p" : undefined} class={props.detail ? "whitespace-pre-wrap break-words" : undefined} variant="body">{props.post.body}</Type>
+          </Show>
         </>
       }>
         {/* The card names the song and the player plays it; a body that only

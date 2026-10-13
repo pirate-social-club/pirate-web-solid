@@ -46,6 +46,8 @@ export interface MediaShellProps {
   readonly mobileActiveItem?: ShellNavItem | "none";
   readonly mobileTitle?: string;
   readonly hideMobileHeader?: boolean;
+  /** The page pins its own bar to the phone's bottom edge; no footer tabs. */
+  readonly hideMobileFooter?: boolean;
   readonly mode?: ApplicationChromeMode;
   readonly navigate?: (href: string) => void;
   readonly signedIn?: boolean;
@@ -341,7 +343,7 @@ export function ApplicationChrome(props: MediaShellProps) {
           <NavigationDrawer state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />
         </SheetContent>
       </Sheet>
-      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-background md:h-screen" : (composing() ? "min-h-[100dvh] bg-background md:min-h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0")}>
+      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-background md:h-screen" : (composing() || props.hideMobileFooter ? "min-h-[100dvh] bg-background md:min-h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0")}>
         <Show when={!props.hideMobileHeader}>
         <div class="md:hidden">
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
@@ -362,7 +364,7 @@ export function ApplicationChrome(props: MediaShellProps) {
         </Show>
         <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : props.hideMobileHeader ? "min-h-[100dvh] w-full md:min-h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{surfaceChildren()}</div>
         <MobileFooterNav
-          class={composing() ? "hidden" : "md:hidden"}
+          class={composing() || props.hideMobileFooter ? "hidden" : "md:hidden"}
           forceMobile
           activeItem={props.mobileActiveItem ?? "home"}
           avatarFallback={footerPersona()?.displayName ?? "Profile"}
