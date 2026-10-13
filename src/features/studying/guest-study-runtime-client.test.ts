@@ -136,3 +136,49 @@ describe("Guest practice runtime", () => {
       credentialId: "proof-1", origin, answerJournal: createPageGuestStudyAnswerJournal(origin), api: { getSession: async () => guestSession(), submitAnswer: async () => guestAnswer(guestSession()) } })).toThrow("original source");
   });
 });
+
+
+test("rewarded answer recovery preserves original terms and updates financial projection only after metadata clear", async () => {
+  const source = guestSession();
+  const terms: NonNullable<GuestStudySession["reward_terms"]> = { community_id: source.community_id, post_id: source.post_id, audio_revision: source.audio_revision, lyrics_revision: source.lyrics_revision,
+    offer_id: "offer", pool_leg_id: "leg", original_drawing_id: "123", qualification_policy_version_id: source.qualification_policy_revision,
+    policy_hash: "a".repeat(64), terms_hash: "b".repeat(64), entry_cutoff_at: "2026-10-14T10:00:00.000Z", disclosure_version: "disclosure" };
+  const initial = guestSession({ reward_mode: "megapot_guest_v1", reward_terms: terms, participation: { state: "not_yet_qualified" } });
+  const journal = await initializedJournal(initial), changed = vi.fn();
+  const wrong = { ...initial, reward_terms: { ...terms, pool_leg_id: "replacement" } };
+  const admitted: GuestStudySession = { ...initial, participation: { state: "admitted", share_id: "share", original_drawing_id: "123", pool_leg_id: "leg" } };
+  const submit = vi.fn<GuestStudyApi["submitAnswer"]>()
+    .mockResolvedValueOnce({ ...guestAnswer(wrong), participation: wrong.participation })
+    .mockResolvedValueOnce({ ...guestAnswer(admitted), participation: admitted.participation });
+  const runtime = createGuestStudyRuntimeClient({ api: { getSession: async () => initial, submitAnswer: submit }, initialSession: initial,
+    credentialId: "credential", origin, answerJournal: journal, onSessionChanged: changed });
+  const original = { type: "say_it_back" as const, audio: new Blob(["original"]), audio_duration_ms: 1, content_type: "audio/webm" as const,
+    session_id: initial.session_id, exercise_id: "item-1", attempt_number: 1, idempotency_key: "original" };
+  await expect(runtime.submitAttempt(original)).rejects.toBeInstanceOf(GuestStudyPendingAttemptError);
+  expect(changed).not.toHaveBeenCalled(); expect(await journal.read(scopeOf(initial))).not.toBeNull();
+  await runtime.submitAttempt(original);
+  expect(submit.mock.calls[0]?.[0]).toEqual(submit.mock.calls[1]?.[0]);
+  expect(changed).toHaveBeenCalledWith(admitted); expect(await journal.read(scopeOf(initial))).toBeNull();
+});
+
+
+test("identical answer/session replacement admission cannot clear the original answer journal", async () => {
+  const source = guestSession(), terms: NonNullable<GuestStudySession["reward_terms"]> = { community_id: source.community_id, post_id: source.post_id,
+    audio_revision: source.audio_revision, lyrics_revision: source.lyrics_revision, offer_id: "offer", pool_leg_id: "leg", original_drawing_id: "123",
+    qualification_policy_version_id: source.qualification_policy_revision, policy_hash: "a".repeat(64), terms_hash: "b".repeat(64),
+    entry_cutoff_at: "2026-10-14T10:00:00.000Z", disclosure_version: "disclosure" };
+  const initial = guestSession({ reward_mode: "megapot_guest_v1", reward_terms: terms, participation: { state: "not_yet_qualified" } });
+  for (const wrong of [
+    { ...initial, audio_revision: 2 }, { ...initial, lyrics_revision: 2 }, { ...initial, qualification_policy_revision: "replacement" },
+    { ...initial, participation: { state: "admitted" as const, share_id: "share", original_drawing_id: "124", pool_leg_id: "leg" } },
+    { ...initial, participation: { state: "admitted" as const, share_id: "share", original_drawing_id: "123", pool_leg_id: "replacement" } },
+  ]) {
+    const journal = await initializedJournal(initial), changed = vi.fn();
+    const submit = vi.fn<GuestStudyApi["submitAnswer"]>().mockResolvedValue({ ...guestAnswer(wrong), participation: wrong.participation });
+    const runtime = createGuestStudyRuntimeClient({ api: { getSession: async () => initial, submitAnswer: submit }, initialSession: initial,
+      credentialId: "credential", origin, answerJournal: journal, onSessionChanged: changed });
+    await expect(runtime.submitAttempt({ type: "say_it_back", audio: new Blob(["original"]), audio_duration_ms: 1, content_type: "audio/webm",
+      session_id: initial.session_id, exercise_id: "item-1", attempt_number: 1, idempotency_key: "original" })).rejects.toBeInstanceOf(GuestStudyPendingAttemptError);
+    expect(await journal.read(scopeOf(initial))).not.toBeNull(); expect(changed).not.toHaveBeenCalled();
+  }
+});

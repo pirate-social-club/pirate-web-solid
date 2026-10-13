@@ -313,5 +313,40 @@
     "recordingUnavailable": "当前录音说明不可用。你可以查看课程，但暂时无法录制新答案。",
     "reloadReadOnly": "之前的课程已打开供查看。重新加载后的答案恢复暂不可用，需要先确认原始答案。不会录制或评分新答案。",
     "learningComplete": "学习已完成。"
+  },
+  "guestStudyRewards": {
+    "offer": "原始开奖 {drawing} 的合格活动。入场截止：{cutoff}。这是共同开奖机会，并非个人奖金承诺。",
+    "optIn": "使用此合格活动。我接受原始开奖及已公布条款。",
+    "practiceChoice": "继续仅练习",
+    "rewardStart": "按已接受的活动开始",
+    "heading": "原始开奖与恢复",
+    "refresh": "查看原始参与状态",
+    "loadMore": "显示更多参与记录",
+    "unknown": "参与状态暂不可用。这不代表原始参与或奖金不存在。",
+    "signup": "连接账户以恢复此参与",
+    "resumeAttachment": "恢复原始账户连接",
+    "attachmentPending": "原始账户恢复尚未确认。请重试保存的请求，不要创建其他目标。",
+    "attachmentUnavailable": "此处无法恢复账户。请在发起操作的主机使用原始凭证。",
+    "confirmTarget": "连接到账户 {account}",
+    "accountTarget": "确认服务器显示的账户：{name}（{account}）。",
+    "bound": "账户已连接。原始参与和保留奖金不变。领奖验证与加入社区分别进行。",
+    "heldOwed": "即使未注册或凭证丢失，正额保留奖金仍应支付。注册不会生成新的入场资格或转移至其他开奖。",
+    "lessonComplete": "课程已完成。参与状态与购买状态独立。",
+    "originalDrawing": "原始开奖：{drawing}",
+    "statuses": {
+      "practice": "仅练习。本课不会生成开奖机会。",
+      "qualifying": "学习中。参与尚未获准。",
+      "admission_pending": "参与资格等待核实。购买被暂停，即使安全期限已过也不会确认已购买。",
+      "admitted": "已获准参与原始开奖。这并不确认入场资格已购买。",
+      "already_participating": "已有参与资格。本课不会创建额外份额。",
+      "closed": "入场已关闭。不能添加新份额。",
+      "unavailable": "参与暂不可用。这不表示入场资格已购买。",
+      "ineligible": "此活动不符合所提供的参与资格。",
+      "purchase_pending": "原始开奖的购买仍在等待，尚未确认已购买。",
+      "purchased": "原始开奖的入场资格已购买。这不承诺奖金。",
+      "no_purchase": "原始开奖没有购买入场资格。不会过期购买或转移至其他开奖。",
+      "held": "原始开奖的正额分配已保留，仍应支付。注册改变访问权限，不改变金额或身份。",
+      "allocated_zero": "原始开奖分配为零。没有正额保留奖金。"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
 import type { GuestStudyAnswerResult, GuestStudyApi, GuestStudySession } from "./guest-study-api";
 import type { GuestStudyAnswerJournal, GuestStudyAnswerMarker, GuestStudyAnswerScope } from "./guest-study-answer-journal";
+import { sameGuestRewardTerms, guestSessionRewardBindingIsValid } from "./guest-study-reward-model";
 import { studyAttemptResult, studyLessonPayload } from "./study-lesson-projection";
 import type { StudyingAttemptInput, StudyingClient } from "./studying-route-model";
 
@@ -36,6 +37,8 @@ export interface GuestStudyRuntimeClientOptions {
   answerJournal: GuestStudyAnswerJournal;
   /** Pending, damaged or missing durable inventory cannot permit new answers. */
   readOnlyRecovery?: boolean;
+  /** Called only after accepted original session/answer correlation and journal confirmation. */
+  onSessionChanged?: (session: GuestStudySession) => void;
 }
 
 interface OriginalLiveAttempt {
@@ -53,14 +56,17 @@ export function createGuestStudyRuntimeClient(options: GuestStudyRuntimeClientOp
   const original = {
     communityId: session.community_id, postId: session.post_id,
     sessionId: session.session_id, ownerId: session.owner_id,
+    rewardMode: session.reward_mode, rewardTerms: structuredClone(session.reward_terms),
   };
   const scope: GuestStudyAnswerScope = Object.freeze({
     origin: options.origin, ownerId: original.ownerId,
     communityId: original.communityId, sessionId: original.sessionId,
   });
   const validate = (next: GuestStudySession): void => {
-    if (next.actor.kind !== "guest" || next.reward_mode !== "practice_only"
-      || next.reward_terms !== null || next.participation.state !== "practice_only"
+    if (!guestSessionRewardBindingIsValid(next) || next.actor.kind !== "guest" || next.reward_mode !== original.rewardMode
+      || !sameGuestRewardTerms(next.reward_terms, original.rewardTerms)
+      || (next.reward_mode === "practice_only" && next.participation.state !== "practice_only")
+      || (next.reward_mode === "megapot_guest_v1" && next.reward_terms === null)
       || next.session_id !== original.sessionId || next.owner_id !== original.ownerId
       || next.community_id !== original.communityId || next.post_id !== original.postId)
       throw new Error("The practice session does not match its original source.");
@@ -86,6 +92,7 @@ export function createGuestStudyRuntimeClient(options: GuestStudyRuntimeClientOp
       }, signal);
       validate(next);
       session = next;
+      options.onSessionChanged?.(session);
       return studyLessonPayload(session);
     },
     async submitAttempt(input) {
@@ -115,7 +122,7 @@ export function createGuestStudyRuntimeClient(options: GuestStudyRuntimeClientOp
           },
           path: { communityId: original.communityId, sessionId: original.sessionId, sessionItemId: originalInput.exercise_id },
           }, signal);
-          if (result.participation.state !== "practice_only" || result.session_item_id !== originalInput.exercise_id
+          if (JSON.stringify(result.participation) !== JSON.stringify(result.session.participation) || result.session_item_id !== originalInput.exercise_id
             || result.attempt_number !== originalInput.attempt_number)
             throw new GuestStudyPendingAttemptError();
           // Pure validation precedes journal confirmation. A response arriving
@@ -134,6 +141,7 @@ export function createGuestStudyRuntimeClient(options: GuestStudyRuntimeClientOp
         const result = await options.answerJournal.submit(originalAttempt.marker, originalAttempt.dispatch);
         validate(result.session);
         session = result.session;
+        options.onSessionChanged?.(session);
         unresolved = undefined;
         return { ...studyAttemptResult(result, item.maximum_attempts), next_lesson: studyLessonPayload(session) };
       } catch (error) {

@@ -6,6 +6,8 @@ import {
   type GuestStartBody, type OriginalGuestStart,
 } from "./guest-authority-selection.ts";
 
+import { rewardPreviewMatchesRoute, sameGuestRewardTerms, guestSessionRewardBindingIsValid, type AcceptedGuestRewardPreview } from "./guest-study-reward-model";
+
 type Api = Pick<GuestStudyApi, "discoverAuthority" | "issueBootstrap" | "confirmBootstrap" | "renewAuthority" | "cleanupProof" | "startSession" | "findStartOperation">;
 export type GuestStudyStartDraft = Omit<GuestStartBody, "idempotency_key" | "expected_owner_id">;
 type Profile = "persistent" | "page_only";
@@ -187,8 +189,9 @@ export function createGuestStudyStartCoordinator(options: Options) {
     });
   }
   async function complete(record: OriginalGuestStart, p: GuestAuthoritySelection, session: GuestStudySession, entryKind: EntryKind): Promise<GuestStudyStartResult> {
-    if (session.owner_id !== record.body.expected_owner_id || session.community_id !== record.communityId
-      || session.post_id !== record.postId || session.reward_mode !== "practice_only") throw new Refusal("session_correlation_failed");
+    if (!guestSessionRewardBindingIsValid(session) || session.owner_id !== record.body.expected_owner_id || session.community_id !== record.communityId
+      || session.post_id !== record.postId || session.reward_mode !== record.body.reward_mode
+      || !sameGuestRewardTerms(session.reward_terms, record.acceptedRewardTerms ?? null)) throw new Refusal("session_correlation_failed");
     await saveState(record, "completed");
     return { status: "started", entryKind, session, credentialId: p.credential_id, recoveryProfile: profile };
   }
@@ -226,9 +229,14 @@ export function createGuestStudyStartCoordinator(options: Options) {
   }
   return {
     selectedCredentialId: () => selected,
-    start: (input: Route & { draft: GuestStudyStartDraft }): Promise<GuestStudyStartResult> => safe(async () => {
-      if (input.draft.reward_mode !== "practice_only" || input.draft.reward_preview_terms_hash !== null
-        || input.draft.disclosure.accepted !== true) return unavailable("practice_consent_required");
+    start: (input: Route & { draft: GuestStudyStartDraft; acceptedPreview?: AcceptedGuestRewardPreview }): Promise<GuestStudyStartResult> => safe(async () => {
+      if (input.draft.disclosure.accepted !== true) return unavailable("disclosure_consent_required");
+      const preview = input.acceptedPreview;
+      if (input.draft.reward_mode === "practice_only") {
+        if (input.draft.reward_preview_terms_hash !== null) return unavailable("reward_consent_required");
+      } else if (preview === undefined || !rewardPreviewMatchesRoute(preview, input.communityId, input.postId, input.draft.disclosure.version)
+        || input.draft.reward_preview_terms_hash !== preview.requestHash) return unavailable("reward_consent_required");
+      if (input.draft.reward_mode === "megapot_guest_v1" && profile !== "persistent") return unavailable("reward_recovery_requires_persistence");
       const p = await authority(input.signal);
       const journal = await store.read();
       const previous = [...journal.starts].reverse().find((r) => matches(r, input, p));
@@ -238,7 +246,8 @@ export function createGuestStudyStartCoordinator(options: Options) {
       if (unresolved !== undefined) return pending("start", unresolved.body.idempotency_key);
       if (input.signal?.aborted) return unavailable("cancelled_before_start");
       const record: OriginalGuestStart = { communityId: input.communityId, postId: input.postId, state: "submitted",
-        body: structuredClone({ ...input.draft, expected_owner_id: p.owner_id, idempotency_key: createKey() }) };
+        body: structuredClone({ ...input.draft, expected_owner_id: p.owner_id, idempotency_key: createKey() }),
+        ...(input.draft.reward_mode === "megapot_guest_v1" && preview !== undefined ? { acceptedRewardTerms: structuredClone(preview.terms) } : {}) };
       // Commit exact body/key AND pointer BEFORE sending any start request.
       await store.update((state) => {
         if (!samePointer(state.pointer, p) || state.starts.some((r) => matches(r, input, p))) throw new Refusal("selection_changed");

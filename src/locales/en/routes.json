@@ -313,5 +313,40 @@
     "recordingUnavailable": "The current recording disclosure is unavailable. You can review the lesson, but recording a new answer is unavailable.",
     "reloadReadOnly": "Previous lesson opened for review. Answer recovery after reloading is unavailable until the original answer can be confirmed. No new answer will be recorded or graded.",
     "learningComplete": "Learning complete."
+  },
+  "guestStudyRewards": {
+    "offer": "Eligible offer for original drawing {drawing}. Entry cutoff: {cutoff}. This is a shared drawing chance, not a promised personal payout.",
+    "optIn": "Use this eligible offer. I accept its original drawing and published terms.",
+    "practiceChoice": "Continue with practice only",
+    "rewardStart": "Start with accepted offer",
+    "heading": "Original drawing and recovery",
+    "refresh": "Check original participation",
+    "loadMore": "Show more participation records",
+    "unknown": "Participation status is unavailable. This does not mean your original participation or winnings are absent.",
+    "signup": "Connect an account to recover this participation",
+    "resumeAttachment": "Resume original account recovery",
+    "attachmentPending": "The original account recovery is unresolved. Retry its saved request; do not create a different target.",
+    "attachmentUnavailable": "Account recovery is unavailable here. Keep using the initiating host with its original proof.",
+    "confirmTarget": "Connect to account {account}",
+    "accountTarget": "Confirm the account shown by the server: {name} ({account}).",
+    "bound": "Account connected. Original participation and held winnings remain unchanged. Winning-claim verification is separate from joining a community.",
+    "heldOwed": "Positive held winnings remain owed without signup or after proof loss. Signup does not create a new entry or move them to another drawing.",
+    "lessonComplete": "Lesson complete. Participation and purchase status are separate.",
+    "originalDrawing": "Original drawing: {drawing}",
+    "statuses": {
+      "practice": "Practice only. This lesson creates no drawing chance.",
+      "qualifying": "Learning in progress. Participation has not yet been admitted.",
+      "admission_pending": "Admission is awaiting reconciliation. Purchase is held, including after the safety deadline. No purchased entry is confirmed.",
+      "admitted": "Participation admitted to the original drawing. This does not confirm a purchased entry.",
+      "already_participating": "An existing participation applies. This lesson does not create another share.",
+      "closed": "Entry is closed. No new share can be added.",
+      "unavailable": "Participation is unavailable. This is not confirmation of a purchased entry.",
+      "ineligible": "This activity is not eligible for the offered participation.",
+      "purchase_pending": "Purchase for the original drawing is pending. No purchased entry is confirmed yet.",
+      "purchased": "An entry was purchased for the original drawing. This does not promise winnings.",
+      "no_purchase": "No entry was purchased for the original drawing. It will not be bought late or moved to another drawing.",
+      "held": "A positive allocation is held for the original drawing. It remains owed; signup changes access, not its amount or identity.",
+      "allocated_zero": "The original drawing allocation was zero. No positive winnings are held."
+    }
   }
 }

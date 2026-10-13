@@ -342,3 +342,59 @@ describe("guest immutable start authority", () => {
   });
 
 });
+
+
+describe("Guest rewarded start keeps accepted original terms", () => {
+  const terms: NonNullable<GuestStudySession["reward_terms"]> = { community_id: "community", post_id: "post", audio_revision: 1, lyrics_revision: 1,
+    offer_id: "offer", pool_leg_id: "leg", original_drawing_id: "123", qualification_policy_version_id: "qualification", policy_hash: "a".repeat(64),
+    terms_hash: "b".repeat(64), entry_cutoff_at: "2026-10-14T10:00:00.000Z", disclosure_version: "disclosure-1" };
+  const acceptedPreview = { terms, requestHash: "c".repeat(64) };
+  const rewardedDraft: GuestStudyStartDraft = { ...draft, reward_mode: "megapot_guest_v1", reward_preview_terms_hash: acceptedPreview.requestHash };
+  const rewarded: GuestStudySession = { ...session, reward_mode: "megapot_guest_v1", reward_terms: terms, participation: { state: "not_yet_qualified" } };
+  beforeEach(() => vi.stubGlobal("location", { origin }));
+  afterEach(() => vi.unstubAllGlobals());
+  it("refuses missing eligible preview or leg terms hash substituted for server preview hash before authority IO", async () => {
+    const f = fixture();
+    expect(await f.create().start({ ...route, draft: rewardedDraft })).toMatchObject({ status: "unavailable", reason: "reward_consent_required" });
+    expect(await f.create().start({ ...route, draft: { ...rewardedDraft, reward_preview_terms_hash: terms.terms_hash }, acceptedPreview })).toMatchObject({ status: "unavailable", reason: "reward_consent_required" });
+    expect(f.api.discoverAuthority).not.toHaveBeenCalled(); expect(f.api.startSession).not.toHaveBeenCalled();
+  });
+  it("commits full original terms and distinct server preview hash BEFORE the original rewarded POST", async () => {
+    const f = fixture();
+    f.api.startSession.mockImplementationOnce(async input => {
+      const record = (await f.store.read()).starts[0];
+      expect(record?.body).toEqual(input.body);
+      expect(record?.acceptedRewardTerms).toEqual(terms);
+      expect(input.body.reward_preview_terms_hash).toBe(acceptedPreview.requestHash);
+      expect(input.body.reward_preview_terms_hash).not.toBe(terms.terms_hash);
+      return rewarded;
+    });
+    expect(await f.create().start({ ...route, draft: rewardedDraft, acceptedPreview })).toMatchObject({ status: "started", session: rewarded });
+  });
+  it("a current practice choice or changed preview cannot roll an original rewarded operation into new terms", async () => {
+    const f = fixture(); f.api.startSession.mockRejectedValueOnce(new Error("Unknown original COMMIT"));
+    f.api.findStartOperation.mockResolvedValueOnce({ state: "pending_confirmation", session: null });
+    expect(await f.create().start({ ...route, draft: rewardedDraft, acceptedPreview })).toMatchObject({ status: "pending" });
+    f.api.findStartOperation.mockResolvedValueOnce({ state: "completed", session: rewarded });
+    expect(await f.create().start({ ...route, draft })).toMatchObject({ status: "started", entryKind: "recovered_session", session: rewarded });
+    expect(f.api.startSession).toHaveBeenCalledOnce();
+    expect((await f.store.read()).starts[0]?.acceptedRewardTerms).toEqual(terms);
+  });
+  it("matching terms cannot conceal replacement admission or source revision before completed journal ACK", async () => {
+    for (const wrong of [
+      { ...rewarded, audio_revision: 2 }, { ...rewarded, lyrics_revision: 2 }, { ...rewarded, qualification_policy_revision: "replacement" },
+      { ...rewarded, participation: { state: "admitted" as const, share_id: "share", original_drawing_id: "124", pool_leg_id: terms.pool_leg_id } },
+      { ...rewarded, participation: { state: "admitted" as const, share_id: "share", original_drawing_id: terms.original_drawing_id, pool_leg_id: "replacement" } },
+    ]) {
+      const f = fixture(); f.api.startSession.mockResolvedValueOnce(wrong); f.api.findStartOperation.mockResolvedValue({ state: "completed", session: wrong });
+      expect(await f.create().start({ ...route, draft: rewardedDraft, acceptedPreview })).toMatchObject({ status: "pending" });
+      expect((await f.store.read()).starts[0]?.state).toBe("submitted");
+    }
+  });
+  it("a response for another original drawing remains unresolved and cannot mark the start completed", async () => {
+    const f = fixture(); const wrong = { ...rewarded, reward_terms: { ...terms, original_drawing_id: "124" } };
+    f.api.startSession.mockResolvedValueOnce(wrong); f.api.findStartOperation.mockResolvedValue({ state: "completed", session: wrong });
+    expect(await f.create().start({ ...route, draft: rewardedDraft, acceptedPreview })).toMatchObject({ status: "pending" });
+    expect((await f.store.read()).starts[0]?.state).toBe("submitted");
+  });
+});

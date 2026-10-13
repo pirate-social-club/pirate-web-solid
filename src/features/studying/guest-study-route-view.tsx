@@ -3,13 +3,15 @@ import { isServer } from "@solidjs/web";
 import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { Button, Type } from "../../design-system";
 import { usePageUiLocale } from "../../lib/ui-locale.tsx";
-import { getLocaleMessages } from "../../locales";
+import { getLocaleMessages, interpolateMessage } from "../../locales";
 import { createGuestStudyApi, type GuestStudyApi, type GuestStudyPreparedContent, type GuestStudySession } from "./guest-study-api";
 import { createGuestStudyAnswerJournal, createPageGuestStudyAnswerJournal, type GuestStudyAnswerJournal } from "./guest-study-answer-journal";
 import { GuestStudyDataControls } from "./guest-study-data-controls";
 import { createGuestStudyPublicReader, type GuestStudyPublicReader } from "./guest-study-public-reader";
 import { createGuestStudyRuntimeClient } from "./guest-study-runtime-client";
 import { createGuestStudyStartCoordinator } from "./guest-study-start-coordinator";
+import { GuestStudyRewardControls } from "./guest-study-reward-controls";
+import { rewardPreviewMatchesRoute, guestParticipationStatus, type AcceptedGuestRewardPreview, type GuestStudyRewardPreviewReader } from "./guest-study-reward-model";
 import type { StudyLearnerBand } from "./study-v2-api";
 import { createStudyingBrowserRecorder } from "./studying-browser-recorder";
 import type { StudyingClient, StudyingRecorder } from "./studying-route-model";
@@ -17,7 +19,7 @@ import { StudyRouteLoadingState } from "./studying-route-states";
 import { StudyingRouteView } from "./studying-route-view";
 
 type StartCoordinator = Pick<ReturnType<typeof createGuestStudyStartCoordinator>, "start" | "resume" | "renew" | "selectedCredentialId">;
-type Loaded = { communityId: string; prepared: GuestStudyPreparedContent };
+type Loaded = { communityId: string; prepared: GuestStudyPreparedContent; acceptedPreview?: AcceptedGuestRewardPreview | null };
 type ActiveLesson = { readOnlyRecovery: boolean; session: GuestStudySession; client: StudyingClient; credentialId: string; recoveryProfile: "persistent" | "page_only"; disclosure: GuestStudyPreparedContent["disclosure"] | undefined; disclosureAccepted: boolean };
 
 export interface GuestStudyRouteViewProps {
@@ -26,6 +28,8 @@ export interface GuestStudyRouteViewProps {
   communityId?: string;
   api?: GuestStudyApi;
   publicReader?: GuestStudyPublicReader;
+  /** Concrete genuine119 v2 adapter is required;118 public v1 never authorizes rewarded start. */
+  rewardPreviewReader?: GuestStudyRewardPreviewReader;
   startCoordinator?: StartCoordinator;
   /** Immutable injected protocol factory for this mounted route instance. */
   answerJournal?: GuestStudyAnswerJournal;
@@ -39,6 +43,8 @@ export interface GuestStudyRouteViewProps {
 /** Public preparation first; guest authority begins only with a deliberate action. */
 export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
   const copy = getLocaleMessages(usePageUiLocale(), "routes").guestStudy;
+  const rewardCopy = getLocaleMessages(usePageUiLocale(), "routes").guestStudyRewards;
+  const [acceptReward, setAcceptReward] = createSignal(false);
   const [loaded, setLoaded] = createSignal<Loaded>();
   const [lesson, setLesson] = createSignal<ActiveLesson>();
   const [loading, setLoading] = createSignal(true);
@@ -58,6 +64,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
   // original dispatch or browser inventory into another factory instance.
   let api = untrack(() => props.api);
   let publicReader = untrack(() => props.publicReader);
+  const rewardPreviewReader = untrack(() => props.rewardPreviewReader);
   let coordinator = untrack(() => props.startCoordinator);
   let answerJournal = untrack(() => props.answerJournal);
   const client = (): GuestStudyApi => api ??= createGuestStudyApi();
@@ -83,8 +90,14 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
       publicReader ??= createGuestStudyPublicReader(client());
       const next = await publicReader.load(postId, controller.signal, communityId);
       if (!active || request !== generation) return;
-      setLoaded(next);
-      setAccepted(false);
+      if (rewardPreviewReader !== undefined) {
+        const rewarded = await rewardPreviewReader.load(next.communityId, postId, controller.signal);
+        if (!active || request !== generation) return;
+        if (rewarded.acceptedPreview !== null && !rewardPreviewMatchesRoute(rewarded.acceptedPreview, next.communityId, postId, rewarded.prepared.disclosure.version))
+          throw new Error("The server preview belongs to another activity.");
+        setLoaded({ communityId: next.communityId, ...rewarded });
+      } else setLoaded(next);
+      setAccepted(false); setAcceptReward(false);
     } catch {
       if (active && request === generation) setMessage(copy.unavailable);
     } finally {
@@ -98,7 +111,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
     queueMicrotask(() => {
       if (!active) return;
       setLesson(undefined); setLoaded(undefined); setPending(false); setBusy(false);
-      setAccepted(false); setTargetLanguage(""); setLearnerBand("");
+      setAccepted(false); setAcceptReward(false); setTargetLanguage(""); setLearnerBand("");
       void load();
     });
   });
@@ -128,13 +141,16 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
       if (resume) result = await selected.resume({ communityId, postId, signal: controller.signal });
       else {
         if (current === undefined) return;
+        const preview = acceptReward() ? current.acceptedPreview : null;
+        if (acceptReward() && (preview === undefined || preview === null)) return;
         result = await selected.start({
             communityId, postId, signal: controller.signal,
+            ...(preview == null ? {} : { acceptedPreview: preview }),
             draft: {
               target_language: language || null,
               learner_band: language === "" || band === "" ? null : band,
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-              reward_mode: "practice_only", reward_preview_terms_hash: null,
+              reward_mode: preview == null ? "practice_only" : "megapot_guest_v1", reward_preview_terms_hash: preview?.requestHash ?? null,
               disclosure: { version: current.prepared.disclosure.version, accepted: true },
             },
           });
@@ -169,6 +185,9 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
         api: client(), initialSession: result.session, readOnlyRecovery,
         origin: originalScope.origin, answerJournal: answers,
         credentialId: () => selected.selectedCredentialId(),
+        onSessionChanged: next => {
+          if (active) setLesson(previous => previous?.session.session_id === next.session_id ? { ...previous, session: next } : previous);
+        },
       });
       setPending(false);
       setSelectedCredential(result.credentialId);
@@ -193,7 +212,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
         <Show when={lesson()} fallback={(
           <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-5 px-5 py-8" data-guest-study-entry>
             <Type as="h1" variant="h1">{copy.title}</Type>
-            <Type as="p" variant="body">{copy.practiceOnly}</Type>
+            <Type as="p" variant="body">{acceptReward() && loaded()?.acceptedPreview != null ? rewardCopy.statuses.qualifying : copy.practiceOnly}</Type>
             <Show when={loaded()?.prepared.availability.state === "ready"} fallback={(
               <><Type as="p" variant="body">{copy.unavailable}</Type><Button onClick={() => { void load(); }}>{copy.retry}</Button></>
             )}>
@@ -208,7 +227,11 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
                   const value = event.currentTarget.value;
                   if (value === "" || value === "A1" || value === "A2" || value === "B1" || value === "B2" || value === "C1" || value === "C2") setLearnerBand(value);
                 }}><option value="">{copy.chooseLevel}</option><For each={readyAvailability()?.learner_bands ?? []}>{band => <option value={band}>{band}</option>}</For></select></label></Show>
-                <Button disabled={!accepted() || busy()} onClick={() => { void establish(false); }}>{copy.start}</Button>
+                <Show when={loaded()?.acceptedPreview}>{preview => <>
+                  <p>{interpolateMessage(rewardCopy.offer, { drawing: preview().terms.original_drawing_id, cutoff: preview().terms.entry_cutoff_at })}</p>
+                  <label class="flex items-start gap-3"><input type="checkbox" checked={acceptReward()} onChange={event => setAcceptReward(event.currentTarget.checked)} /><span>{rewardCopy.optIn}</span></label>
+                </>}</Show>
+                <Button disabled={!accepted() || busy()} onClick={() => { void establish(false); }}>{acceptReward() ? rewardCopy.rewardStart : copy.start}</Button>
               </Show>
             </Show>
             <Button variant="secondary" disabled={busy() || (loaded()?.communityId ?? props.communityId) === undefined} onClick={() => { void establish(true); }}>{copy.resume}</Button>
@@ -223,27 +246,28 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
                 <div class="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-5" data-guest-study-read-only-recovery>
                   <Type as="h1" variant="h1">{copy.title}</Type>
                   <Type as="p" variant="body">{copy.reloadReadOnly}</Type>
-                  <Type as="p" variant="body">{copy.practiceOnly}</Type>
+                  <Type as="p" variant="body">{rewardCopy.statuses[guestParticipationStatus(current().session.participation)]}</Type>
                   <Type as="p" variant="caption">{current().session.lesson.resolved_card_count} / {current().session.lesson.total_card_count}</Type>
                   <Show when={current().session.status === "completed"}><Type as="p" variant="body">{copy.learningComplete}</Type></Show>
                   <Button variant="secondary" onClick={exit}>{copy.exit}</Button>
                 </div>
               )}>
-              <p class="px-5 py-3 text-sm" data-guest-practice-only>{copy.practiceOnly}</p>
+              <p class="px-5 py-3 text-sm" data-guest-participation-status>{rewardCopy.statuses[guestParticipationStatus(current().session.participation)]}</p>
               <StudyingRouteView
                 postId={props.postId} client={current().client}
                 recorder={props.recorder ?? createStudyingBrowserRecorder()}
                 onExit={exit} onKaraoke={props.onKaraoke}
-                rewardSlot={<p data-guest-practice-only>{copy.practiceOnly}</p>}
+                rewardSlot={<p data-guest-participation-status>{rewardCopy.statuses[guestParticipationStatus(current().session.participation)]}</p>}
                 guestPresentation={{
                   disclosure: current().disclosure, disclosureAccepted: current().disclosureAccepted,
                   noDisclosureDescription: copy.recordingUnavailable, exitLabel: copy.exit,
-                  practiceLabel: copy.practiceOnly, pendingTitle: copy.pendingAnswerTitle,
+                  practiceLabel: rewardCopy.statuses[guestParticipationStatus(current().session.participation)], pendingTitle: copy.pendingAnswerTitle,
                   pendingDescription: copy.pendingAnswer, retryOriginalLabel: copy.retryOriginal,
                   authorityDescription: copy.recoveryRequired, onRecoverAccess: recoverAccess,
                 }}
               />
               </Show>
+              <GuestStudyRewardControls api={client()} session={current().session} credentialId={() => selectedCredential() ?? current().credentialId} />
               <GuestStudyDataControls api={client()} ownerId={current().session.owner_id} credentialId={selectedCredential() ?? current().credentialId} />
             </>
           )}

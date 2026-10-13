@@ -233,3 +233,40 @@ describe("Guest public Study route", () => {
     expect(node.isConnected).toBe(false); expect(selected.start).not.toHaveBeenCalled();
   });
 });
+
+
+describe("Guest financial offer consent stays separate from public practice", () => {
+  const terms: NonNullable<ReturnType<typeof guestSession>["reward_terms"]> = { community_id: "community-1", post_id: "post-1", audio_revision: 1, lyrics_revision: 1,
+    offer_id: "offer", pool_leg_id: "leg", original_drawing_id: "123", qualification_policy_version_id: "qualification-v1", policy_hash: "a".repeat(64),
+    terms_hash: "b".repeat(64), entry_cutoff_at: "2026-10-14T10:00:00.000Z", disclosure_version: prepared().disclosure.version };
+  test("the118 public reader cannot authorize rewarded start even if it carries non-null terms", async () => {
+    const selected = coordinator();
+    const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1" api={guestApi()} startCoordinator={selected} answerJournal={answerJournal()}
+      publicReader={{ load: async () => ({ communityId: "community-1", prepared: { ...prepared(), reward_preview: terms } }) }} />);
+    await vi.waitFor(() => expect(node.textContent).toContain(prepared().disclosure.text));
+    expect(node.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
+    await consentAndStart(node);
+    expect(selected.start).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ reward_mode: "practice_only", reward_preview_terms_hash: null }) }));
+  });
+  test("future genuine119 projection still defaults to practice and requires separate explicit offer consent", async () => {
+    const selected = coordinator();
+    const acceptedPreview = { terms, requestHash: "c".repeat(64) };
+    const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1" api={guestApi()} startCoordinator={selected} answerJournal={answerJournal()} publicReader={publicReader}
+      rewardPreviewReader={{ load: async () => ({ prepared: prepared(), acceptedPreview }) }} />);
+    await vi.waitFor(() => expect(node.querySelectorAll('input[type="checkbox"]')).toHaveLength(2));
+    expect(button(node, "Start practice").disabled).toBe(true);
+    const checkboxes = node.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    checkboxes[1]?.click();
+    expect(node.querySelector("[data-guest-study-entry]")?.textContent).not.toContain("This lesson does not create a drawing entry.");
+    expect(node.querySelector("[data-guest-study-entry]")?.textContent).toContain("Participation has not yet been admitted.");
+    expect(button(node, "Start with accepted offer").disabled).toBe(true);
+    checkboxes[0]?.click();
+    await vi.waitFor(() => expect(button(node, "Start with accepted offer").disabled).toBe(false));
+    button(node, "Start with accepted offer").click();
+    await vi.waitFor(() => expect(selected.start).toHaveBeenCalledOnce());
+    expect(selected.start).toHaveBeenCalledWith(expect.objectContaining({ acceptedPreview,
+      draft: expect.objectContaining({ reward_mode: "megapot_guest_v1", reward_preview_terms_hash: acceptedPreview.requestHash,
+        disclosure: { version: terms.disclosure_version, accepted: true } }) }));
+    expect(selected.resume).not.toHaveBeenCalled();
+  });
+});
