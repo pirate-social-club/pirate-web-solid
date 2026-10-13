@@ -324,7 +324,7 @@ async function runOnce(options, attempt) {
   const stories = catalog.filter((entry) => matchesSelection(entry, options));
   if (stories.length === 0) throw new Error("Story selection matched no live Storybook stories");
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE });
   const page = await browser.newPage();
   page.setDefaultTimeout(options.storyTimeoutMs);
   page.setDefaultNavigationTimeout(options.storyTimeoutMs);
