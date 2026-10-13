@@ -33,15 +33,13 @@ export function createGuestStudyAccountingApi(options: Options): GuestStudyAccou
   const mixedWrite = (signal?: AbortSignal) => {
     const account = accountWrite(signal), csrf = (options.readGuestCsrf ?? readGuestCsrfCookie)();
     if (csrf === undefined) throw new Error("Guest ceremony CSRF required");
-    if (!(account.headers instanceof Headers)) throw new Error("Ordinary session headers required");
-    guestRequestOptions(csrf);
     const headers = new Headers(account.headers);
-    headers.set("x-guest-csrf-token", csrf);
+    headers.set("x-guest-csrf-token", new Headers(guestRequestOptions(csrf).headers).get("x-guest-csrf-token") ?? "");
     return { ...account, headers };
   };
   const bounded = (body: unknown) => { if (new TextEncoder().encode(JSON.stringify(body)).byteLength > 4_096) throw new Error("Request too large"); };
   return {
-    prepareAttachment: (input, signal) => generated.post_guestAttachmentIntentsIdPrepare(input, accountWrite(signal)),
+    prepareAttachment: (input, signal) => generated.post_guestAttachmentIntentsIdPrepare(input, mixedWrite(signal)),
     confirmAttachment: (input, signal) => { bounded(input.body); return generated.post_guestAttachmentIntentsIdConfirm(input, mixedWrite(signal)); },
     getAttachment: (input, signal) => { alive(); return generated.get_usersMeGuestAttachmentsId(input, { credentials: "same-origin", ...(signal === undefined ? {} : { signal }) }); },
     selectCreditRecipient: (input, signal) => { bounded(input.body); return generated.post_rewardsCreditsCreditIdRecipientSelectionsV1(input, accountWrite(signal)); },

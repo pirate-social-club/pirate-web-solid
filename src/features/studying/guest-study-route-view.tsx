@@ -1,3 +1,4 @@
+import { createGuestStudyRewardPreviewReader } from "./guest-study-financial-api";
 import { Title } from "@solidjs/meta";
 import { isServer } from "@solidjs/web";
 import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
@@ -56,6 +57,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
   const [targetLanguage, setTargetLanguage] = createSignal("");
   const [learnerBand, setLearnerBand] = createSignal<StudyLearnerBand | "">("");
   let active = true;
+  let originalActionEntered = false;
   let generation = 0;
   let loadController: AbortController | undefined;
   let actionController: AbortController | undefined;
@@ -64,7 +66,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
   // original dispatch or browser inventory into another factory instance.
   let api = untrack(() => props.api);
   let publicReader = untrack(() => props.publicReader);
-  const rewardPreviewReader = untrack(() => props.rewardPreviewReader);
+  let rewardPreviewReader = untrack(() => props.rewardPreviewReader);
   let coordinator = untrack(() => props.startCoordinator);
   let answerJournal = untrack(() => props.answerJournal);
   const client = (): GuestStudyApi => api ??= createGuestStudyApi();
@@ -90,14 +92,18 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
       publicReader ??= createGuestStudyPublicReader(client());
       const next = await publicReader.load(postId, controller.signal, communityId);
       if (!active || request !== generation) return;
-      if (rewardPreviewReader !== undefined) {
-        const rewarded = await rewardPreviewReader.load(next.communityId, postId, controller.signal);
-        if (!active || request !== generation) return;
-        if (rewarded.acceptedPreview !== null && !rewardPreviewMatchesRoute(rewarded.acceptedPreview, next.communityId, postId, rewarded.prepared.disclosure.version))
-          throw new Error("The server preview belongs to another activity.");
+      // The known public preparation is independently usable immediately.
+      setLoaded(next); setAccepted(false); setAcceptReward(false); setLoading(false);
+      rewardPreviewReader ??= createGuestStudyRewardPreviewReader({ origin: window.location.origin });
+      // Optional enrichment never owns the public loading state or original start.
+      void rewardPreviewReader.load(next.communityId, postId, controller.signal).then(rewarded => {
+        if (!active || request !== generation || controller.signal.aborted || originalActionEntered
+          || busy() || pending() || lesson() !== undefined || accepted()) return;
+        if (rewarded.acceptedPreview !== null && !rewardPreviewMatchesRoute(rewarded.acceptedPreview,
+          next.communityId, postId, rewarded.prepared.disclosure.version)) return;
         setLoaded({ communityId: next.communityId, ...rewarded });
-      } else setLoaded(next);
-      setAccepted(false); setAcceptReward(false);
+      }).catch(() => {}); // Unknown offer availability supplies no rewarded authority.
+
     } catch {
       if (active && request === generation) setMessage(copy.unavailable);
     } finally {
@@ -110,6 +116,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
     loadController?.abort(); actionController?.abort();
     queueMicrotask(() => {
       if (!active) return;
+      originalActionEntered = false;
       setLesson(undefined); setLoaded(undefined); setPending(false); setBusy(false);
       setAccepted(false); setAcceptReward(false); setTargetLanguage(""); setLearnerBand("");
       void load();
@@ -129,6 +136,7 @@ export function GuestStudyRouteView(props: GuestStudyRouteViewProps) {
     const language = targetLanguage();
     const band = learnerBand();
     if (!resume && language !== "" && band === "") { setMessage(copy.chooseLevel); return; }
+    originalActionEntered = true;
     props.onGuestFlowEntered?.();
     setBusy(true);
     setMessage("");

@@ -72,7 +72,7 @@
     "check:guest-study-browser": "node scripts/guest-study-browser-check.mjs"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.118.0-f84355cb.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.119.0-9a0bc94f.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@selfxyz/sdk-common": "1.0.0",

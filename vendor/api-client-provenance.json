@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.118.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.118.0-f84355cb.tgz",
-  "sha256": "f84355cb956dcf9e7544740ab78bef057c2b9ac4b84596db3b4f224500b55abd",
-  "source": "api-next-contracts@08d420b6754170d2a16810276fc4b1bddfb79081188734a5cb8290a34d3faba0",
-  "openapiSha256": "08d420b6754170d2a16810276fc4b1bddfb79081188734a5cb8290a34d3faba0",
-  "clientSha256": "68b92996381ce0cf6f16f72f544d229067d606de0f5e315fde81e57de76f460c",
+  "version": "0.119.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.119.0-9a0bc94f.tgz",
+  "sha256": "9a0bc94f20dda8c8cbccb8c3ae71624ea8aa35655766ac998d6dba8594aea65e",
+  "source": "api-next-contracts@68897f5d777ecdaddb1024816e9d86b4a3de3749f4f6bea75ee354e449e54bb9",
+  "openapiSha256": "68897f5d777ecdaddb1024816e9d86b4a3de3749f4f6bea75ee354e449e54bb9",
+  "clientSha256": "58a85f5b1297b54a1bf84bb67a203896fee3c3a4a74d59793043433f2eb0450a",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -144,6 +144,21 @@
     "get_guestParticipations",
     "put_guestLearningRetention",
     "delete_guestLearnerAudio",
-    "post_guestAttachmentIntents"
+    "post_guestAttachmentIntents",
+    "post_guestAttachmentIntentsIdPrepare",
+    "post_guestAttachmentIntentsIdConfirm",
+    "get_usersMeGuestAttachmentsId",
+    "post_rewardsCreditsCreditIdRecipientSelectionsV1",
+    "post_rewardsCreditsCreditIdOwnerClaimsV1",
+    "get_communitiesCommunityIdPostsPostIdStudyPublicV2",
+    "get_communitiesCommunityIdPostsPostIdStudyOwnerV1Preview",
+    "post_communitiesCommunityIdPostsPostIdStudyOwnerV1Sessions",
+    "get_communitiesCommunityIdStudyOwnerV1SessionsSessionId",
+    "get_communitiesCommunityIdPostsPostIdStudyOwnerV1SessionOperationsIdempotencyKey",
+    "post_communitiesCommunityIdStudyOwnerV1SessionsSessionIdItemsSessionItemIdAnswers",
+    "get_usersMeRewardsOwnerCreditsV1",
+    "get_usersMeRewardsOwnerCreditsV1CreditId",
+    "get_rewardsParticipationsOwnerV1",
+    "get_rewardsParticipationsParticipationIdOwnerV1"
   ]
 }

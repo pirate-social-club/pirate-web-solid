@@ -257,7 +257,6 @@ describe("Guest financial offer consent stays separate from public practice", ()
     expect(button(node, "Start practice").disabled).toBe(true);
     const checkboxes = node.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
     checkboxes[1]?.click();
-    await vi.waitFor(() => expect(button(node, "Start with accepted offer").disabled).toBe(true));
     expect(node.querySelector("[data-guest-study-entry]")?.textContent).not.toContain("This lesson does not create a drawing entry.");
     expect(node.querySelector("[data-guest-study-entry]")?.textContent).toContain("Participation has not yet been admitted.");
     expect(button(node, "Start with accepted offer").disabled).toBe(true);
@@ -270,4 +269,56 @@ describe("Guest financial offer consent stays separate from public practice", ()
         disclosure: { version: terms.disclosure_version, accepted: true } }) }));
     expect(selected.resume).not.toHaveBeenCalled();
   });
+});
+
+test("known public practice is actionable while optional rewarded preview waits; late preview cannot alter original start", async () => {
+  let releasePreview: (() => void) | undefined;
+  const preview = new Promise<Awaited<ReturnType<NonNullable<GuestStudyRouteViewProps["rewardPreviewReader"]>["load"]>>>(resolve => {
+    releasePreview = () => resolve({ prepared: prepared(), acceptedPreview: { requestHash: "c".repeat(64), terms: {
+      community_id: "community-1", post_id: "post-1", audio_revision: 1, lyrics_revision: 1,
+      offer_id: "offer-1", pool_leg_id: "original-leg", original_drawing_id: "7",
+      qualification_policy_version_id: "study_session_first_pass_v2@2", policy_hash: "a".repeat(64), terms_hash: "b".repeat(64),
+      entry_cutoff_at: "2026-10-14T10:00:00.000Z", disclosure_version: prepared().disclosure.version,
+    } } });
+  });
+  let releaseStart: (() => void) | undefined;
+  const selected = coordinator();
+  const originalStart = new Promise<Awaited<ReturnType<typeof selected.start>>>(resolve => {
+    releaseStart = () => resolve({ entryKind: "new_session", status: "started", session: guestSession(), credentialId: "proof-1", recoveryProfile: "persistent" });
+  });
+  selected.start = vi.fn(() => originalStart);
+  let primaryFailed = false, primary: unknown;
+  const cleanupErrors: unknown[] = [];
+  // Observe both retained original promises immediately without replacing them.
+  void preview.catch(() => {}); void originalStart.catch(() => {});
+  try {
+    const node = render(() => <GuestStudyRouteView communityId="community-1" postId="post-1" api={guestApi()}
+      publicReader={publicReader} startCoordinator={selected} answerJournal={answerJournal()}
+      rewardPreviewReader={{ load: () => preview }} />);
+    await vi.waitFor(() => expect(node.querySelector("[data-guest-study-entry]")).not.toBeNull());
+    await consentAndStart(node);
+    await vi.waitFor(() => expect(selected.start).toHaveBeenCalledOnce());
+    expect(vi.mocked(selected.start).mock.calls[0]?.[0].draft).toMatchObject({ reward_mode: "practice_only", reward_preview_terms_hash: null, disclosure: { accepted: true } });
+    releasePreview?.(); await Promise.resolve(); await Promise.resolve();
+    expect(node.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
+    expect(node.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+    expect(selected.start).toHaveBeenCalledOnce();
+    releaseStart?.();
+    await vi.waitFor(() => expect(node.querySelector("[data-guest-study-entry]")).toBeNull());
+  } catch (error) { primaryFailed = true; primary = error; }
+  finally {
+    releasePreview?.(); releaseStart?.();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const results = await Promise.race([
+        Promise.allSettled([preview, originalStart]),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Owned deferred preview/start drain unresolved")), 1000); }),
+      ]);
+      for (const result of results) if (result.status === "rejected") cleanupErrors.push(result.reason);
+    } catch (error) { cleanupErrors.push(error); }
+    finally { clearTimeout(timer); }
+  }
+  if (cleanupErrors.length > 0) throw new AggregateError(primaryFailed ? [primary, ...cleanupErrors] : cleanupErrors, "Deferred preview/start cleanup failed");
+  if (primaryFailed) throw primary;
+
 });
