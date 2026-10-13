@@ -1,0 +1,224 @@
+@@ -1,27 +1,16 @@
+-import { readFileSync } from "node:fs";
+ import { createRequire } from "node:module";
+ import { dirname } from "node:path";
++import { workspacePublicAliases } from "./workspace-public-aliases.ts";
+ 
+ const require = createRequire(import.meta.url);
+ const pgProtocol = require.resolve("pg-protocol", { paths: [require.resolve("pg")] });
+ const pgCloudflare = `${dirname(require.resolve("pg-cloudflare/package.json", { paths: [require.resolve("pg")] }))}/dist/index.js`;
+ const root = new URL("../", import.meta.url).pathname;
+ // Match source subpaths before package roots, preserving each package's existing exports.
+-const exact = [
+-  "application",
+-  "platform-cf",
+-  "domain",
+-  "contracts",
+-  "verifier-response-contract",
+-].flatMap((name) => {
+-  const manifest = JSON.parse(readFileSync(`${root}packages/${name}/package.json`, "utf8")) as {
+-    exports: Record<string, string>;
+-  };
+-  return Object.entries(manifest.exports).map(([key, value]) => ({
+-    find: `@pirate/${name}${key === "." ? "" : key.slice(1)}`,
+-    replacement: `${root}packages/${name}/${value.slice(2)}`,
+-  }));
+-});
++const exact = Object.entries(workspacePublicAliases).map(([find, replacement]) => ({
++  find,
++  replacement,
++}));
+ export const videoPlatformAliases = [
+   { find: "pg-protocol", replacement: pgProtocol },
+   { find: "pg-cloudflare", replacement: pgCloudflare },
+@@ -1,7 +1,8 @@
+ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+ import { defineConfig } from "vitest/config";
++import { withWorkspacePublicAliases } from "../workspace-public-aliases.ts";
+ 
+-const alias = {
++const alias = withWorkspacePublicAliases({
+   "@pirate/application/telegram": new URL(
+     "../../packages/application/src/telegram/index.ts",
+     import.meta.url,
+@@ -52,7 +53,7 @@ const alias = {
+     "../../packages/platform-cf/src/namespace-ownership/hns-root-import-publication-authorization-postgres.ts",
+     import.meta.url,
+   ).pathname,
+-};
++});
+ 
+ export default defineConfig({
+   plugins: [
+@@ -1,49 +1,21 @@
+-import { readFileSync } from "node:fs";
+ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+ import { defineConfig } from "vitest/config";
++import { withWorkspacePublicAliases } from "../workspace-public-aliases.ts";
+ import { telegramOidcOutbound } from "./telegram-oidc-outbound.ts";
+ 
+-// Both Vite and native Workerd need exact public workspace subpaths before
+-// package-root aliases. Derive them from the maintained export manifests so
+-// newly selected real Worker graphs resolve without mocked module substitutes.
+-const workspaceAliases: [string, string][] = [];
+-for (const name of ["application", "platform-cf", "contracts", "domain"]) {
+-  const directory = new URL(`../../packages/${name}/`, import.meta.url);
+-  const manifest: unknown = JSON.parse(readFileSync(new URL("package.json", directory), "utf8"));
+-  if (
+-    typeof manifest !== "object" ||
+-    manifest === null ||
+-    !("exports" in manifest) ||
+-    typeof manifest.exports !== "object" ||
+-    manifest.exports === null
+-  )
+-    throw new Error(`Invalid workspace exports: ${name}`);
+-  for (const [subpath, target] of Object.entries(manifest.exports)) {
+-    if (
+-      (subpath !== "." && !subpath.startsWith("./")) ||
+-      subpath.includes("*") ||
+-      typeof target !== "string" ||
+-      !target.startsWith("./")
+-    )
+-      throw new Error(`Unsupported workspace export: ${name}/${subpath}`);
+-    workspaceAliases.push([
+-      `@pirate/${name}${subpath === "." ? "" : subpath.slice(1)}`,
+-      new URL(target, directory).pathname,
+-    ]);
+-  }
+-}
+-// Existing jobs internals also use the maintained tsconfig wildcard source path.
+-// These are real source modules, without adding new package-public exports.
++// Preserve the existing explicitly admitted private source overrides. Public
++// exact subpaths come from the same maintained manifests as the other pools.
++const privateAliases: Record<string, string> = {};
+ for (const subpath of [
+   "media-processing-cloudflare",
+   "media-processing-store",
+   "namespace-ownership/hns-owner-service-binding",
+ ])
+-  workspaceAliases.push([
+-    `@pirate/platform-cf/${subpath}`,
+-    new URL(`../../packages/platform-cf/src/${subpath}.ts`, import.meta.url).pathname,
+-  ]);
+-const alias = Object.fromEntries(workspaceAliases.sort(([a], [b]) => b.length - a.length));
++  privateAliases[`@pirate/platform-cf/${subpath}`] = new URL(
++    `../../packages/platform-cf/src/${subpath}.ts`,
++    import.meta.url,
++  ).pathname;
++const alias = withWorkspacePublicAliases(privateAliases);
+ 
+ export default defineConfig({
+   plugins: [
+@@ -1,7 +1,8 @@
+ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+ import { defineConfig } from "vitest/config";
++import { withWorkspacePublicAliases } from "../workspace-public-aliases.ts";
+ 
+-const alias = {
++const alias = withWorkspacePublicAliases({
+   "@pirate/application/telegram-study": new URL(
+     "../../packages/application/src/telegram-study.ts",
+     import.meta.url,
+@@ -39,7 +40,7 @@ const alias = {
+     "../../packages/domain/src/verification/index.ts",
+     import.meta.url,
+   ).pathname,
+-};
++});
+ 
+ export default defineConfig({
+   plugins: [
+@@ -1,7 +1,8 @@
+ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+ import { defineConfig } from "vitest/config";
++import { withWorkspacePublicAliases } from "../workspace-public-aliases.ts";
+ 
+-const alias = {
++const alias = withWorkspacePublicAliases({
+   "@pirate/contracts": new URL("../../packages/contracts/src/index.ts", import.meta.url).pathname,
+   "@pirate/domain": new URL("../../packages/domain/src/index.ts", import.meta.url).pathname,
+   "@pirate/application/data/registration-workflow": new URL(
+@@ -32,7 +33,7 @@ const alias = {
+     "../../packages/platform-cf/src/song-source-recording-consumer.ts",
+     import.meta.url,
+   ).pathname,
+-};
++});
+ 
+ export default defineConfig({
+   resolve: { alias },
+@@ -2,10 +2,11 @@ import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+ import { defineConfig } from "vitest/config";
+ import { unstable_readConfig } from "wrangler";
+ import { rewardsPlatformAliases } from "../rewards-platform-aliases.ts";
++import { withWorkspacePublicAliases } from "../workspace-public-aliases.ts";
+ 
+ // Workspace packages resolve to source so the workerd pool bundles one
+ // program for both the worker main and the test modules.
+-const alias = {
++const alias = withWorkspacePublicAliases({
+   ...rewardsPlatformAliases,
+   "@pirate/platform-cf/hns-active-lease-renewal-repository": new URL(
+     "../../packages/platform-cf/src/hns-active-lease-renewal-repository.ts",
+@@ -220,7 +221,7 @@ const alias = {
+     "../../packages/verifier-response-contract/src/index.ts",
+     import.meta.url,
+   ).pathname,
+-};
++});
+ 
+ const productionJobsConfiguration = unstable_readConfig(
+   {
+@@ -0,0 +1,52 @@
++// Build-tool source resolution only. No package export, runtime, mock or grant.
++import { existsSync, readFileSync } from "node:fs";
++
++const entries: [string, string][] = [];
++for (const name of [
++  "application",
++  "platform-cf",
++  "contracts",
++  "domain",
++  "verifier-response-contract",
++]) {
++  const directory = new URL(`../packages/${name}/`, import.meta.url);
++  const manifest: unknown = JSON.parse(readFileSync(new URL("package.json", directory), "utf8"));
++  if (
++    typeof manifest !== "object" ||
++    manifest === null ||
++    !("exports" in manifest) ||
++    typeof manifest.exports !== "object" ||
++    manifest.exports === null ||
++    Array.isArray(manifest.exports)
++  )
++    throw new Error(`Invalid workspace exports: ${name}`);
++  for (const [subpath, target] of Object.entries(manifest.exports)) {
++    if (
++      (subpath !== "." && !subpath.startsWith("./")) ||
++      subpath.includes("*") ||
++      typeof target !== "string" ||
++      !target.startsWith("./") ||
++      target.includes("*") ||
++      target.split("/").includes("..")
++    )
++      throw new Error(`Unsupported workspace export: ${name}/${subpath}`);
++    const resolved = new URL(target, directory).pathname;
++    if (!existsSync(resolved))
++      throw new Error(`Missing workspace export target: ${name}/${subpath}`);
++    entries.push([`@pirate/${name}${subpath === "." ? "" : subpath.slice(1)}`, resolved]);
++  }
++}
++// Exact longest subpaths precede package roots for BOTH Vite and Workerd.
++export const workspacePublicAliases: Readonly<Record<string, string>> = Object.freeze(
++  Object.fromEntries(entries.sort(([a], [b]) => b.length - a.length)),
++);
++/** Existing explicitly admitted private aliases retain precedence and targets. */
++export function withWorkspacePublicAliases(
++  overrides: Readonly<Record<string, string>> = {},
++): Record<string, string> {
++  return Object.fromEntries(
++    Object.entries({ ...workspacePublicAliases, ...overrides }).sort(
++      ([a], [b]) => b.length - a.length,
++    ),
++  );
++}

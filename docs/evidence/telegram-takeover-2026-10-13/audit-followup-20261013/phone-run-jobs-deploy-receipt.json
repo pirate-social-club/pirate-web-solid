@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_sha": "5ac53087e7447f0abfa8633e707522a93fcd1036",
+  "worker_version_id": "51f12e38-c11a-46c6-98b0-00f245c34bdf",
+  "environment": "staging",
+  "config_path": "apps/jobs-worker/wrangler.jsonc",
+  "staging_binding_preflight": {
+    "schema_version": 1,
+    "source_sha": "5ac53087e7447f0abfa8633e707522a93fcd1036",
+    "config_path": "apps/jobs-worker/wrangler.jsonc",
+    "environment": "staging",
+    "worker_name": "pirate-jobs-worker-staging",
+    "observed_at": "2026-10-08T18:34:23.624Z",
+    "baseline_sha256": "8e349cab041d9fdfc3c0cf3ee36084cf5fbfb3792be9d9196e09366acbc00de0",
+    "candidate_sha256": "15d881ecf9bbf00f6ffb6be4c11c398d1ee8e2a521c244dcdafd61d43e1dd76f",
+    "serving_versions": [
+      {
+        "version_id": "9993d91b-378f-4403-ae26-c0b508bc4157",
+        "percentage": 100
+      }
+    ],
+    "changes": []
+  }
+}

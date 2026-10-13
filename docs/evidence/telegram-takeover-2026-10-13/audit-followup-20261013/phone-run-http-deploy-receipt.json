@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source_sha": "5ac53087e7447f0abfa8633e707522a93fcd1036",
+  "worker_version_id": "0c020126-f989-46fc-922d-aabf884a3148",
+  "environment": "staging",
+  "config_path": "apps/http-worker/wrangler.jsonc",
+  "staging_binding_preflight": {
+    "schema_version": 1,
+    "source_sha": "5ac53087e7447f0abfa8633e707522a93fcd1036",
+    "config_path": "apps/http-worker/wrangler.jsonc",
+    "environment": "staging",
+    "worker_name": "pirate-http-worker-staging",
+    "observed_at": "2026-10-08T18:48:52.291Z",
+    "baseline_sha256": "4cc3308b46fa97783576d566740746fcc2409b9c478b6c175ea298e1f93e4a2a",
+    "candidate_sha256": "4c7505bde4fca65cc08eec6bebfcf4a3ac20c02f68330d46bf5f40b220b9cedd",
+    "serving_versions": [
+      {
+        "version_id": "f40c1783-d011-43f8-8e1f-ac35492962fc",
+        "percentage": 100
+      }
+    ],
+    "changes": [
+      {
+        "kind": "binding",
+        "version_id": "f40c1783-d011-43f8-8e1f-ac35492962fc",
+        "name": "HNS_OWNER_VERIFIER",
+        "before_sha256": "552c6c81a0e0776e5f4dd9021e17086fb8f985b2c7e1e830d82d415eacfbc9b4",
+        "after_sha256": "0abacfd1bb2cc08ff51e00f0651d6d00a2b2eefc1a4110e418633105077cdc38"
+      }
+    ]
+  }
+}

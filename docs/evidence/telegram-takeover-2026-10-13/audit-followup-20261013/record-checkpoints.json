@@ -1,0 +1,12 @@
+{
+  "control_head": "9502ed28d1eab696e829963f768b27f89523082c",
+  "own_record_commits": {
+    "tasks/records/telegram-post-lesson-account-connection-spike.md": "ff30c3b1ff12c0be6145ac3dbdc1388c7c6b725e",
+    "tasks/records/solid-telegram-privy-identity-probe.md": "8f56eb16afa61bd8c1c7f2d6102b8228c5fb1e0d",
+    "tasks/records/api-telegram-practice-delivery-hardening.md": "9502ed28d1eab696e829963f768b27f89523082c"
+  },
+  "foreign_paths_preserved_sha256": {
+    "tasks/records/solid-hns-claim-persona-picker.md": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f",
+    "tasks/records/solid-text-submission-read-dispatch-guard.md": "25e3fbe27c7382ce772bedd71a3358c3b6b49d0387fc78eae1d91bff0996ec61"
+  }
+}
