@@ -189,12 +189,6 @@ const CHANNEL_INIT_SCRIPT = ({ eventNames }) => {
         if (name === "storyRenderPhaseChanged") {
           state.phases.push({ phase: args[0]?.newPhase ?? null, storyId: args[0]?.storyId ?? null, width: globalThis.innerWidth, height: globalThis.innerHeight });
         }
-        // Opened directly, the preview is the top frame and emits the finish
-        // events itself; its own listeners never receive them.
-        if (eventNames.includes(name)) {
-          const payload = args[0];
-          state.events.push({ name, payload, storyId: typeof payload?.storyId === "string" ? payload.storyId : state.activeStoryId, at: Date.now() });
-        }
         return emit(name, ...args);
       };
     }
@@ -515,7 +509,10 @@ async function runOnce(options, attempt) {
           interaction: { status: "indeterminate", reason },
         };
       }
-      const panel = await panelEvidence(page).catch(() => ({ hasViolationCount: false, hasPassCount: false, hasIncompleteCount: false, bare: true }));
+      // A preview opened directly has no manager panel to read.
+      const panel = navigation.mode === "manager"
+        ? await panelEvidence(page).catch(() => ({ hasViolationCount: false, hasPassCount: false, hasIncompleteCount: false, bare: true }))
+        : { hasViolationCount: false, hasPassCount: false, hasIncompleteCount: false, bare: true, absent: "preview opened directly" };
       results.push({
         recordType: "story",
         id: story.id,
