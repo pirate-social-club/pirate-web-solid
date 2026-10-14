@@ -3,7 +3,6 @@
   "findings": [
     "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/combobox/combobox.tsx|38|16|Reactive value \"props.item\" is read in ComboboxItem's component body outside a tracking scope.",
     "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/select/select.tsx|51|16|Reactive value \"props.item\" is read in SelectItem's component body outside a tracking scope.",
-    "solid/no-top-level-reactive-read|packages/solid-ui/src/patterns/layout/stack-page-shell/stack-page-shell.tsx|27|5|Reactive value \"props.description\" is read in StackPageShell's component body outside a tracking scope.",
     "solid/no-top-level-reactive-read|src/Document.tsx|14|23|Reactive value \"props.clientEntry\" is read in Document's component body outside a tracking scope.",
     "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-practice-surface.tsx|42|28|Reactive value \"props.lines[0]?.startMs\" is read in KaraokePracticeSurface's component body outside a tracking scope.",
     "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|47|23|Reactive value \"props.payload.community\" is read in LoadedKaraokeSession's component body outside a tracking scope.",
@@ -18,7 +17,6 @@
   "stableFindings": [
     "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/combobox/combobox.tsx|42c5aecb41b96290",
     "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/select/select.tsx|42c5aecb41b96290",
-    "solid/no-top-level-reactive-read|packages/solid-ui/src/patterns/layout/stack-page-shell/stack-page-shell.tsx|11db7c4d06fe3598",
     "solid/no-top-level-reactive-read|src/Document.tsx|2a1232fb1ff89b7d",
     "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-practice-surface.tsx|59273b78b862cc5a",
     "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|a616df51b68b249c",

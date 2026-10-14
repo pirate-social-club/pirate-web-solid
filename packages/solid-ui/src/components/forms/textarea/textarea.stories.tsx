@@ -51,6 +51,17 @@ export const Variants: Story = {
       <Textarea aria-label="Flat textarea" variant="flat" placeholder="Flat" />
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const fieldStyle = getComputedStyle(canvas.getByRole("textbox", { name: "Default textarea" }));
+    const flatStyle = getComputedStyle(canvas.getByRole("textbox", { name: "Flat textarea" }));
+    // Paper draws no resize grip on either variant.
+    await expect(fieldStyle.resize).toBe("none");
+    await expect(flatStyle.resize).toBe("none");
+    // Default: 16px inline and 12px block padding; flat drops border and padding.
+    await expect([fieldStyle.paddingLeft, fieldStyle.paddingTop]).toEqual(["16px", "12px"]);
+    await expect([flatStyle.paddingLeft, flatStyle.paddingTop, flatStyle.borderTopWidth]).toEqual(["0px", "0px", "0px"]);
+  },
 };
 
 export const Disabled: Story = {

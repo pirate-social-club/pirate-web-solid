@@ -33,7 +33,7 @@ export function Label(props: ParentProps<LabelProps>) {
   const rest = omit(props, "class", "tone", "children");
 
   return (
-    <label class={className()} {...rest}>
+    <label {...rest} class={className()}>
       {props.children}
     </label>
   );

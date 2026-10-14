@@ -17,7 +17,7 @@ export const typeVariants = cva("", {
       label: "text-base font-medium leading-tight text-foreground",
       caption: "text-base font-normal leading-5 text-muted-foreground",
       overline:
-        "text-base font-medium uppercase tracking-[0.03em] text-muted-foreground",
+        "text-base font-medium uppercase leading-5 tracking-[0.03em] text-muted-foreground",
     },
     leading: {
       roomy: "leading-8",
@@ -61,7 +61,7 @@ export function Type(props: ParentProps<TypeProps>) {
   );
 
   return (
-    <Dynamic component={props.as ?? "span"} class={className()} {...rest}>
+    <Dynamic component={props.as ?? "span"} {...rest} class={className()}>
       {props.children}
     </Dynamic>
   );

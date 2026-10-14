@@ -40,7 +40,6 @@ export function IconButton(props: ParentProps<IconButtonProps>) {
 
   return (
     <button
-      class={className()}
       data-active={props.active ? "true" : undefined}
       disabled={props.disabled || props.loading}
       type={props.type ?? "button"}
@@ -53,6 +52,7 @@ export function IconButton(props: ParentProps<IconButtonProps>) {
           : props["aria-pressed"]
       }
       {...rest}
+      class={className()}
     >
       {props.loading ? (
         <Spinner size="sm" class="[animation-duration:0.9s]" decorative />

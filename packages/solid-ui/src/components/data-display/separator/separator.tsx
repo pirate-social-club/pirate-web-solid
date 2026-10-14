@@ -24,10 +24,10 @@ export function Separator(props: SeparatorProps) {
 
   return (
     <KSeparator
-      class={className()}
       orientation={orientation()}
       role={props.decorative === false ? undefined : "none"}
       {...rest}
+      class={className()}
       aria-orientation={props.decorative === false && orientation() === "vertical" ? "vertical" : undefined}
     />
   );

@@ -124,3 +124,36 @@ export const Default: Story = {
     await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
+
+/** The last item stays reachable by pointer, and the open menu draws no browser outline. */
+export const EveryItemReachable: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Open menu" }));
+    const menu = await body.findByRole("menu");
+    await waitFor(() => expect(menu).toHaveFocus());
+    await expect(getComputedStyle(menu).outlineStyle).toBe("none");
+
+    // The old menu clipped at max-h-96 with overflow hidden. Programmatic
+    // scrolling moves a hidden-overflow box too, so assert the user can scroll:
+    // the menu is bounded by the space Kobalte reports and scrolls past it.
+    const menuStyle = getComputedStyle(menu);
+    await expect(["auto", "scroll"]).toContain(menuStyle.overflowY);
+    await expect(menuStyle.maxHeight).not.toBe("384px");
+    const last = body.getByRole("menuitem", { name: "Delete" });
+    if (menu.scrollHeight <= menu.clientHeight) {
+      // Everything fits: the last item is visible without any scrolling.
+      await expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(menu.getBoundingClientRect().bottom + 0.5);
+    }
+    last.scrollIntoView({ block: "nearest" });
+    const item = last.getBoundingClientRect();
+    const bounds = menu.getBoundingClientRect();
+    await expect(item.bottom).toBeLessThanOrEqual(bounds.bottom + 0.5);
+    const hit = document.elementFromPoint(item.left + item.width / 2, item.top + item.height / 2);
+    await expect(last.contains(hit)).toBe(true);
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("menu")).not.toBeInTheDocument());
+  },
+};

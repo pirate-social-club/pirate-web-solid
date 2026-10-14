@@ -71,3 +71,12 @@ export const Variants: Story = {
     </div>
   ),
 };
+
+/** Paper Typography sheet: overline is 16/20 medium uppercase with 0.03em tracking. */
+export const OverlineMetrics: Story = {
+  render: () => <Type variant="overline">Karaoke</Type>,
+  play: async ({ canvasElement }) => {
+    const style = getComputedStyle(within(canvasElement).getByText("Karaoke"));
+    await expect([style.fontSize, style.lineHeight, style.fontWeight, style.textTransform]).toEqual(["16px", "20px", "500", "uppercase"]);
+  },
+};

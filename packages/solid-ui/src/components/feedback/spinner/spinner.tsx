@@ -50,9 +50,9 @@ export function Spinner(props: SpinnerProps) {
     <IconCircleNotch
       aria-hidden={props.decorative ? "true" : "false"}
       aria-label={props.decorative ? undefined : props.label ?? "Loading"}
-      class={className()}
       role={props.decorative ? undefined : "status"}
       {...rest}
+      class={className()}
     />
   );
 }

@@ -13,7 +13,7 @@ const meta = {
     confirmLabel: "Delete",
     cancelLabel: "Keep",
     triggerLabel: "Delete song",
-    destructive: false,
+    destructive: true,
     onConfirm: fn(),
   },
   argTypes: {
@@ -45,7 +45,17 @@ export const Default: Story = {
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleName("Delete this song?");
 
-    await userEvent.click(body.getByRole("button", { name: "Delete" }));
+    // Paper draws every confirm dialog as destructive: the confirm action
+    // takes the destructive fill.
+    const confirm = body.getByRole("button", { name: "Delete" });
+    const probe = document.createElement("span");
+    probe.style.backgroundColor = "var(--destructive)";
+    document.body.append(probe);
+    const destructiveFill = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    await expect(getComputedStyle(confirm).backgroundColor).toBe(destructiveFill);
+
+    await userEvent.click(confirm);
 
     await expect(args.onConfirm).toHaveBeenCalledTimes(1);
     await expect(body.queryByRole("alertdialog")).not.toBeInTheDocument();

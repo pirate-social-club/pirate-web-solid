@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  type MediaSubmissionSnapshot,
   basisPointsToPercentText,
   buildReserveSongAudioInput,
   buildSongLyricsInput,
@@ -8,9 +9,23 @@ import {
   buildStartSongInput,
   normalizeRoyaltyAllocations,
   percentTextToBasisPoints,
+  songPreparationComplete,
 } from "./contracts";
 
 describe("song media command contracts", () => {
+  test("requires sealed primary audio and both authoritative stem attachments for preparation", () => {
+    const stem = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 } as const;
+    // SAFETY: readiness reads only audio_revision and the generated stem states.
+    const snapshot = (audio: number, instrumental: typeof stem | null, vocals: typeof stem | null) =>
+      ({ audio_revision: audio, stems: { instrumental_audio: instrumental, vocal_audio: vocals } }) as MediaSubmissionSnapshot;
+    expect(songPreparationComplete(null)).toBe(false);
+    expect(songPreparationComplete(snapshot(1, null, null))).toBe(false);
+    expect(songPreparationComplete(snapshot(1, stem, null))).toBe(false);
+    expect(songPreparationComplete(snapshot(1, null, stem))).toBe(false);
+    expect(songPreparationComplete(snapshot(0, stem, stem))).toBe(false);
+    expect(songPreparationComplete(snapshot(1, stem, stem))).toBe(true);
+  });
+
   test("accepts only MP3 audio within the 64 MiB reservation bound", () => {
     const input = {
       communityId: "community-1",
