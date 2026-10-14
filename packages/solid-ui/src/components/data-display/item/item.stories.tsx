@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/actions/button/button";
 import { IconMusicNote, IconPlay } from "@/components/media/icons";
@@ -148,5 +148,29 @@ export const Sizes: Story = {
     await expect(canvas.getByText("Small")).toBeVisible();
     await expect(canvas.getByText("Default")).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Play" })).toBeVisible();
+  },
+};
+
+/** An image tile whose source fails falls back to Paper's plain skeleton square. */
+export const ImageFallback: Story = {
+  name: "Image fallback",
+  render: () => (
+    <ItemMedia data-testid="image-tile" variant="image">
+      <img alt="Album artwork" class="size-full object-cover" draggable={false} src="/missing-artwork.png" />
+    </ItemMedia>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tile = canvas.getByTestId("image-tile");
+    const image = tile.querySelector("img") as HTMLImageElement;
+    // No broken-image glyph or alt text: the failed image leaves the layout.
+    await waitFor(() => expect(image.hidden).toBe(true));
+    await expect(image.getBoundingClientRect().width).toBe(0);
+    // The 48px tile keeps its skeleton surface and 4px corner.
+    const box = tile.getBoundingClientRect();
+    await expect([box.width, box.height]).toEqual([48, 48]);
+    const style = getComputedStyle(tile);
+    await expect(style.borderTopLeftRadius).toBe("4px");
+    await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
   },
 };

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
 
 import { Input } from "@/components/forms/input/input";
 import { FormFieldLabel, FormNote, FormSectionHeading } from "./form-layout";
@@ -37,6 +38,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Paper sets field notes at 14/20, below the 16/20 section description.
+    for (const text of ["2 to 30 characters.", "This bio is too long."]) {
+      const note = getComputedStyle(canvas.getByText(text));
+      await expect(note.fontSize).toBe("14px");
+      await expect(note.lineHeight).toBe("20px");
+    }
+    await expect(getComputedStyle(canvas.getByText("Shown on your public page.")).fontSize).toBe("16px");
+  },
   render: (args) => (
     <div class="flex w-96 flex-col gap-6">
       <FormSectionHeading

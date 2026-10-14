@@ -88,8 +88,9 @@ const formNoteToneClass: Record<NonNullable<FormNoteProps["tone"]>, string> = {
  * fallbacks that are not tied to the field's own error channel.
  */
 export function FormNote(props: FormNoteProps) {
+  // Paper sets field notes at 14/20, a step below the 16/20 caption.
   const className = createMemo(() =>
-    cn(formNoteToneClass[props.tone ?? "muted"], props.class),
+    cn("text-sm leading-5", formNoteToneClass[props.tone ?? "muted"], props.class),
   );
 
   return (
