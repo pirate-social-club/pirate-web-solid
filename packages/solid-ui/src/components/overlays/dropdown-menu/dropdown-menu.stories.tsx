@@ -135,7 +135,17 @@ export const EveryItemReachable: Story = {
     await waitFor(() => expect(menu).toHaveFocus());
     await expect(getComputedStyle(menu).outlineStyle).toBe("none");
 
+    // The old menu clipped at max-h-96 with overflow hidden. Programmatic
+    // scrolling moves a hidden-overflow box too, so assert the user can scroll:
+    // the menu is bounded by the space Kobalte reports and scrolls past it.
+    const menuStyle = getComputedStyle(menu);
+    await expect(["auto", "scroll"]).toContain(menuStyle.overflowY);
+    await expect(menuStyle.maxHeight).not.toBe("384px");
     const last = body.getByRole("menuitem", { name: "Delete" });
+    if (menu.scrollHeight <= menu.clientHeight) {
+      // Everything fits: the last item is visible without any scrolling.
+      await expect(last.getBoundingClientRect().bottom).toBeLessThanOrEqual(menu.getBoundingClientRect().bottom + 0.5);
+    }
     last.scrollIntoView({ block: "nearest" });
     const item = last.getBoundingClientRect();
     const bounds = menu.getBoundingClientRect();

@@ -100,7 +100,7 @@ function DropdownMenuSeparator(
 ) {
   const className = createMemo(() => cn("my-1 h-px bg-border", props.class));
 
-  return <KMenu.Separator class={className()} {...omit(props, "class")} />;
+  return <KMenu.Separator {...omit(props, "class")} class={className()} />;
 }
 
 export {
