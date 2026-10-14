@@ -23,10 +23,26 @@ type PreparedCommand =
   | { type: "assignment"; request: Parameters<SpacesOwnerProofApi["assignment"]>[0] }
   | { type: "confirm"; request: Parameters<SpacesOwnerProofApi["confirmAssignment"]>[0] };
 
+interface CommandBasis {
+  ceremony?: Pick<NonNullable<SpacesOwnerProgress["ceremony"]>["challenge"], "ceremony_id" | "generation"> & {
+    status: NonNullable<SpacesOwnerProgress["ceremony"]>["status"];
+    pending_poll_key?: string;
+  };
+  assignment?: Pick<NonNullable<SpacesOwnerProgress["operator_assignment"]>, "operator_assignment_id" | "generation" | "status" | "current">;
+}
+
 interface UnresolvedCommand {
   type: Command["type"];
-  before: SpacesOwnerProgress;
+  before: CommandBasis;
   failed: boolean;
+}
+
+interface SuspendedIntent {
+  accountId: string;
+  communityId: string;
+  root: string;
+  command: UnresolvedCommand;
+  notice: string;
 }
 
 interface Context {
@@ -38,6 +54,7 @@ interface Context {
   command?: Command;
   prepared?: PreparedCommand;
   unresolved?: UnresolvedCommand;
+  suspended?: SuspendedIntent;
   notice: string;
 }
 
@@ -70,15 +87,26 @@ function commandFailureNotice(type: Command["type"]): string {
   return "Couldn't check the proof. Try again.";
 }
 
-function commandOutcomeObserved(command: UnresolvedCommand, progress: SpacesOwnerProgress): boolean {
+function commandBasis(progress: SpacesOwnerProgress): CommandBasis {
   const ceremony = progress.ceremony;
+  const assignment = progress.operator_assignment;
+  return { ceremony: ceremony == null ? undefined : { ceremony_id: ceremony.challenge.ceremony_id,
+    generation: ceremony.challenge.generation, status: ceremony.status,
+    pending_poll_key: ceremony.status === "verification_pending" ? ceremony.pending_poll_key : undefined },
+    assignment: assignment == null ? undefined : { operator_assignment_id: assignment.operator_assignment_id,
+      generation: assignment.generation, status: assignment.status, current: assignment.current } };
+}
+
+function commandOutcomeObserved(command: UnresolvedCommand, progress: SpacesOwnerProgress): boolean {
+  const after = commandBasis(progress);
+  const ceremony = after.ceremony;
   const before = command.before.ceremony;
   if (command.type === "start") return ceremony != null && (before == null
-    || ceremony.challenge.ceremony_id !== before.challenge.ceremony_id
-    || ceremony.challenge.generation !== before.challenge.generation);
-  if (command.type === "poll" || command.type === "resume") return ceremony != null && ceremony.status !== "awaiting_signature";
-  if (command.type === "assignment") return progress.operator_assignment != null;
-  return progress.operator_assignment?.status === "confirmed";
+    || ceremony.ceremony_id !== before.ceremony_id || ceremony.generation !== before.generation);
+  if (command.type === "poll" || command.type === "resume") return ceremony != null
+    && JSON.stringify(ceremony) !== JSON.stringify(before);
+  return after.assignment != null && (command.type === "assignment" || after.assignment.status === "confirmed")
+    && JSON.stringify(after.assignment) !== JSON.stringify(command.before.assignment);
 }
 
 export function canonicalSpacesRoot(value: string): string | undefined {
@@ -159,7 +187,21 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
   const requiresSignIn = (error: unknown) => error instanceof SignInRequired
     || (error instanceof ApiClientError && error.status === 401);
   const empty = (scope: SpacesProofScope): Context => ({ scope, accountId: undefined, roots: [], root: undefined,
-    progress: undefined, command: undefined, prepared: undefined, unresolved: undefined, notice: "" });
+    progress: undefined, command: undefined, prepared: undefined, unresolved: undefined, suspended: undefined, notice: "" });
+  const retained = (context: Context): SuspendedIntent | undefined => context.suspended
+    ?? (context.unresolved !== undefined && context.root !== undefined && context.accountId !== undefined
+      ? { accountId: context.accountId, communityId: context.scope.communityId, root: context.root,
+        command: { ...context.unresolved, failed: true }, notice: context.notice || "The result is unknown. Refresh status before trying again." }
+      : undefined);
+  const restore = (context: Context, scope: SpacesProofScope): Context => {
+    const intent = retained(context)!;
+    return { ...empty(scope), accountId: intent.accountId, root: intent.root, unresolved: intent.command,
+      suspended: intent, notice: intent.notice };
+  };
+  const adoptRead = (context: Context, output: Awaited<ReturnType<typeof read>>) => ({ ...output,
+    unresolved: undefined, suspended: undefined,
+    notice: context.unresolved === undefined || commandOutcomeObserved(context.unresolved, output.progress) ? ""
+      : context.unresolved.failed ? commandFailureNotice(context.unresolved.type) : context.notice });
   const selection = (context: Context, scope: SpacesProofScope) => ({ ...empty(scope),
     ...(context.scope.accountId === scope.accountId && context.scope.communityId === scope.communityId
       ? { roots: context.roots, accountId: context.accountId } : {}) });
@@ -255,17 +297,29 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
     context: ({ input }) => empty(input.scope),
     initial: "discovering",
     on: {
-      SCOPE: { target: ".discovering", reenter: true, actions: assign(({ event }) => empty(event.scope)) },
-      CHOOSE: { guard: ({ context }) => context.unresolved === undefined, target: ".ready", reenter: true,
+      SCOPE: [
+        { guard: ({ context, event }) => retained(context)?.communityId === event.scope.communityId
+            && retained(context)?.accountId !== undefined && retained(context)?.accountId === event.scope.accountId,
+          target: ".reading", reenter: true, actions: assign(({ context, event }) => restore(context, event.scope)) },
+        { guard: ({ context, event }) => retained(context)?.communityId === event.scope.communityId
+            && (event.scope.accountId === null || event.scope.accountId === undefined),
+          target: ".signInRequired", reenter: true, actions: assign(({ context, event }) => ({ ...empty(event.scope), suspended: retained(context) })) },
+        { target: ".discovering", reenter: true, actions: assign(({ event }) => empty(event.scope)) },
+      ],
+      CHOOSE: { guard: ({ context }) => context.unresolved === undefined && context.suspended === undefined, target: ".ready", reenter: true,
         actions: assign(({ context, event }) => selection(context, event.scope)) },
-      SELECT: { guard: ({ context }) => context.unresolved === undefined, target: ".reading", reenter: true,
+      SELECT: { guard: ({ context }) => context.unresolved === undefined && context.suspended === undefined, target: ".reading", reenter: true,
         actions: assign(({ context, event }) => ({ ...selection(context, event.scope), root: event.root })) },
     },
     states: {
       discovering: {
         invoke: { src: "discover", input: ({ context }) => context,
-          onDone: { target: "selecting", actions: assign(({ event }) => ({ accountId: event.output.accountId,
-            roots: event.output.roots, root: event.output.roots.length === 1 ? event.output.roots[0] : undefined })) },
+          onDone: [
+            { guard: ({ context }) => context.progress !== undefined && context.root !== undefined,
+              target: "ready", actions: assign(({ event }) => ({ accountId: event.output.accountId, roots: event.output.roots })) },
+            { target: "selecting", actions: assign(({ event }) => ({ accountId: event.output.accountId,
+              roots: event.output.roots, root: event.output.roots.length === 1 ? event.output.roots[0] : undefined })) },
+          ],
           onError: [
             { guard: ({ event }) => requiresSignIn(event.error), target: "signInRequired" },
             { target: "unavailable" },
@@ -278,9 +332,11 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
         entry: assign(({ context }) => ({ progress: undefined, command: undefined, prepared: undefined,
           notice: context.unresolved === undefined ? "" : context.notice })),
         invoke: { src: "read", input: ({ context }) => context,
-          onDone: { target: "ready", actions: assign(({ context, event }) => ({ ...event.output, unresolved: undefined,
-            notice: context.unresolved === undefined || commandOutcomeObserved(context.unresolved, event.output.progress) ? ""
-              : context.unresolved.failed ? commandFailureNotice(context.unresolved.type) : context.notice })) },
+          onDone: [
+            { guard: ({ context }) => context.suspended !== undefined, target: "discovering",
+              actions: assign(({ context, event }) => adoptRead(context, event.output)) },
+            { target: "ready", actions: assign(({ context, event }) => adoptRead(context, event.output)) },
+          ],
           onError: [
             { guard: ({ event }) => requiresSignIn(event.error), target: "signInRequired" },
             { target: "unavailable" },
@@ -336,7 +392,7 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
           },
           dispatching: {
             // This parent action runs before the invocation can send a request. No child event race.
-            entry: assign(({ context }) => ({ unresolved: { type: context.prepared!.type, before: context.progress!, failed: false },
+            entry: assign(({ context }) => ({ unresolved: { type: context.prepared!.type, before: commandBasis(context.progress!), failed: false },
               command: undefined, progress: undefined })),
             invoke: { src: "dispatch", input: ({ context }) => context,
               onDone: { target: "#spaces-owner-proof.reading", actions: assign(({ event }) => ({ notice: event.output.notice ?? "" })) },
@@ -356,9 +412,15 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
         notice: context.unresolved === undefined ? "Status could not be loaded. Refresh status to check again."
           : context.notice || "The result is unknown. Refresh status before trying again." })),
         on: { REFRESH: [{ guard: ({ context }) => context.root !== undefined, target: "reading" }, { target: "discovering" }] } },
-      signInRequired: { entry: assign({ progress: undefined, command: undefined, prepared: undefined, unresolved: undefined,
-        roots: [], accountId: undefined, notice: "" }),
-        on: { REFRESH: "discovering" } },
+      signInRequired: {
+        // Retain only account-bound intent and opaque progress identities, never signatures or private view data.
+        entry: assign(({ context }) => ({ ...empty(context.scope), suspended: retained(context) })),
+        on: { REFRESH: [
+          { guard: ({ context }) => context.suspended !== undefined && context.scope.accountId !== null,
+            target: "reading", actions: assign(({ context }) => restore(context, context.scope)) },
+          { target: "discovering" },
+        ] },
+      },
     },
   });
 }

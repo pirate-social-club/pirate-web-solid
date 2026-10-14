@@ -57,7 +57,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
   const confirmed = () => candidate()?.status === "confirmed" && candidate()?.current;
   const busy = () => context() === undefined || snapshot().matches("discovering") || snapshot().matches("reading") || snapshot().matches("acting");
   const ready = () => context() !== undefined && snapshot().matches("ready");
-  const canChooseRoot = () => context() !== undefined && context()?.unresolved === undefined;
+  const canChooseRoot = () => context() !== undefined && context()?.unresolved === undefined && context()?.suspended === undefined;
   const message = () => draftError() || context()?.notice || spacesProofNotice(progress());
 
   let previousScope = untrack(() => JSON.stringify([props.communityId, accountId()]));
@@ -69,7 +69,8 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     queueMicrotask(() => { if (!disposed) { setRoot(""); setSignature(""); setDraftError(""); } });
   });
   // Plain reads leave the shared choice free; a command holds it through unresolved readback.
-  createEffect(() => context() !== undefined && (snapshot().matches("acting") || context()?.unresolved !== undefined), (value) => {
+  createEffect(() => context() !== undefined && (snapshot().matches("acting") || context()?.unresolved !== undefined
+    || context()?.suspended !== undefined), (value) => {
     queueMicrotask(() => { if (!disposed) props.onBusyChange?.(value); });
   });
   const refresh = () => { setSignature(""); setDraftError(""); send({ type: "REFRESH" }); };

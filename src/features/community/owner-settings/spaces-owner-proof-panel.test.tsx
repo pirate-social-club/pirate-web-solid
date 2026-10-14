@@ -291,6 +291,34 @@ describe("Spaces owner proof recovery", () => {
     expect(api.start).not.toHaveBeenCalled();
   });
 
+  test("sign-in after an uncertain write reads its original root before unlocking the real panel", async () => {
+    const { api } = fixture(progress(), ["yahoo", "other"]); const late = deferred<SpacesOwnerProgress>();
+    api.read.mockResolvedValueOnce(progress()).mockResolvedValueOnce(progress()).mockRejectedValueOnce(new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Sign in required", retryable: false } })).mockReturnValueOnce(late.promise);
+    const [session, setSession] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-1" });
+    const busy = vi.fn(); const node = document.createElement("div"); document.body.appendChild(node);
+    const dispose = render(() => <ApplicationSessionProvider state={session}>
+      <SpacesOwnerProofPanel api={api} communityId="community-1" onBusyChange={busy} />
+    </ApplicationSessionProvider>, node);
+    cleanups.push(() => { dispose(); node.remove(); }); await ready(node); const user = userEvent.setup();
+    await user.click(button(node, "@yahoo")); await ready(node);
+    await user.click(button(node, "Get ownership message"));
+    await vi.waitFor(() => expect(node.querySelector("[data-owner-settings-sign-in]")).not.toBeNull());
+    expect(node.querySelector("[data-spaces-challenge]")).toBeNull();
+    setSession("anonymous"); await new Promise(resolve => setTimeout(resolve, 0));
+    setSession({ status: "authenticated", userId: "account-1" });
+    await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(4));
+    expect(api.read.mock.calls.at(-1)?.[0].root).toBe("yahoo"); expect(api.roots).toHaveBeenCalledTimes(1);
+    expect(button(node, "Choose another root").disabled).toBe(true);
+    await vi.waitFor(() => expect(busy).toHaveBeenLastCalledWith(true));
+    late.resolve(progress({ status: "awaiting_signature", challenge })); await ready(node);
+    expect(node.querySelector("[data-spaces-challenge]")?.textContent).toBe(challenge.challenge_message);
+    expect(button(node, "Choose another root").disabled).toBe(false);
+    await user.click(button(node, "Choose another root")); await ready(node);
+    expect(button(node, "@other")).toBeDefined(); expect(api.start).toHaveBeenCalledTimes(1);
+  });
+
   test("return to the page reads fresh status before showing command controls", async () => {
     const { api, set } = fixture(fresh(), ["yahoo"]); const node = mount(api); await ready(node);
     set(fresh("root_changed")); window.dispatchEvent(new Event("pageshow"));
@@ -301,6 +329,87 @@ describe("Spaces owner proof recovery", () => {
 });
 
 describe("Spaces lifecycle effects", () => {
+  test.each([false, true])("failed resume keeps feedback unless its readback changes (changed=%s)", async changed => {
+    const { api, set } = fixture(pending(), ["yahoo"]); const { actor } = actorFixture(api); await actorReady(actor);
+    api.resume.mockImplementation(async () => { if (changed) set(fresh()); throw new Error("response lost"); });
+    actor.send({ type: "RESUME" }); await actorReady(actor);
+    expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+    expect(actor.getSnapshot().context.notice).toBe(changed ? "" : "Couldn't check the proof. Try again.");
+    if (!changed) {
+      expect(actor.getSnapshot().context.progress?.ceremony).toMatchObject({ status: "verification_pending", pending_poll_key: "saved-poll-key" });
+      actor.send({ type: "RESUME" }); await actorReady(actor);
+      expect(api.resume.mock.calls.map(([input]) => input.idempotencyKey)).toEqual(["saved-poll-key", "saved-poll-key"]);
+    }
+  });
+
+  test.each([false, true])("failed assignment compares against the older candidate (changed=%s)", async changed => {
+    const initial = { ...fresh(), operator_assignment: { ...candidate, status: "prepared" as const, current: false } };
+    const { api, set } = fixture(initial, ["yahoo"]); const { actor } = actorFixture(api); await actorReady(actor);
+    api.assignment.mockImplementation(async () => {
+      if (changed) set({ ...initial, operator_assignment: { ...initial.operator_assignment, generation: 3 } });
+      throw new Error("response lost");
+    });
+    actor.send({ type: "ASSIGN" }); await actorReady(actor);
+    expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+    expect(actor.getSnapshot().context.notice).toBe(changed ? "" : "Couldn't check the operator address. Try again.");
+    expect(actor.getSnapshot().context.progress?.operator_assignment?.generation).toBe(changed ? 3 : 2);
+  });
+
+  test("same-account sign-in reconciles the original root before rediscovery or selection", async () => {
+    const { api } = fixture(progress(), ["yahoo", "other"]); const late = deferred<SpacesOwnerProgress>();
+    const rejection = new ApiClientError({ code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Sign in required", retryable: false } });
+    api.read.mockResolvedValueOnce(progress()).mockRejectedValueOnce(rejection).mockReturnValueOnce(late.promise);
+    const harness = actorFixture(api); await actorReady(harness.actor);
+    harness.actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(harness.actor.getSnapshot().matches("signInRequired")).toBe(true));
+    const suspended = harness.actor.getSnapshot().context;
+    expect(suspended.progress).toBeUndefined(); expect(suspended.prepared).toBeUndefined(); expect(suspended.command).toBeUndefined();
+    expect(suspended.root).toBeUndefined(); expect(suspended.roots).toEqual([]);
+    expect(suspended.suspended).toMatchObject({ accountId: "account-1", communityId: "community-1", root: "yahoo", command: { type: "start" } });
+    expect(JSON.stringify(suspended.suspended)).not.toContain("challenge_message");
+    harness.change({ ...scope, accountId: null, revision: 1 });
+    expect(harness.actor.getSnapshot().context.suspended).toBeDefined();
+    const returned = { ...scope, revision: 2 }; harness.change(returned);
+    await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(3));
+    expect(api.read.mock.calls.at(-1)?.[0].root).toBe("yahoo"); expect(api.roots).toHaveBeenCalledTimes(1);
+    harness.actor.send({ type: "CHOOSE", scope: returned }); harness.actor.send({ type: "SELECT", root: "other", scope: returned });
+    expect(harness.actor.getSnapshot().context.root).toBe("yahoo"); expect(api.start).toHaveBeenCalledTimes(1);
+    late.resolve(progress({ status: "awaiting_signature", challenge })); await actorReady(harness.actor);
+    expect(harness.actor.getSnapshot().context.suspended).toBeUndefined(); expect(harness.actor.getSnapshot().context.unresolved).toBeUndefined();
+    expect(harness.actor.getSnapshot().context.notice).toBe(""); expect(api.roots).toHaveBeenCalledTimes(2);
+    harness.actor.send({ type: "CHOOSE", scope: returned });
+    expect(harness.actor.getSnapshot().context.roots).toEqual(["yahoo", "other"]);
+  });
+
+  test("same-account REFRESH after 401 reconciles without replaying the command", async () => {
+    const { api } = fixture(); const rejection = new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Sign in required", retryable: false } });
+    api.start.mockRejectedValueOnce(rejection);
+    const { actor } = actorFixture(api); await actorReady(actor); actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(actor.getSnapshot().matches("signInRequired")).toBe(true));
+    actor.send({ type: "CHOOSE", scope }); actor.send({ type: "SELECT", root: "other", scope });
+    expect(actor.getSnapshot().matches("signInRequired")).toBe(true);
+    actor.send({ type: "REFRESH" }); await actorReady(actor);
+    expect(api.start).toHaveBeenCalledTimes(1); expect(api.read).toHaveBeenCalledTimes(2);
+    expect(actor.getSnapshot().context.notice).toBe("Couldn't start. Try again.");
+    expect(actor.getSnapshot().context.suspended).toBeUndefined();
+  });
+
+  test.each(["account", "community"] as const)("a different %s discards suspended intent without reading its root", async change => {
+    const { api } = fixture(); api.read.mockResolvedValueOnce(progress()).mockRejectedValueOnce(new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Sign in required", retryable: false } }));
+    const harness = actorFixture(api); await actorReady(harness.actor); harness.actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(harness.actor.getSnapshot().matches("signInRequired")).toBe(true));
+    harness.change({ ...scope, accountId: null, revision: 1 });
+    harness.change({ ...scope, revision: 2, ...(change === "account" ? { accountId: "account-2" } : { communityId: "community-2" }) });
+    await actorReady(harness.actor);
+    expect(harness.actor.getSnapshot().context.suspended).toBeUndefined(); expect(harness.actor.getSnapshot().context.root).toBeUndefined();
+    expect(api.read).toHaveBeenCalledTimes(2); expect(api.start).toHaveBeenCalledTimes(1);
+  });
+
   test.each(["stop", "account", "community", "root"] as const)("%s during command read prevents dispatch", async change => {
     const { api } = fixture(); const harness = actorFixture(api); await actorReady(harness.actor);
     const late = deferred<SpacesOwnerProgress>(); api.read.mockReturnValueOnce(late.promise);
