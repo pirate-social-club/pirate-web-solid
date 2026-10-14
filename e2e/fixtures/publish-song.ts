@@ -58,10 +58,19 @@ export async function publishSongAndVerifyPlayback(
   await expect(composer.getByRole("heading", { name: "Song", exact: true })).toBeVisible();
 
   const title = composer.getByLabel("Song title", { exact: false });
-  if (await title.count() > 0) await title.fill(marker);
+  if (await title.count() > 0) {
+    await title.fill(marker);
+    await title.blur();
+  }
 
   if (lyrics !== "") {
-    await composer.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
+    await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+  }
+  // These synthetic fixture tracks exercise storage and attachment contracts.
+  for (const stem of ["instrumental", "vocals"] as const) {
+    await composer.getByLabel(`Upload ${stem}`, { exact: true }).setInputFiles({
+      name: `${marker}-${stem}.mp3`, mimeType: "audio/mpeg", buffer: audioFixture,
+    });
   }
 
   // Song, Royalties, Review. Each advance waits for the exact next step's

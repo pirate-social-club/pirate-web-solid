@@ -1,4 +1,4 @@
-import { normalizeRoyaltyAllocations, type ActiveSongMediaPostSubmission, type MediaSubmissionSnapshot, type SongRoyaltyAllocation } from "../media-submission/contracts";
+import { normalizeRoyaltyAllocations, publicSongAudioIssue, songPreparationComplete, type ActiveSongMediaPostSubmission, type MediaSubmissionSnapshot, type SongRoyaltyAllocation } from "../media-submission/contracts";
 import type { MediaSubmissionCoordinator } from "../media-submission/coordinator";
 import { projectSongAnalysis } from "../media-submission/projection";
 import { DEFAULT_SONG_LICENSE } from "./defaults";
@@ -26,10 +26,25 @@ function bridgeAllocations(split: AssetRoyaltySplitState): readonly SongRoyaltyA
   });
 }
 
-/** Seal audio without terms: the existing server terms fence holds publication. */
+/** Seal primary audio and both required stems before terms can release publication. */
 export async function prepareSongComposer(input: SongComposerBridgeInput): Promise<MediaSubmissionSnapshot> {
+  input.signal?.throwIfAborted();
   const audio = input.song.primaryAudioUpload;
   const title = input.song.title?.trim() ?? "";
+  const stems = [
+    ["instrumental_audio", input.song.instrumentalAudioUpload],
+    ["vocal_audio", input.song.vocalAudioUpload],
+  ] as const;
+  // Refresh a retained song before trusting local attachment state or files.
+  const existing = input.coordinator.currentRecord?.submission_id == null
+    ? null : await input.coordinator.refresh(input.signal);
+  if (existing?.status === "published" || existing?.status === "blocked" || existing?.status === "abandoned") return existing;
+  for (const [slot, file] of stems) {
+    if (existing?.stems?.[slot]?.status === "sealed") continue;
+    if (!file) throw new Error("Instrumental and Vocals MP3 files are required before continuing");
+    const issue = publicSongAudioIssue(file);
+    if (issue !== null) throw new Error(issue);
+  }
   if (input.coordinator.currentRecord === null) {
     if (!audio || title === "") throw new Error("A song audio file and title are required");
     await input.coordinator.begin({
@@ -42,7 +57,19 @@ export async function prepareSongComposer(input: SongComposerBridgeInput): Promi
     });
   }
   await input.coordinator.ensureStarted();
-  return input.coordinator.uploadAndFinalize(undefined, input.signal);
+  let snapshot = await input.coordinator.uploadAndFinalize(undefined, input.signal);
+  if (snapshot.status === "published" || snapshot.status === "blocked" || snapshot.status === "abandoned") return snapshot;
+  for (const [slot, file] of stems) {
+    if (file && snapshot.stems?.[slot]?.status !== "sealed") {
+      snapshot = await input.coordinator.attachStem({
+        slot,
+        file,
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+      });
+    }
+  }
+  if (!songPreparationComplete(snapshot)) throw new Error("Wait for Instrumental and Vocals to attach before continuing");
+  return snapshot;
 }
 
 export function validateSongComposerTerms(split: AssetRoyaltySplitState, personaId: string): void {

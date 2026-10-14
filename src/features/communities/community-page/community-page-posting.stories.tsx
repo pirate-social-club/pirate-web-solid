@@ -389,7 +389,14 @@ export const CancelKeepsTheDraft: Story = {
   },
 };
 
-async function openSongInMain(canvasElement: HTMLElement) {
+async function selectSongStems(canvas: ReturnType<typeof within>) {
+  for (const stem of ["instrumental", "vocals"] as const) {
+    await userEvent.upload(await canvas.findByLabelText(`Upload ${stem}`),
+      new File([new Uint8Array(100)], `${stem}.mp3`, { type: "audio/mpeg" }));
+  }
+}
+
+async function openSongInMain(canvasElement: HTMLElement, withStems = true) {
   await openComposer(canvasElement);
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"),
@@ -397,6 +404,7 @@ async function openSongInMain(canvasElement: HTMLElement) {
   // Desktop names the step with a heading; a phone leaves the bar's centre
   // empty and names nothing, as decided on 2026-09-24.
   const form = await canvas.findByRole("form", { name: "Post a song" });
+  if (withStems) await selectSongStems(canvas);
   const main = canvas.getByRole("main", { name: "Create a post" });
   await waitFor(() => {
     expect(form.closest("main")).toBe(main);
@@ -424,7 +432,8 @@ export const SongComposerInMainOnMobile: Story = {
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
-    const canvas = await openSongInMain(canvasElement);
+    // Measure the initial surface before hidden file inputs move focus/scroll.
+    const canvas = await openSongInMain(canvasElement, false);
     const audio = canvas.getByRole("button", { name: "Remove audio" });
     const bar = await expectFlatPhoneComposer(canvasElement, audio);
     // Forward is the bar's right-hand control; there is no footer.
@@ -904,6 +913,7 @@ export const SongUploadProgress: Story = {
     await userEvent.upload(canvas.getByLabelText("Choose a song file"),
       new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
     await canvas.findByRole("heading", { name: "Song" });
+    await selectSongStems(canvas);
     const next = canvas.getByRole("button", { name: "Continue" });
     await waitFor(() => expect(next).toBeEnabled());
     await userEvent.click(next);
@@ -923,6 +933,7 @@ async function beginHeldUpload(canvasElement: HTMLElement) {
   await openComposer(canvasElement);
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"), new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
+  await selectSongStems(canvas);
   const next = await canvas.findByRole("button", { name: "Continue" });
   await waitFor(() => expect(next).toBeEnabled());
   await userEvent.click(next);
