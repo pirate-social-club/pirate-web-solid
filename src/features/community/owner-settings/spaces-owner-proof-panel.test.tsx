@@ -52,9 +52,9 @@ function fixture(initial = progress(), savedRoots: string[] = []) {
   };
   return { api, set: (value: SpacesOwnerProgress) => { current = value; } };
 }
-function mount(api: SpacesOwnerProofApi, accountId = "account-1") {
+function mount(api: SpacesOwnerProofApi, accountId = "account-1", onBusyChange?: (busy: boolean) => void) {
   const node = document.createElement("div"); document.body.appendChild(node);
-  const dispose = render(() => <SpacesOwnerProofPanel api={api} communityId="community-1" accountId={accountId} />, node);
+  const dispose = render(() => <SpacesOwnerProofPanel api={api} communityId="community-1" accountId={accountId} onBusyChange={onBusyChange} />, node);
   cleanups.push(() => { dispose(); node.remove(); });
   return node;
 }
@@ -169,6 +169,48 @@ describe("Spaces owner proof recovery", () => {
     await userEvent.setup().click(button(node, "@other")); await ready(node);
     expect(api.read.mock.calls[0]?.[0].root).toBe("other");
     await userEvent.setup().click(button(node, "Choose another root")); await ready(node);
+    expect(node.querySelector<HTMLInputElement>("#spaces-owner-root")?.disabled).toBe(false);
+    expect(button(node, "@yahoo")).toBeDefined(); expect(button(node, "@other")).toBeDefined();
+    await userEvent.setup().click(button(node, "@yahoo")); await ready(node);
+    expect(api.read.mock.calls.at(-1)?.[0].root).toBe("yahoo");
+  });
+
+  test("a rejected start with no saved effect leaves visible failure feedback", async () => {
+    const { api } = fixture(); api.start.mockRejectedValue(new ApiClientError(
+      { code: "provider_unavailable", name: "ProviderUnavailable", retryable: true, status: 502 },
+      { error: { code: "provider_unavailable", message: "Provider unavailable", retryable: true } }));
+    const node = mount(api); await ready(node); const user = userEvent.setup();
+    await user.type(node.querySelector<HTMLInputElement>("#spaces-owner-root")!, "yahoo");
+    await user.click(button(node, "Get ownership message")); await ready(node);
+    expect(node.textContent).toContain("Couldn't start. Try again.");
+    expect(button(node, "Choose another root").disabled).toBe(false);
+    expect(api.start).toHaveBeenCalledTimes(1); expect(api.read).toHaveBeenCalledTimes(2);
+  });
+
+  test("Choose another root stays disabled through dispatch and uncertain readback", async () => {
+    const { api, set } = fixture(); const write = deferred<typeof challenge>(); const readback = deferred<SpacesOwnerProgress>();
+    api.start.mockReturnValue(write.promise);
+    api.read.mockResolvedValueOnce(progress()).mockReturnValueOnce(readback.promise);
+    const busy = vi.fn(); const node = mount(api, "account-1", busy); await ready(node); const user = userEvent.setup();
+    await vi.waitFor(() => expect(busy).toHaveBeenLastCalledWith(false));
+    await user.type(node.querySelector<HTMLInputElement>("#spaces-owner-root")!, "yahoo");
+    await user.click(button(node, "Get ownership message"));
+    await vi.waitFor(() => expect(api.start).toHaveBeenCalledTimes(1));
+    expect(button(node, "Choose another root").disabled).toBe(true);
+    await vi.waitFor(() => expect(busy).toHaveBeenLastCalledWith(true));
+    await user.click(button(node, "Choose another root"));
+    expect(api.start.mock.calls[0]?.[1]?.aborted).toBe(false);
+    write.resolve(challenge);
+    await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(2));
+    expect(button(node, "Choose another root").disabled).toBe(true);
+    readback.resolve({ ...progress(), canonical_root: "wrong" });
+    await vi.waitFor(() => expect(node.textContent).toContain("result is unknown"));
+    expect(button(node, "Choose another root").disabled).toBe(true); expect(busy).toHaveBeenLastCalledWith(true);
+    set(progress({ status: "awaiting_signature", challenge }));
+    await user.click(button(node, "Refresh status")); await ready(node);
+    expect(button(node, "Choose another root").disabled).toBe(false);
+    await vi.waitFor(() => expect(busy).toHaveBeenLastCalledWith(false));
+    await user.click(button(node, "Choose another root")); await ready(node);
     expect(node.querySelector<HTMLInputElement>("#spaces-owner-root")?.disabled).toBe(false);
   });
 
@@ -385,17 +427,131 @@ describe("Spaces lifecycle effects", () => {
     } finally { vi.useRealTimers(); }
   });
 
-  test("a late post-write read cannot replace a different root's projection", async () => {
-    const { api } = fixture(); const late = deferred<SpacesOwnerProgress>();
+  test("a late plain read cannot replace a different root's projection", async () => {
+    const { api } = fixture(progress(), ["yahoo"]); const late = deferred<SpacesOwnerProgress>();
     const { actor } = actorFixture(api); await actorReady(actor);
-    api.read.mockResolvedValueOnce(progress()).mockReturnValueOnce(late.promise)
+    api.read.mockReturnValueOnce(late.promise)
       .mockResolvedValueOnce({ ...progress(), canonical_root: "other" });
-    actor.send({ type: "START", root: "yahoo", scope });
+    actor.send({ type: "REFRESH" });
     await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(2));
     actor.send({ type: "SELECT", root: "other", scope }); await actorReady(actor);
     late.resolve(progress({ status: "awaiting_signature", challenge })); await new Promise(resolve => setTimeout(resolve, 0));
     expect(actor.getSnapshot().context.progress?.canonical_root).toBe("other");
     expect(actor.getSnapshot().context.progress?.ceremony).toBeNull();
+  });
+
+  test.each(["CHOOSE", "SELECT"] as const)("%s during preparation cancels before any dispatch", async type => {
+    const { api } = fixture(); const late = deferred<SpacesOwnerProgress>();
+    const { actor } = actorFixture(api); await actorReady(actor);
+    api.read.mockReturnValueOnce(late.promise);
+    actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(1));
+    expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+    actor.send({ type, root: "other", scope }); await actorReady(actor);
+    late.resolve(progress()); await new Promise(resolve => setTimeout(resolve, 0));
+    expect(api.start).not.toHaveBeenCalled(); expect(api.read.mock.calls[0]?.[1]?.aborted).toBe(true);
+    expect(actor.getSnapshot().context.root).toBe(type === "CHOOSE" ? undefined : "other");
+  });
+
+  test("root switches are refused during dispatch, readback and failed reconciliation, then unlocked by progress", async () => {
+    const { api } = fixture(); const write = deferred<typeof challenge>(); const readback = deferred<SpacesOwnerProgress>();
+    const { actor } = actorFixture(api); await actorReady(actor);
+    api.start.mockReturnValue(write.promise);
+    api.read.mockResolvedValueOnce(progress()).mockReturnValueOnce(readback.promise);
+    actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(api.start).toHaveBeenCalledTimes(1));
+    expect(actor.getSnapshot().context.unresolved?.type).toBe("start");
+    const refuseSwitch = () => {
+      actor.send({ type: "CHOOSE", scope }); actor.send({ type: "SELECT", root: "other", scope });
+      actor.send({ type: "START", root: "other", scope });
+      expect(actor.getSnapshot().context.root).toBe("yahoo"); expect(api.start).toHaveBeenCalledTimes(1);
+      expect(api.read.mock.calls.every(([input]) => input.root === "yahoo")).toBe(true);
+    };
+    refuseSwitch(); expect(api.start.mock.calls[0]?.[1]?.aborted).toBe(false);
+    write.resolve(challenge); await vi.waitFor(() => expect(api.read).toHaveBeenCalledTimes(2));
+    refuseSwitch(); expect(api.read.mock.calls[1]?.[1]?.aborted).toBe(false);
+    // A scope-mismatched read is unsuccessful reconciliation and must retain the guard.
+    readback.resolve({ ...progress(), canonical_root: "wrong" });
+    await vi.waitFor(() => expect(actor.getSnapshot().matches("unavailable")).toBe(true));
+    refuseSwitch(); expect(actor.getSnapshot().context.notice).toContain("result is unknown");
+    api.read.mockResolvedValueOnce(progress({ status: "awaiting_signature", challenge }));
+    actor.send({ type: "REFRESH" }); await actorReady(actor);
+    expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+    expect(actor.getSnapshot().context.notice).toBe("");
+    actor.send({ type: "SELECT", root: "other", scope }); await actorReady(actor);
+    expect(actor.getSnapshot().context.root).toBe("other");
+    actor.send({ type: "START", root: "other", scope }); await actorReady(actor);
+    expect(api.start).toHaveBeenCalledTimes(2);
+  });
+
+  test.each(["start", "poll", "resume", "assignment", "confirm"] as const)("%s dispatch locks root choice before the API observes it", async command => {
+    const initial = command === "poll" ? progress({ status: "awaiting_signature", challenge })
+      : command === "resume" ? pending() : command === "confirm"
+        ? { ...fresh(), operator_assignment: { ...candidate, status: "prepared" as const, current: false } }
+        : command === "assignment" ? fresh() : progress();
+    const { api } = fixture(initial, ["yahoo"]); const { actor } = actorFixture(api); await actorReady(actor);
+    let observedType: string | undefined; let observedRoot: string | undefined;
+    const observeBoundary = () => {
+      observedType = actor.getSnapshot().context.unresolved?.type;
+      actor.send({ type: "CHOOSE", scope }); actor.send({ type: "SELECT", root: "other", scope });
+      observedRoot = actor.getSnapshot().context.root;
+    };
+    if (command === "start") api.start.mockImplementation(async () => { observeBoundary(); return challenge; });
+    else if (command === "poll") api.poll.mockImplementation(async () => { observeBoundary(); return verified; });
+    else if (command === "resume") api.resume.mockImplementation(async () => { observeBoundary(); return verified; });
+    else if (command === "assignment") api.assignment.mockImplementation(async () => { observeBoundary(); return { candidate }; });
+    else api.confirmAssignment.mockImplementation(async () => { observeBoundary(); return candidate; });
+    if (command === "start") actor.send({ type: "START", root: "yahoo", scope });
+    else if (command === "poll") actor.send({ type: "POLL", signatureHex: "c".repeat(128) });
+    else if (command === "resume") actor.send({ type: "RESUME" });
+    else if (command === "assignment") actor.send({ type: "ASSIGN" });
+    else actor.send({ type: "CONFIRM" });
+    await actorReady(actor);
+    expect(command === "confirm" ? api.confirmAssignment : api[command]).toHaveBeenCalledTimes(1);
+    expect(observedType).toBe(command); expect(observedRoot).toBe("yahoo");
+  });
+
+  test("no-effect timeout keeps failure feedback after readback unlocks root choice", async () => {
+    const { api } = fixture(); api.start.mockReturnValue(new Promise(() => {}));
+    const { actor } = actorFixture(api); await actorReady(actor); vi.useFakeTimers();
+    try {
+      actor.send({ type: "START", root: "yahoo", scope }); await vi.advanceTimersByTimeAsync(0);
+      expect(api.start).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(actor.getSnapshot().matches("ready")).toBe(true);
+      expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+      expect(actor.getSnapshot().context.notice).toBe("Couldn't start. Try again.");
+      actor.send({ type: "CHOOSE", scope }); expect(actor.getSnapshot().context.root).toBeUndefined();
+      expect(api.start.mock.calls[0]?.[1]?.aborted).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+
+  test("plain scope-mismatched read failure permits root changes and retains saved choices after refresh", async () => {
+    const { api } = fixture(progress(), ["yahoo", "other"]); const { actor } = actorFixture(api); await actorReady(actor);
+    api.read.mockResolvedValueOnce({ ...progress(), canonical_root: "wrong" });
+    actor.send({ type: "SELECT", root: "yahoo", scope });
+    await vi.waitFor(() => expect(actor.getSnapshot().matches("unavailable")).toBe(true));
+    expect(actor.getSnapshot().context.unresolved).toBeUndefined();
+    actor.send({ type: "SELECT", root: "other", scope }); await actorReady(actor);
+    api.read.mockRejectedValueOnce(new Error("read unavailable")); actor.send({ type: "REFRESH" });
+    await vi.waitFor(() => expect(actor.getSnapshot().matches("unavailable")).toBe(true));
+    actor.send({ type: "REFRESH" }); await actorReady(actor); actor.send({ type: "CHOOSE", scope });
+    expect(actor.getSnapshot().context.roots).toEqual(["yahoo", "other"]);
+    expect(api.roots).toHaveBeenCalledTimes(1); expect(api.start).not.toHaveBeenCalled();
+  });
+
+  test.each(["account", "community"] as const)("%s loss still aborts a dispatched command and clears private state", async change => {
+    const { api } = fixture(); const late = deferred<typeof challenge>(); api.start.mockReturnValue(late.promise);
+    const harness = actorFixture(api); await actorReady(harness.actor);
+    harness.actor.send({ type: "START", root: "yahoo", scope });
+    await vi.waitFor(() => expect(api.start).toHaveBeenCalledTimes(1));
+    api.roots.mockReturnValue(new Promise(() => {}));
+    harness.change({ ...scope, ...(change === "account" ? { accountId: "account-2" } : { communityId: "community-2" }) });
+    expect(harness.actor.getSnapshot().context.unresolved).toBeUndefined();
+    expect(harness.actor.getSnapshot().context.root).toBeUndefined(); expect(harness.actor.getSnapshot().context.roots).toEqual([]);
+    expect(api.start.mock.calls[0]?.[1]?.aborted).toBe(true);
+    late.resolve(challenge); await new Promise(resolve => setTimeout(resolve, 0));
+    expect(api.read).toHaveBeenCalledTimes(1);
   });
 
   test("two tabs resume the same server key without creating a new poll", async () => {

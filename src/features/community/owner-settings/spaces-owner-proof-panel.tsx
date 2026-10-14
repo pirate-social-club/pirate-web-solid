@@ -57,6 +57,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
   const confirmed = () => candidate()?.status === "confirmed" && candidate()?.current;
   const busy = () => context() === undefined || snapshot().matches("discovering") || snapshot().matches("reading") || snapshot().matches("acting");
   const ready = () => context() !== undefined && snapshot().matches("ready");
+  const canChooseRoot = () => context() !== undefined && context()?.unresolved === undefined;
   const message = () => draftError() || context()?.notice || spacesProofNotice(progress());
 
   let previousScope = untrack(() => JSON.stringify([props.communityId, accountId()]));
@@ -67,8 +68,8 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     send({ type: "SCOPE", scope: scope() });
     queueMicrotask(() => { if (!disposed) { setRoot(""); setSignature(""); setDraftError(""); } });
   });
-  // Reading does not hold the shared address choice. Only a command owns that busy slot.
-  createEffect(() => context() !== undefined && snapshot().matches("acting"), (value) => {
+  // Plain reads leave the shared choice free; a command holds it through unresolved readback.
+  createEffect(() => context() !== undefined && (snapshot().matches("acting") || context()?.unresolved !== undefined), (value) => {
     queueMicrotask(() => { if (!disposed) props.onBusyChange?.(value); });
   });
   const refresh = () => { setSignature(""); setDraftError(""); send({ type: "REFRESH" }); };
@@ -86,12 +87,12 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     props.onBusyChange?.(false);
   });
   const choose = () => {
-    revision++;
+    if (!canChooseRoot()) return;
     setRoot(""); setSignature(""); setDraftError("");
     send({ type: "CHOOSE", scope: scope() });
   };
   const select = (value: string) => {
-    revision++;
+    if (!canChooseRoot()) return;
     setRoot(value); setSignature(""); setDraftError("");
     send({ type: "SELECT", root: value, scope: scope() });
   };
@@ -128,7 +129,7 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
         <Button type="button" onClick={() => start()}>Get ownership message</Button>
       </Show>
       <Show when={context()?.root !== undefined}>
-        <Button type="button" variant="secondary" onClick={choose}>Choose another root</Button>
+        <Button type="button" variant="secondary" disabled={!canChooseRoot()} onClick={choose}>Choose another root</Button>
       </Show>
       <Show when={challenge()}>{saved => <div class="space-y-3">
         <p class="text-sm">Sign the 32-byte digest below with the Schnorr key that owns @{saved().canonical_root}. Do not paste your seed phrase or private key here.</p>

@@ -16,6 +16,19 @@ type Command =
   | { type: "assignment" }
   | { type: "confirm"; assignmentId: string; generation: number; authority: string; authorityGeneration: number };
 
+type PreparedCommand =
+  | { type: "start"; request: Parameters<SpacesOwnerProofApi["start"]>[0] }
+  | { type: "poll"; request: Parameters<SpacesOwnerProofApi["poll"]>[0] }
+  | { type: "resume"; request: Parameters<SpacesOwnerProofApi["resume"]>[0] }
+  | { type: "assignment"; request: Parameters<SpacesOwnerProofApi["assignment"]>[0] }
+  | { type: "confirm"; request: Parameters<SpacesOwnerProofApi["confirmAssignment"]>[0] };
+
+interface UnresolvedCommand {
+  type: Command["type"];
+  before: SpacesOwnerProgress;
+  failed: boolean;
+}
+
 interface Context {
   scope: SpacesProofScope;
   accountId?: string;
@@ -23,6 +36,8 @@ interface Context {
   root?: string;
   progress?: SpacesOwnerProgress;
   command?: Command;
+  prepared?: PreparedCommand;
+  unresolved?: UnresolvedCommand;
   notice: string;
 }
 
@@ -47,6 +62,24 @@ interface Dependencies {
 interface MachineInput { scope: SpacesProofScope }
 
 class SignInRequired extends Error {}
+
+function commandFailureNotice(type: Command["type"]): string {
+  if (type === "start") return "Couldn't start. Try again.";
+  if (type === "confirm") return "Couldn't confirm the address. Try again.";
+  if (type === "assignment") return "Couldn't check the operator address. Try again.";
+  return "Couldn't check the proof. Try again.";
+}
+
+function commandOutcomeObserved(command: UnresolvedCommand, progress: SpacesOwnerProgress): boolean {
+  const ceremony = progress.ceremony;
+  const before = command.before.ceremony;
+  if (command.type === "start") return ceremony != null && (before == null
+    || ceremony.challenge.ceremony_id !== before.challenge.ceremony_id
+    || ceremony.challenge.generation !== before.challenge.generation);
+  if (command.type === "poll" || command.type === "resume") return ceremony != null && ceremony.status !== "awaiting_signature";
+  if (command.type === "assignment") return progress.operator_assignment != null;
+  return progress.operator_assignment?.status === "confirmed";
+}
 
 export function canonicalSpacesRoot(value: string): string | undefined {
   const root = value.trim().toLowerCase().replace(/^@/u, "");
@@ -126,7 +159,10 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
   const requiresSignIn = (error: unknown) => error instanceof SignInRequired
     || (error instanceof ApiClientError && error.status === 401);
   const empty = (scope: SpacesProofScope): Context => ({ scope, accountId: undefined, roots: [], root: undefined,
-    progress: undefined, command: undefined, notice: "" });
+    progress: undefined, command: undefined, prepared: undefined, unresolved: undefined, notice: "" });
+  const selection = (context: Context, scope: SpacesProofScope) => ({ ...empty(scope),
+    ...(context.scope.accountId === scope.accountId && context.scope.communityId === scope.communityId
+      ? { roots: context.roots, accountId: context.accountId } : {}) });
 
   return setup({
     // SAFETY: XState's types field declares compile-time contracts; these placeholders are never runtime context or events.
@@ -148,7 +184,7 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
         return { accountId, roots: [...roots] };
       }),
       read: fromPromise<Awaited<ReturnType<typeof read>>, Context>(({ input, signal }) => read(input, signal)),
-      command: fromPromise<Awaited<ReturnType<typeof read>> & { notice?: string }, Context>(async ({ input, signal }) => {
+      prepare: fromPromise<Awaited<ReturnType<typeof read>> & { prepared?: PreparedCommand }, Context>(async ({ input, signal }) => {
         const current = await read(input, signal);
         const { progress, accountId } = current;
         const command = input.command;
@@ -163,44 +199,55 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
         switch (command.type) {
           case "start": {
             if (!canStartSpacesProof(progress) && !(command.replace && ceremony?.status === "awaiting_signature")) return current;
-            const result = await dependencies.api.start({ communityId: input.scope.communityId, canonicalRoot: input.root,
-              idempotencyKey: key("start", ceremony?.challenge.ceremony_id ?? "first") }, signal);
-            check(input, signal);
-            const next = await read({ ...input, accountId }, signal);
-            return { ...next, notice: "status" in result && next.progress.ceremony === null ? "The chain is updating. Refresh status before trying again." : undefined };
+            return { ...current, prepared: { type: "start", request: { communityId: input.scope.communityId, canonicalRoot: input.root,
+              idempotencyKey: key("start", ceremony?.challenge.ceremony_id ?? "first") } } };
           }
           case "poll":
             if (ceremony?.status !== "awaiting_signature" || ceremony.challenge.ceremony_id !== command.ceremonyId
               || ceremony.challenge.generation !== command.generation) return current;
-            await dependencies.api.poll({ communityId: input.scope.communityId, ceremonyId: command.ceremonyId,
-              idempotencyKey: key("poll", `${command.ceremonyId}:${command.generation}`), signatureHex: command.signatureHex }, signal);
-            break;
+            return { ...current, prepared: { type: "poll", request: { communityId: input.scope.communityId, ceremonyId: command.ceremonyId,
+              idempotencyKey: key("poll", `${command.ceremonyId}:${command.generation}`), signatureHex: command.signatureHex } } };
           case "resume":
             if (ceremony?.status !== "verification_pending" || ceremony.challenge.ceremony_id !== command.ceremonyId
               || ceremony.challenge.generation !== command.generation || ceremony.pending_poll_key !== command.key) return current;
-            await dependencies.api.resume({ communityId: input.scope.communityId, ceremonyId: command.ceremonyId,
-              idempotencyKey: ceremony.pending_poll_key }, signal);
-            break;
+            return { ...current, prepared: { type: "resume", request: { communityId: input.scope.communityId, ceremonyId: command.ceremonyId,
+              idempotencyKey: ceremony.pending_poll_key } } };
           case "assignment": {
             if (proof === undefined || candidate?.status === "confirmed" && candidate.current) return current;
-            const result = await dependencies.api.assignment({ communityId: input.scope.communityId, root: input.root }, signal);
-            check(input, signal);
-            const next = await read({ ...input, accountId }, signal);
-            return { ...next, notice: result.candidate === null ? "The operator address is not ready. Check again after operate is confirmed." : undefined };
+            return { ...current, prepared: { type: "assignment", request: { communityId: input.scope.communityId, root: input.root } } };
           }
           case "confirm":
             if (proof === undefined || candidate?.status !== "prepared"
               || candidate.operator_assignment_id !== command.assignmentId || candidate.generation !== command.generation
               || proof.namespace_authority_reference !== command.authority
               || proof.namespace_authority_generation !== command.authorityGeneration) return current;
-            await dependencies.api.confirmAssignment({ communityId: input.scope.communityId,
+            return { ...current, prepared: { type: "confirm", request: { communityId: input.scope.communityId,
               idempotencyKey: key("confirm", `${command.assignmentId}:${command.generation}:${command.authority}:${command.authorityGeneration}`),
               assignmentId: command.assignmentId, generation: command.generation,
-              authorityReference: command.authority, authorityGeneration: command.authorityGeneration }, signal);
-            break;
+              authorityReference: command.authority, authorityGeneration: command.authorityGeneration } } };
+        }
+      }),
+      dispatch: fromPromise<{ notice?: string }, Context>(async ({ input, signal }) => {
+        check(input, signal);
+        const prepared = input.prepared;
+        if (prepared === undefined) throw new Error("Command was not prepared");
+        switch (prepared.type) {
+          case "start": {
+            const result = await dependencies.api.start(prepared.request, signal);
+            check(input, signal);
+            return { notice: "status" in result ? "The chain is updating. Refresh status before trying again." : undefined };
+          }
+          case "assignment": {
+            const result = await dependencies.api.assignment(prepared.request, signal);
+            check(input, signal);
+            return { notice: result.candidate === null ? "The operator address is not ready. Check again after operate is confirmed." : undefined };
+          }
+          case "poll": await dependencies.api.poll(prepared.request, signal); break;
+          case "resume": await dependencies.api.resume(prepared.request, signal); break;
+          case "confirm": await dependencies.api.confirmAssignment(prepared.request, signal); break;
         }
         check(input, signal);
-        return read({ ...input, accountId }, signal);
+        return {};
       }),
     },
   }).createMachine({
@@ -209,8 +256,10 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
     initial: "discovering",
     on: {
       SCOPE: { target: ".discovering", reenter: true, actions: assign(({ event }) => empty(event.scope)) },
-      CHOOSE: { target: ".ready", reenter: true, actions: assign(({ context, event }) => ({ ...empty(event.scope), roots: context.roots, accountId: context.accountId })) },
-      SELECT: { target: ".reading", reenter: true, actions: assign(({ event }) => ({ ...empty(event.scope), root: event.root })) },
+      CHOOSE: { guard: ({ context }) => context.unresolved === undefined, target: ".ready", reenter: true,
+        actions: assign(({ context, event }) => selection(context, event.scope)) },
+      SELECT: { guard: ({ context }) => context.unresolved === undefined, target: ".reading", reenter: true,
+        actions: assign(({ context, event }) => ({ ...selection(context, event.scope), root: event.root })) },
     },
     states: {
       discovering: {
@@ -226,9 +275,12 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
       },
       selecting: { always: [{ guard: ({ context }) => context.root !== undefined, target: "reading" }, { target: "ready" }] },
       reading: {
-        entry: assign({ progress: undefined, command: undefined, notice: "" }),
+        entry: assign(({ context }) => ({ progress: undefined, command: undefined, prepared: undefined,
+          notice: context.unresolved === undefined ? "" : context.notice })),
         invoke: { src: "read", input: ({ context }) => context,
-          onDone: { target: "ready", actions: assign(({ event }) => ({ ...event.output, notice: "" })) },
+          onDone: { target: "ready", actions: assign(({ context, event }) => ({ ...event.output, unresolved: undefined,
+            notice: context.unresolved === undefined || commandOutcomeObserved(context.unresolved, event.output.progress) ? ""
+              : context.unresolved.failed ? commandFailureNotice(context.unresolved.type) : context.notice })) },
           onError: [
             { guard: ({ event }) => requiresSignIn(event.error), target: "signInRequired" },
             { target: "unavailable" },
@@ -266,19 +318,46 @@ export function createSpacesOwnerProofMachine(dependencies: Dependencies) {
         },
       },
       acting: {
-        invoke: { src: "command", input: ({ context }) => context,
-          onDone: { target: "ready", actions: assign(({ event }) => ({ ...event.output, notice: event.output.notice ?? "" })) },
-          onError: [
-            { guard: ({ event }) => requiresSignIn(event.error), target: "signInRequired" },
-            { target: "reading" },
-          ],
+        initial: "preparing",
+        states: {
+          preparing: {
+            invoke: { src: "prepare", input: ({ context }) => context,
+              onDone: [
+                { guard: ({ event }) => event.output.prepared !== undefined, target: "dispatching",
+                  actions: assign(({ event }) => event.output) },
+                { target: "#spaces-owner-proof.ready", actions: assign(({ event }) => ({ ...event.output, notice: "" })) },
+              ],
+              onError: [
+                { guard: ({ event }) => requiresSignIn(event.error), target: "#spaces-owner-proof.signInRequired" },
+                { target: "#spaces-owner-proof.unavailable" },
+              ],
+            },
+            after: { 15000: "#spaces-owner-proof.unavailable" },
+          },
+          dispatching: {
+            // This parent action runs before the invocation can send a request. No child event race.
+            entry: assign(({ context }) => ({ unresolved: { type: context.prepared!.type, before: context.progress!, failed: false },
+              command: undefined, progress: undefined })),
+            invoke: { src: "dispatch", input: ({ context }) => context,
+              onDone: { target: "#spaces-owner-proof.reading", actions: assign(({ event }) => ({ notice: event.output.notice ?? "" })) },
+              onError: [
+                { guard: ({ event }) => requiresSignIn(event.error), target: "#spaces-owner-proof.signInRequired" },
+                { target: "#spaces-owner-proof.reading", actions: assign(({ context }) => ({
+                  unresolved: { ...context.unresolved!, failed: true }, notice: "The result is unknown. Refresh status before trying again." })) },
+              ],
+            },
+            // An unanswered write is never replayed automatically. Read the original root before navigation.
+            after: { 15000: { target: "#spaces-owner-proof.reading", actions: assign(({ context }) => ({
+              unresolved: { ...context.unresolved!, failed: true }, notice: "No reply received. Refresh status to check the result." })) } },
+          },
         },
-        // An unanswered write is never replayed automatically. Exit aborts its invocation, then read.
-        after: { 15000: "reading" },
       },
-      unavailable: { entry: assign({ progress: undefined, command: undefined, roots: [], notice: "Status could not be loaded. Refresh status to check again." }),
+      unavailable: { entry: assign(({ context }) => ({ progress: undefined, command: undefined, prepared: undefined,
+        notice: context.unresolved === undefined ? "Status could not be loaded. Refresh status to check again."
+          : context.notice || "The result is unknown. Refresh status before trying again." })),
         on: { REFRESH: [{ guard: ({ context }) => context.root !== undefined, target: "reading" }, { target: "discovering" }] } },
-      signInRequired: { entry: assign({ progress: undefined, command: undefined, roots: [], accountId: undefined, notice: "" }),
+      signInRequired: { entry: assign({ progress: undefined, command: undefined, prepared: undefined, unresolved: undefined,
+        roots: [], accountId: undefined, notice: "" }),
         on: { REFRESH: "discovering" } },
     },
   });
