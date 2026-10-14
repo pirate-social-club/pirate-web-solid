@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { controlledRender } from "@/stories/lib/controlled";
 import {
@@ -134,3 +134,22 @@ export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+
+/** Paper opens the option list 4px below the field, as on Select and Combobox. */
+export const ListGap: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox", { name: "Sort order" });
+    // Input and caret share one wrapper inside the bordered control.
+    const field = input.parentElement?.parentElement;
+    if (!(field instanceof HTMLElement)) throw new Error("no multi-combobox control");
+    await userEvent.click(caretOf(canvasElement));
+    const listbox = await within(document.body).findByRole("listbox");
+    const positioner = listbox.closest("[data-popper-positioner]");
+    if (!(positioner instanceof HTMLElement)) throw new Error("no popper positioner");
+    await waitFor(() =>
+      expect(Math.round(positioner.getBoundingClientRect().top - field.getBoundingClientRect().bottom)).toBe(4),
+    );
+    await userEvent.keyboard("{Escape}");
+  },
+};
