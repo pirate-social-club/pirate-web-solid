@@ -1,5 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 
 import {
   Modal,
@@ -16,6 +17,14 @@ export interface SignInModalProps {
   readonly session: SignInSession;
 }
 
+/**
+ * How long the dialog stays locked while signing in. A provider call that
+ * never settles (a wallet prompt left open, a stalled request) must not trap
+ * the user, so after this the dialog can close again. Closing discards the
+ * attempt: the session ignores its late result.
+ */
+export const SIGN_IN_LOCK_MS = 20_000;
+
 const signInCopy = {
   title: "Sign in",
 };
@@ -29,8 +38,22 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
   const copy = () => signInCopy;
   // Paper: the dialog cannot be closed while signing in. The close control is
   // removed and Escape or an outside press leaves it open until the attempt
-  // settles, which returns to a phase that can close.
-  const signingIn = () => props.session.state().phase === "working";
+  // settles, which returns to a phase that can close, or until the lock
+  // expires for an attempt that never settles.
+  const [stalled, setStalled] = createSignal(false, { ownedWrite: true });
+  let lockTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(
+    () => props.session.state().phase === "working",
+    (working) => {
+      // Cleanups registered inside an effect run only at disposal in this
+      // Solid version, so the timer is cleared here and on unmount.
+      clearTimeout(lockTimer);
+      setStalled(false);
+      if (working) lockTimer = setTimeout(() => setStalled(true), SIGN_IN_LOCK_MS);
+    },
+  );
+  onCleanup(() => clearTimeout(lockTimer));
+  const signingIn = () => props.session.state().phase === "working" && !stalled();
   const changeOpen = (open: boolean) => {
     if (!open && signingIn()) return;
     props.onOpenChange(open);

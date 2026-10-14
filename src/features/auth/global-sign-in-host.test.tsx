@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { GlobalSignInHost, GLOBAL_SIGN_IN_EVENT, requestGlobalSignInCompletion } from "./global-sign-in-host.tsx";
+import { SIGN_IN_LOCK_MS } from "./sign-in-modal.tsx";
 
 const disposers: Array<() => void> = [];
 
@@ -63,7 +64,29 @@ async function withStubbedLocation(reload: () => void, body: () => Promise<void>
   }
 }
 
+/**
+ * Installs an injected wallet so the method list offers "Connect wallet", and
+ * returns a function that restores the original property.
+ */
+function stubInjectedWallet(): () => void {
+  // SAFETY: jsdom defines no injected provider, so this optional property is
+  // absent outside these tests and is restored by the returned function.
+  const original = (window as Window & { ethereum?: unknown }).ethereum;
+  Object.defineProperty(window, "ethereum", { configurable: true, value: { request: vi.fn() } });
+  return () => Object.defineProperty(window, "ethereum", { configurable: true, value: original });
+}
+
+function button(name: string): HTMLButtonElement | undefined {
+  return Array.from(document.querySelectorAll("button"))
+    .find(candidate => candidate.textContent?.trim() === name || candidate.getAttribute("aria-label") === name);
+}
+
+function pressEscape(): void {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+}
+
 afterEach(() => {
+  vi.useRealTimers();
   while (disposers.length > 0) disposers.pop()?.();
   document.body.replaceChildren();
 });
@@ -174,5 +197,87 @@ describe("global sign-in host", () => {
     await expect(older).resolves.toBe(false);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await expect(newer).resolves.toBe(false);
+  });
+
+  test("a provider request that never settles locks the dialog only for a bounded time", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const restore = stubInjectedWallet();
+    const refresh = vi.fn();
+    const exchange = fakeExchange();
+    exchange.loginWithWallet = vi.fn(() => new Promise<void>(() => {}));
+    try {
+      render(() => <GlobalSignInHost createExchange={async () => exchange} refresh={refresh} />);
+      let outcome: boolean | undefined;
+      void requestGlobalSignInCompletion(new AbortController().signal).then(value => { outcome = value; });
+      await vi.advanceTimersByTimeAsync(0);
+      button("Connect wallet")?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(exchange.loginWithWallet).toHaveBeenCalledTimes(1);
+      expect(document.body.textContent).toContain("Signing in…");
+
+      // Locked while signing in: no Close, and Escape leaves it open.
+      expect(button("Close")).toBeUndefined();
+      pressEscape();
+      await vi.advanceTimersByTimeAsync(SIGN_IN_LOCK_MS - 1);
+      expect(document.querySelector("[role='dialog']")).not.toBeNull();
+      expect(button("Close")).toBeUndefined();
+      expect(outcome).toBeUndefined();
+
+      // The lock expires; five minutes on, the stalled request still has a way out.
+      await vi.advanceTimersByTimeAsync(1);
+      expect(button("Close")).toBeDefined();
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(document.body.textContent).toContain("Signing in…");
+      expect(button("Close")).toBeDefined();
+      pressEscape();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(document.querySelector("[role='dialog']")).toBeNull();
+      expect(outcome).toBe(false);
+      expect(refresh).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  test("a provider result that settles after the lock expires is handled either way", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const restore = stubInjectedWallet();
+    const refresh = vi.fn();
+    const exchange = fakeExchange();
+    const pending: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
+    exchange.loginWithWallet = vi.fn(() => new Promise<void>((resolve, reject) => { pending.push({ resolve, reject }); }));
+    try {
+      render(() => <GlobalSignInHost createExchange={async () => exchange} refresh={refresh} />);
+      let outcome: boolean | undefined;
+      void requestGlobalSignInCompletion(new AbortController().signal).then(value => { outcome = value; });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // A late failure while the dialog is still open returns to the method
+      // list with the error, and the dialog can close.
+      button("Connect wallet")?.click();
+      await vi.advanceTimersByTimeAsync(SIGN_IN_LOCK_MS);
+      pending[0]?.reject(new Error("wallet rejected"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(document.body.textContent).not.toContain("Signing in…");
+      expect(button("Connect wallet")).toBeDefined();
+      expect(button("Close")).toBeDefined();
+
+      // A second attempt locks again, then the user closes after the lock
+      // expires. Its late success is discarded: no sign-in, no refresh.
+      button("Connect wallet")?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(button("Close")).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(SIGN_IN_LOCK_MS);
+      pressEscape();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(document.querySelector("[role='dialog']")).toBeNull();
+      expect(outcome).toBe(false);
+      pending[1]?.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(refresh).not.toHaveBeenCalled();
+      expect(document.querySelector("[role='dialog']")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });
