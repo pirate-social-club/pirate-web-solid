@@ -45,7 +45,8 @@ and downstream Karaoke/Study checks. This lane adds no migrations, generated
 client changes, deployments or Rewards activation.
 
 The PR #74 follow-up merges current main
-`784c97820ecd20617b3f9bef40b97a161370457d` into its existing feature branch.
+`193bfea714622b8cc008814c2da60f6a88c71794` into its existing feature branch,
+after first reconciling `784c97820ecd20617b3f9bef40b97a161370457d`.
 An uncertain attachment retains both its original `File` and generated command;
 that stem's selection and removal stay locked until a sealed read or a
 definitive refusal resolves it. Retry reuses the command and upload reservation.
