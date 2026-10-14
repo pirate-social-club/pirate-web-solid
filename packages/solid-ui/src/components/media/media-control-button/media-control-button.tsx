@@ -38,7 +38,7 @@ export function MediaControlButton(props: ParentProps<MediaControlButtonProps>) 
   const rest = omit(props, "class", "intent", "size", "children", "type");
 
   return (
-    <button class={className()} type={props.type ?? "button"} {...rest}>
+    <button type={props.type ?? "button"} {...rest} class={className()}>
       {props.children}
     </button>
   );

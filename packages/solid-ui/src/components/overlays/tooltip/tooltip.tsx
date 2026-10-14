@@ -3,7 +3,14 @@ import { createMemo, omit, type ParentProps } from "solid-js";
 
 import { cn } from "@/lib/cn";
 
-const Tooltip = KTooltip;
+/**
+ * Tooltip root. Kobalte reads placement and gutter from the root, so the
+ * Paper defaults live here: above the trigger, 6px away (measured on the
+ * Tooltip board). Callers may override.
+ */
+function Tooltip(props: ParentProps<Parameters<typeof KTooltip>[0]>) {
+  return <KTooltip placement="top" gutter={6} {...props} />;
+}
 const TooltipTrigger = KTooltip.Trigger;
 
 function TooltipContent(
@@ -19,7 +26,7 @@ function TooltipContent(
 
   return (
     <KTooltip.Portal>
-      <KTooltip.Content gutter={4} class={className()} {...rest}>
+      <KTooltip.Content {...rest} class={className()}>
         {props.children}
       </KTooltip.Content>
     </KTooltip.Portal>

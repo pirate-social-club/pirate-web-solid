@@ -50,7 +50,7 @@ export function DialogHeaderLayout(
   const rest = omit(props, "class");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -65,7 +65,7 @@ export function DialogFooterLayout(
   const rest = omit(props, "class");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );

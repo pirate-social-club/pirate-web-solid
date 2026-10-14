@@ -32,7 +32,7 @@ function DialogContent(props: ParentProps<DialogContentProps>) {
   return (
     <KDialog.Portal>
       <KDialog.Overlay class={dialogOverlayClass} />
-      <KDialog.Content class={className()} {...rest}>
+      <KDialog.Content {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
           <DialogCloseButtonLayout part={KDialog.CloseButton} />
@@ -50,7 +50,7 @@ function DialogTitle(props: ParentProps<Parameters<typeof KDialog.Title>[0]>) {
   const rest = omit(props, "class");
 
   return (
-    <KDialog.Title class={className()} {...rest}>
+    <KDialog.Title {...rest} class={className()}>
       {props.children}
     </KDialog.Title>
   );
@@ -63,7 +63,7 @@ function DialogDescription(
   const rest = omit(props, "class");
 
   return (
-    <KDialog.Description class={className()} {...rest}>
+    <KDialog.Description {...rest} class={className()}>
       {props.children}
     </KDialog.Description>
   );

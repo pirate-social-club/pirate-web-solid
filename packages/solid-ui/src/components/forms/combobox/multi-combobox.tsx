@@ -90,6 +90,8 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
         props.onChange?.((next as Option[]).map((option) => props.optionValue(option)));
       },
       placeholder: props.placeholder,
+      // Paper: the option list sits 4px below the field.
+      gutter: 4,
       disabled: props.disabled,
       name: props.name,
       itemComponent: ComboboxItem,

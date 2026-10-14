@@ -60,6 +60,12 @@ export const Variants: Story = {
       <Input aria-label="Flat input" variant="flat" placeholder="Flat" />
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    // Paper: flat drops the border and the padding.
+    const flat = within(canvasElement).getByRole("textbox", { name: "Flat input" });
+    const style = getComputedStyle(flat);
+    await expect([style.paddingLeft, style.paddingRight, style.borderTopWidth]).toEqual(["0px", "0px", "0px"]);
+  },
 };
 
 export const Sizes: Story = {

@@ -80,7 +80,7 @@ export function SwitchLabel(
   const rest = omit(props, "class", "children");
 
   return (
-    <KSwitch.Label class={className()} {...rest}>
+    <KSwitch.Label {...rest} class={className()}>
       {props.children}
     </KSwitch.Label>
   );
@@ -95,7 +95,7 @@ export function SwitchDescription(
   const rest = omit(props, "class", "children");
 
   return (
-    <KSwitch.Description class={className()} {...rest}>
+    <KSwitch.Description {...rest} class={className()}>
       {props.children}
     </KSwitch.Description>
   );
@@ -110,7 +110,7 @@ export function SwitchErrorMessage(
   const rest = omit(props, "class", "children");
 
   return (
-    <KSwitch.ErrorMessage class={className()} {...rest}>
+    <KSwitch.ErrorMessage {...rest} class={className()}>
       {props.children}
     </KSwitch.ErrorMessage>
   );
