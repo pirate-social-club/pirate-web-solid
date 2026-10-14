@@ -1,15 +1,19 @@
 // Song step: the audio first (its card shows the embedded artwork), then the
 // title and optional lyrics, one full-width field per row. The server's
 // analysis rates the song; the author is not asked about 18+.
-// The audio file is the only hard requirement; the title is prefilled from ID3
-// or the filename and stays editable.
+// Primary audio, Instrumental and Vocals are required; the title is prefilled
+// from ID3 or the filename and stays editable.
 
 import { createSignal, Show } from "solid-js";
 
 import {
+  Button,
   CardContent,
+  IconButton,
   IconMusicNote,
+  IconPlus,
   IconUploadSimple,
+  IconX,
   Input,
   Textarea,
   Type,
@@ -141,7 +145,7 @@ export function SongStep(props: {
             </button>
             }>
               <Type as="p" variant="caption" class="text-muted-foreground">
-                {props.runtime?.prepared
+                {props.runtime?.audioPrepared
                   ? "Audio is retained by the server; the browser file is unavailable."
                   : "The browser audio file is unavailable. Cancel this submission to start again."}
               </Type>
@@ -160,6 +164,41 @@ export function SongStep(props: {
         </Show>
       </section>
 
+      <section aria-labelledby="song-stems-label" class="space-y-2">
+        <FieldLabel htmlFor="song-stem-instrumental" label="Instrumental and vocals" required />
+        <Type as="p" id="song-stems-label" variant="caption" class="-mt-1 text-muted-foreground">
+          Both are required to continue and unlock Karaoke and Study.
+        </Type>
+        <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
+          <StemRow
+            file={song().instrumentalAudioUpload ?? null}
+            id="song-stem-instrumental"
+            label="Instrumental"
+            attached={props.runtime?.stems?.instrumental === true}
+            locked={props.runtime?.locked === true || props.runtime?.stems?.instrumental === true}
+            onChange={(file) => controller.song.update((current) => ({
+              ...current,
+              instrumentalAudioUpload: file,
+              instrumentalAudioLabel: file?.name,
+            }))}
+            onReject={setFileError}
+          />
+          <StemRow
+            file={song().vocalAudioUpload ?? null}
+            id="song-stem-vocals"
+            label="Vocals"
+            attached={props.runtime?.stems?.vocals === true}
+            locked={props.runtime?.locked === true || props.runtime?.stems?.vocals === true}
+            onChange={(file) => controller.song.update((current) => ({
+              ...current,
+              vocalAudioUpload: file,
+              vocalAudioLabel: file?.name,
+            }))}
+            onReject={setFileError}
+          />
+        </div>
+      </section>
+
       <section>
         <FieldLabel htmlFor="song-track-title" label="Song title" required />
         <Input
@@ -173,7 +212,7 @@ export function SongStep(props: {
       </section>
 
       <section>
-        <FieldLabel htmlFor="song-lyrics" label="Lyrics (optional)" />
+        <FieldLabel htmlFor="song-lyrics" label="Lyrics" />
         <Textarea
           id="song-lyrics"
           class="min-h-32 resize-y"
@@ -199,5 +238,78 @@ export function SongStep(props: {
         type="file"
       />
     </CardContent>
+  );
+}
+
+/** One required stem, locked only while busy or after server acceptance. */
+function StemRow(props: {
+  file: File | null;
+  id: string;
+  label: string;
+  locked: boolean;
+  attached: boolean;
+  onChange: (file: File | null) => void;
+  onReject: (message: string | null) => void;
+}) {
+  let input: HTMLInputElement | undefined;
+  const choose = (file: File | undefined) => {
+    if (!file || props.locked) return;
+    const issue = publicSongAudioIssue(file);
+    if (issue !== null) {
+      props.onReject(issue);
+      return;
+    }
+    props.onReject(null);
+    props.onChange(file);
+  };
+  return (
+    <div class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2">
+      <div class="min-w-0">
+        <Type as="p" variant="body-strong">{props.label}</Type>
+        <Show when={props.file}>
+          {(file) => <Type as="p" class="truncate text-muted-foreground" variant="caption">{file().name}</Type>}
+        </Show>
+        <Show when={props.attached}>
+          <Type as="p" class="text-muted-foreground" variant="caption">Attached</Type>
+        </Show>
+      </div>
+      <Show
+        when={props.file || props.attached}
+        fallback={
+          <Button
+            aria-label={`Add ${props.label.toLowerCase()}`}
+            disabled={props.locked}
+            leadingIcon={<IconPlus class="size-4" />}
+            onClick={() => input?.click()}
+            size="sm"
+            variant="ghost"
+          >
+            Add
+          </Button>
+        }
+      >
+        <IconButton
+          aria-label={`Remove ${props.label.toLowerCase()}`}
+          disabled={props.locked}
+          onClick={() => props.onChange(null)}
+          variant="ghost"
+        >
+          <IconX class="size-5" />
+        </IconButton>
+      </Show>
+      <input
+        accept=".mp3,audio/mpeg"
+        aria-label={`Upload ${props.label.toLowerCase()}`}
+        class="sr-only"
+        disabled={props.locked}
+        id={props.id}
+        onChange={(event) => {
+          choose(event.currentTarget.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+        ref={input}
+        type="file"
+      />
+    </div>
   );
 }

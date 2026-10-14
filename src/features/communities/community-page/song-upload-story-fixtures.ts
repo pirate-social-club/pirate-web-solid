@@ -23,6 +23,16 @@ export function createHeldSongUploadTransport(options: { readonly unknownSize?: 
   const transport: MediaSubmissionTransport = {
     listActive: async () => ({ object: "active_song_media_post_submission_page", items: [], next_cursor: null }),
     read: async () => current,
+    reserveStem: async input => {
+      if (input.body.track !== "song") throw new Error("Expected a song stem");
+      return { ...reservation, reservation_id: `stem-${input.body.slot}`, slot: input.body.slot };
+    },
+    attachStem: async input => {
+      current = { ...current, creation_revision: current.creation_revision + 1,
+        stems: { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null,
+          [input.body.slot]: { status: "sealed", content_type: "audio/mpeg", size_bytes: 100 } } };
+      return current;
+    },
     dispatch: async command => {
       commands.push(command.kind);
       if (command.kind === "cancel") {
@@ -39,6 +49,7 @@ export function createHeldSongUploadTransport(options: { readonly unknownSize?: 
     upload: async (_reservation, audio, onProgress, signal) => {
       if (signal?.aborted) throw new DOMException("Upload stopped", "AbortError");
       uploadCount += 1;
+      if (_reservation.slot !== "primary_audio") return;
       progress = percent => onProgress?.(Math.round(audio.size * percent / 100), options.unknownSize ? 0 : audio.size);
       progress(0);
       await new Promise<void>((resolve, reject) => {

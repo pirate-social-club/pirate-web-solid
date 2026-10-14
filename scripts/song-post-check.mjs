@@ -140,6 +140,7 @@ function snapshotFor(record) {
       creation_revision: record.creationRevision,
       audio_revision: record.audioRevision,
       lyrics_state: { current: record.lyrics },
+      stems: record.stems,
       updated_at: "2026-09-09T00:00:00Z",
       status: "published",
       published_resource: {
@@ -162,6 +163,7 @@ function snapshotFor(record) {
     creation_revision: record.creationRevision,
     audio_revision: record.audioRevision,
     lyrics_state: { current: record.lyrics },
+    stems: record.stems,
     updated_at: "2026-09-09T00:00:00Z",
     status: record.status,
     phase: record.phase,
@@ -179,6 +181,8 @@ function submissionRecord(submissionId, personaId) {
     status: "processing",
     phase: "awaiting_upload",
     lyrics: { status: "not_bound" },
+    stems: { instrumental_audio: null, vocal_audio: null },
+    stemsCount: 0,
     finalizeCount: 0,
     termsCount: 0,
     lyricsCount: 0,
@@ -242,15 +246,17 @@ const upstream = createServer(async (incoming, outgoing) => {
 
     const reserve = /^\/communities\/(community_[^/]+)\/media-upload-reservations$/u.exec(pathname);
     if (incoming.method === "POST" && reserve !== null) {
-      mediaCalls.push({ kind: "reserve", community: communitiesById.get(reserve[1]) });
+      const slot = JSON.parse(body.toString("utf8")).slot;
+      assert(incoming.headers["x-csrf-token"] === "csrf-song-e2e", "audio reservation omitted current CSRF");
+      mediaCalls.push({ kind: "reserve", community: communitiesById.get(reserve[1]), slot });
       return send(201, {
-        reservation_id: `reservation-${communitiesById.get(reserve[1])}`,
+        reservation_id: `reservation-${communitiesById.get(reserve[1])}-${slot}`,
         track: "song",
-        slot: "primary_audio",
+        slot,
         status: "awaiting_upload",
         upload: {
           method: "PUT",
-          url: `${apiOrigin}/uploads/${communitiesById.get(reserve[1])}`,
+          url: `${apiOrigin}/uploads/${communitiesById.get(reserve[1])}-${slot}`,
           required_headers: [{ name: "content-type", value: "audio/mpeg" }],
           expires_at: "2027-01-01T00:00:00Z",
         },
@@ -293,7 +299,20 @@ const upstream = createServer(async (incoming, outgoing) => {
         record.finalizeCount += 1;
         record.audioRevision = 1;
         record.phase = "analysis";
+      } else if (kind === "stems") {
+        const parsed = JSON.parse(body.toString("utf8"));
+        assert(incoming.headers["x-csrf-token"] === "csrf-song-e2e", "stem attachment omitted current CSRF");
+        assert(record.audioRevision >= 1, "stem attached before primary audio sealing");
+        assert(parsed.expected_creation_revision === record.creationRevision, "stem used a stale creation revision");
+        record.stemsCount += 1;
+        record.creationRevision += 1;
+        record.stems[parsed.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
+        // Model a server-accepted attachment with an unavailable response.
+        if (record.submissionId === "submission-with-lyrics" && parsed.slot === "vocal_audio") {
+          return send(503, { error: { code: "temporarily_unavailable", message: "attachment response lost", retryable: true } });
+        }
       } else if (kind === "terms") {
+        assert(record.stems.instrumental_audio?.status === "sealed" && record.stems.vocal_audio?.status === "sealed", "terms issued before both stems attached");
         record.termsCount += 1;
         record.creationRevision += 1;
         // Terms make the submission ready for asynchronous processing. The
@@ -442,8 +461,12 @@ async function publishSong(page, community, { lyrics }) {
   // Lyrics are optional and live on the Song step; they are bound when the
   // song is published rather than saved from a separate step.
   if (lyrics !== "") {
-    await form.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
+    await form.getByLabel("Lyrics", { exact: true }).fill(lyrics);
   }
+  assert(await form.locator("[data-composer-forward]").isDisabled(), "song advanced without stems");
+  await form.getByLabel("Upload instrumental", { exact: true }).setInputFiles(mp3Fixture(`${community}-instrumental.mp3`));
+  assert(await form.locator("[data-composer-forward]").isDisabled(), "song advanced with only one stem");
+  await form.getByLabel("Upload vocals", { exact: true }).setInputFiles(mp3Fixture(`${community}-vocals.mp3`));
 
   // The footer's forward control advances Song -> Rights -> Review.
   const forward = form.locator("[data-composer-forward]");
@@ -548,13 +571,14 @@ try {
     assert(record.processingPollCount >= 2,
       `${record.submissionId} published after only ${record.processingPollCount} status polls`);
     assert(record.audioRevision === 1, `${record.submissionId} published without stored audio`);
+    assert(record.stemsCount === 2, `${record.submissionId} attached stems ${record.stemsCount} times`);
   }
   assert(withLyrics.lyricsCount === 1, `lyrics were sent ${withLyrics.lyricsCount} times`);
   assert(withLyrics.lyrics.status === "ready", "reviewed lyrics were not accepted");
   // Blank lyrics are an instrumental, not an empty lyrics document.
   assert(instrumental.lyricsCount === 0, "an instrumental sent a lyrics command");
   assert(instrumental.lyrics.status === "not_bound", "an instrumental bound lyrics");
-  assert(uploads.length === 2, `expected two audio uploads, received ${uploads.length}`);
+  assert(uploads.length === 6, `expected primary audio and both stems per song, received ${uploads.length}`);
   for (const upload of uploads) {
     assert(upload.bytes > 0, `${upload.key} uploaded no bytes`);
     assert(upload.type === "audio/mpeg", `${upload.key} uploaded as ${upload.type}`);

@@ -409,6 +409,8 @@ export interface SongFlowRuntime {
   readonly personaId?: string;
   readonly prepare: () => Promise<boolean>;
   readonly prepared: boolean;
+  readonly audioPrepared?: boolean;
+  readonly stems?: { readonly instrumental: boolean; readonly vocals: boolean };
   readonly retained: boolean;
   readonly locked: boolean;
 }
