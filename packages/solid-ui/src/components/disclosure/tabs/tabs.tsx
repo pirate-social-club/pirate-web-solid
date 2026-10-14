@@ -43,7 +43,7 @@ function TabsList(props: ParentProps<TabsListProps>) {
       ? `grid-template-columns: repeat(${props.columns}, minmax(0, 1fr))`
       : undefined;
 
-  return <KTabs.List class={className()} style={style()} {...rest}>{props.children}</KTabs.List>;
+  return <KTabs.List style={style()} {...rest} class={className()}>{props.children}</KTabs.List>;
 }
 
 export interface TabsTriggerProps extends Omit<KTabsTriggerProps, "class"> {
@@ -65,7 +65,7 @@ function TabsTrigger(props: ParentProps<TabsTriggerProps>) {
   );
   const rest = omit(props, "class", "children", "variant");
 
-  return <KTabs.Trigger class={className()} {...rest}>{props.children}</KTabs.Trigger>;
+  return <KTabs.Trigger {...rest} class={className()}>{props.children}</KTabs.Trigger>;
 }
 
 function TabsContent(props: ParentProps<TabsContentProps>) {
@@ -78,7 +78,7 @@ function TabsContent(props: ParentProps<TabsContentProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <KTabs.Content class={className()} {...rest}>
+    <KTabs.Content {...rest} class={className()}>
       {props.children}
     </KTabs.Content>
   );

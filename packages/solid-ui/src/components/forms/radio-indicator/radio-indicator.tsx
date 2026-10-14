@@ -30,9 +30,9 @@ export function RadioIndicator(props: RadioIndicatorProps) {
   return (
     <span
       aria-hidden="true"
-      class={className()}
       data-checked={props.checked ? "" : undefined}
       {...rest}
+      class={className()}
     />
   );
 }

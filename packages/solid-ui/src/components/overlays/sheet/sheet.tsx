@@ -63,7 +63,7 @@ function SheetContent(props: ParentProps<SheetContentProps>) {
   return (
     <KDialog.Portal>
       <KDialog.Overlay class={sheetOverlayClass} />
-      <KDialog.Content forceMount class={className()} {...rest}>
+      <KDialog.Content forceMount {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
           <DialogCloseButtonLayout part={KDialog.CloseButton} />
@@ -86,7 +86,7 @@ function SheetTitle(props: ParentProps<Parameters<typeof KDialog.Title>[0] & { c
   const rest = omit(props, "class", "children");
 
   return (
-    <KDialog.Title class={className()} {...rest}>
+    <KDialog.Title {...rest} class={className()}>
       {props.children}
     </KDialog.Title>
   );
@@ -99,7 +99,7 @@ function SheetDescription(
   const rest = omit(props, "class", "children");
 
   return (
-    <KDialog.Description class={className()} {...rest}>
+    <KDialog.Description {...rest} class={className()}>
       {props.children}
     </KDialog.Description>
   );

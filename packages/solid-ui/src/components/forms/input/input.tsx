@@ -18,6 +18,8 @@ export const inputVariants = cva(
         title: "h-16 px-6 py-4 text-2xl font-semibold",
       },
     },
+    // Flat drops the border and the padding at every size (Paper Input sheet).
+    compoundVariants: [{ variant: "flat", class: "px-0 py-0" }],
     defaultVariants: {
       variant: "default",
       size: "default",
@@ -37,5 +39,5 @@ export function Input(props: InputProps) {
   );
   const rest = omit(props, "class", "variant", "size");
 
-  return <input dir="auto" class={className()} {...rest} />;
+  return <input dir="auto" {...rest} class={className()} />;
 }

@@ -40,7 +40,7 @@ export function Item(props: ParentProps<ItemProps>) {
   const rest = omit(props, "class", "variant", "size", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -72,7 +72,7 @@ export function ItemMedia(props: ParentProps<ItemMediaProps>) {
   const rest = omit(props, "class", "variant", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -88,7 +88,7 @@ export function ItemGroup(props: ParentProps<ItemGroupProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -106,7 +106,7 @@ export function ItemContent(props: ParentProps<ItemContentProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -124,7 +124,7 @@ export function ItemTitle(props: ParentProps<ItemTitleProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <Type as="div" class={className()} variant="label" {...rest}>
+    <Type as="div" variant="label" {...rest} class={className()}>
       {props.children}
     </Type>
   );
@@ -142,7 +142,7 @@ export function ItemDescription(props: ParentProps<ItemDescriptionProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <Type as="p" class={className()} variant="caption" {...rest}>
+    <Type as="p" variant="caption" {...rest} class={className()}>
       {props.children}
     </Type>
   );
@@ -158,7 +158,7 @@ export function ItemActions(props: ParentProps<ItemActionsProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
