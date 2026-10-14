@@ -1,0 +1,460 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-14T04:49:41Z",
+  "task": "Complete staged Telegram practice, identity provider acceptance and reviewed same-account Recover/Connect",
+  "github": {
+    "api_main": "b8efd833af7e9729c1e988f81aa8804776cf74fe",
+    "solid_main": "f668c090e00b1a5792406075476620aad49f8890",
+    "handoff_branch_before_this_publication": "0567d6bcad79832c52431d871b91ec08944b7e84",
+    "issue595": {
+      "state": "open",
+      "updated_at": "2026-10-13T18:58:53Z",
+      "comments": 98
+    }
+  },
+  "prs": [
+    {
+      "repository": "pirate-social-club/api-next",
+      "number": 600,
+      "url": "https://github.com/pirate-social-club/api-next/pull/600",
+      "state": "closed",
+      "draft": false,
+      "head": "125a3eb09349eff4b953ab10dd091000685f282c",
+      "merged": true,
+      "merge_commit": "97a48303a654ae1d2bf3c0e167f5a94590cea8aa",
+      "merged_at": "2026-10-13T12:47:46Z"
+    },
+    {
+      "repository": "pirate-social-club/api-next",
+      "number": 603,
+      "url": "https://github.com/pirate-social-club/api-next/pull/603",
+      "state": "closed",
+      "draft": false,
+      "head": "440e738110c632cc62d8096624b086b7c30f0bfc",
+      "merged": true,
+      "merge_commit": "78ac06fa29c8c9db77bd5d2b50f7f70ff10e5c4b",
+      "merged_at": "2026-10-13T14:04:56Z"
+    },
+    {
+      "repository": "pirate-social-club/api-next",
+      "number": 604,
+      "url": "https://github.com/pirate-social-club/api-next/pull/604",
+      "state": "open",
+      "draft": false,
+      "head": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+      "merged": false,
+      "merge_commit": null,
+      "merged_at": null
+    },
+    {
+      "repository": "pirate-social-club/api-next",
+      "number": 605,
+      "url": "https://github.com/pirate-social-club/api-next/pull/605",
+      "state": "closed",
+      "draft": false,
+      "head": "87458855174643c9ef29a25c9d4def16d81880b6",
+      "merged": true,
+      "merge_commit": "b8efd833af7e9729c1e988f81aa8804776cf74fe",
+      "merged_at": "2026-10-13T17:16:07Z"
+    },
+    {
+      "repository": "pirate-social-club/pirate-web-solid",
+      "number": 64,
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/64",
+      "state": "closed",
+      "draft": false,
+      "head": "e9df87008285b25fc72d00c1e8f6d000193e013e",
+      "merged": true,
+      "merge_commit": "b835c734d019b5523ccbd53aa74251f51c27beb5",
+      "merged_at": "2026-10-13T14:30:57Z"
+    },
+    {
+      "repository": "pirate-social-club/pirate-web-solid",
+      "number": 70,
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/70",
+      "state": "open",
+      "draft": true,
+      "head": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+      "merged": false,
+      "merge_commit": null,
+      "merged_at": null
+    },
+    {
+      "repository": "pirate-social-club/api-next",
+      "number": 606,
+      "url": "https://github.com/pirate-social-club/api-next/pull/606",
+      "state": "open",
+      "draft": true,
+      "head": "8bc510915b594b53e2c821c6754f901b78c358f5",
+      "merged": false,
+      "merge_commit": null,
+      "merged_at": null
+    },
+    {
+      "repository": "pirate-social-club/pirate-web-solid",
+      "number": 71,
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/71",
+      "state": "open",
+      "draft": true,
+      "head": "51c9fc41502ee992d0f9dc4ef2ad9624c6776e9a",
+      "merged": false,
+      "merge_commit": null,
+      "merged_at": null
+    }
+  ],
+  "latest_checks": {
+    "api604": [
+      {
+        "name": "secret-boundary",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T18:06:36Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38444056038/job/115457710446"
+      },
+      {
+        "name": "postgres17",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:58:34Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115453972629"
+      },
+      {
+        "name": "check",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:55:30Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447804336"
+      },
+      {
+        "name": "postgres18-shape",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:46:48Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803441"
+      },
+      {
+        "name": "postgres17-general-2",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:55:25Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803396"
+      },
+      {
+        "name": "postgres17-general-3",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:54:27Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803368"
+      },
+      {
+        "name": "postgres17-general-4",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:56:12Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803360"
+      },
+      {
+        "name": "hns-regtest",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:47:48Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803194"
+      },
+      {
+        "name": "postgres17-general-1",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:56:37Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803180"
+      },
+      {
+        "name": "postgres17-general-0",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:58:21Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803118"
+      },
+      {
+        "name": "postgres17-recovery",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:50:34Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447803013"
+      },
+      {
+        "name": "postgres17-namespace",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:47:10Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164026/job/115447802598"
+      },
+      {
+        "name": "Advisory policy",
+        "head_sha": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T17:45:35Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38441164225/job/115447801516"
+      }
+    ],
+    "api606": [
+      {
+        "name": "postgres17",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:15:28Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115489682237"
+      },
+      {
+        "name": "secret-boundary",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:02:08Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567338/job/115483498792"
+      },
+      {
+        "name": "hns-regtest",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:04:49Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497967"
+      },
+      {
+        "name": "postgres17-general-0",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:12:19Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497931"
+      },
+      {
+        "name": "postgres17-general-1",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:11:13Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497900"
+      },
+      {
+        "name": "postgres17-recovery",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:06:58Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497888"
+      },
+      {
+        "name": "postgres17-general-3",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:13:59Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497863"
+      },
+      {
+        "name": "postgres17-general-2",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:14:37Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497832"
+      },
+      {
+        "name": "postgres17-general-4",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:15:13Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497757"
+      },
+      {
+        "name": "postgres17-namespace",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:03:56Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497634"
+      },
+      {
+        "name": "postgres18-shape",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:03:20Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497591"
+      },
+      {
+        "name": "check",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:12:33Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451567149/job/115483497275"
+      },
+      {
+        "name": "Advisory policy",
+        "head_sha": "8bc510915b594b53e2c821c6754f901b78c358f5",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:02:22Z",
+        "details_url": "https://github.com/pirate-social-club/api-next/actions/runs/38451566986/job/115483495721"
+      }
+    ],
+    "solid70": [
+      {
+        "name": "Solid Doctor (main)",
+        "head_sha": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+        "status": "completed",
+        "conclusion": "skipped",
+        "completed_at": "2026-10-13T18:52:28Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38450282394/job/115479112496"
+      },
+      {
+        "name": "storybook-audit",
+        "head_sha": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:07:52Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38450282457/job/115479110529"
+      },
+      {
+        "name": "Solid Doctor (PR)",
+        "head_sha": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T18:52:49Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38450282394/job/115479109911"
+      },
+      {
+        "name": "verify",
+        "head_sha": "4fdcdb550577c379b9e50ad91ad47c02eeffa82f",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:01:19Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38450282457/job/115479109848"
+      }
+    ],
+    "solid71": [
+      {
+        "name": "Solid Doctor (main)",
+        "head_sha": "51c9fc41502ee992d0f9dc4ef2ad9624c6776e9a",
+        "status": "completed",
+        "conclusion": "skipped",
+        "completed_at": "2026-10-13T19:03:43Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38451818641/job/115484372013"
+      },
+      {
+        "name": "Solid Doctor (PR)",
+        "head_sha": "51c9fc41502ee992d0f9dc4ef2ad9624c6776e9a",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:03:59Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38451818641/job/115484370153"
+      },
+      {
+        "name": "storybook-audit",
+        "head_sha": "51c9fc41502ee992d0f9dc4ef2ad9624c6776e9a",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:19:50Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38451818460/job/115484368862"
+      },
+      {
+        "name": "verify",
+        "head_sha": "51c9fc41502ee992d0f9dc4ef2ad9624c6776e9a",
+        "status": "completed",
+        "conclusion": "success",
+        "completed_at": "2026-10-13T19:12:41Z",
+        "details_url": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38451818460/job/115484368691"
+      }
+    ]
+  },
+  "independent_review_status": {
+    "api604": {
+      "review_id": 5507879288,
+      "head": "153658a4ead7ad1f4bc26a63fc46a249f75177d6",
+      "status": "Provider-independent selected-decision source update cleared"
+    },
+    "api606": {
+      "reviews": [],
+      "source_acceptance_claimed": false
+    },
+    "solid71": {
+      "reviews": [],
+      "source_acceptance_claimed": false
+    },
+    "solid70": {
+      "status": "Independent source review6151569798 clears identified privacy finding; draft recovery PR must remain held while probe is needed"
+    }
+  },
+  "current_custody": {
+    "id": 6152395223,
+    "created_at": "2026-10-13T18:28:56Z",
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6152395223",
+    "body": "## Cloud review of the workstation run sheet, and the custody record\n\nReviewed: ``['telegram-staging-workstation-run-sheet-20261013.md' @ Solid 'e2e7e790'](https://github.com/pirate-social-club/pirate-web-solid/blob/e2e7e7909ae6e07cf73bf028747b1b291d2fcb8e/docs/evidence/telegram-takeover-2026-10-13/contract-context-20261013/telegram-staging-workstation-run-sheet-20261013.md).`` Every command was checked against source at `b8efd833` and `f668c090`. **No source blocker was found. It is accepted for execution.**\n\n### Checks I ran (offline; nothing against staging)\n- **Grant renderer**, run verbatim at `b8efd833` with a throwaway role:\n  - it emits `BEGIN`, a pinned `search_path`, 23 schema-qualified `GRANT EXECUTE` statements and `COMMIT`;\n  - its marker, hash and count guards hold.\n\n  I then applied the rendered file on a local PostgreSQL 17 database migrated through 0265, with `api_next` swapped for that database's `public` schema. Afterwards `SERVING_FUNCTION_PRIVILEGES_SQL` + `assertServingFunctionPrivileges` **admitted** the role (23 grants, 147 denials, owner, `search_path` and no owner membership). I then dropped the role.\n- **`check:staging:bindings --source-ref`** is accepted: the script uses `parseWorkerDeploymentArgs`.\n- **Workflow names** `pirate-media-processing-staging` and `pirate-video-analysis-staging` match `apps/media-processor-worker/wrangler.jsonc` `env.staging`.\n- **`docs/runbooks/media-alignment-alert-deploy.md`** exists at `b8efd833`.\n- **The Infisical project** `fac45f92…` is the documented api-next project (`secrets-contract.md:42`).\n- **Migration table:** the 19 checksums match `checksums.json`, and the offline dry run ends at 0265 `337b5469…`.\n\n### Notes (not blockers)\n1. **`db:preflight:reward-activation`** also asserts the reward-path table privileges (`scripts/runtime-role-release-preflight.ts`), not just the 265 ledger. A refusal there on dormant staging rewards is a separate reward-readiness finding. It does not block this Telegram release, as long as the ledger itself reads 265 exact. The step 6 read-only ledger query is the authoritative ledger check.\n2. **Composed phone journey.** It needs the **served** `TELEGRAM_CONFIG_JSON` to have `enabled` and `practice_enabled` set. The run sheet rightly forbids changing flags through the template. If the before readback shows practice off, the composed journey is blocked on a reviewed config change, which cloud would prepare as its own artifact. The probe login and the managed lookup in Part A do not depend on it.\n3. **`db:preflight:telegram-activation`** is only required when the served config enables Telegram. If it refuses while Telegram is off, record that and continue.\n\n### Custody record\n- **Source composition, frozen for this execution:**\n  - API `b8efd833af7e9729c1e988f81aa8804776cf74fe`, migrations through 0265, grant template `474d70e5…f814`;\n  - Solid `f668c090e00b1a5792406075476620aad49f8890`;\n  - Solid recovery `4fdcdb550577c379b9e50ad91ad47c02eeffa82f` (tree `2e55eeac…`);\n  - contract `153658a4`.\n- **Release and resource custody is handed to the local coordinator** as the workstation operator. It covers bounded execution of Part A (Solid probe release, phone probe and managed lookup), then Part B (verify the 246 prefix, migrate to 265, apply the 23-grant block to the verified serving principal, then the HTTP, jobs and media deploys under the G2 drain condition). The scope is staging only: HTTP, jobs, media-processor, `pirate-web-solid-staging`, the staging database and their binding configuration.\n- **While custody is held, cloud will not:**\n  - merge anything to api-next or Solid main, so #604's squash merge is **held** and published main stays at the frozen pins;\n  - push to the recovery branch;\n  - run any staging command.\n\n  If I must break this, I will post here first.\n- **Handback:** sanitized before and after receipts per the run sheet's close-out list, posted here. Cloud then resumes integration, including the #604 merge and the Specs 014/026 successor, and the recovery/Connect implementation.\n\nOwnership of the Telegram task stays with cloud. The only open dependencies are workstation credential custody (already present per the run sheet) and the physical phone, before 2026-10-17T00:00:00Z.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+  },
+  "provider_independent_cloud_plan": {
+    "id": 6152929758,
+    "created_at": "2026-10-13T18:58:53Z",
+    "url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6152929758",
+    "body": "## Recover/Connect: provider-independent implementation plan and coordinator selections\n\nThis is a plan grounded in source at `b8efd833` and Solid `f668c090`. Nothing below merges while workstation custody holds the pins. It all goes on branches and PRs.\n\n### Gates that stay in force\n- **Spec acceptance first.** The #604 successor goes into Specs 014 and 026 before any feature is enabled. Until then, new endpoints land `implementation: \"disabled\"` and the bot action stays behind a default-off flag.\n- **The new auth kind touches phase-0 frozen contracts** (`packages/contracts/src/auth.ts`, `endpoint.ts`). Per AGENTS.md \"Freeze rule\", the coordinator lands that piece in the canonical checkout. Cloud prepares it as a reviewed patch.\n\n### Design (provider-independent)\n- **R1 limited session as its own principal kind.** It follows the `browserParticipation` precedent, not a scope plus path allowlist (`PERSONA_WALLET_SETUP_SESSION_SCOPE` is exactly what the spec forbids):\n  - a closed operation vocabulary in a new policy kind `restrictedPracticeLearner`;\n  - a separate host-only cookie, DB-backed and browser-bound;\n  - composition's `authenticate`/`authorize` refuse it, so ordinary authority never accepts it.\n\n  Tests:\n  - a contracts test pins the allowed `{endpoint → operation}` map, starting empty;\n  - a transport sweep sends the practice cookie to every route binding and expects refusal;\n  - `SessionExchange`, `RegisterIdentity` and `GetMyProfile` refuse it.\n\n  The readiness gate gets an explicit restricted-learner refusal, so the refusal no longer depends only on the pending wallet.\n- **Migration 0266/0267.** Owner-only tables and functions, with the 0248/0265 revoke-and-pin pattern:\n  - `telegram_practice_claims`, the browser transaction for Recover and Connect;\n  - `telegram_provider_intents`, with `pending`, `committed`, `refused` and `uncertain`, immutable targets, and partial unique indexes so new attempts refuse while one is open;\n  - `telegram_practice_connections`, the C1 relation. Its single capability is `read_practice_history`, and it is bot-scoped for bot-local owners;\n  - `telegram_practice_sessions`, the R1 sessions;\n  - `telegram_link_navigation.purpose` (`link` | `progress`);\n  - extended deletion and epoch fences.\n\n  Uniqueness reuses the existing per-sender advisory lock from `telegram-study-learner-store.ts` `enroll`, in the same lock order. A new incremental grant block, plus `SERVING_FUNCTION_*` entries, goes through the #605 preflight.\n- **Pre-existing bug Recover would trigger.** `enroll` (`telegram-study-learner-store.ts:100-105`) gives a bot-local owner to any sender with *any* association. After Recover writes the association to the learner's own reservation, the learner would be isolated on the next community. The fix excludes the sender's own promotable reservation, and gets a pg test.\n- **Solid.**\n  - `SignInSessionOptions.registration: \"allow\" | \"refuse\"`. Recover and Connect surfaces never auto-register: the exchange 401 clears the pending token and says there is no Pirate account.\n  - New `/telegram/progress*` pages are added to `TELEGRAM_PRIVATE_PATHS`.\n  - The practice API uses its own fetch, so generic 401 renewal never fires.\n- **Bot.** A third URL button, \"Open my progress\", in the completion keyboard (`telegram-study-chat.ts:118-151`). It shows only for restricted learners with no current connection, and only when the flag below is on. If minting fails, the bot falls back to the two-button keyboard.\n\n### Coordinator selections under the standing delegation (#595 comment 6151444309)\n- **Limited-session lifetime:** 12 hours absolute, no renewal, revocable server-side. This is shorter than an ordinary session, as R1 requires.\n- **Cookie:** `__Host-pirate_practice` (host-only, Secure, HttpOnly, SameSite=Lax, Path=/).\n- **Recover writes `telegram_account_associations`** to the learner's own restricted account, as the spec says. This is why the `enroll` fix above is needed.\n- **\"Login acceptance passes\" flag:** a new `TELEGRAM_CONFIG_JSON` field, `progress_entry_enabled`, default false. Setting it is a reviewed config change, made only after the provider's phone acceptance passes on that environment.\n- **First release scope:** read history, view and revoke the association and grants, sign out, and request erasure through the existing Spec 023 path. Website practice-only Study continuation for limited sessions is a follow-up PR; R1 allows it but does not require it in the first release.\n\n### PR order\n1. **api-next:** the `enroll` self-association fix and the explicit restricted refusal in readiness, with pg tests. Safe on its own; starting now.\n2. **Solid:** the registration intercept. Independent; starting now.\n3. **Coordinator patch:** the frozen-contract auth kind and an empty allowlist test.\n4. **api-next:** 0266 tables, triggers and fences (owner-only, no grants), then 0267 functions, the store, application use cases behind provider-neutral ports with test fakes, grants and preflight entries.\n5. **api-next:** transport and composition for the practice cookie, endpoints disabled, the route sweep and workerd tests.\n6. **api-next:** history, association and sign-out endpoints, the connected read-only projection, and an api-client bump.\n7. **api-next:** the bot \"Open my progress\" action, behind `progress_entry_enabled`.\n8. **Solid:** `/telegram/progress` entry, confirmation and return, with the provider step stubbed, and the limited history view.\n9. **After the phone evidence:** provider-specific PRs. These cover proof verification (the nonce/state/PKCE replacement), the provider objects, the `identity_credentials` provider CHECK, the Connect sign-in-method link, and the reconciliation read, retry bound and operator view.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+  },
+  "standing_authorization": {
+    "owner_quote": "you have indefinite approval and ideally you unlobk it from doing anything it needs to",
+    "direction_url": "https://github.com/pirate-social-club/api-next/issues/595#issuecomment-6151444309",
+    "scope": "Necessary nonmonetary staging Telegram work; exact reviewed23-grant application approved. Technical gates remain."
+  },
+  "local_observation": {
+    "control_head_at_initial_read": "df9614c363ae5170934ceddf37562d8532ce117f",
+    "api_checkout_head": "f08c93dbe4602e982c00614c791930ffe2bed4e3",
+    "solid_checkout_head": "0801168a8344e66fdccdb8fc3298251e6abb69cc",
+    "product_checkouts_clean": true,
+    "foreign_dirty_record": "tasks/records/solid-hns-claim-persona-picker.md",
+    "foreign_record_sha256": "b69bd15c71afa13bfb6514ee7f30728e197d408cd35fec395b645950c058d41f",
+    "latest_owned_control_checkpoint_before_this_handoff": "6b2e81edff7220fec64e3348dfa1858730e6bf24"
+  },
+  "runtime_status": {
+    "latest_retained_managed_ledger_observation": {
+      "observed_at": "2026-10-13T11:17:46.373Z",
+      "count": 246,
+      "last": "0246_telegram_restricted_learners.sql",
+      "postgres_version": "18.6",
+      "effective_serving_principal_binding_proven": false
+    },
+    "fresh_managed_runtime_lookup_performed_for_this_handoff": false,
+    "local_telegram_migration_grant_deploy_or_phone_since_last_checkpoint": false,
+    "new_serving_or_phone_acceptance_receipt_found_in_task_thread": false,
+    "conclusion": "Source is prepared; staging acceptance remains unverified. Refresh actual ledger/serving/config before execution."
+  },
+  "probe_deadline": "2026-10-17T00:00:00Z",
+  "run_sheet": {
+    "sha256": "eaac42d667dce9f3291c431973569ccac13a4ecbdafbd16a11a526239b716a5c",
+    "accepted_by_cloud_comment": 6152395223,
+    "clarifications": [
+      "Dormant Rewards readiness is not a Telegram release gate if the exact ledger independently passes",
+      "Telegram admission is required only if effective served Telegram configuration enables it",
+      "Practice phone journey needs served enabled and practice_enabled; provider probe PartA does not"
+    ]
+  },
+  "limits": [
+    "GitHub metadata, check receipts and current local Git status were read; no fresh managed serving/ledger query, native full product suite, staging mutation or phone test was performed",
+    "Cloud's isolated PostgreSQL renderer admission is attributed to cloud, not rerun in this handoff turn",
+    "API606 and Solid71 were not independently reviewed here",
+    "Adjacent guest/Rewards and Paper PRs are outside the frozen Telegram release composition"
+  ]
+}
