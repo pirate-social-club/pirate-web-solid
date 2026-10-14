@@ -57,6 +57,14 @@ try {
         return route.fulfill({ body, headers, status: range ? 206 : 200 });
       });
       await page.goto(`${origin}/iframe.html?id=screens-community-songplayback--desktop&viewMode=story`);
+      // A fresh dev server compiles the story's module graph on first visit,
+      // which can exceed the 60s action budget on a cold runner. Wait for
+      // Storybook to report the story rendered before timing the interaction.
+      await page.waitForFunction(
+        () => /sb-show-main|sb-show-errordisplay/.test(document.body.className),
+        null,
+        { timeout: 240_000 },
+      );
       await page.getByRole("button", { name: "Play Midnight Waves", exact: true }).click();
       const audio = page.getByLabel("Audio for Midnight Waves", { exact: true });
       await expect(audio).toBeVisible();

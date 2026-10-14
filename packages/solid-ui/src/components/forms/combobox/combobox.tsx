@@ -86,6 +86,8 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
         props.onChange?.(first == null ? null : props.optionValue(first));
       },
       placeholder: props.placeholder,
+      // Paper: the option list sits 4px below the field.
+      gutter: 4,
       disabled: props.disabled,
       name: props.name,
       itemComponent: ComboboxItem,

@@ -32,7 +32,7 @@ export function PillButton(props: ParentProps<PillButtonProps>) {
   const rest = omit(props, "class", "tone", "children", "type");
 
   return (
-    <button class={className()} type={props.type ?? "button"} {...rest}>
+    <button type={props.type ?? "button"} {...rest} class={className()}>
       {props.children}
     </button>
   );

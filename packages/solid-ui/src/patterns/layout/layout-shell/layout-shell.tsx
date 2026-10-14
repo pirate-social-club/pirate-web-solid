@@ -31,7 +31,7 @@ export function PageContainer(props: ParentProps<PageContainerProps>) {
   const rest = omit(props, "class", "size", "gutter", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
