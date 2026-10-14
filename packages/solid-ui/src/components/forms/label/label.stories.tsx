@@ -43,7 +43,7 @@ export const Variants: Story = {
   render: () => (
     <StoryStack>
       <Label>Display name</Label>
-      <Label tone="muted">Optional</Label>
+      <Label tone="muted">Shown on your profile</Label>
     </StoryStack>
   ),
 };

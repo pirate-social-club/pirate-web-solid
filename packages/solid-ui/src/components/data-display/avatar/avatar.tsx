@@ -12,7 +12,8 @@ import { cn } from "@/lib/cn";
 export type AvatarSize = "xs" | "sm" | "md" | "lg";
 
 const sizeClasses: Record<AvatarSize, string> = {
-  xs: "size-6",
+  // Paper PostCard: 24px avatar, 9px semibold initials.
+  xs: "size-6 text-[9px]",
   sm: "size-9 text-base",
   md: "size-12 text-base",
   lg: "size-14 text-base",
