@@ -58,7 +58,10 @@ export async function publishSongAndVerifyPlayback(
   await expect(composer.getByRole("heading", { name: "Song", exact: true })).toBeVisible();
 
   const title = composer.getByLabel("Song title", { exact: false });
-  if (await title.count() > 0) await title.fill(marker);
+  if (await title.count() > 0) {
+    await title.fill(marker);
+    await title.blur();
+  }
 
   if (lyrics !== "") {
     await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);

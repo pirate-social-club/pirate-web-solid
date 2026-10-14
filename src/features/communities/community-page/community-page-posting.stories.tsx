@@ -396,7 +396,7 @@ async function selectSongStems(canvas: ReturnType<typeof within>) {
   }
 }
 
-async function openSongInMain(canvasElement: HTMLElement) {
+async function openSongInMain(canvasElement: HTMLElement, withStems = true) {
   await openComposer(canvasElement);
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"),
@@ -404,7 +404,7 @@ async function openSongInMain(canvasElement: HTMLElement) {
   // Desktop names the step with a heading; a phone leaves the bar's centre
   // empty and names nothing, as decided on 2026-09-24.
   const form = await canvas.findByRole("form", { name: "Post a song" });
-  await selectSongStems(canvas);
+  if (withStems) await selectSongStems(canvas);
   const main = canvas.getByRole("main", { name: "Create a post" });
   await waitFor(() => {
     expect(form.closest("main")).toBe(main);
@@ -432,7 +432,8 @@ export const SongComposerInMainOnMobile: Story = {
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
-    const canvas = await openSongInMain(canvasElement);
+    // Measure the initial surface before hidden file inputs move focus/scroll.
+    const canvas = await openSongInMain(canvasElement, false);
     const audio = canvas.getByRole("button", { name: "Remove audio" });
     const bar = await expectFlatPhoneComposer(canvasElement, audio);
     // Forward is the bar's right-hand control; there is no footer.

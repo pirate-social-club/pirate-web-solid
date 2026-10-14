@@ -453,6 +453,7 @@ async function publishSong(page, community, { lyrics }) {
   const title = form.getByLabel(/^Song title/u);
   try {
     await title.fill(`Fixture song ${community}`);
+    await title.blur();
   } catch (error) {
     process.stderr.write(`song-step(${community}): ${JSON.stringify((await form.innerText()).slice(0, 1600))}\n`);
     throw error;
