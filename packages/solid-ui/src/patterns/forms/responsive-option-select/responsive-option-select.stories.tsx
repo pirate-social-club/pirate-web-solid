@@ -131,9 +131,8 @@ export const Mobile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // The sheet trigger only renders below md; on a wider canvas the pill
-    // select shows instead and there is nothing phone-sized to measure.
-    if (!(await untilViewportBelow(768))) return;
+    // The sheet trigger only renders below md, so wait for the phone canvas.
+    await untilViewportBelow(768);
     const trigger = canvas.getByRole("button", { name: "Sort options" });
     await expect(trigger).toBeVisible();
     await expect(Math.round(trigger.getBoundingClientRect().width)).toBe(
@@ -152,7 +151,7 @@ export const MobileOpen: Story = {
     </PhoneFrame>
   ),
   play: async ({ canvasElement }) => {
-    if (!(await untilViewportBelow(768))) return;
+    await untilViewportBelow(768);
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Sort options" }));
     const sheet = await within(document.body).findByRole("dialog");

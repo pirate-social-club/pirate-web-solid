@@ -147,9 +147,8 @@ export const MobileSheetBottom: Story = {
     ];
     // On a phone the primary action stacks on top (the footer only stacks
     // below sm, so wait for the viewport global to narrow the canvas).
-    if (await untilViewportBelow(640)) {
-      await expect(buttons[1].getBoundingClientRect().top).toBeLessThan(buttons[0].getBoundingClientRect().top);
-    }
+    await untilViewportBelow(640);
+    await expect(buttons[1].getBoundingClientRect().top).toBeLessThan(buttons[0].getBoundingClientRect().top);
   },
 };
 
