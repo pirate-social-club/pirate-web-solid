@@ -198,7 +198,7 @@ export const defaultComposerCopy: ComposerCopy = {
     noSongs: "No songs found.",
   },
   fields: {
-    addLyrics: "Add lyrics (optional)",
+    addLyrics: "Add lyrics",
     canvasVideo: "Canvas video (9:16)",
     coverArt: "Cover art",
     coverFrame: "Cover frame",

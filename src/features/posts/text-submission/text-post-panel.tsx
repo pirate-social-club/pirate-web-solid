@@ -83,7 +83,7 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   const fields = (mobile: boolean) => (
     <>
       <label class="flex flex-col gap-2">
-        <Type as="span" variant="label">Title <span class="font-normal text-muted-foreground">(optional)</span></Type>
+        <Type as="span" variant="label">Title</Type>
         <Input
           aria-label="Title"
           class="w-full"
