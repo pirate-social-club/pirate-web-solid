@@ -9,6 +9,7 @@ import {
   type PostMediaPostSubmissionsSubmissionIdFinalizeInput,
   type PostMediaPostSubmissionsSubmissionIdLyricsInput,
   type PostMediaPostSubmissionsSubmissionIdRetryInput,
+  type PostMediaPostSubmissionsSubmissionIdStemsInput,
   type PostMediaPostSubmissionsSubmissionIdReferenceInput,
   type PostMediaPostSubmissionsSubmissionIdTermsInput,
 } from "@pirate/api-client";
@@ -26,6 +27,7 @@ type MediaApiClient = Pick<PirateApiClient,
   | "post_mediaPostSubmissionsSubmissionIdFinalize"
   | "get_mediaPostSubmissionsSubmissionId"
   | "post_mediaPostSubmissionsSubmissionIdReference"
+  | "post_mediaPostSubmissionsSubmissionIdStems"
   | "post_mediaPostSubmissionsSubmissionIdRetry"
   | "post_mediaPostSubmissionsSubmissionIdCancel"
 >;
@@ -36,6 +38,13 @@ export interface MediaSubmissionTransport {
   readonly listActive: (communityId: string, cursor?: string) => Promise<ActiveSongMediaPostSubmissionPage>;
   readonly dispatch: (command: PersistedMediaCommand, signal?: AbortSignal) => Promise<MediaCommandResult>;
   readonly read: (submissionId: string, signal?: AbortSignal) => Promise<MediaSubmissionSnapshot | null>;
+  /** Reserves an upload for an instrumental or vocals stem. */
+  readonly reserveStem: (
+    input: PostCommunitiesCommunityIdMediaUploadReservationsInput,
+    signal?: AbortSignal,
+  ) => Promise<PostCommunitiesCommunityIdMediaUploadReservationsResponse>;
+  /** Seals an uploaded stem onto the song submission. */
+  readonly attachStem: (input: PostMediaPostSubmissionsSubmissionIdStemsInput, signal?: AbortSignal) => Promise<MediaSubmissionSnapshot>;
   readonly upload: (
     reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
     audio: Blob,
@@ -269,6 +278,29 @@ export function createSameOriginMediaSubmissionTransport(
             }, session));
           }
         }
+      } catch (error) {
+        const failure = apiClientError(error);
+        if (failure !== null && failure.status === 409 && !failure.retryable) throw new MediaSubmissionConflictError(failure);
+        if (failure !== null && failure.status >= 400 && failure.status < 500 && failure.status !== 408 && failure.status !== 409 && failure.status !== 429) {
+          throw new RejectedMediaSubmissionError(failure);
+        }
+        throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
+      }
+    },
+    async reserveStem(input, signal) {
+      try {
+        return await api.post_communitiesCommunityIdMediaUploadReservations(input, { ...requestOptions(csrfToken), ...(signal === undefined ? {} : { signal }) });
+      } catch (error) {
+        const failure = apiClientError(error);
+        if (failure !== null && failure.status >= 400 && failure.status < 500 && failure.status !== 408 && failure.status !== 409 && failure.status !== 429) {
+          throw new RejectedMediaSubmissionError(failure);
+        }
+        throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
+      }
+    },
+    async attachStem(input, signal) {
+      try {
+        return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdStems(input, { ...requestOptions(csrfToken), ...(signal === undefined ? {} : { signal }) }));
       } catch (error) {
         const failure = apiClientError(error);
         if (failure !== null && failure.status === 409 && !failure.retryable) throw new MediaSubmissionConflictError(failure);

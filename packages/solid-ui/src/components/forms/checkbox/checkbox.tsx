@@ -85,7 +85,7 @@ export function CheckboxLabel(
   const rest = omit(props, "class", "children");
 
   return (
-    <KCheckbox.Label class={className()} {...rest}>
+    <KCheckbox.Label {...rest} class={className()}>
       {props.children}
     </KCheckbox.Label>
   );
@@ -100,7 +100,7 @@ export function CheckboxDescription(
   const rest = omit(props, "class", "children");
 
   return (
-    <KCheckbox.Description class={className()} {...rest}>
+    <KCheckbox.Description {...rest} class={className()}>
       {props.children}
     </KCheckbox.Description>
   );
@@ -115,7 +115,7 @@ export function CheckboxErrorMessage(
   const rest = omit(props, "class", "children");
 
   return (
-    <KCheckbox.ErrorMessage class={className()} {...rest}>
+    <KCheckbox.ErrorMessage {...rest} class={className()}>
       {props.children}
     </KCheckbox.ErrorMessage>
   );

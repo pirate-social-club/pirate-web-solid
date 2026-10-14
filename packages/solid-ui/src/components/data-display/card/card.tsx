@@ -15,7 +15,7 @@ function Card(props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { class?: 
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {content()}
     </div>
   );
@@ -29,7 +29,7 @@ function CardHeader(props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { cl
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {content()}
     </div>
   );
@@ -57,7 +57,7 @@ function CardTitle(
   const rest = omit(props, "class", "children", "as");
 
   return (
-    <Dynamic component={props.as ?? "h3"} class={className()} {...rest}>
+    <Dynamic component={props.as ?? "h3"} {...rest} class={className()}>
       {content()}
     </Dynamic>
   );
@@ -73,7 +73,7 @@ function CardDescription(
   const rest = omit(props, "class", "children");
 
   return (
-    <p class={className()} {...rest}>
+    <p {...rest} class={className()}>
       {content()}
     </p>
   );
@@ -85,7 +85,7 @@ function CardContent(props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { c
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {content()}
     </div>
   );
@@ -97,7 +97,7 @@ function CardFooter(props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { cl
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {content()}
     </div>
   );

@@ -67,6 +67,13 @@ export const Sizes: Story = {
       />
     </StoryRow>
   ),
+  play: async ({ canvasElement }) => {
+    // Paper PostCard: the 24px avatar carries 9px initials.
+    const xs = within(canvasElement).getByRole("img", { name: "Tide Room" });
+    const initials = xs.querySelector("span[aria-hidden]");
+    if (!initials) throw new Error("no initials");
+    await expect(getComputedStyle(initials).fontSize).toBe("9px");
+  },
 };
 
 export const Variants: Story = {

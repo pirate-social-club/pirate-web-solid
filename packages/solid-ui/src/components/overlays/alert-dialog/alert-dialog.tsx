@@ -30,7 +30,7 @@ function AlertDialogContent(props: ParentProps<AlertDialogContentProps>) {
   return (
     <KAlertDialog.Portal>
       <KAlertDialog.Overlay class={dialogOverlayClass} />
-      <KAlertDialog.Content class={className()} {...rest}>
+      <KAlertDialog.Content {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
           <DialogCloseButtonLayout part={KAlertDialog.CloseButton} />
@@ -50,7 +50,7 @@ function AlertDialogTitle(
   const rest = omit(props, "class");
 
   return (
-    <KAlertDialog.Title class={className()} {...rest}>
+    <KAlertDialog.Title {...rest} class={className()}>
       {props.children}
     </KAlertDialog.Title>
   );
@@ -63,7 +63,7 @@ function AlertDialogDescription(
   const rest = omit(props, "class");
 
   return (
-    <KAlertDialog.Description class={className()} {...rest}>
+    <KAlertDialog.Description {...rest} class={className()}>
       {props.children}
     </KAlertDialog.Description>
   );

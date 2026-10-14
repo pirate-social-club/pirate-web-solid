@@ -12,7 +12,7 @@ export function Skeleton(
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );

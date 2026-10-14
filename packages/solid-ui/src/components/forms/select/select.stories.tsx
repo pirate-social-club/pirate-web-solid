@@ -142,3 +142,18 @@ export const LongContent: Story = {
     </div>
   ),
 };
+
+/** Paper: the option list opens 4px below the field. */
+export const ListGap: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole("button", { name: "Sort order" });
+    await userEvent.click(trigger);
+    const listbox = await within(document.body).findByRole("listbox");
+    const positioner = listbox.closest("[data-popper-positioner]");
+    if (!(positioner instanceof HTMLElement)) throw new Error("no popper positioner");
+    await waitFor(() =>
+      expect(Math.round(positioner.getBoundingClientRect().top - trigger.getBoundingClientRect().bottom)).toBe(4),
+    );
+    await userEvent.keyboard("{Escape}");
+  },
+};

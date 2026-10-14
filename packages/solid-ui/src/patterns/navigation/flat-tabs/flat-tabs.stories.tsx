@@ -51,6 +51,18 @@ export const TabBarWithButtons: Story = {
     await expect(canvas.getByRole("button", { name: "Feed" })).toHaveClass(
       "border-transparent",
     );
+
+    // Owner ruling 5: equal columns on phone; on desktop each tab keeps its
+    // own width (16px side padding) and the bar starts at the left.
+    const feed = canvas.getByRole("button", { name: "Feed" }).getBoundingClientRect();
+    const aboutBox = about.getBoundingClientRect();
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      await expect(aboutBox.left - feed.right).toBeLessThan(1);
+      await expect(feed.width).toBeLessThan(200);
+      await expect(getComputedStyle(canvas.getByRole("button", { name: "Feed" })).paddingLeft).toBe("16px");
+    } else {
+      await expect(Math.abs(feed.width - aboutBox.width)).toBeLessThan(1);
+    }
   },
 };
 

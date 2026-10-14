@@ -99,3 +99,19 @@ export const Loading: Story = {
     await expect(button).toHaveAttribute("aria-busy");
   },
 };
+
+/**
+ * A caller's class reaches the button in a production build. Class sits after
+ * the spread so the wrapper's resolved classes are what render.
+ */
+export const CallerClass: Story = {
+  render: (args) => (
+    <IconButton {...args} class="size-14">
+      <IconX class="size-5" />
+    </IconButton>
+  ),
+  play: async ({ canvasElement }) => {
+    const box = within(canvasElement).getByRole("button", { name: "Close dialog" }).getBoundingClientRect();
+    await expect([box.width, box.height]).toEqual([56, 56]);
+  },
+};

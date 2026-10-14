@@ -240,3 +240,30 @@ export const PurchaseFlowMobile: Story = {
     />
   ),
 };
+
+/** Resolve a token through the browser so it compares with a computed colour. */
+function resolvedColor(token: string): string {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${token})`;
+  document.body.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
+}
+
+/** Paper mutes the one line of description on both presentations. */
+export const DescriptionTone: Story = {
+  render: () => <ModalShell description="Add funds to continue." forceMobile={false} title="Unlock this content" />,
+  play: async () => {
+    const description = await within(document.body).findByText("Add funds to continue.");
+    await expect(getComputedStyle(description).color).toBe(resolvedColor("--muted-foreground"));
+  },
+};
+
+export const DescriptionToneMobile: Story = {
+  render: () => <ModalShell description="Add funds to continue." forceMobile title="Unlock this content" />,
+  play: async () => {
+    const description = await within(document.body).findByText("Add funds to continue.");
+    await expect(getComputedStyle(description).color).toBe(resolvedColor("--muted-foreground"));
+  },
+};

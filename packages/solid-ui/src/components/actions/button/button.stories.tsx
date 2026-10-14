@@ -154,5 +154,7 @@ export const Loading: Story = {
       const button = canvas.getByRole("button", { name });
       await expect(button).toBeDisabled();
     }
+    // Paper: an icon-size button shows only the spinner while loading.
+    await expect(canvas.getByRole("button", { name: "Upload" })).not.toHaveTextContent("+");
   },
 };

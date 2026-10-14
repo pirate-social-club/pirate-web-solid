@@ -155,3 +155,13 @@ export const RightToLeft: Story = {
     await expect(canvas.getByRole("button", { name: "Bold" })).toBeVisible();
   },
 };
+
+/** Paper insets the text 16px from the composer's edge, below the toolbar. */
+export const TextInset: Story = {
+  play: async ({ canvasElement }) => {
+    const textarea = within(canvasElement).getByRole("textbox");
+    const style = getComputedStyle(textarea);
+    await expect([style.paddingLeft, style.paddingRight]).toEqual(["16px", "16px"]);
+    await expect(style.paddingTop).toBe("12px");
+  },
+};

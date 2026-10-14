@@ -77,7 +77,8 @@ export function Button(props: ParentProps<ButtonProps>) {
       {props.loading
         ? <Spinner size="sm" class="[animation-duration:0.9s]" decorative />
         : props.leadingIcon}
-      {props.children}
+      {/* At icon size the spinner replaces the glyph (Paper Button sheet). */}
+      {props.loading && props.size === "icon" ? undefined : props.children}
       {props.loading ? undefined : props.trailingIcon}
     </KButton>
   );

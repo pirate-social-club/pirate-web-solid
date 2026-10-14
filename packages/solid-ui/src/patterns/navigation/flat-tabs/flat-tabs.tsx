@@ -29,7 +29,9 @@ export function FlatTabBar(props: ParentProps<FlatTabBarProps>) {
         class={cn(
           "min-w-0",
           props.columns
-            ? "grid flex-1 gap-0 overflow-visible"
+            ? // Owner ruling 5: equal columns on phone; on desktop the tabs sit
+              // at the left at their own width, never stretched.
+              "grid flex-1 gap-0 overflow-visible md:flex md:flex-none"
             : "flex items-center gap-4 overflow-x-auto",
         )}
         style={columnsStyle(props.columns)}
@@ -50,7 +52,7 @@ export interface FlatTabButtonProps {
 export function FlatTabButton(props: ParentProps<FlatTabButtonProps>) {
   const className = createMemo(() =>
     cn(
-      "inline-flex h-12 min-w-0 cursor-pointer items-center justify-center border-b-2 px-1 text-base font-semibold transition-colors",
+      "inline-flex h-12 min-w-0 cursor-pointer items-center justify-center border-b-2 px-1 text-base font-semibold transition-colors md:px-4",
       props.active
         ? "border-primary text-foreground"
         : "border-transparent text-muted-foreground hover:text-foreground",

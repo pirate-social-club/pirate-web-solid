@@ -143,3 +143,20 @@ export const LongContent: Story = {
     </div>
   ),
 };
+
+/** Paper opens the option list 4px below the field, as on Select. */
+export const ListGap: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole("combobox", { name: "Sort order" }).parentElement;
+    if (!(field instanceof HTMLElement)) throw new Error("no combobox control");
+    await userEvent.click(canvas.getByRole("button"));
+    const listbox = await within(document.body).findByRole("listbox");
+    const positioner = listbox.closest("[data-popper-positioner]");
+    if (!(positioner instanceof HTMLElement)) throw new Error("no popper positioner");
+    await waitFor(() =>
+      expect(Math.round(positioner.getBoundingClientRect().top - field.getBoundingClientRect().bottom)).toBe(4),
+    );
+    await userEvent.keyboard("{Escape}");
+  },
+};

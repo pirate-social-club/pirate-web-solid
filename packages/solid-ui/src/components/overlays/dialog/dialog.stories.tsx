@@ -180,3 +180,14 @@ export const RightToLeft: Story = {
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
   },
 };
+
+/** Paper Radius & Elevation: dialogs use shadow-xl, 0 24px 80px at 18% black. */
+export const Elevation: Story = {
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Open dialog" }));
+    const dialog = await within(document.body).findByRole("dialog");
+    await waitFor(() => expect(getComputedStyle(dialog).boxShadow).toContain("0px 24px 80px"));
+    await expect(getComputedStyle(dialog).boxShadow).toContain("0.18");
+    await userEvent.keyboard("{Escape}");
+  },
+};
