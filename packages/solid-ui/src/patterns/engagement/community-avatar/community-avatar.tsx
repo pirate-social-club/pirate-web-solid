@@ -76,7 +76,7 @@ function buildCommunityAvatarFallback(input: {
   return (
     <span
       aria-hidden="true"
-      class="grid size-full place-items-center rounded-full text-[0.85em] leading-none"
+      class="grid size-full place-items-center rounded-full text-[max(0.85em,9px)] leading-none"
       style={{ background: colors.bg, color: colors.fg }}
     >
       {buildInitials(input.displayName)}

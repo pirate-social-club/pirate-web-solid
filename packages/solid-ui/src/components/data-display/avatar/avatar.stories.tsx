@@ -79,3 +79,17 @@ export const Empty: Story = {
     </StoryRow>
   ),
 };
+
+/** Paper PostCard: the 24px avatar draws its initials at 9px, semibold. */
+export const ExtraSmallInitials: Story = {
+  args: { fallback: "Jane Doe", size: "xs" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const initials = canvas.getByText("JD");
+    const box = canvas.getByRole("img", { name: "Jane Doe" }).getBoundingClientRect();
+    await expect([box.width, box.height]).toEqual([24, 24]);
+    const style = getComputedStyle(initials);
+    await expect(style.fontSize).toBe("9px");
+    await expect(style.fontWeight).toBe("600");
+  },
+};
