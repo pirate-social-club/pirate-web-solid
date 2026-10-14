@@ -1,5 +1,7 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createSignal } from "solid-js";
 import { afterEach, expect, test } from "vitest";
 import { KaraokeLyricStage } from "./karaoke-lyric-stage";
@@ -60,4 +62,19 @@ test("partials never show a grade or replay the finalized line badge; a new scor
   score("second", 1);
   await expect.poll(badge).not.toBe(first);
   expect(badge()?.textContent).toBe("Perfect+92");
+});
+
+// The design system's global reduced-motion rule shortens every animation to
+// 0.01ms, so one that ends hidden leaves its element hidden. The rating's pop
+// ends at opacity 0; reduced motion must swap it for a still, visible hold.
+test("reduced motion holds the rating badge visible instead of fading it out", () => {
+  const css = readFileSync(path.resolve(__dirname, "karaoke.css"), "utf8");
+  const keyframes = (name: string) => css.match(new RegExp(`@keyframes ${name} \\{(.*)\\}`))?.[1] ?? "";
+  expect(keyframes("karaoke-rating-pop")).toMatch(/100% \{ opacity: 0;/);
+  const reduced = css.match(/@media \(prefers-reduced-motion: reduce\) \{\s*\.karaoke-stage-rating \{ animation-name: ([\w-]+); \}/);
+  expect(reduced?.[1]).toBe("karaoke-rating-hold");
+  const hold = keyframes("karaoke-rating-hold");
+  expect(hold).toContain("opacity: 1;");
+  expect(hold).not.toContain("opacity: 0");
+  expect(hold).not.toContain("scale");
 });

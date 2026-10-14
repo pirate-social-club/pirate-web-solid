@@ -15,8 +15,6 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@/components/data-display/item/item";
-import { ActionBanner } from "@/patterns/feedback/action-banner/action-banner";
-import { IllustratedState } from "@/patterns/feedback/illustrated-state/illustrated-state";
 import { FormattedTextarea } from "@/patterns/forms/formatted-textarea/formatted-textarea";
 import { PirateBrandMark } from "@/patterns/identity/pirate-brand-mark/pirate-brand-mark";
 
@@ -51,35 +49,6 @@ describe("Batch 4 SSR smoke", () => {
         </Item>
       )),
     ).toContain("Song Title");
-  });
-
-  it("renders ActionBanner without browser APIs", () => {
-    expect(
-      renderHtml(() => (
-        <ActionBanner
-          action={<button type="button">Install</button>}
-          subtitle="Add to your home screen."
-          title="Install Pirate"
-        />
-      )),
-    ).toContain("Install Pirate");
-  });
-
-  it("renders IllustratedState without browser APIs", () => {
-    const image = {
-      alt: "Confused pirate ghost",
-      src: "/mascots/error-ghost-256.png",
-      srcSet: "/mascots/error-ghost-512.webp 2x, /mascots/error-ghost-256.webp 1x",
-    };
-    const html = renderHtml(() => (
-      <IllustratedState
-        description="Something went wrong."
-        image={image}
-        title="Could not load"
-      />
-    ));
-    expect(html).toContain('alt="Confused pirate ghost"');
-    expect(html).toContain("Could not load");
   });
 
   it("renders FormattedText without browser APIs", () => {

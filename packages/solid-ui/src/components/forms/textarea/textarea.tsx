@@ -5,12 +5,12 @@ import { cn } from "@/lib/cn";
 import { cva, type VariantProps } from "@/lib/recipe";
 
 export const textareaVariants = cva(
-  "flex min-h-28 w-full rounded-2xl border border-input bg-background px-4 py-3 text-base shadow-sm transition-[color,box-shadow,border-color] outline-none placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-1 focus-visible:ring-border-soft disabled:cursor-not-allowed disabled:opacity-50",
+  "flex min-h-28 w-full resize-none rounded-2xl border border-input bg-background px-4 py-3 text-base shadow-sm transition-[color,box-shadow,border-color] outline-none placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-1 focus-visible:ring-border-soft disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
         default: "",
-        flat: "rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:ring-0",
+        flat: "rounded-none border-0 bg-transparent px-0 py-0 shadow-none focus-visible:border-transparent focus-visible:ring-0",
       },
     },
     defaultVariants: {
@@ -31,5 +31,5 @@ export function Textarea(props: TextareaProps) {
   );
   const rest = omit(props, "class", "variant");
 
-  return <textarea dir="auto" class={className()} {...rest} />;
+  return <textarea dir="auto" {...rest} class={className()} />;
 }

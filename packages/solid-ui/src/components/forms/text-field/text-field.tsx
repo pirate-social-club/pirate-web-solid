@@ -21,7 +21,7 @@ export function TextField(
   const rest = omit(props, "class");
 
   return (
-    <KTextField class={className()} {...rest}>
+    <KTextField {...rest} class={className()}>
       {props.children}
     </KTextField>
   );
@@ -36,7 +36,7 @@ export function TextFieldLabel(
   const rest = omit(props, "class");
 
   return (
-    <KTextField.Label class={className()} {...rest}>
+    <KTextField.Label {...rest} class={className()}>
       {props.children}
     </KTextField.Label>
   );
@@ -64,7 +64,7 @@ export function TextFieldInput(props: TextFieldInputProps) {
   );
   const rest = omit(props, "class", "variant", "size");
 
-  return <KTextField.Input dir="auto" class={className()} {...rest} />;
+  return <KTextField.Input dir="auto" {...rest} class={className()} />;
 }
 
 export function TextFieldDescription(
@@ -76,7 +76,7 @@ export function TextFieldDescription(
   const rest = omit(props, "class");
 
   return (
-    <KTextField.Description class={className()} {...rest}>
+    <KTextField.Description {...rest} class={className()}>
       {props.children}
     </KTextField.Description>
   );
@@ -91,7 +91,7 @@ export function TextFieldErrorMessage(
   const rest = omit(props, "class");
 
   return (
-    <KTextField.ErrorMessage class={className()} {...rest}>
+    <KTextField.ErrorMessage {...rest} class={className()}>
       {props.children}
     </KTextField.ErrorMessage>
   );

@@ -39,7 +39,7 @@ export function Chip(props: ParentProps<ChipProps>) {
   const rest = omit(props, "class", "variant", "size", "leadingIcon", "children", "type");
 
   return (
-    <button class={className()} type={props.type ?? "button"} {...rest}>
+    <button type={props.type ?? "button"} {...rest} class={className()}>
       {props.leadingIcon}
       {props.children}
     </button>

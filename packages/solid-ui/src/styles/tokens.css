@@ -54,10 +54,6 @@
     --page-gutter-x-md: 1.25rem;
     --page-gutter-x-lg: 2rem;
     --primary-subtle: color-mix(in oklab, var(--primary) 8%, var(--card));
-    --shadow-sm: 0 8px 22px rgb(0 0 0 / 0.06);
-    --shadow-md: 0 12px 30px rgb(0 0 0 / 0.08);
-    --shadow-lg: 0 18px 44px rgb(0 0 0 / 0.16);
-    --shadow-xl: 0 24px 80px rgb(0 0 0 / 0.18);
   }
 
   .light {
@@ -97,6 +93,16 @@
     --sidebar-border: oklch(0.90 0.004 250);
     --sidebar-ring: var(--primary);
     --surface-skeleton: oklch(0.93 0.004 250);
+  }
+
+  /* Elevation, from the Paper Radius & Elevation sheet. Declared in @theme so
+     the shadow-sm/md/lg/xl utilities use these values instead of Tailwind's
+     defaults; static keeps the variables emitted for shadow-[var(--shadow-*)]. */
+  @theme static {
+    --shadow-sm: 0 8px 22px rgb(0 0 0 / 0.06);
+    --shadow-md: 0 12px 30px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 18px 44px rgb(0 0 0 / 0.16);
+    --shadow-xl: 0 24px 80px rgb(0 0 0 / 0.18);
   }
 
   @theme inline {
@@ -188,6 +194,19 @@
   .sheet-enter-bottom[data-expanded] { animation: sheet-enter-bottom 300ms cubic-bezier(0.22, 1, 0.36, 1); }
   .accordion-content[data-expanded] { animation: accordion-expand 200ms ease-out; }
   .accordion-content[data-closed] { animation: accordion-collapse 200ms ease-out; }
+
+  /* Paper Motion sheet: reduced motion switches transitions and animations
+     off. One rule covers every utility, so no transition can miss its
+     motion-reduce counterpart. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .sheet-enter-right[data-expanded],
