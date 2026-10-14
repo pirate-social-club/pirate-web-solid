@@ -279,20 +279,35 @@ async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: H
   return bar;
 }
 
-/** Scrolled to the very bottom, the action bar is still on screen. */
-async function expectBarStaysOnScreen(canvasElement: HTMLElement, bar: HTMLElement) {
-  const view = canvasElement.ownerDocument.defaultView!;
-  view.scrollTo({ top: canvasElement.ownerDocument.documentElement.scrollHeight });
+/**
+ * Scrolled to the end of a long text, the action bar is still on screen.
+ * Whether the page or the text field scrolls depends on the screen height: at
+ * 320x568 the post form fits and its field scrolls inside itself, on a shorter
+ * screen or a taller form the page scrolls. Either way something must scroll,
+ * and the bar must stay put.
+ */
+async function expectBarStaysOnScreen(canvasElement: HTMLElement, bar: HTMLElement, field: HTMLElement) {
+  const doc = canvasElement.ownerDocument;
+  const view = doc.defaultView!;
+  const pageScrolls = doc.documentElement.scrollHeight > view.innerHeight + 1;
+  if (pageScrolls) {
+    view.scrollTo({ top: doc.documentElement.scrollHeight });
+    await waitFor(() => expect(view.scrollY).toBeGreaterThan(0));
+  } else {
+    await expect(field.scrollHeight).toBeGreaterThan(field.clientHeight);
+    field.scrollTop = field.scrollHeight;
+    await waitFor(() => expect(field.scrollTop).toBeGreaterThan(0));
+  }
   await waitFor(() => {
-    expect(view.scrollY).toBeGreaterThan(0);
     const box = bar.getBoundingClientRect();
     expect(box.top).toBeGreaterThanOrEqual(-1);
     expect(box.bottom).toBeLessThanOrEqual(view.innerHeight);
   });
   view.scrollTo({ top: 0 });
+  field.scrollTop = 0;
 }
 
-/** A long post, so the page has to scroll. */
+/** A long post, so the page or the text field has to scroll. */
 const longPost = Array.from({ length: 40 }, (_, line) => `Line ${line + 1} of a long post.`).join("\n");
 
 /** Phone: a flat surface under the September action bar. */
@@ -317,7 +332,7 @@ export const FullWidthComposerOnMobile: Story = {
     await userEvent.click(body);
     await userEvent.paste(longPost);
     await expect(within(bar).getByRole("button", { name: "Post" })).toBeEnabled();
-    await expectBarStaysOnScreen(canvasElement, bar);
+    await expectBarStaysOnScreen(canvasElement, bar, body);
     await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
   },
 };
@@ -365,9 +380,10 @@ export const MobileComposerInsideTheAppShell: Story = {
     const form = await openComposer(canvasElement);
     const bar = await expectFlatPhoneComposer(canvasElement, form.getByRole("textbox", { name: "Title" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBe(0));
-    await userEvent.click(form.getByRole("textbox", { name: "Post" }));
+    const body = form.getByRole("textbox", { name: "Post" });
+    await userEvent.click(body);
     await userEvent.paste(longPost);
-    await expectBarStaysOnScreen(canvasElement, bar);
+    await expectBarStaysOnScreen(canvasElement, bar, body);
     await userEvent.click(within(bar).getByRole("button", { name: "Close composer" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBeGreaterThan(0));
   },
@@ -439,9 +455,10 @@ export const SongComposerInMainOnMobile: Story = {
     // Forward is the bar's right-hand control; there is no footer.
     await expect(within(bar).getByRole("button", { name: "Continue" })).toBeVisible();
     await expect(canvas.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
-    await userEvent.click(canvas.getByRole("textbox", { name: /Lyrics/u }));
+    const lyrics = canvas.getByRole("textbox", { name: /Lyrics/u });
+    await userEvent.click(lyrics);
     await userEvent.paste(longPost);
-    await expectBarStaysOnScreen(canvasElement, bar);
+    await expectBarStaysOnScreen(canvasElement, bar, lyrics);
   },
 };
 

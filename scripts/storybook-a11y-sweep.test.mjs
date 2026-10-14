@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { test, expect, describe } from "bun:test";
 
 import {
+  checkViewport,
   classifyStoryFinished,
+  pageSizeFor,
+  resolveStoryViewport,
+  storyUrl,
   classifyStoryTimeout,
   isRetryableStartupError,
   parseStoryIndex,
@@ -175,4 +179,63 @@ test("exit codes and ledger preserve raw reporter/event evidence", async () => {
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+describe("requested viewports", () => {
+  test("resolves addon presets and story-defined options to pixel sizes", () => {
+    expect(resolveStoryViewport({ globalsViewport: { value: "mobile1", isRotated: false } }).preset)
+      .toEqual({ value: "mobile1", isRotated: false, width: 320, height: 568 });
+    const options = { mobile1: { name: "Phone", styles: { width: "390px", height: "844px" } } };
+    expect(resolveStoryViewport({ globalsViewport: { value: "mobile1" }, parameterViewport: { options } }).preset)
+      .toEqual({ value: "mobile1", isRotated: false, width: 390, height: 844 });
+    expect(resolveStoryViewport({ globalsViewport: { value: "mobile1", isRotated: true } }).preset)
+      .toEqual({ value: "mobile1", isRotated: true, width: 568, height: 320 });
+  });
+
+  test("stories without a preset keep the default page and report bad declarations as warnings", () => {
+    expect(resolveStoryViewport({})).toEqual({ requested: null, preset: null, warning: null });
+    const reset = resolveStoryViewport({ globalsViewport: { value: "reset" } });
+    expect(reset.preset).toBeNull();
+    expect(reset.warning).toContain("\"reset\" is not a preset");
+    const legacy = resolveStoryViewport({ parameterViewport: { defaultViewport: "mobile1" } });
+    expect(legacy.preset).toBeNull();
+    expect(legacy.warning).toContain("defaultViewport");
+    expect(pageSizeFor(null)).toEqual({ width: 1280, height: 720 });
+  });
+
+  test("the page leaves the manager room to show the whole preset, and the URL carries it", () => {
+    const preset = { value: "mobile1", isRotated: false, width: 390, height: 844 };
+    const size = pageSizeFor(preset);
+    expect(size.width).toBeGreaterThanOrEqual(1280);
+    expect(size.height).toBeGreaterThanOrEqual(844 + 500);
+    const url = new URL(storyUrl("http://127.0.0.1:6006", "a--b", preset));
+    expect(url.searchParams.get("path")).toBe("/story/a--b");
+    expect(url.searchParams.get("globals")).toBe("viewport.value:mobile1");
+    expect(new URL(storyUrl("http://127.0.0.1:6006", "a--b")).searchParams.has("globals")).toBe(false);
+  });
+
+  test("a story is only checked at its preset when both dimensions held as play began", () => {
+    const preset = { value: "mobile1", isRotated: false, width: 320, height: 568 };
+    const phase = (name, width, height) => ({ phase: name, width, height });
+    expect(checkViewport([phase("rendering", 320, 568), phase("playing", 320, 568), phase("played", 320, 568)], preset).applied).toBe(true);
+    // The race this guards: play starts at the manager default and the
+    // resize lands mid-play.
+    expect(checkViewport([phase("playing", 980, 380), phase("played", 320, 568)], preset).applied).toBe(false);
+    // Width alone is not enough.
+    expect(checkViewport([phase("playing", 320, 298)], preset).applied).toBe(false);
+    expect(checkViewport([phase("completed", 320, 568)], preset).applied).toBe(true);
+    expect(checkViewport([phase("playing", 980, 380)], null).applied).toBeNull();
+  });
+
+  test("a viewport that was not applied is never a pass", () => {
+    const result = (applied) => ({
+      id: "a--b", axe: applied ? { status: "pass" } : { status: "indeterminate", reason: "viewport_not_applied" },
+      interaction: applied ? { status: "pass" } : { status: "indeterminate", reason: "viewport_not_applied" },
+      viewport: { preset: { width: 320, height: 568 }, applied, warning: null },
+    });
+    expect(summarize({ baseUrl: "x", results: [result(true)] }).exitCode).toBe(0);
+    const failed = summarize({ baseUrl: "x", results: [result(false)] });
+    expect(failed.exitCode).toBe(1);
+    expect(failed.text).toContain("1 requested a preset; 0 started at the requested width and height; 1 did not");
+  });
 });

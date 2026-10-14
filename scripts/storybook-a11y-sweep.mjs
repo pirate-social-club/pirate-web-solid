@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
+import { MINIMAL_VIEWPORTS } from "storybook/viewport";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:6006";
 const DEFAULT_STORY_TIMEOUT_MS = 30_000;
@@ -173,10 +174,23 @@ const CHANNEL_INIT_SCRIPT = ({ eventNames }) => {
     value: state,
   });
 
+  // Frame size at each render phase. Only the preview frame emits these; the
+  // preview's own listeners never see its emits, so emit is wrapped.
+  state.phases = [];
+
   let channel;
   const attach = (candidate) => {
     channel = candidate;
     if (!candidate || typeof candidate.on !== "function") return;
+    if (typeof candidate.emit === "function") {
+      const emit = candidate.emit.bind(candidate);
+      candidate.emit = (name, ...args) => {
+        if (name === "storyRenderPhaseChanged") {
+          state.phases.push({ phase: args[0]?.newPhase ?? null, storyId: args[0]?.storyId ?? null, width: globalThis.innerWidth, height: globalThis.innerHeight });
+        }
+        return emit(name, ...args);
+      };
+    }
     state.channelReady = true;
     for (const name of eventNames) {
       candidate.on(name, (payload) => {
@@ -279,11 +293,100 @@ async function fetchIndex(baseUrl, timeoutMs) {
   }
 }
 
-function storyUrl(baseUrl, id) {
+/** The sweep's page size for stories that request no viewport. */
+export const DEFAULT_PAGE_SIZE = { width: 1280, height: 720 };
+// Room the manager takes around the canvas (sidebar, toolbar, addon panel).
+const MANAGER_CHROME = { width: 420, height: 560 };
+
+const pixels = (value) => (typeof value === "string" && /^\d+(\.\d+)?px$/.test(value) ? Number.parseFloat(value) : null);
+
+/**
+ * Resolves the viewport a story requests (its `viewport` global) against the
+ * addon's presets and the story's own `parameters.viewport.options`. Only a
+ * preset with pixel dimensions is applied; anything else is reported as a
+ * warning and the story runs at the default page size, as before.
+ *
+ * @param {{ globalsViewport?: unknown; parameterViewport?: unknown }} config
+ * @returns {{ requested: object|null; preset: { value: string; isRotated: boolean; width: number; height: number }|null; warning: string|null }}
+ */
+export function resolveStoryViewport(config) {
+  const requested = isRecord(config?.globalsViewport) ? config.globalsViewport : null;
+  const parameters = isRecord(config?.parameterViewport) ? config.parameterViewport : null;
+  const legacyDefault = typeof parameters?.defaultViewport === "string" ? parameters.defaultViewport : null;
+  const value = typeof requested?.value === "string" ? requested.value : null;
+  if (value === null) {
+    return { requested: null, preset: null, warning: legacyDefault ? `legacy parameters.viewport.defaultViewport "${legacyDefault}" is ignored by Storybook; use globals.viewport` : null };
+  }
+  const options = { ...MINIMAL_VIEWPORTS, ...(isRecord(parameters?.options) ? parameters.options : {}) };
+  const option = options[value];
+  let width = pixels(option?.styles?.width);
+  let height = pixels(option?.styles?.height);
+  if (width === null || height === null) {
+    return { requested, preset: null, warning: `viewport "${value}" is not a preset with pixel dimensions` };
+  }
+  const isRotated = requested.isRotated === true;
+  if (isRotated) [width, height] = [height, width];
+  return { requested, preset: { value, isRotated, width, height }, warning: null };
+}
+
+/** A page large enough for the manager to show the preset at full size. */
+export function pageSizeFor(preset) {
+  if (!preset) return DEFAULT_PAGE_SIZE;
+  return {
+    width: Math.max(DEFAULT_PAGE_SIZE.width, preset.width + MANAGER_CHROME.width),
+    height: Math.max(DEFAULT_PAGE_SIZE.height, preset.height + MANAGER_CHROME.height),
+  };
+}
+
+/**
+ * The manager URL for a story. A requested preset goes in the URL globals so
+ * the manager sizes the preview frame before the story renders and plays;
+ * applied later, the resize lands after the play function has started.
+ */
+export function storyUrl(baseUrl, id, preset = null) {
   const url = new URL("/", `${baseUrl}/`);
   url.searchParams.set("path", `/story/${id}`);
   url.searchParams.set("addonPanel", "storybook/a11y/panel");
+  if (preset) url.searchParams.set("globals", `viewport.value:${preset.value}${preset.isRotated ? ";viewport.isRotated:!true" : ""}`);
   return url.toString();
+}
+
+/**
+ * Checks the preview frame's size when the story started playing (or, with no
+ * play function, when it rendered) against the requested preset.
+ *
+ * @param {Array<{ phase: string|null; width: number; height: number }>} phases
+ * @param {{ width: number; height: number }|null} preset
+ */
+export function checkViewport(phases, preset) {
+  const at = (name) => phases.find((entry) => entry.phase === name) ?? null;
+  const start = at("playing") ?? at("completing") ?? at("completed");
+  const size = start ? { width: start.width, height: start.height, phase: start.phase } : null;
+  if (!preset) return { applied: null, size };
+  return { applied: Boolean(size && size.width === preset.width && size.height === preset.height), size };
+}
+
+/** Reads every selected story's viewport configuration from the preview's store. */
+async function readStoryViewports(page, baseUrl, ids, timeoutMs) {
+  await page.goto(new URL("/iframe.html", `${baseUrl}/`).toString(), { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Boolean(globalThis.__STORYBOOK_PREVIEW__?.storyStoreValue), null, { timeout: timeoutMs });
+  return page.evaluate(async (storyIds) => {
+    const store = globalThis.__STORYBOOK_PREVIEW__.storyStoreValue;
+    const out = {};
+    for (const id of storyIds) {
+      try {
+        const story = await store.loadStory({ storyId: id });
+        const parameters = story.parameters?.viewport;
+        out[id] = {
+          globalsViewport: story.storyGlobals?.viewport ?? null,
+          parameterViewport: parameters ? { options: parameters.options ?? null, defaultViewport: parameters.defaultViewport ?? null } : null,
+        };
+      } catch {
+        out[id] = null;
+      }
+    }
+    return out;
+  }, ids);
 }
 
 async function waitForStoryFinished(page, storyId, timeoutMs) {
@@ -333,26 +436,64 @@ async function runOnce(options, attempt) {
   /** @type {StoryResult[]} */
   const results = [];
   try {
+    const viewportConfigs = await readStoryViewports(page, options.baseUrl, stories.map((story) => story.id), options.startupTimeoutMs);
     for (const story of stories) {
       const startedAt = Date.now();
       let payload = null;
       let events = [];
       let error = null;
+      const config = viewportConfigs[story.id];
+      const resolvedViewport = config ? resolveStoryViewport(config) : { requested: null, preset: null, warning: "viewport configuration unavailable" };
+      let phases = [];
+      let remounted = false;
       try {
         // A page can retain the manager channel across a same-document story
         // change. Clear prior events so a previous play failure cannot poison
         // the next story's independent interaction result.
-        await page.evaluate((storyId) => globalThis.__STORYBOOK_A11Y_SWEEP__?.beginStory?.(storyId), story.id);
-        await page.goto(storyUrl(options.baseUrl, story.id), { waitUntil: "domcontentloaded" });
+        await page.evaluate((storyId) => globalThis.__STORYBOOK_A11Y_SWEEP__?.beginStory?.(storyId), story.id).catch(() => {});
+        await page.setViewportSize(pageSizeFor(resolvedViewport.preset));
+        await page.goto(storyUrl(options.baseUrl, story.id, resolvedViewport.preset), { waitUntil: "domcontentloaded" });
         ({ payload, events } = await waitForStoryFinished(page, story.id, options.storyTimeoutMs));
+        const preview = page.frames().find((frame) => frame.url().includes("/iframe.html"));
+        const readPhases = async () => (preview
+          ? await preview.evaluate((id) => (globalThis.__STORYBOOK_A11Y_SWEEP__?.phases ?? []).filter((entry) => entry.storyId === id), story.id).catch(() => [])
+          : []);
+        phases = await readPhases();
+        // The manager learns a story's own viewport options (for example a
+        // 390px "mobile1") only once the story is prepared, so the first run of
+        // such a story can start at the addon's default size. Once the manager
+        // has resized the frame, remount the story once and judge that run
+        // alone: its play function starts at the requested size.
+        const preset = resolvedViewport.preset;
+        if (preview && preset && checkViewport(phases, preset).applied === false) {
+          const now = await preview.evaluate(() => ({ width: globalThis.innerWidth, height: globalThis.innerHeight })).catch(() => null);
+          if (now && now.width === preset.width && now.height === preset.height) {
+            remounted = true;
+            await preview.evaluate(() => { if (globalThis.__STORYBOOK_A11Y_SWEEP__) globalThis.__STORYBOOK_A11Y_SWEEP__.phases = []; });
+            await page.evaluate((storyId) => globalThis.__STORYBOOK_A11Y_SWEEP__?.beginStory?.(storyId), story.id);
+            await page.evaluate((storyId) => globalThis.__STORYBOOK_ADDONS_CHANNEL__?.emit("forceRemount", { storyId }), story.id);
+            ({ payload, events } = await waitForStoryFinished(page, story.id, options.storyTimeoutMs));
+            phases = await readPhases();
+          }
+        }
       } catch (caught) {
         error = { name: caught?.name ?? "Error", message: String(caught?.message ?? caught) };
         events = Array.isArray(caught?.channelEvents) ? caught.channelEvents : [];
       }
 
-      const classified = error
+      const viewportCheck = checkViewport(phases, resolvedViewport.preset);
+      let classified = error
         ? classifyStoryTimeout()
         : classifyStoryFinished(payload, events, story.id);
+      // A story that asked for a viewport and did not get it before it started
+      // playing was not checked at that size: never a pass.
+      if (!error && viewportCheck.applied === false) {
+        classified = {
+          ...classified,
+          axe: { ...classified.axe, status: "indeterminate", reason: "viewport_not_applied" },
+          interaction: { status: "indeterminate", reason: "viewport_not_applied" },
+        };
+      }
       const panel = await panelEvidence(page).catch(() => ({ hasViolationCount: false, hasPassCount: false, hasIncompleteCount: false, bare: true }));
       results.push({
         recordType: "story",
@@ -364,6 +505,14 @@ async function runOnce(options, attempt) {
         storyStatus: classified.storyStatus,
         elapsedMs: Date.now() - startedAt,
         panel,
+        viewport: {
+          requested: resolvedViewport.requested,
+          preset: resolvedViewport.preset,
+          warning: resolvedViewport.warning,
+          atStart: viewportCheck.size,
+          applied: viewportCheck.applied,
+          remounted,
+        },
         raw: { storyFinished: payload, events },
         error,
       });
@@ -413,9 +562,15 @@ export function summarize(run) {
     `Axe incomplete checks: ${incomplete} (reported separately; not violations or indeterminate)`,
     `Interactions: ${interactionPass} pass, ${interactionFail} fail, ${interactionIndeterminate} indeterminate`,
     `Panel evidence: ${count((result) => result.panel?.bare)} bare/no-counter result(s) (diagnostic only; never a pass)`,
+    `Viewports: ${count((result) => result.viewport?.preset)} requested a preset; ${count((result) => result.viewport?.applied === true)} started at the requested width and height; ${count((result) => result.viewport?.applied === false)} did not`,
     `Exit: ${exitCode === 0 ? "PASS" : "FAIL"}`,
   ];
   if (run.startupError) lines.push(`Startup error: ${run.startupError.name}: ${run.startupError.message}`);
+  const viewportWarnings = results.filter((result) => result.viewport?.warning);
+  if (viewportWarnings.length > 0) {
+    lines.push("Viewport warnings (not failures):");
+    for (const result of viewportWarnings) lines.push(`- ${result.id}: ${result.viewport.warning}`);
+  }
   if (failures.length > 0) {
     lines.push("Failures:");
     for (const result of failures) {
