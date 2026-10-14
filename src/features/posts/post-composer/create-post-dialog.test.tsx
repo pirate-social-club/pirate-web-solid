@@ -100,7 +100,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
     if (current === null) throw new Error("missing stem submission");
     const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
     stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
-    const next = { ...current, stems, creation_revision: current.creation_revision + 1 };
+    const next = { ...current, stems };
     this.snapshot = next;
     return next;
   }
@@ -695,6 +695,51 @@ describe("create post request", () => {
       expect(transport.uploadCount).toBe(3);
     },
   );
+
+  test.each(["instrumental", "vocals"] as const)("locks uncertain %s selection/removal and retries its original attachment", async label => {
+    const slot = label === "instrumental" ? "instrumental_audio" : "vocal_audio";
+    class UncertainStemTransport extends ProductionMediaTransport {
+      readonly attachments: PostMediaPostSubmissionsSubmissionIdStemsInput[] = [];
+      override async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput) {
+        this.attachments.push(input);
+        if (input.body.slot === slot && this.attachments.filter(call => call.body.slot === slot).length === 1) {
+          throw new Error("Stem attachment uncertain");
+        }
+        return super.attachStem(input);
+      }
+    }
+    const transport = new UncertainStemTransport();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} open
+      personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
+    await uploadAudio();
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Stem attachment uncertain"));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    const original = transport.attachments.find(call => call.body.slot === slot);
+    const input = document.body.querySelector<HTMLInputElement>(`input[aria-label="Upload ${label}"]`)!;
+    const remove = button(`Remove ${label}`);
+    expect(input.disabled).toBe(true);
+    expect(remove.disabled).toBe(true);
+    if (label === "instrumental") expect(button("Remove vocals").disabled).toBe(false);
+    remove.click();
+    // Synthetic events must also respect the uncertainty lock.
+    remove.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    Object.defineProperty(input, "files", { configurable: true,
+      value: [new File(["replacement"], "replacement.mp3", { type: "audio/mpeg" })] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(document.body.textContent).toContain(`${label}.mp3`);
+    expect(document.body.textContent).not.toContain("replacement.mp3");
+    expect(transport.attachments.filter(call => call.body.slot === slot)).toHaveLength(1);
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
+    const attempts = transport.attachments.filter(call => call.body.slot === slot);
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toEqual(original);
+    expect(transport.stemCalls.filter(call => call === `reserve:${slot}`)).toHaveLength(1);
+    expect(transport.uploadCount).toBe(3);
+    expect(transport.snapshot?.creation_revision).toBe(1);
+  });
 
   test("refuses a non-MP3 stem and keeps the row empty", async () => {
     render(() => <CreatePostDialog

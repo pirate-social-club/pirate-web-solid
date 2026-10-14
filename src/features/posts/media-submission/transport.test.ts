@@ -34,7 +34,7 @@ describe("same-origin media submission transport", () => {
           signal: init?.signal, body: JSON.parse(String(init?.body)) });
         const value = url.endsWith("/stems")
           ? { submission_id: "submission-1", author_persona: { object: "persona", persona_id: "persona-1", display_name: null, avatar_ref: null, primary_public_handle: null },
-              href: "/media-post-submissions/submission-1", track: "song", creation_revision: 2, audio_revision: 1,
+              href: "/media-post-submissions/submission-1", track: "song", creation_revision: 1, audio_revision: 1,
               lyrics_state: { current: { status: "not_bound" } }, stems: { instrumental_audio: null,
                 vocal_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 3 } },
               updated_at: "2026-10-14T00:00:00Z", status: "processing", phase: "analysis" }

@@ -28,7 +28,7 @@ export function createHeldSongUploadTransport(options: { readonly unknownSize?: 
       return { ...reservation, reservation_id: `stem-${input.body.slot}`, slot: input.body.slot };
     },
     attachStem: async input => {
-      current = { ...current, creation_revision: current.creation_revision + 1,
+      current = { ...current,
         stems: { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null,
           [input.body.slot]: { status: "sealed", content_type: "audio/mpeg", size_bytes: 100 } } };
       return current;

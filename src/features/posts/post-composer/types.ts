@@ -411,6 +411,7 @@ export interface SongFlowRuntime {
   readonly prepared: boolean;
   readonly audioPrepared?: boolean;
   readonly stems?: { readonly instrumental: boolean; readonly vocals: boolean };
+  readonly pendingStems?: { readonly instrumental: boolean; readonly vocals: boolean };
   readonly retained: boolean;
   readonly locked: boolean;
 }

@@ -747,6 +747,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                     instrumental: mediaSnapshot()?.stems?.instrumental_audio?.status === "sealed",
                     vocals: mediaSnapshot()?.stems?.vocal_audio?.status === "sealed",
                   },
+                  pendingStems: {
+                    instrumental: mediaCoordinator?.isStemAttachmentPending("instrumental_audio") === true,
+                    vocals: mediaCoordinator?.isStemAttachmentPending("vocal_audio") === true,
+                  },
                   retained: mediaSnapshot() !== null,
                   locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
                 } : undefined}

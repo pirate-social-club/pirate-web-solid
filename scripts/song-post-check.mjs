@@ -305,7 +305,6 @@ const upstream = createServer(async (incoming, outgoing) => {
         assert(record.audioRevision >= 1, "stem attached before primary audio sealing");
         assert(parsed.expected_creation_revision === record.creationRevision, "stem used a stale creation revision");
         record.stemsCount += 1;
-        record.creationRevision += 1;
         record.stems[parsed.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
         // Model a server-accepted attachment with an unavailable response.
         if (record.submissionId === "submission-with-lyrics" && parsed.slot === "vocal_audio") {

@@ -175,7 +175,7 @@ export function SongStep(props: {
             id="song-stem-instrumental"
             label="Instrumental"
             attached={props.runtime?.stems?.instrumental === true}
-            locked={props.runtime?.locked === true || props.runtime?.stems?.instrumental === true}
+            locked={props.runtime?.locked === true || props.runtime?.stems?.instrumental === true || props.runtime?.pendingStems?.instrumental === true}
             onChange={(file) => controller.song.update((current) => ({
               ...current,
               instrumentalAudioUpload: file,
@@ -188,7 +188,7 @@ export function SongStep(props: {
             id="song-stem-vocals"
             label="Vocals"
             attached={props.runtime?.stems?.vocals === true}
-            locked={props.runtime?.locked === true || props.runtime?.stems?.vocals === true}
+            locked={props.runtime?.locked === true || props.runtime?.stems?.vocals === true || props.runtime?.pendingStems?.vocals === true}
             onChange={(file) => controller.song.update((current) => ({
               ...current,
               vocalAudioUpload: file,
@@ -241,7 +241,7 @@ export function SongStep(props: {
   );
 }
 
-/** One required stem, locked only while busy or after server acceptance. */
+/** Keep an uncertain stem's original file until its attachment is reconciled. */
 function StemRow(props: {
   file: File | null;
   id: string;
@@ -291,7 +291,7 @@ function StemRow(props: {
         <IconButton
           aria-label={`Remove ${props.label.toLowerCase()}`}
           disabled={props.locked}
-          onClick={() => props.onChange(null)}
+          onClick={() => { if (!props.locked) props.onChange(null); }}
           variant="ghost"
         >
           <IconX class="size-5" />

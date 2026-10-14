@@ -90,7 +90,7 @@ class StoryMediaTransport implements MediaSubmissionTransport {
     if (current === null) throw new Error("missing stem submission");
     const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
     stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
-    const next = { ...current, stems, creation_revision: current.creation_revision + 1 };
+    const next = { ...current, stems };
     this.snapshot = next;
     return next;
   }

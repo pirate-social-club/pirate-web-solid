@@ -43,3 +43,17 @@ acceptance still needs the coordinator's reviewed release after the staging
 freeze, authenticated browser uploads of real primary audio and matching stems,
 and downstream Karaoke/Study checks. This lane adds no migrations, generated
 client changes, deployments or Rewards activation.
+
+The PR #74 follow-up merges current main
+`784c97820ecd20617b3f9bef40b97a161370457d` into its existing feature branch.
+An uncertain attachment retains both its original `File` and generated command;
+that stem's selection and removal stay locked until a sealed read or a
+definitive refusal resolves it. Retry reuses the command and upload reservation.
+Observation reads have a 15-second deadline, and a completed finalize or stem
+POST wins over an outstanding read. Cancelled or late reads cannot overwrite
+the completed result. These attempts remain in memory for the dialog only.
+
+Unit, composer, story and local browser stem fixtures preserve
+`creation_revision` on attachment, matching the API contract. Focused tests
+cover both stem locks, attempted replacement/removal, exact-command replay,
+definitive refusal, and finalize/stem POST success during a hung GET.
