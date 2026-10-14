@@ -42,7 +42,7 @@ export function RadioGroup(props: ParentProps<RadioGroupProps>) {
   const rest = omit(props, "class", "children", "description", "errorMessage");
 
   return (
-    <KRadioGroup {...rest} class="flex min-h-0 flex-col gap-2">
+    <KRadioGroup {...rest} class="flex min-h-0 flex-col gap-1.5">
       <div class={trackClass()}>{props.children}</div>
       <Show when={props.description}>
         <RadioGroupDescription>{props.description}</RadioGroupDescription>

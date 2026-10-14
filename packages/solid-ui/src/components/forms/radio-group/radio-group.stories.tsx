@@ -129,12 +129,18 @@ export const Error: Story = {
     const canvas = within(canvasElement);
     const error = canvas.getByText("Pick a sort order.");
     await expect(error).toBeInTheDocument();
-    // Paper: description and error sit below the tinted track, not inside it.
-    const track = canvas.getByRole("radio", { name: "Newest" }).closest("[role=radiogroup] > div");
+    // Paper: description and error sit below the tinted track, not inside it,
+    // stacked 6px apart.
+    const group = canvas.getByRole("radiogroup");
+    const track = group.firstElementChild;
     if (!(track instanceof HTMLElement)) throw new globalThis.Error("track not found");
-    const trackBottom = track.getBoundingClientRect().bottom;
-    await expect(canvas.getByText("Controls the order of the list.").getBoundingClientRect().top).toBeGreaterThanOrEqual(trackBottom);
-    await expect(error.getBoundingClientRect().top).toBeGreaterThanOrEqual(trackBottom);
+    await expect(within(track).getAllByRole("radio")).toHaveLength(3);
+    await expect(track).not.toHaveTextContent("Controls the order of the list.");
+    const trackBox = track.getBoundingClientRect();
+    const description = canvas.getByText("Controls the order of the list.").getBoundingClientRect();
+    const errorBox = error.getBoundingClientRect();
+    await expect(Math.round(description.top - trackBox.bottom)).toBe(6);
+    await expect(Math.round(errorBox.top - description.bottom)).toBe(6);
     await expect(canvas.getByRole("radiogroup")).toHaveAccessibleDescription(/Controls the order of the list\./);
   },
 };
