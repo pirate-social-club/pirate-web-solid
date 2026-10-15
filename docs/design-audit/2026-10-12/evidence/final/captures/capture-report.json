@@ -1,0 +1,156 @@
+{
+ "screens-community-pageshell--mixed-kinds@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 181,
+    "text": "W | wavemaker | 2h | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 255,
+    "text": "W | wavemaker | 2h | Late-night loop, take two. | Harbor Lights | The Tidewater | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 584,
+    "text": "W | wavemaker | 2h | Open video post | Harbor Lights | 18 | 24"
+   }
+  ]
+ },
+ "screens-community-pageshell--mixed-kinds@1280": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 736,
+    "h": 181,
+    "text": "W | wavemaker | 2h | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   },
+   {
+    "w": 736,
+    "h": 255,
+    "text": "W | wavemaker | 2h | Late-night loop, take two. | Harbor Lights | The Tidewater | 18 | 24"
+   },
+   {
+    "w": 736,
+    "h": 584,
+    "text": "W | wavemaker | 2h | Open video post | Harbor Lights | 18 | 24"
+   }
+  ]
+ },
+ "screens-community-pageshell--video-delivery-states@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 601,
+    "text": "W | wavemaker | 2h | Still processing. | Playback is being prepared. | 0 | 0"
+   },
+   {
+    "w": 350,
+    "h": 621,
+    "text": "W | wavemaker | 2h | Delivery failed. | Playback is unavailable. | 0 | 0"
+   },
+   {
+    "w": 350,
+    "h": 620,
+    "text": "W | wavemaker | 2h | Ready before its thumbnail. | Harbor Lights | 0 | 0"
+   }
+  ]
+ },
+ "screens-community-pageshell--adult-video-access@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 592,
+    "text": "W | wavemaker | 2h | After hours. | This content is available after proving you are 18 or older. | Verify 18+ to view | Playback "
+   }
+  ]
+ },
+ "screens-profiles-profile--live-own-profile-mobile@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 255,
+    "text": "owned.pirate | 7d | Late-night loop, take two. | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 585,
+    "text": "owned.pirate | 7d | Open video post | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 201,
+    "text": "owned.pirate | 8d | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   }
+  ]
+ },
+ "screens-profiles-profile--live-own-profile@1280": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 600,
+    "h": 255,
+    "text": "owned.pirate | 7d | Late-night loop, take two. | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 600,
+    "h": 585,
+    "text": "owned.pirate | 7d | Open video post | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 600,
+    "h": 201,
+    "text": "owned.pirate | 8d | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   }
+  ]
+ },
+ "screens-profiles-profile--visitor-mobile@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 255,
+    "text": "owned.pirate | 7d | Late-night loop, take two. | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 585,
+    "text": "owned.pirate | 7d | Open video post | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 201,
+    "text": "owned.pirate | 8d | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   }
+  ]
+ },
+ "screens-profiles-profile--without-handle@390": {
+  "pageErrors": [],
+  "cards": [
+   {
+    "w": 350,
+    "h": 255,
+    "text": "owned.pirate | 7d | Late-night loop, take two. | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 585,
+    "text": "owned.pirate | 7d | Open video post | Harbor Lights | 18 | 24"
+   },
+   {
+    "w": 350,
+    "h": 201,
+    "text": "owned.pirate | 8d | Weekly listening thread | What have you had on repeat this week? | 18 | 24"
+   }
+  ]
+ },
+ "patterns-engagement-rewardpill--in-place@390": {
+  "pageErrors": [],
+  "cards": []
+ }
+}

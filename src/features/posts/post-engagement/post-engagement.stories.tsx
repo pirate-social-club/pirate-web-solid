@@ -157,8 +157,8 @@ export const PostReporting: Story = {
     await expect(body.queryByRole("menuitem", { name: "Report" })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Post options" }));
     await userEvent.click(body.getByRole("menuitem", { name: "Report" }));
-    await userEvent.selectOptions(body.getByLabelText("Post report reason"), "harassment");
-    await userEvent.click(body.getByRole("button", { name: "Submit report" }));
-    await expect(canvas.getByText("Post reported")).toBeVisible();
+    // A list of reasons; one tap sends the report.
+    await userEvent.click(await body.findByRole("button", { name: "Harassment" }));
+    await expect(await canvas.findByText("Post reported")).toBeVisible();
   },
 };

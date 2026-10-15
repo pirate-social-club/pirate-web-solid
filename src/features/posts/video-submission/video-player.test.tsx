@@ -245,3 +245,72 @@ test("the paused affordance plays and reports the interaction while mute never d
   await flush();
   expect(root.querySelector("[data-video-player-play]")).not.toBeNull();
 });
+
+function mountManual(mint: NonNullable<Parameters<typeof VideoPlayer>[0]["mint"]>, attach = fixtureAttach) {
+  const root = document.createElement("div"); document.body.appendChild(root);
+  createRoot(dispose => { disposers.push(dispose); render(() => <VideoPlayer activation="manual" layout="card" postId="post" state={{ playback: "ready", thumbnail: "ready" }} mint={mint} attach={attach} />, root); });
+  return root;
+}
+
+test("a manual card player stays silent, plays on the viewer's tap and keeps playing across a successful renewal", async () => {
+  let paused = true;
+  vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockImplementation(() => paused);
+  vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(HTMLMediaElement.HAVE_METADATA);
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => { paused = false; });
+  const pause = vi.mocked(HTMLMediaElement.prototype.pause);
+  const mint = vi.fn(async () => grant());
+  const attach = vi.fn(fixtureAttach);
+  const root = mountManual(mint, attach); await flush();
+  const video = root.querySelector("video")!;
+  video.dispatchEvent(new Event("canplay")); await flush();
+  // Initial silence: nothing starts on its own.
+  expect(play).not.toHaveBeenCalled();
+  root.querySelector<HTMLButtonElement>("[data-video-player-play]")!.click(); await flush();
+  expect(play).toHaveBeenCalledTimes(1);
+  video.dispatchEvent(new Event("play")); video.currentTime = 12;
+  const pausesBeforeRenewal = pause.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(240_000);
+  expect(mint).toHaveBeenCalledTimes(2);
+  expect(attach.mock.calls[1]![0]).toMatchObject({ resume: true, position: 12 });
+  // The renewal's loading and ready states never pause the viewer's playback.
+  video.dispatchEvent(new Event("canplay")); await flush();
+  expect(pause.mock.calls.length).toBe(pausesBeforeRenewal);
+  expect(play).toHaveBeenCalledTimes(1);
+});
+
+test("a manual card player paused by the viewer stays paused across a renewal", async () => {
+  let paused = true;
+  vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockImplementation(() => paused);
+  vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(HTMLMediaElement.HAVE_METADATA);
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => { paused = false; });
+  const attach = vi.fn(fixtureAttach);
+  const root = mountManual(async () => grant(), attach); await flush();
+  const video = root.querySelector("video")!;
+  video.dispatchEvent(new Event("canplay")); await flush();
+  root.querySelector<HTMLButtonElement>("[data-video-player-play]")!.click(); await flush();
+  video.dispatchEvent(new Event("play"));
+  // The viewer pauses.
+  paused = true; video.currentTime = 30; video.dispatchEvent(new Event("pause")); await flush();
+  await vi.advanceTimersByTimeAsync(240_000);
+  expect(attach.mock.calls[1]![0]).toMatchObject({ resume: false, position: 30 });
+  video.dispatchEvent(new Event("canplay")); await flush();
+  expect(play).toHaveBeenCalledTimes(1);
+  expect(root.querySelector("[data-video-player-play]")).not.toBeNull();
+});
+
+test("leaving the viewport ends a manual card player's play intent", async () => {
+  let paused = true;
+  vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockImplementation(() => paused);
+  vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockReturnValue(HTMLMediaElement.HAVE_METADATA);
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async () => { paused = false; });
+  const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  const attach = vi.fn(fixtureAttach);
+  const root = mountManual(async () => grant(), attach); await flush();
+  const video = root.querySelector("video")!;
+  video.dispatchEvent(new Event("canplay")); await flush();
+  root.querySelector<HTMLButtonElement>("[data-video-player-play]")!.click(); await flush();
+  video.currentTime = 8;
+  visibility.mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange")); await flush();
+  visibility.mockReturnValue("visible"); document.dispatchEvent(new Event("visibilitychange")); await flush();
+  expect(attach.mock.calls.at(-1)![0]).toMatchObject({ resume: false, position: 8 });
+});

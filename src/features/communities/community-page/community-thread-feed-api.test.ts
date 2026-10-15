@@ -127,6 +127,49 @@ describe("public Community thread feed", () => {
     expect(normalizeCommunityThreadPage(media).posts[0]?.supportsPostReports).toBe(false);
   });
 
+  test("projects a video's delivery status, age policy and soundtrack title, never a media URL", () => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const feed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({ ...response,
+      items: [{ ...item,
+        post: { ...item.post, post_type: "video", title: null, body: null, caption: "Late-night loop, take two.",
+          age_gate_policy: "18_plus", media_refs: [{ playback_url: "https://example.com/leak.m3u8" }] },
+        video: { track: "video", caption: "Late-night loop, take two.", caption_dir: "ltr", caption_lang: "en",
+          soundtrack: { kind: "song_reference", render_mode: "canonical_replace",
+            song_reference: { song_post_id: "song-1", song_title: "Harbor Lights", song_author_persona_id: "persona-1" } },
+          playback: { status: "ready", provider: "stream", playback_ref: "opaque-ref" },
+          thumbnail: { status: "pending" }, data_registration: "registered", capabilities: { can_post_with_song: true } } }] }));
+    const [post] = normalizeCommunityThreadPage(feed).posts;
+    expect(post).toMatchObject({ kind: "video", body: "Late-night loop, take two.", mediaTitle: "Harbor Lights",
+      requiresAgeVerification: true, supportsPostReports: false, video: { playback: "ready", thumbnail: "pending" } });
+    expect(JSON.stringify(post)).not.toContain("leak.m3u8");
+    expect(JSON.stringify(post)).not.toContain("opaque-ref");
+  });
+
+  test("a video without a delivery projection is unavailable, and an original sound names no song", () => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const feed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({ ...response,
+      items: [{ ...item, post: { ...item.post, id: "bare", post_type: "video" } }, { ...item,
+        post: { ...item.post, id: "original", post_type: "video" },
+        video: { track: "video", caption: null, caption_dir: null, caption_lang: null,
+          soundtrack: { kind: "original_audio", original_sound_id: "s", origin_video_post_id: "original", origin_author_persona_id: "p" },
+          playback: { status: "pending" }, thumbnail: { status: "unavailable" }, data_registration: "registration_pending",
+          capabilities: { can_post_with_song: false } } }] }));
+    const [bare, original] = normalizeCommunityThreadPage(feed).posts;
+    expect(bare?.video).toEqual({ playback: "unavailable", thumbnail: "unavailable" });
+    expect(original?.video).toEqual({ playback: "pending", thumbnail: "unavailable" });
+    expect(original?.mediaTitle).toBeUndefined();
+  });
+
+  test.each(["image", "link", "crosspost", "file"])("leaves %s posts out instead of drawing them as text", (postType) => {
+    const item = response.items[0];
+    if (!item || !("post" in item)) throw new Error("Expected the public post fixture");
+    const feed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({ ...response,
+      items: [{ ...item, post: { ...item.post, post_type: postType } }] }));
+    expect(normalizeCommunityThreadPage(feed).posts).toEqual([]);
+  });
+
   test("keeps both vote sides when the net score cannot express them", () => {
     const mixed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({
       ...response,

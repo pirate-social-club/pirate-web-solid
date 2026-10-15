@@ -19,5 +19,5 @@ export function OwnProfileSettings(props: { personaId?: string; handle?: string 
       ? profile.personaId === props.personaId
       : profile.publicHandle?.toLowerCase() === props.handle?.toLowerCase()) ?? false;
   };
-  return <Show when={ownsProfile()}><a class={buttonVariants({ variant: "default", class: "w-full md:w-auto" })} href="/settings">Settings</a></Show>;
+  return <Show when={ownsProfile()}><a class={buttonVariants({ variant: "outline", class: "w-full rounded-lg bg-transparent" })} href="/settings">Settings</a></Show>;
 }

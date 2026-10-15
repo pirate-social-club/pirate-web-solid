@@ -9,7 +9,7 @@ export const OwnProfileSettings: Story = {
   render: () => <ProfileSettingsReview />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findAllByRole("tab")).toHaveLength(3);
+    await expect(await canvas.findByRole("region", { name: "Posts" })).toBeInTheDocument();
     await userEvent.click(await canvas.findByRole("link", { name: "Settings" }));
     await expect(await canvas.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
@@ -22,9 +22,10 @@ export const ProfileHeader: Story = {
   render: () => <ProfileSettingsReview />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Owned profile" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { level: 1, name: "owned.pirate" })).toBeVisible();
     await expect(canvas.getByText("Songs, community sessions and late-night listening.")).toBeVisible();
-    // The profile carries its activity tabs now that the public activity read exists.
-    await expect((await canvas.findAllByRole("tab")).map(tab => tab.getAttribute("aria-label"))).toEqual(["Overview", "Posts", "Comments"]);
+    // One feed of the profile's posts, with no tabs.
+    await expect(await canvas.findByRole("region", { name: "Posts" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("tab")).not.toBeInTheDocument();
   },
 };

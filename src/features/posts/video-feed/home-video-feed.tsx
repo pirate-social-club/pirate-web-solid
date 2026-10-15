@@ -2,7 +2,7 @@ import type { verifyAdultViewing } from "../../verification/age-verification.ts"
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { feedSlots } from "../feed/feed-slots.ts";
 import { Title } from "@solidjs/meta";
-import { VerticalFeed, type VideoSourceAttacher } from "@pirate/web-solid-ui";
+import { VerticalFeed, type MediaMoreAction, type VideoSourceAttacher } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { videoPosterPath, type mintPlaybackAccess } from "../video-submission/playback-access";
 import type { attachPlayback } from "../video-submission/playback-engine";
@@ -11,11 +11,21 @@ import {
   type SongAttributionLinkResolver,
 } from "../song-attribution/song-attribution";
 
-import { Spinner, Type } from "../../../design-system.ts";
+import { engagementIssueMessage } from "../post-engagement/post-engagement-model.ts";
+import {
+  createPostEngagementTransport,
+  type CommentReportReason,
+  type PostEngagementTransport,
+} from "../post-engagement/post-engagement-api.ts";
+import {
+  createDefaultPendingEngagementStorage,
+  type PendingEngagementStorage,
+} from "../post-engagement/post-engagement-pending.ts";
+import { submitPostReport, unavailablePendingStorage } from "../post-engagement/pending-engagement-flow.ts";
+import { VideoFeedReport } from "./video-feed-report.tsx";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "../feed/feed-model.ts";
-import type { FeedPage } from "../feed/public-feed-adapter.ts";
-import type { FeedPageLoader } from "../feed/public-feed.tsx";
+import type { FeedPage, FeedPageLoader } from "../feed/public-feed-adapter.ts";
 import {
   playableHomeVideos,
   resolveVideoMedia,
@@ -52,6 +62,27 @@ export interface HomeVideoFeedProps {
   readonly locale?: UiLocaleCode;
   readonly sort?: FeedSort;
   readonly navigate?: (href: string) => void;
+  /**
+   * The signed-in viewer's account id, scoping durable report records. Report
+   * is offered only with it, and only on posts from communities the viewer is
+   * a member of. Signed out, the phone header's Sign in owns the top right,
+   * so the phone More button is left out.
+   */
+  readonly principalId?: string;
+  /**
+   * Whether the API accepts reports on video posts. It does not yet: api-next
+   * resolves a post report through its text submission, so a video report is
+   * answered "not found". Until it does, the production feed leaves Report out
+   * of More rather than offering an action that cannot succeed; reviews and
+   * tests enable it to exercise the finished flow.
+   */
+  readonly videoReportsSupported?: boolean;
+  /** Test/review seam; production reports through the post-engagement transport. */
+  readonly reportTransport?: Pick<PostEngagementTransport, "reportPost">;
+  /** Test/review seam; production keeps report records in durable storage. */
+  readonly pendingStorage?: PendingEngagementStorage;
+  /** Test/review seam; production uses a random idempotency key. */
+  readonly generateIdempotencyKey?: () => string;
 }
 
 type HomeFeedRow = HomeVideoPost | Readonly<{ id: string; placeholder: true }>;
@@ -114,6 +145,16 @@ async function collectVideoPage(
 function navigateTo(href: string, navigate?: (href: string) => void): void {
   if (navigate) navigate(href);
   else globalThis.location?.assign(href);
+}
+
+/**
+ * The feed's 32px loading ring: a 3px border-coloured track and a primary
+ * quarter arc, drawn with borders (the repository allows no hand-authored SVG).
+ */
+function FeedLoadingRing() {
+  return (
+    <div role="status" aria-label="Loading videos" class="size-8 animate-spin rounded-full border-[3px] border-border border-t-primary motion-reduce:animate-none" />
+  );
 }
 
 /**
@@ -228,6 +269,14 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     () => ({ initial: props.data, locale: props.locale ?? "en", sort: props.sort ?? "best", sourceIdentity: props.sourceIdentity }),
     input => { queueMicrotask(() => reload(input)); },
   );
+  // "Try again" asks the loader for the first page again: initial data that
+  // failed once is not replayed.
+  const retryFirstPage = () => reload({
+    initial: undefined,
+    locale: props.locale ?? "en",
+    sort: props.sort ?? "best",
+    sourceIdentity: props.sourceIdentity,
+  });
 
   const loadMore = async () => {
     const cursor = nextCursor();
@@ -346,6 +395,70 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     const href = postActivities(postId)?.find(activity => activity.id === activityId)?.href;
     if (href) navigateTo(href, props.navigate);
   };
+  // Report: offered to signed-in members of the post's community. One tap on
+  // a reason sends it through the durable pending envelope, so a retry of the
+  // same reason replays its idempotency key.
+  const [reportingPostId, setReportingPostId] = createSignal<string>();
+  const [reportBusy, setReportBusy] = createSignal(false);
+  const [reportError, setReportError] = createSignal<string>();
+  const [reportAnnouncement, setReportAnnouncement] = createSignal("");
+  let reportInFlight = false;
+  let reportTransport: Pick<PostEngagementTransport, "reportPost"> | undefined;
+  let reportStorage: PendingEngagementStorage | undefined;
+  const reportDependencies = () => {
+    reportTransport ??= props.reportTransport ?? createPostEngagementTransport();
+    if (reportStorage === undefined) {
+      try {
+        reportStorage = props.pendingStorage ?? createDefaultPendingEngagementStorage();
+      } catch {
+        reportStorage = unavailablePendingStorage();
+      }
+    }
+    return { transport: reportTransport, storage: reportStorage };
+  };
+  const openReport = (postId: string) => {
+    setReportError(undefined);
+    setReportAnnouncement("");
+    setReportingPostId(postId);
+  };
+  const sendReport = async (reasonCode: CommentReportReason) => {
+    const postId = reportingPostId();
+    const principalId = props.principalId;
+    if (!postId || !principalId || reportInFlight) return;
+    reportInFlight = true;
+    setReportBusy(true);
+    setReportError(undefined);
+    try {
+      const { transport, storage } = reportDependencies();
+      const outcome = await submitPostReport({
+        principalId,
+        postId,
+        reasonCode,
+        transport,
+        storage,
+        generateKey: props.generateIdempotencyKey ?? (() => crypto.randomUUID()),
+      });
+      if (!active) return;
+      if (outcome.kind === "reported") {
+        setReportingPostId(undefined);
+        setReportAnnouncement("Report sent.");
+        return;
+      }
+      setReportError(engagementIssueMessage(
+        outcome.kind === "failed" ? outcome.issue
+          : outcome.kind === "pending_other" ? { kind: "pending_action" }
+            : { kind: "durable_storage_failed" },
+      ));
+    } finally {
+      reportInFlight = false;
+      if (active) setReportBusy(false);
+    }
+  };
+  const moreActions = (postId: string): readonly MediaMoreAction[] | undefined =>
+    props.videoReportsSupported === true && props.principalId && mediaPost(postId)?.viewerIsMember
+      ? [{ id: "report", label: "Report", onSelect: () => openReport(postId) }]
+      : undefined;
+
   const sharePost = (postId: string) => {
     const href = mediaPost(postId)?.communityDestination;
     if (!href || typeof navigator === "undefined") return;
@@ -358,18 +471,46 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   };
 
   return (
-    <main class="h-[100dvh] bg-black md:h-screen" data-video-feed-state={state().kind}>
+    <main class="h-[100dvh] bg-background md:h-screen" data-video-feed-state={state().kind}>
       <Title>Videos for you</Title>
-      <Show when={state().kind !== "loading"} fallback={<div class="grid h-full place-items-center"><Spinner label="Loading videos" /></div>}>
-        <Show when={state().kind === "ready"} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">Video feed unavailable</Type><Type variant="body" class="mt-2 text-white/70">Try again in a moment.</Type></div></div>}>
+      <Show when={state().kind !== "loading"} fallback={<div class="grid h-full place-items-center"><FeedLoadingRing /></div>}>
+        <Show
+          when={state().kind === "ready"}
+          fallback={
+            <div class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+              <p class="text-base leading-6 text-foreground">Couldn't load the feed.</p>
+              <button
+                type="button"
+                class="h-11 cursor-pointer rounded-[var(--radius-lg)] border border-border bg-card px-5 text-base font-semibold leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={retryFirstPage}
+              >
+                Try again
+              </button>
+            </div>
+          }
+        >
           <Show
             when={posts().length > 0}
-            fallback={<div class="grid h-full place-items-center px-6 text-center"><div class="flex flex-col items-center gap-3"><Type variant="h2" class="text-white">{processingCount() > 0 ? "Videos are being prepared" : "No videos yet"}</Type><Type variant="body" class="text-white/70">{processingCount() > 0 ? "Published videos appear here as soon as playback is ready." : "Published community videos will appear here."}</Type><FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} /></div></div>}
+            fallback={
+              <div class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+                <Show
+                  when={processingCount() > 0}
+                  fallback={<p class="text-lg font-semibold leading-7 tracking-[-0.025em] text-foreground">Nothing here yet</p>}
+                >
+                  {/* No Paper equivalent: an author's video still processing. */}
+                  <div class="flex flex-col items-center gap-1">
+                    <p class="text-lg font-semibold leading-7 tracking-[-0.025em] text-foreground">Videos are being prepared</p>
+                    <p class="text-base leading-6 text-muted-foreground">Published videos appear here as soon as playback is ready.</p>
+                  </div>
+                </Show>
+                <FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} />
+              </div>
+            }
           >
             <div class="relative h-full">
               <VerticalFeed
-                class="bg-black"
-                emptyMessage="No videos yet"
+                class="bg-background"
+                emptyMessage="Nothing here yet"
                 feedLabel="Videos for you"
                 hasMobileFooter
                 hasMore={nextCursor() !== null}
@@ -389,6 +530,8 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onSoundtrackClick={openSong}
                 activities={postActivities}
                 onActivityClick={openActivity}
+                moreActions={moreActions}
+                mobileMoreBelowHeader={!props.principalId}
                 renderPlaceholder={() => (
                   <div class="grid h-full place-items-center px-4 text-white">
                     <AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} />
@@ -406,6 +549,14 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
           </Show>
         </Show>
       </Show>
+      <VideoFeedReport
+        open={reportingPostId() !== undefined}
+        busy={reportBusy()}
+        error={reportError()}
+        onOpenChange={(open) => { if (!open && !reportInFlight) setReportingPostId(undefined); }}
+        onChoose={(reason) => { void sendReport(reason); }}
+      />
+      <span aria-live="polite" class="sr-only">{reportAnnouncement()}</span>
     </main>
   );
 }

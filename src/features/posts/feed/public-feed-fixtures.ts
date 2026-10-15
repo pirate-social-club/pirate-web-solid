@@ -20,6 +20,11 @@ export const reviewPlaybackMint = async (): Promise<PlaybackGrant> => {
   };
 };
 export const reviewPosterPath = (): string => reviewPosterUrl;
+/** Reports canplay so a ready player can be reviewed without a stream. */
+export const reviewCanplayAttach = async (input: { video: HTMLVideoElement }): Promise<() => void> => {
+  input.video.dispatchEvent(new Event("canplay"));
+  return () => {};
+};
 export const reviewSongLinks: SongAttributionLinkResolver = async (attribution) => ({
   href: `/p/${encodeURIComponent(attribution.songPostId)}`,
   title: "Harness practice song",

@@ -1,0 +1,21 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6126
+Catalog: 130 files / 780 stories; selected 130 files / 780 stories
+Axe: 777 pass, 0 violation-fail, 3 indeterminate
+Axe incomplete checks: 234 (reported separately; not violations or indeterminate)
+Interactions: 771 pass, 6 fail, 3 indeterminate
+Panel evidence: 780 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: FAIL
+Failures:
+- flows-posts-videopost-authoring--desktop-review: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-error: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-playback: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-posting-as: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- flows-posts-videopost-authoring--review-stall: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--upload-progress: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--uploaded-video-too-long: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--video-not-accepted: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- flows-posts-videopost-authoring--video-not-accepted-by-song: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+Ledger: <scratchpad>/s2final-sweep.jsonl
+Summary: <scratchpad>/s2final-sweep.txt
+exit=1

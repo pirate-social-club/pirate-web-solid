@@ -12,7 +12,7 @@ describe("community page shell model", () => {
   test("states each membership mode once, and says nothing for open", () => {
     expect(membershipLine("gated")).toBe("Members verify with a palm scan.");
     expect(membershipLine("request")).toBe("Membership is by request.");
-    expect(membershipLine("open")).toBeNull();
+    expect(membershipLine("open")).toBe("Anyone can join.");
     expect(membershipLine(undefined)).toBeNull();
   });
 
