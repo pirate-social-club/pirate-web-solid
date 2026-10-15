@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
+import { createSignal } from "solid-js";
 
 import { Button } from "@/components/actions/button/button";
 import { IconMusicNote, IconPlay } from "@/components/media/icons";
@@ -179,5 +180,31 @@ export const ImageFallback: Story = {
     const style = getComputedStyle(tile);
     await expect(style.borderTopLeftRadius).toBe("4px");
     await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  },
+};
+
+/** A tile that failed shows its image again once a replacement source loads. */
+export const ImageRecovers: Story = {
+  name: "Image fallback recovers",
+  render: () => {
+    const [src, setSrc] = createSignal("/missing-artwork.png");
+    return (
+      <StoryRow>
+        <ItemMedia data-testid="image-tile" variant="image">
+          <img alt="Album artwork" class="size-full object-cover" draggable={false} src={src()} />
+        </ItemMedia>
+        <Button onClick={() => setSrc(artworkSrc)} size="sm" variant="outline">Use another image</Button>
+      </StoryRow>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const image = canvas.getByTestId("image-tile").querySelector("img") as HTMLImageElement;
+    await waitFor(() => expect(image.hidden).toBe(true));
+    await userEvent.click(canvas.getByRole("button", { name: "Use another image" }));
+    // The replacement loads, so the tile shows it again at full size.
+    await waitFor(() => expect(image.hidden).toBe(false));
+    await waitFor(() => expect(image.getBoundingClientRect().width).toBe(48));
+    await expect(image.naturalWidth).toBeGreaterThan(0);
   },
 };
