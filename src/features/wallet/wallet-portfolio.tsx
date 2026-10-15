@@ -27,7 +27,7 @@ export interface WalletPortfolioProps {
 export function WalletPortfolio(props: WalletPortfolioProps) {
   const selected = () => props.wallets.find(wallet => wallet.personaId === props.selectedPersonaId);
   const sections = () => props.chainSections ?? walletAssetSections(selected()?.address ?? null, props.networkMode ?? "mainnet");
-  return <div class="mx-auto flex w-full max-w-2xl flex-col gap-5">
+  return <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex gap-2" role="group" aria-label="Wallet networks">
         <Button size="sm" disabled={!props.onNetworkModeChange} variant={(props.networkMode ?? "mainnet") === "mainnet" ? "secondary" : "ghost"} aria-pressed={(props.networkMode ?? "mainnet") === "mainnet" ? "true" : "false"} onClick={() => props.onNetworkModeChange?.("mainnet")}>Mainnet</Button>

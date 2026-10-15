@@ -81,7 +81,7 @@ export function WalletHub(props: WalletHubProps) {
 
   return (
     <div
-      class="mx-auto flex w-full max-w-2xl flex-col gap-4"
+      class="mx-auto flex w-full max-w-[640px] flex-col gap-4"
       data-variant={props.variant ?? "route"}
       data-wallet-hub
     >

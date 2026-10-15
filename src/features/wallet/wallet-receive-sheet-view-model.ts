@@ -1,7 +1,6 @@
 import {
   chainFiatTotal,
   formatFiatTotal,
-  truncateReceiveAddress,
 } from "./wallet-receive-sheet-model";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 import type { WalletHubChainId } from "./wallet-hub.types";
@@ -59,7 +58,8 @@ export function buildWalletReceiveSheetView(
 
   return {
     address,
-    addressLabel: truncateReceiveAddress(address),
+    // Paper: the full address, never cut in the middle; it wraps.
+    addressLabel: address ?? "",
     selectedChainId: resolvedChainId,
     selectedTitle: props.chainSections.find((section) => section.chainId === resolvedChainId)?.title,
     chains: props.chainSections.map((section) => {
