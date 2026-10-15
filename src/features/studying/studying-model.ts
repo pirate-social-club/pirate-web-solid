@@ -47,7 +47,7 @@ export type StudyingSurfaceState =
     heardTranscript?: string;
     /** Token diff for the last miss, preserved for the wrong-phase feedback. */
     diff?: StudyingTranscriptDiff;
-    phase: "idle" | "listening" | "checking" | "wrong";
+    phase: "idle" | "acquiring" | "listening" | "checking" | "blocked" | "wrong";
     /** True once the card is spent, so the miss is final rather than retryable. */
     revealReference?: boolean;
     /** Whether a spent card is coming back later in this lesson. */
@@ -210,6 +210,8 @@ export function primaryActionLabel(
     case "say_it_back":
       if (state.phase === "wrong") return state.revealReference ? "Continue" : "Record";
       if (state.phase === "checking") return "Checking…";
+      if (state.phase === "acquiring") return "Starting microphone…";
+      if (state.phase === "blocked") return "Recording paused";
       return state.phase === "listening" ? "Stop" : sayItBackIdleLabel ?? "Record";
     case "multiple_choice":
       if (state.submitting) return "Checking…";
@@ -227,7 +229,7 @@ export function primaryActionVariant(state: StudyingSurfaceState): "default" | "
 
 export function primaryActionDisabled(state: StudyingSurfaceState): boolean {
   if (state.kind === "multiple_choice") return Boolean(state.submitting);
-  if (state.kind === "say_it_back") return state.phase === "checking";
+  if (state.kind === "say_it_back") return state.phase === "checking" || state.phase === "acquiring" || state.phase === "blocked";
   return false;
 }
 
