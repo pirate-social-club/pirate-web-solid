@@ -157,6 +157,7 @@ export class KaraokeSessionClient {
   private descriptor: KaraokeSessionDescriptor | null = null;
   private socket: KaraokeClientSocket | null = null;
   private startInput: { postId: string; startedAtAudioMs: number } | null = null;
+  private startSent = false;
   private sequence = 0; // shared by client events + binary frames; persists across reconnects
   private chunkId = 0;
   private refreshTimer: unknown = null;
@@ -368,10 +369,10 @@ export class KaraokeSessionClient {
     if (this.isTerminal()) return;
     this.descriptor = descriptor;
     this.setPhase("connecting");
-    this.openSocket(sendStart);
+    this.openSocket();
   }
 
-  private openSocket(sendStart: boolean): void {
+  private openSocket(): void {
     if (!this.descriptor) return;
     let opened = false;
     let socket: KaraokeClientSocket;
@@ -398,10 +399,9 @@ export class KaraokeSessionClient {
       this.setPhase("live");
       this.reconnectAttempts = 0;
       this.reconnectAttemptInFlight = false;
-      // Send `start` only on the initial connection. On reconnect the server's
-      // DO is already recording (restored); resume by streaming fresh audio —
-      // never re-send start and never replay PCM.
-      if (sendStart && this.startInput) {
+      // A creation retry may open the first actual socket. Send start once on
+      // that socket; an established reconnect streams only fresh audio.
+      if (!this.startSent && this.startInput) {
         this.socket.send(JSON.stringify({
           attemptId: this.descriptor!.attempt,
           postId: this.startInput.postId,
@@ -411,6 +411,7 @@ export class KaraokeSessionClient {
           startedAtAudioMs: this.startInput.startedAtAudioMs,
           type: "start",
         } satisfies KaraokeClientEvent));
+        this.startSent = true;
       } else {
         // Reconnect: resume capture (set a fresh anchor + reactivate) only after
         // the suspend transition has completed and THIS socket is still live (§6).
@@ -518,7 +519,8 @@ export class KaraokeSessionClient {
       if (this.isTerminal()) return;
       this.reconnectAttemptInFlight = true;
       // Replay creation with the SAME idempotency key → refreshed token, same
-      // attempt. Do not re-send start; do not replay PCM.
+      // attempt. The first successful socket still needs start; an established
+      // reconnect must not re-send it or replay PCM.
       void this.createAndConnect(false);
     }, delayMs);
   }
