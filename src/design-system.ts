@@ -145,6 +145,7 @@ export {
   IconChatCircle,
   IconChatCircleDots,
   IconCheckCircle,
+  IconClock,
   IconCrown,
   IconDotsThree,
   IconEye,
