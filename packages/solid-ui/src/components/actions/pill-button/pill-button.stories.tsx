@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { StoryRow, StoryStack } from "@/stories/lib/story-layout";
-import { PillButton } from "./pill-button";
+import { PillButton, pillButtonVariants } from "./pill-button";
 
 const meta = {
   title: "Components/Actions/PillButton",
@@ -60,6 +60,32 @@ export const Variants: Story = {
     await expect(
       canvas.getByRole("button", { name: "Original", pressed: true }),
     ).toBeVisible();
+  },
+};
+
+/** Paper's Hover row: both tones in their pointer-over state, drawn statically. */
+export const Hover: Story = {
+  render: () => (
+    <StoryRow>
+      <PillButton class="bg-card-hover text-foreground">Best</PillButton>
+      <PillButton class="bg-primary-hover" tone="selected">Top</PillButton>
+    </StoryRow>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The static classes mirror the recipe's own hover utilities.
+    const defaultTone = pillButtonVariants({ tone: "default" }).split(" ");
+    await expect(defaultTone).toContain("hover:bg-card-hover");
+    await expect(defaultTone).toContain("hover:text-foreground");
+    await expect(pillButtonVariants({ tone: "selected" }).split(" ")).toContain("hover:bg-primary-hover");
+
+    const best = canvas.getByRole("button", { name: "Best" });
+    await expect(best).toHaveClass("bg-card-hover", "text-foreground");
+    await expect(best).not.toHaveClass("bg-card");
+    await expect(best).not.toHaveClass("text-muted-foreground");
+    const top = canvas.getByRole("button", { name: "Top" });
+    await expect(top).toHaveClass("bg-primary-hover");
+    await expect(top).not.toHaveClass("bg-primary");
   },
 };
 

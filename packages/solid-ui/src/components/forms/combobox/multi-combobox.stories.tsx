@@ -9,16 +9,15 @@ import {
   sortOptions,
   type DemoOption,
 } from "@/stories/lib/fixtures";
+import { boardWidth, widthOf } from "@/stories/lib/story-measure";
 import { MultiCombobox, type MultiComboboxProps } from "./multi-combobox";
 
-const meta = {
-  title: "Components/Forms/MultiCombobox",
-  component: MultiCombobox,
-  tags: ["autodocs"],
-  render: controlledRender<MultiComboboxProps<DemoOption>, readonly string[] | undefined>(
+/** Paper draws the field 320px wide on desktop and 358px in the phone frame. */
+function renderField(wrapperClass: string) {
+  return controlledRender<MultiComboboxProps<DemoOption>, readonly string[] | undefined>(
     (args) => args.value,
     (value, setValue, args) => (
-      <div class="w-96">
+      <div class={wrapperClass} data-testid="multi-combobox-frame">
         <MultiCombobox
           {...args}
           aria-label="Sort order"
@@ -30,7 +29,14 @@ const meta = {
         />
       </div>
     ),
-  ),
+  );
+}
+
+const meta = {
+  title: "Components/Forms/MultiCombobox",
+  component: MultiCombobox,
+  tags: ["autodocs"],
+  render: renderField("w-80 max-w-full"),
   args: {
     onChange: fn(),
     options: sortOptions,
@@ -71,6 +77,17 @@ export const WithChips: Story = {
   args: { value: ["top", "new"] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    // Paper ends this state with both chips in the field.
+    await expect(canvas.getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
+    await expect(widthOf(canvas.getByTestId("multi-combobox-frame"))).toBe(boardWidth(320));
+  },
+};
+
+/** Removing a chip from the field; kept apart so WithChips rests on the board state. */
+export const RemoveChip: Story = {
+  args: { value: ["top", "new"] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await expect(canvas.getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
 
     await userEvent.click(canvas.getByRole("button", { name: "Remove Newest" }));
@@ -89,5 +106,15 @@ export const Disabled: Story = {
 export const Mobile: Story = {
   args: { value: ["top", "new"] },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+  // A 390 phone leaves a 358px content column after 16px gutters.
+  render: renderField("w-[358px] max-w-[calc(100vw-2rem)]"),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = canvas.getByTestId("multi-combobox-frame");
+    await expect(widthOf(frame)).toBe(boardWidth(358));
+    await expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+    await expect(canvas.getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
+  },
 };
 

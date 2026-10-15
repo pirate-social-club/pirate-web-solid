@@ -42,11 +42,11 @@ const meta = {
       >
       <AccordionItem value="item-1">
         <AccordionHeader>
-          <AccordionTrigger>What is Pirate?</AccordionTrigger>
+          <AccordionTrigger>What is a community?</AccordionTrigger>
         </AccordionHeader>
         <AccordionContent>
-          Pirate is a community-first social product for discovering communities,
-          posts, and shared resources.
+          A community is a place to share songs, videos and posts with the
+          people who joined it.
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-2">
@@ -85,12 +85,21 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("button", { name: "What is a community?" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      canvas.getByText(/A community is a place to share songs/),
+    ).toBeVisible();
+  },
 };
 
 export const Interaction: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const first = canvas.getByRole("button", { name: "What is Pirate?" });
+    const first = canvas.getByRole("button", { name: "What is a community?" });
     const second = canvas.getByRole("button", {
       name: "How do communities work?",
     });
@@ -120,7 +129,26 @@ export const Multiple: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const first = canvas.getByRole("button", { name: "What is Pirate?" });
+    const first = canvas.getByRole("button", { name: "What is a community?" });
+    const second = canvas.getByRole("button", {
+      name: "How do communities work?",
+    });
+
+    // Paper draws this state with both sections open.
+    await expect(first).toHaveAttribute("aria-expanded", "true");
+    await expect(second).toHaveAttribute("aria-expanded", "true");
+  },
+};
+
+/** Collapsing one section of a multiple accordion leaves the other open. */
+export const MultipleInteraction: Story = {
+  args: {
+    defaultValue: ["item-1", "item-2"],
+    multiple: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const first = canvas.getByRole("button", { name: "What is a community?" });
     const second = canvas.getByRole("button", {
       name: "How do communities work?",
     });
@@ -206,7 +234,7 @@ export const RightToLeft: Story = {
     const canvas = within(canvasElement);
 
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    const first = canvas.getByRole("button", { name: "What is Pirate?" });
+    const first = canvas.getByRole("button", { name: "What is a community?" });
     await expect(first).toHaveAttribute("aria-expanded", "true");
     first.focus();
     await userEvent.keyboard("{End}");

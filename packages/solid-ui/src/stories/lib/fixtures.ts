@@ -20,3 +20,10 @@ export const optionDisabled = (option: DemoOption) => option.disabled ?? false;
 
 /** Shared mascot image fixture for stories; it uses the production asset contract. */
 export const demoAvatarImage = "/mascots/error-ghost-256.png";
+
+/**
+ * Artwork stand-in that loads in the app catalog (and so in CI's storybook
+ * audit): an owned image asset served from the app's public/storybook folder.
+ * Hand-authored SVG is not allowed in source (check:phosphor-icons).
+ */
+export const demoArtworkImage = "/storybook/karaoke-artwork.svg";
