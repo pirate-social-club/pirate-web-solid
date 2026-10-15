@@ -144,6 +144,71 @@ function harness(overrides: Partial<{
 }
 
 describe("KaraokeSessionClient transport", () => {
+  for (const failures of [1, 3]) {
+    test(`sends the initial start after ${failures} failed creation requests without replay on later reconnect`, async () => {
+      let calls = 0
+      let resumes = 0
+      const h = harness({
+        createSession: async () => {
+          calls += 1
+          if (calls <= failures) throw new Error("runtime unavailable")
+          return h.descriptorFor(calls)
+        },
+        resumeCapture: async () => { resumes += 1 },
+      })
+      await h.client.start({ postId: "post-1", startedAtAudioMs: 125 })
+      expect(h.sockets).toHaveLength(0)
+      await h.timers.flush()
+      expect(h.idempotencyKeys).toEqual(Array(failures + 1).fill("stable-key"))
+      expect(h.sockets).toHaveLength(1)
+      h.sockets[0]!.open()
+      await tick()
+      expect(h.client.getPhase()).toBe("live")
+      expect(h.sockets[0]!.jsonSent()).toEqual([{
+        attemptId: "attempt-1", postId: "post-1", protocolVersion: PV,
+        sequence: 1, sessionId: "session-1", startedAtAudioMs: 125, type: "start",
+      }])
+      expect(resumes).toBe(0)
+      h.client.setCaptureAnchor({ captureMs: 0, playbackRate: 1, songMs: 125 })
+      h.client.pushAudio(new Uint8Array(320).buffer, 10)
+      expect(h.sockets[0]!.binarySent()).toHaveLength(1)
+      expect(decodeKaraokeBinaryFrame(h.sockets[0]!.binarySent()[0]!, {
+        attemptId: "attempt-1", sessionId: "session-1",
+      }).frame?.sequence).toBe(2)
+
+      h.sockets[0]!.remoteClose(1006)
+      await h.timers.flush()
+      expect(h.idempotencyKeys).toEqual(Array(failures + 2).fill("stable-key"))
+      h.sockets[1]!.open()
+      await tick()
+      await tick()
+      expect(h.sockets[1]!.jsonSent()).toEqual([])
+      expect(h.sockets[1]!.binarySent()).toEqual([])
+      expect(resumes).toBe(1)
+      h.client.close()
+    })
+  }
+
+  test("closing during an initial creation retry prevents a late first socket and start", async () => {
+    let resolveRetry!: (descriptor: KaraokeSessionDescriptor) => void
+    let calls = 0
+    const h = harness({
+      createSession: async () => {
+        calls += 1
+        if (calls === 1) throw new Error("runtime unavailable")
+        return new Promise<KaraokeSessionDescriptor>((resolve) => { resolveRetry = resolve })
+      },
+    })
+    await h.client.start({ postId: "post-1" })
+    await h.timers.flush()
+    expect(h.idempotencyKeys).toEqual(["stable-key", "stable-key"])
+    h.client.close()
+    resolveRetry(h.descriptorFor(2))
+    await tick()
+    expect(h.client.getPhase()).toBe("closed")
+    expect(h.sockets).toHaveLength(0)
+  })
+
   test("creates a session and sends start on the first connection", async () => {
     const h = harness()
     await h.client.start({ postId: "post-1", startedAtAudioMs: 0 })
