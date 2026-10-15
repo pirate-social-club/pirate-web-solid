@@ -38,7 +38,7 @@ import { useComposingSurface } from "../../shell/composing-surface.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
 import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
-import { PostedSong } from "../../posts/song-submission/posted-song.tsx";
+import { PostedSong, selectPostedSong, type PostedSongKey } from "../../posts/song-submission/posted-song.tsx";
 import {
   createSongSubmissionStore,
   useSongSubmissionStore,
@@ -562,18 +562,27 @@ function SuccessState(props: {
   // this page instead of the feed. The last report is kept here, because a
   // published song leaves the store once the feed carries it. Closing the
   // state returns to the feed, whose pending card carries a song still in
-  // progress.
-  const [postedSongId, setPostedSongId] = createSignal<string | null>(null, { ownedWrite: true });
+  // progress. The state belongs to the account that posted: it shows only
+  // while that account is the one posting here, and an identity change
+  // clears it, kept report included.
+  const [postedSongKey, setPostedSongKey] = createSignal<PostedSongKey | null>(null, { ownedWrite: true });
   const [postedSongLast, setPostedSongLast] = createSignal<SongSubmissionItem | null>(null, { ownedWrite: true });
-  const postedSong = createMemo<SongSubmissionItem | null>(() => {
-    const id = postedSongId();
-    if (id === null) return null;
-    return pendingSongs().find(item => item.submissionId === id) ?? postedSongLast();
-  });
+  const postedSong = createMemo<SongSubmissionItem | null>(() =>
+    selectPostedSong(postedSongKey(), engagement.postingSession()?.userId, pendingSongs(), postedSongLast()));
   createEffect(postedSong, (item) => { if (item !== null) setPostedSongLast(item); });
-  const closePostedSong = () => {
-    setPostedSongId(null);
+  const clearPostedSong = () => {
+    setPostedSongKey(null);
     setPostedSongLast(null);
+  };
+  createEffect(
+    () => engagement.postingSession()?.userId,
+    (account) => {
+      const key = untrack(postedSongKey);
+      if (key !== null && account !== key.accountId) clearPostedSong();
+    },
+  );
+  const closePostedSong = () => {
+    clearPostedSong();
     queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
   };
   createEffect(
@@ -811,9 +820,10 @@ function SuccessState(props: {
     viewerVote,
   });
 
-  // Writing a post, in the main column. On a phone this is the whole screen:
-  // the chrome hides its bottom navigation while it is true.
-  const composing = () => (textOpen() || (composerOpen() && mediaEntry()?.kind === "song"))
+  // Writing a post, in the main column, and the posted song's state that
+  // follows it. On a phone this is the whole screen: the chrome hides its
+  // bottom navigation while it is true, and Back belongs to it.
+  const composing = () => (postedSong() !== null || textOpen() || (composerOpen() && mediaEntry()?.kind === "song"))
     && engagement.postingSession() !== undefined;
   const surface = useComposingSurface();
   createEffect(composing, (open) => {
@@ -861,7 +871,9 @@ function SuccessState(props: {
     const onPopState = () => {
       if (!composerHistoryEntry) return;
       composerHistoryEntry = false;
-      if (textOpen()) {
+      if (untrack(postedSong) !== null) {
+        closePostedSong();
+      } else if (textOpen()) {
         setTextOpen(false);
         queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
       } else if (composerOpen()) {
@@ -886,7 +898,10 @@ function SuccessState(props: {
             songStore={songStore}
             mediaTransport={props.mediaSubmissionTransport}
             onPublished={href => { if (href !== undefined) navigate(href); }}
-            onSongSubmitted={(_community, submissionId) => setPostedSongId(submissionId)}
+            onSongSubmitted={(_community, submissionId) => {
+              const accountId = engagement.postingSession()?.userId;
+              if (accountId !== undefined) setPostedSongKey({ accountId, submissionId });
+            }}
             onOpenChange={(open) => {
               setComposerOpen(open);
               if (!open) setMediaEntry(undefined);
@@ -953,7 +968,7 @@ function SuccessState(props: {
             // One slot function whose content switches inside it: the shell renders
             // the slot once while it stays open, so handing a posted song from the
             // steps to its state must happen within the same function.
-            composer={(postedSong() !== null || textOpen() || (composerOpen() && mediaEntry()?.kind === "song")) && engagement.postingSession() !== undefined ? () => (
+            composer={composing() ? () => (
               <Show when={postedSong()} fallback={<>
               <Show when={textOpen()} fallback={mediaComposer(true)}>
               <TextPostPanel

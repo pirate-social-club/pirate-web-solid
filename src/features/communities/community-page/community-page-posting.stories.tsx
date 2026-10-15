@@ -425,6 +425,73 @@ export const MobileComposerInsideTheAppShell: Story = {
   },
 };
 
+/** Posts a song through the phone steps inside the real shell and returns the shell's bottom navigation. */
+async function postSongInsideTheShell(canvasElement: HTMLElement) {
+  const nav = await waitFor(() => {
+    const found = canvasElement.ownerDocument.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
+    expect(found).not.toBeNull();
+    expect(found!.getBoundingClientRect().height).toBeGreaterThan(0);
+    return found!;
+  });
+  const canvas = await openSongInMain(canvasElement);
+  const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+  for (const step of ["Royalties", "Review"]) {
+    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await canvas.findByRole("heading", { name: step });
+  }
+  await userEvent.click(await waitFor(() => footer().getByRole("button", { name: "Post song" })));
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  // The posted state is still part of composing: the shell keeps its bottom
+  // navigation hidden and the composer keeps its history entry for Back.
+  await waitFor(() => expect(nav.getBoundingClientRect().height).toBe(0));
+  await expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).toBe(true);
+  return { canvas, nav, posted };
+}
+
+const songInTheShell = (args: CommunityPageProps) => (
+  <ActivePersonaProvider>
+    <ApplicationChrome currentPath="/c/night-shift" hideMobileHeader mobileActiveItem="none" mode="standard" signedIn>
+      <SongPostingPreview {...args} />
+    </ApplicationChrome>
+  </ActivePersonaProvider>
+);
+
+/** Phone, real shell: Back on the posted song's state returns to the feed and the bottom navigation. */
+export const MobilePostedSongBackInsideTheAppShell: Story = {
+  name: "Mobile posted song: Back inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav } = await postSongInsideTheShell(canvasElement);
+    canvasElement.ownerDocument.defaultView!.history.back();
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+  },
+};
+
+/** Phone, real shell: Close does the same and gives back the history entry it held. */
+export const MobilePostedSongCloseInsideTheAppShell: Story = {
+  name: "Mobile posted song: Close inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav, posted } = await postSongInsideTheShell(canvasElement);
+    await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).not.toBe(true));
+  },
+};
+
 export const CancelKeepsTheDraft: Story = {
   name: "Close returns to the feed and keeps the draft",
   args: pageArgs(standInServer()),

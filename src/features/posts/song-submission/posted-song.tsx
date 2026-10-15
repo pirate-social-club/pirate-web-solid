@@ -19,6 +19,30 @@ import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 import { PendingSongs } from "./pending-songs.tsx";
 import type { SongSubmissionItem } from "./song-submission-store";
 
+/** The song a page's after-Post state names: who posted it, and which one. */
+export interface PostedSongKey {
+  readonly accountId: string;
+  readonly submissionId: string;
+}
+
+/**
+ * The posted song to show, if any. It belongs to the account that posted it:
+ * under any other account, or none, there is nothing to show. The store's
+ * entry wins; the kept last report stands in only for that same song and
+ * account once the store has let it go.
+ */
+export function selectPostedSong(
+  key: PostedSongKey | null,
+  account: string | undefined,
+  items: readonly SongSubmissionItem[],
+  last: SongSubmissionItem | null,
+): SongSubmissionItem | null {
+  if (key === null || account !== key.accountId) return null;
+  const current = items.find(item => item.submissionId === key.submissionId && item.accountId === key.accountId);
+  if (current !== undefined) return current;
+  return last !== null && last.accountId === key.accountId && last.submissionId === key.submissionId ? last : null;
+}
+
 export interface PostedSongProps {
   /** The song as the store last reported it; kept by the host after the store lets it go. */
   readonly item: SongSubmissionItem;
