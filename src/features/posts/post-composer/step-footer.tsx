@@ -1,12 +1,13 @@
-// Step navigation footer: desktop CardFooter and mobile fixed bar. Rendered
-// only for multi-step tracks (song). Single-step tracks post from the
-// composer button instead. Back navigates within the per-track step list; the
-// final step publishes exactly once through the host's submit runtime.
+// Step navigation for multi-step tracks (song), per Paper rulings 11 and 12
+// (2026-10-09). The header is the way out: close on the first step, a back
+// arrow on later ones, beside the step's name. The footer moves forward: a
+// labelled button, full width on a phone. There is no separate Back button.
+// The final step publishes exactly once through the host's submit runtime.
 
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
-import { Button, CardFooter, FormNote, IconArrowLeft, IconArrowRight, IconArrowUp, IconButton, IconX } from "../../../design-system";
+import { Button, CardFooter, FormNote, IconArrowLeft, IconButton, IconX, Type } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerSteps } from "./composer-steps";
 import { animateComposerBarEnter } from "./composer-motion";
@@ -17,8 +18,8 @@ import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 import type { SongFlowRuntime } from "./types";
 
 export function PostComposerStepFooter(props: {
-  /** Mobile header navigation: close or back on the left, the step name in
-   * the middle, and the forward or publish action on the right. */
+  /** `header`: close or back on the left beside the step's name, centred on
+   * a phone. `footer`: the forward or publish button. */
   layout?: "footer" | "header";
   onClose?: () => void;
   controller: PostComposerController;
@@ -98,13 +99,6 @@ export function PostComposerStepFooter(props: {
     props.steps.set(target);
   };
 
-  const back = () => (
-    <Show when={!props.steps.isFirst() && !locked()} fallback={<span aria-hidden="true" />}>
-      <Button disabled={preparing() || controller.submit.loading} onClick={goBack} size="lg" variant="outline">
-        {controller.copy.actions.back}
-      </Button>
-    </Show>
-  );
   const forward = () => (
     <Show
       when={props.steps.isLast()}
@@ -145,8 +139,7 @@ export function PostComposerStepFooter(props: {
   );
 
   const desktop = (
-    <CardFooter class="justify-between gap-3 border-t border-border-soft px-8 py-5">
-      {back()}
+    <CardFooter class="justify-end gap-3 border-t border-border-soft px-8 py-5">
       <div class="flex min-w-0 flex-1 items-center justify-end gap-3">
         {stepError()}
         {forward()}
@@ -157,77 +150,45 @@ export function PostComposerStepFooter(props: {
   const mobile = (
     <div
       class={cn(
-        "border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl",
-        placement() === "inline" ? "w-full" : "fixed inset-x-0 bottom-0 z-20",
+        "border-t border-border-soft bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3",
+        // Inline, the footer stays at the bottom of the screen while the steps scroll.
+        placement() === "inline" ? "sticky bottom-0 z-20 -mx-4 mt-auto" : "fixed inset-x-0 bottom-0 z-20",
       )}
+      data-composer-footer
       ref={mobileBar}
     >
       {stepError("mb-3")}
-      <div class="flex items-center gap-3">
-        {back()}
-        <div class="min-w-0 flex-1">{forward()}</div>
-      </div>
+      {forward()}
     </div>
   );
 
-  if (controller.isMobile() && props.layout === "header") {
-    // Two equal icon buttons: close or back on the left, forward or publish
-    // on the right. The step needs no title; the form says what it is.
-    const headerForward = () => (
+  if (props.layout === "header") {
+    const mobile = controller.isMobile();
+    const wayOut = () => (
       <Show
-        when={props.steps.isLast()}
+        when={!props.steps.isFirst() && !locked()}
         fallback={
-          <IconButton
-            aria-label={controller.copy.actions.continue}
-            data-composer-forward
-            disabled={!canAdvance()}
-            loading={preparing()}
-            onClick={() => void goNext()}
-            variant="default"
-          >
-            <IconArrowRight class="size-5" />
+          <IconButton aria-label="Close composer" onClick={() => props.onClose?.()} variant="ghost">
+            <IconX class="size-5" />
           </IconButton>
         }
       >
-        <IconButton
-          aria-label={controller.submit.label}
-          disabled={controller.submit.disabled || controller.submit.progress?.phase === "done"}
-          loading={controller.submit.loading}
-          onClick={() => controller.submit.onSubmit?.()}
-          variant="default"
-        >
-          <IconArrowUp class="size-5" />
+        <IconButton aria-label={controller.copy.actions.back} disabled={preparing() || controller.submit.loading} onClick={goBack} variant="ghost">
+          <IconArrowLeft class="size-5" />
         </IconButton>
       </Show>
     );
-    const headerError = () => (
-      <Show when={controller.submit.error}>
-        {(message) => (
-          <div aria-live="polite" class="px-1 pb-2" role="alert">
-            <FormNote tone="warning">{message()}</FormNote>
-          </div>
-        )}
-      </Show>
-    );
     return (
-      <div>
-        <header class="flex min-h-14 items-center justify-between px-1">
-          <Show
-            when={!props.steps.isFirst() && !locked()}
-            fallback={
-              <IconButton aria-label="Close composer" onClick={() => props.onClose?.()} variant="ghost">
-                <IconX class="size-5" />
-              </IconButton>
-            }
-          >
-            <IconButton aria-label={controller.copy.actions.back} disabled={preparing() || controller.submit.loading} onClick={goBack} variant="ghost">
-              <IconArrowLeft class="size-5" />
-            </IconButton>
-          </Show>
-          {headerForward()}
-        </header>
-        {headerError()}
-      </div>
+      <header
+        class={mobile
+          ? "grid min-h-14 grid-cols-[2.75rem_1fr_2.75rem] items-center px-1"
+          : "-ms-2 flex items-center gap-2 px-8 pt-6"}
+      >
+        {wayOut()}
+        <Type as="h2" class={mobile ? "text-center" : undefined} variant={mobile ? "h3" : "h2"}>
+          {controller.copy.steps[props.steps.current()]}
+        </Type>
+      </header>
     );
   }
   if (controller.isMobile()) {
