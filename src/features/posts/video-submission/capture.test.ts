@@ -36,6 +36,7 @@ describe("saying what is wrong with a video", () => {
   const usable = {
     container: "video/mp4", hasVideo: true, hasAudio: true, videoCodec: "avc", audioCodec: "aac",
     width: 1080, height: 1920,
+    averageFrameRate: 30,
     durationSeconds: 12, maxDurationSeconds: 180,
   } as const;
 
@@ -55,6 +56,18 @@ describe("saying what is wrong with a video", () => {
   test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1080.5])("refuses unreadable dimensions: %s", dimension => {
     expect(videoAdmissionProblem({ ...usable, width: dimension })).toContain("dimensions couldn’t be read");
     expect(videoAdmissionProblem({ ...usable, height: dimension })).toContain("dimensions couldn’t be read");
+  });
+
+  test.each([24, 30_000 / 1_001, 60_000 / 1_001, 60, 60.0004])("accepts average rate %s with the server's millihertz rounding", averageFrameRate => {
+    expect(videoAdmissionProblem({ ...usable, averageFrameRate })).toBeNull();
+  });
+
+  test.each([60.0006, 61, 120, 240])("refuses average rate %s with an actionable limit", averageFrameRate => {
+    expect(videoAdmissionProblem({ ...usable, averageFrameRate })).toBe("Choose a video at 60 frames per second or lower.");
+  });
+
+  test.each([0, -1, 0.0004, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_VALUE])("refuses unreadable average rate: %s", averageFrameRate => {
+    expect(videoAdmissionProblem({ ...usable, averageFrameRate })).toBe("That video’s frame rate couldn’t be read. Choose another video.");
   });
 
   test("a video that is too short says so and how short", () => {
@@ -107,7 +120,8 @@ test.each([[1936, 1080], [1080, 1936], [1920, 1080]])("file admission reads code
   type VideoTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryVideoTrack"]>>>;
   type AudioTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryAudioTrack"]>>>;
   // SAFETY: default file inspection calls only these video metadata methods; no decoder or portrait path uses this double.
-  const video = { getCodec: async () => "avc", getCodedWidth: async () => width, getCodedHeight: async () => height } as VideoTrack;
+  const video = { getCodec: async () => "avc", getCodedWidth: async () => width, getCodedHeight: async () => height,
+    computePacketStats: async () => ({ averagePacketRate: 30 }) } as VideoTrack;
   // SAFETY: file inspection only reads the audio codec from this metadata double.
   const audio = { getCodec: async () => "aac" } as AudioTrack;
   const spies = [
@@ -124,6 +138,45 @@ test.each([[1936, 1080], [1080, 1936], [1920, 1080]])("file admission reads code
     } else {
       await expect(inspected).resolves.toMatchObject({ name: "take.mp4", type: "video/mp4" });
     }
+    expect(dispose).toHaveBeenCalledOnce();
+  } finally { spies.forEach(spy => spy.mockRestore()); dispose.mockRestore(); }
+});
+
+test.each([60, 60.0006, 120, Number.NaN, "unreadable"])("file admission reads the full track average rate %s and releases the input", async rate => {
+  const { Input } = await import("mediabunny");
+  const { inspectVideoFile } = await import("./capture");
+  type VideoTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryVideoTrack"]>>>;
+  type AudioTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryAudioTrack"]>>>;
+  const stats = vi.fn(async () => {
+    if (typeof rate !== "number") throw new Error("Packet metadata unavailable");
+    return { packetCount: 1_440, averagePacketRate: rate, averageBitrate: 128_000 };
+  });
+  const metadata: Pick<VideoTrack, "getCodec" | "getCodedWidth" | "getCodedHeight" | "computePacketStats"> = {
+    getCodec: async () => "avc", getCodedWidth: async () => 1080, getCodedHeight: async () => 1920,
+    computePacketStats: stats,
+  };
+  // SAFETY: default file inspection calls only these video metadata methods; it never decodes frames.
+  const video = metadata as VideoTrack;
+  // SAFETY: file inspection only reads the audio codec from this metadata double.
+  const audio = { getCodec: async () => "aac" } as AudioTrack;
+  const spies = [
+    vi.spyOn(Input.prototype, "getPrimaryVideoTrack").mockResolvedValue(video),
+    vi.spyOn(Input.prototype, "getPrimaryAudioTrack").mockResolvedValue(audio),
+    vi.spyOn(Input.prototype, "getMimeType").mockResolvedValue("video/mp4"),
+    vi.spyOn(Input.prototype, "computeDuration").mockResolvedValue(12),
+  ];
+  const dispose = vi.spyOn(Input.prototype, "dispose");
+  try {
+    const inspected = inspectVideoFile(new File(["take"], "take.mp4", { type: "video/mp4" }));
+    if (rate === 60) {
+      await expect(inspected).resolves.toMatchObject({ name: "take.mp4", type: "video/mp4" });
+    } else {
+      const message = typeof rate === "number" && Number.isFinite(rate)
+        ? "Choose a video at 60 frames per second or lower."
+        : "That video’s frame rate couldn’t be read. Choose another video.";
+      await expect(inspected).rejects.toMatchObject({ reason: "invalid_media", message });
+    }
+    expect(stats).toHaveBeenCalledExactlyOnceWith();
     expect(dispose).toHaveBeenCalledOnce();
   } finally { spies.forEach(spy => spy.mockRestore()); dispose.mockRestore(); }
 });
