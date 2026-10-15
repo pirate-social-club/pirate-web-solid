@@ -104,7 +104,7 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
     <KCombobox {...rootProps()} class={className()}>
       <KCombobox.Control
         class={cn(
-          "flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-[var(--radius-lg)] border border-input bg-background px-3 py-1.5 shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft data-disabled:cursor-not-allowed data-disabled:opacity-50",
+          "flex min-h-11 w-full items-center gap-1.5 rounded-[var(--radius-lg)] border border-input bg-background px-3 py-1.5 shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft data-disabled:cursor-not-allowed data-disabled:opacity-50",
           props.inputClass,
         )}
       >
@@ -113,10 +113,14 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
           readonly remove: (option: Option) => void;
         }) => (
           <>
+            {/* Chips and the input wrap together; the caret stays at the end of the field. */}
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             <For each={state.selectedOptions()}>
               {(option) => (
                 <Chip
                   aria-label={chipRemoveLabel(props.optionLabel(option))}
+                  // Paper: field chips use the medium radius, not the Chip pill.
+                  class="rounded-[var(--radius-md)]"
                   disabled={props.disabled}
                   onClick={() => state.remove(option)}
                   size="sm"
@@ -130,8 +134,13 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
             <KCombobox.Input
               aria-label={props["aria-label"]}
               aria-describedby={props["aria-describedby"]}
-              class="h-8 min-w-24 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+              class={cn(
+                "h-8 min-w-24 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground",
+                // Kobalte always sets the placeholder; Paper shows it only on an empty field.
+                state.selectedOptions().length > 0 && "placeholder:text-transparent",
+              )}
             />
+            </div>
             <KCombobox.Trigger class="group ms-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <IconArrowDown class="size-4 transition-transform group-data-[expanded]:rotate-180" />
             </KCombobox.Trigger>

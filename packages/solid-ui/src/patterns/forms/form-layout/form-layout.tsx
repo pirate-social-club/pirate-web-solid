@@ -89,7 +89,8 @@ const formNoteToneClass: Record<NonNullable<FormNoteProps["tone"]>, string> = {
  */
 export function FormNote(props: FormNoteProps) {
   const className = createMemo(() =>
-    cn(formNoteToneClass[props.tone ?? "muted"], props.class),
+    // Paper: a field note is 14/20, below the 16px caption.
+    cn("text-sm leading-5", formNoteToneClass[props.tone ?? "muted"], props.class),
   );
 
   return (

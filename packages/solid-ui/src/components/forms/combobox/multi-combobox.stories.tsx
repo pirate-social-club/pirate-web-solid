@@ -32,6 +32,22 @@ function renderField(wrapperClass: string) {
   );
 }
 
+/** Paper's field: medium-radius chips, the caret at the field's end, no placeholder beside chips. */
+async function expectPaperField(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  const input = canvas.getByRole("combobox", { name: "Sort order" });
+  for (const chip of canvas.getAllByRole("button", { name: /^Remove / })) {
+    await expect(getComputedStyle(chip).borderRadius).toBe("8px");
+  }
+  await expect(getComputedStyle(input, "::placeholder").color).toBe("rgba(0, 0, 0, 0)");
+  // The control holds the chip-and-input group, then the caret.
+  const control = input.parentElement?.parentElement;
+  const caret = control?.lastElementChild;
+  if (!control || !(caret instanceof HTMLButtonElement)) throw new Error("Expected the caret as the control's last child");
+  // The caret ends at the field's 12px inline padding instead of wrapping under the chips.
+  await expect(Math.round(control.getBoundingClientRect().right - caret.getBoundingClientRect().right)).toBe(13);
+}
+
 const meta = {
   title: "Components/Forms/MultiCombobox",
   component: MultiCombobox,
@@ -69,6 +85,8 @@ export const Empty: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("combobox", { name: "Sort order" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /^Remove / })).toBeNull();
+    // With nothing selected the placeholder is shown.
+    await expect(getComputedStyle(canvas.getByRole("combobox", { name: "Sort order" }), "::placeholder").color).not.toBe("rgba(0, 0, 0, 0)");
   },
 };
 
@@ -80,6 +98,7 @@ export const WithChips: Story = {
     // Paper ends this state with both chips in the field.
     await expect(canvas.getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
     await expect(widthOf(canvas.getByTestId("multi-combobox-frame"))).toBe(boardWidth(320));
+    await expectPaperField(canvasElement);
   },
 };
 
@@ -115,6 +134,7 @@ export const Mobile: Story = {
     await expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
     await expect(canvas.getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
+    await expectPaperField(canvasElement);
   },
 };
 

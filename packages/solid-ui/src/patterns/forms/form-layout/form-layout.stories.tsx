@@ -95,7 +95,7 @@ const noteTones = [
   { tone: "warning", text: "Warning: something to double-check.", className: "text-warning" },
 ] as const;
 
-/** Paper's FormNote tones: default, muted, destructive and warning. */
+/** Paper's FormNote tones: default, muted, destructive and warning, each at 14/20. */
 export const NoteTones: Story = {
   name: "FormNote tones",
   render: () => (
@@ -108,7 +108,11 @@ export const NoteTones: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     for (const note of noteTones) {
-      await expect(canvas.getByText(note.text)).toHaveClass(note.className);
+      const line = canvas.getByText(note.text);
+      await expect(line).toHaveClass(note.className);
+      // Paper sets field notes at 14/20.
+      await expect(getComputedStyle(line).fontSize).toBe("14px");
+      await expect(getComputedStyle(line).lineHeight).toBe("20px");
     }
   },
 };
