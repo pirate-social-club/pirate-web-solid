@@ -38,6 +38,7 @@ import { useComposingSurface } from "../../shell/composing-surface.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
 import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
+import { PostedSong } from "../../posts/song-submission/posted-song.tsx";
 import {
   createSongSubmissionStore,
   useSongSubmissionStore,
@@ -557,6 +558,24 @@ function SuccessState(props: {
     if (account === undefined) return [];
     return songStore.items().filter(item => item.communityId === communityId && item.accountId === account);
   });
+  // Paper ruling 14: right after posting, the author sees the song's state on
+  // this page instead of the feed. The last report is kept here, because a
+  // published song leaves the store once the feed carries it. Closing the
+  // state returns to the feed, whose pending card carries a song still in
+  // progress.
+  const [postedSongId, setPostedSongId] = createSignal<string | null>(null, { ownedWrite: true });
+  const [postedSongLast, setPostedSongLast] = createSignal<SongSubmissionItem | null>(null, { ownedWrite: true });
+  const postedSong = createMemo<SongSubmissionItem | null>(() => {
+    const id = postedSongId();
+    if (id === null) return null;
+    return pendingSongs().find(item => item.submissionId === id) ?? postedSongLast();
+  });
+  createEffect(postedSong, (item) => { if (item !== null) setPostedSongLast(item); });
+  const closePostedSong = () => {
+    setPostedSongId(null);
+    setPostedSongLast(null);
+    queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
+  };
   createEffect(
     () => pendingSongs().filter(item => item.view.status === "published").map(item => item.submissionId).join(","),
     (publishedIds) => {
@@ -867,6 +886,7 @@ function SuccessState(props: {
             songStore={songStore}
             mediaTransport={props.mediaSubmissionTransport}
             onPublished={href => { if (href !== undefined) navigate(href); }}
+            onSongSubmitted={(_community, submissionId) => setPostedSongId(submissionId)}
             onOpenChange={(open) => {
               setComposerOpen(open);
               if (!open) setMediaEntry(undefined);
@@ -930,7 +950,11 @@ function SuccessState(props: {
                 onSignIn={signInToFinishPosting}
               />
             </>)}
-            composer={(textOpen() || (composerOpen() && mediaEntry()?.kind === "song")) && engagement.postingSession() !== undefined ? () => (
+            // One slot function whose content switches inside it: the shell renders
+            // the slot once while it stays open, so handing a posted song from the
+            // steps to its state must happen within the same function.
+            composer={(postedSong() !== null || textOpen() || (composerOpen() && mediaEntry()?.kind === "song")) && engagement.postingSession() !== undefined ? () => (
+              <Show when={postedSong()} fallback={<>
               <Show when={textOpen()} fallback={mediaComposer(true)}>
               <TextPostPanel
                 draft={textDraft()}
@@ -945,6 +969,19 @@ function SuccessState(props: {
                 onVideo={() => openMediaComposer({ kind: "video" })}
                 unavailable={selectedPersonaId() === undefined ? "Choose a profile for this community before posting." : undefined}
               />
+              </Show>
+              </>}>
+                {item => (
+                  <PostedSong
+                    item={item()}
+                    onBindOriginal={songStore.bindOriginal}
+                    onCheck={songStore.check}
+                    onClose={closePostedSong}
+                    onDismiss={id => { songStore.dismiss(id); closePostedSong(); }}
+                    onRetry={songStore.retry}
+                    onRetryOriginal={songStore.retryOriginal}
+                  />
+                )}
               </Show>
             ) : undefined}
             onVerifyAge={refreshAgeFeed}

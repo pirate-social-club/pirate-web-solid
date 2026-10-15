@@ -495,6 +495,28 @@ async function expectSongPhoneChrome(canvasElement: HTMLElement, step: string, f
   return footer;
 }
 
+/**
+ * Paper ruling 14: after Post the author stays on the page and sees the
+ * song's one centred state, not the feed. Closing it returns to the feed,
+ * where the pending card carries a song that is still in progress.
+ */
+async function expectPostedSongThenFeed(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull();
+  await expect(canvas.queryByRole("main", { name: "Community feed" })).toBeNull();
+  await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(0);
+  await expect(within(posted).getByRole("heading", { name: /Processing your song|Published/u })).toBeVisible();
+  const stillProcessing = posted.getAttribute("data-posted-song-status") !== "published";
+  await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible());
+  if (stillProcessing) await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+}
+
 export const SongComposerInMain: Story = {
   name: "Song stays in the main post form",
   args: pageArgs(standInServer()),
@@ -523,7 +545,7 @@ export const SongComposerInMainOnMobile: Story = {
 };
 
 export const SongStepsReturnToFeed: Story = {
-  name: "Song, Royalties and Review stay in the form, then return to feed",
+  name: "Song, Royalties and Review stay in the form, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   play: async ({ canvasElement }) => {
@@ -543,14 +565,12 @@ export const SongStepsReturnToFeed: Story = {
     await canvas.findByRole("heading", { name: "Review" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Post song" }));
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 
 export const SongStepsReturnToFeedOnMobile: Story = {
-  name: "Mobile song steps move through the footer, then return to feed",
+  name: "Mobile song steps move through the footer, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -572,9 +592,7 @@ export const SongStepsReturnToFeedOnMobile: Story = {
     const publish = await waitFor(() => footer().getByRole("button", { name: "Post song" }));
     await expect(canvas.getAllByRole("button", { name: "Post song" })).toHaveLength(1);
     await userEvent.click(publish);
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 

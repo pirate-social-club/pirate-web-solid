@@ -99,17 +99,17 @@ export async function publishSongAndVerifyPlayback(
   else expect(review).not.toContain("No lyrics added");
 
   await composer.getByRole("button", { name: "Post song" }).click();
-  // The steps end when the server accepts the song. It is then in the feed,
-  // naming the stage it is on, until the published song takes its place.
+  // The steps end when the server accepts the song. Paper ruling 14: the
+  // author then sees the song's one centred state on the same page, not a
+  // card in the feed, until it is published.
   await expect(composer).toBeHidden({ timeout: 180_000 });
-  const own = page.locator("[data-pending-song]").filter({ has: page.getByText(marker, { exact: false }) });
-  const publishedPost = page.locator("[data-community-post]").filter({ has: page.getByText(marker, { exact: false }) });
-  await expect(own.or(publishedPost).first()).toBeVisible({ timeout: 30_000 });
+  const own = page.locator("[data-posted-song]");
+  await expect(own).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-pending-song]")).toHaveCount(0);
   await expect(page.getByText("Check status")).toHaveCount(0);
-  await expect.poll(async () => {
-    if (await publishedPost.count() > 0) return "published";
-    return await own.first().getAttribute("data-pending-song-status").catch(() => null);
-  }, { timeout: 420_000, intervals: [2_000] }).toBe("published");
+  await expect.poll(async () => await own.getAttribute("data-posted-song-status").catch(() => null),
+    { timeout: 420_000, intervals: [2_000] }).toBe("published");
+  await expect(own.getByText(marker, { exact: false })).toBeVisible();
 
   expect(publications).toHaveLength(1);
   expect(lyricsCommands).toHaveLength(lyrics === "" ? 0 : 1);
