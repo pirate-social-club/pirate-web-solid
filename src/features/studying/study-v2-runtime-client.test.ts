@@ -126,6 +126,12 @@ function spokenResult(input: {
 }
 
 describe("Study v2 runtime client", () => {
+  test("preserves the authoritative provider uncertainty for the resumed card", () => {
+    const blocked = { state: "provider_outcome_unknown" as const, session_item_id: "item-1", attempt_number: 1, next_action: "operator_review" as const };
+    expect(studyLessonPayload(session({ spoken_submission: blocked })).spoken_submission).toEqual(blocked);
+    expect(studyLessonPayload(session()).spoken_submission).toBeUndefined();
+    expect(studyLessonPayload(session({ spoken_submission: null })).spoken_submission).toBeNull();
+  });
   test("renders only the server's current card at its real presentation number", () => {
     const current = {
       is_reappearance: true,
