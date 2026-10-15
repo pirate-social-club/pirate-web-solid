@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
+import { boardWidth } from "@/stories/lib/story-measure";
 import { Textarea } from "./textarea";
 
 const meta = {
@@ -79,5 +80,21 @@ export const LongContent: Story = {
   args: {
     value:
       "A deliberately long value that wraps across several lines to show line wrapping and the default minimum height: the tide came in around four, the boats swung on their moorings, and the whole harbor turned silver in the last light before the rain arrived.",
+    // Paper draws the box grown to its wrapped lines in a 320px column. Size it
+    // to its content rather than a fixed row count, which would depend on how
+    // the installed font wraps the text.
+    class: "[field-sizing:content]",
+  },
+  render: (args) => (
+    <div class="w-80 max-w-full">
+      <Textarea {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const textarea = within(canvasElement).getByRole("textbox", { name: "Notes" });
+    await expect(Math.round(textarea.getBoundingClientRect().width)).toBe(boardWidth(320));
+    // Every wrapped line is visible; the box does not scroll at the 112px minimum.
+    await expect(textarea.scrollHeight).toBeLessThanOrEqual(textarea.clientHeight);
+    await expect(textarea.getBoundingClientRect().height).toBeGreaterThan(112);
   },
 };

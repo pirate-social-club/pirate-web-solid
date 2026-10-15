@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
+import { boardWidth, widthOf } from "@/stories/lib/story-measure";
 import { Scrubber } from "./scrubber";
 
 const meta = {
@@ -44,7 +45,10 @@ export const Default: Story = {
   render: (args) => {
     const [value, setValue] = createSignal(args.value);
     return (
-      <div class="max-w-xl space-y-3 rounded-[var(--radius-xl)] border border-border-soft bg-card p-5">
+      <div
+        class="w-[36rem] max-w-full space-y-3 rounded-[var(--radius-xl)] border border-border-soft bg-card p-5"
+        data-testid="scrubber-card"
+      >
         <div class="flex items-center justify-between text-base text-muted-foreground">
           <span>Playback</span>
           <span>{value()}%</span>
@@ -62,6 +66,8 @@ export const Default: Story = {
     const canvas = within(canvasElement);
     const slider = canvas.getByRole("slider", { name: "Playback position" });
     await expect(slider).toHaveAttribute("aria-valuenow", "32");
+    // Paper draws the card 576px wide; the centered layout must not collapse it.
+    await expect(widthOf(canvas.getByTestId("scrubber-card"))).toBe(boardWidth(576));
     slider.focus();
     await userEvent.keyboard("{ArrowRight}");
     await expect(slider).toHaveAttribute("aria-valuenow", "33");
@@ -73,7 +79,7 @@ export const Variants: Story = {
     const [bubbleValue, setBubbleValue] = createSignal(42);
     const [thumbValue, setThumbValue] = createSignal(68);
     return (
-      <div class="flex max-w-xl flex-col gap-6">
+      <div class="flex w-[36rem] max-w-full flex-col gap-10 pt-10" data-testid="scrubber-variants">
         <Scrubber
           value={thumbValue()}
           onChange={setThumbValue}
@@ -92,10 +98,31 @@ export const Variants: Story = {
       </div>
     );
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = canvas.getByTestId("scrubber-variants");
+    await expect(widthOf(frame)).toBe(boardWidth(576));
+    // Each slider root (and so its w-full track) spans the frame.
+    for (const root of Array.from(frame.children)) {
+      await expect(widthOf(root)).toBe(boardWidth(576));
+    }
+    // Paper shows the value bubble; it appears while the thumb has focus.
+    canvas.getByRole("slider", { name: "Value bubble" }).focus();
+    await expect(await canvas.findByText("0:42")).toBeVisible();
+  },
 };
 
 export const Disabled: Story = {
   render: () => (
-    <Scrubber value={50} showThumb disabled ariaLabel="Playback position" />
+    <div class="w-[36rem] max-w-full" data-testid="scrubber-disabled">
+      <Scrubber value={50} showThumb disabled ariaLabel="Playback position" />
+    </div>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = canvas.getByTestId("scrubber-disabled");
+    await expect(widthOf(frame)).toBe(boardWidth(576));
+    await expect(frame.firstElementChild).not.toBeNull();
+    await expect(widthOf(frame.firstElementChild as Element)).toBe(boardWidth(576));
+  },
 };

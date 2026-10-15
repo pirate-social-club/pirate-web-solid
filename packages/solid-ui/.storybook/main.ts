@@ -26,6 +26,9 @@ const config: StorybookConfig = {
   framework: {
     name: "storybook-solidjs-vite",
   },
+  // Serve the same story fixture assets as the unified catalog, so a fixture
+  // URL such as /storybook/karaoke-artwork.svg resolves in both catalogs.
+  staticDirs: [{ from: "../../../public/storybook", to: "/storybook" }],
   viteFinal: async (viteConfig) => ({
     ...viteConfig,
     plugins: [...(viteConfig.plugins ?? []), tailwindcss()],

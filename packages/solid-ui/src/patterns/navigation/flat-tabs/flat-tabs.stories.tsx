@@ -66,6 +66,27 @@ export const TabBarWithButtons: Story = {
   },
 };
 
+/**
+ * Owner ruling 5 on a phone: two tabs share the bar in equal columns. The
+ * desktop story above takes its desktop branch in the sweep, so this case
+ * asks for the phone viewport and asserts the phone layout unconditionally.
+ */
+export const TabBarWithButtonsPhone: Story = {
+  ...TabBarWithButtons,
+  name: "Tab bar with buttons (phone)",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(window.matchMedia("(max-width: 767px)").matches).toBe(true);
+    const feed = canvas.getByRole("button", { name: "Feed" }).getBoundingClientRect();
+    const about = canvas.getByRole("button", { name: "About" }).getBoundingClientRect();
+    await expect(Math.abs(feed.width - about.width)).toBeLessThan(1);
+    // Together the columns fill the bar.
+    const bar = canvas.getByRole("button", { name: "Feed" }).parentElement!.getBoundingClientRect();
+    await expect(Math.abs(feed.width + about.width - bar.width)).toBeLessThan(2);
+  },
+};
+
 export const TabBarWithActions: Story = {
   render: () => {
     const [active, setActive] = createSignal("feed");

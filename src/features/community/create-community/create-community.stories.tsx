@@ -104,6 +104,6 @@ export const ExistingProfileWithoutAvatar: Story = {
 
 export const MobileAvatar: Story = {
   name: "Mobile avatar authoring",
-  parameters: { viewport: { defaultViewport: "mobile1" } },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };
