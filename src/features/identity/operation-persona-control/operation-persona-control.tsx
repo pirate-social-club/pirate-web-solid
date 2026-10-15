@@ -42,6 +42,16 @@ export interface OperationPersonaControlProps {
    * must say what is missing instead of rendering an empty identity.
    */
   placeholder?: string;
+  /**
+   * `avatar` draws only the chosen profile's 36px avatar, as the post page's
+   * comment box does. The label becomes the trigger's accessible name, and the
+   * same list opens when there is a choice to make.
+   */
+  appearance?: "pill" | "avatar";
+}
+
+function personaInitial(persona: OperationPersona | undefined): string {
+  return persona?.displayName.trim().charAt(0).toUpperCase() || "?";
 }
 
 /**
@@ -84,29 +94,61 @@ export function OperationPersonaControl(props: OperationPersonaControlProps) {
     </>
   );
 
+  const avatarMode = () => props.appearance === "avatar";
+  const avatarName = () => selected()
+    ? `${props.label} ${selected()!.displayName}`
+    : props.placeholder ?? props.label;
+  const avatarMark = () => (
+    <Avatar
+      class="size-9 border-0 bg-secondary text-base font-semibold leading-6 text-secondary-foreground"
+      fallback={avatarName()}
+      fallbackSeed={personaInitial(selected())}
+      src={selected()?.avatarSrc ?? undefined}
+    />
+  );
+
   return (
     <div class={cn("flex min-w-0 items-center gap-2", props.class)} data-operation-persona>
-      <Type as="span" class="shrink-0" variant="caption">
-        {props.label}
-      </Type>
+      <Show when={!avatarMode()}>
+        <Type as="span" class="shrink-0" variant="caption">
+          {props.label}
+        </Type>
+      </Show>
       <Show
         when={canChoose()}
         fallback={
-          <span class="flex min-w-0 items-center gap-2" data-operation-persona-static>
-            {identity(selected())}
-          </span>
+          <Show when={avatarMode()} fallback={
+            <span class="flex min-w-0 items-center gap-2" data-operation-persona-static>
+              {identity(selected())}
+            </span>
+          }>
+            <span class="flex shrink-0" data-operation-persona-static>{avatarMark()}</span>
+          </Show>
         }
       >
         <Modal forceMobile={props.forceMobile} onOpenChange={setOpen} open={open()}>
-          <button
-            aria-haspopup="dialog"
-            class={cn(pillButtonVariants({ tone: "default" }), "min-w-0 gap-2 px-3 text-foreground")}
-            onClick={() => setOpen(true)}
-            type="button"
-          >
-            {identity(selected())}
-            <IconCaretDown class="size-4 shrink-0" />
-          </button>
+          <Show when={avatarMode()} fallback={
+            <button
+              aria-haspopup="dialog"
+              class={cn(pillButtonVariants({ tone: "default" }), "min-w-0 gap-2 px-3 text-foreground")}
+              onClick={() => setOpen(true)}
+              type="button"
+            >
+              {identity(selected())}
+              <IconCaretDown class="size-4 shrink-0" />
+            </button>
+          }>
+            {/* A 44px target around the 36px mark; the margins keep the row's spacing. */}
+            <button
+              aria-haspopup="dialog"
+              aria-label={avatarName()}
+              class="-mx-1 grid size-11 shrink-0 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setOpen(true)}
+              type="button"
+            >
+              {avatarMark()}
+            </button>
+          </Show>
           <ModalContent
             class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
             mobileSide="bottom"

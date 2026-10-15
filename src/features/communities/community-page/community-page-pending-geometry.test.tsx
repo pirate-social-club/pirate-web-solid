@@ -326,7 +326,7 @@ describe("private controls while authority settles", () => {
     expect(buttonNamed(container, "Join")).toBeUndefined();
     expect(buttonNamed(container, "Joined")).toBeUndefined();
     expect(buttonNamed(container, "Post")).toBeUndefined();
-    expect(buttonNamed(container, "Manage community")).toBeUndefined();
+    expect(buttonNamed(container, "Manage")).toBeUndefined();
     // Reserved space is not a control: it is inert and hidden from assistive
     // technology, so it states nothing about this viewer.
     // The header carries the two slots and nothing else, so nothing appears

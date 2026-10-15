@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
+import type {
+  PostCommunitiesCommunityIdMediaUploadReservationsInput,
+  PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
+} from "@pirate/api-client";
 
 import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "./contracts";
-import { projectActiveSongIntoComposer, submitSongComposer } from "../post-composer/media-composer-bridge";
+import { prepareSongComposer, projectActiveSongIntoComposer, submitSongComposer } from "../post-composer/media-composer-bridge";
 import {
   createMediaSubmissionCoordinator,
   type MediaSubmissionCoordinator,
@@ -77,7 +81,32 @@ async function commandBody(command: PersistedMediaCommand): Promise<MediaCommand
   return JSON.parse(new TextDecoder().decode(await mediaCommandBody(command))) as MediaCommandBodyShape;
 }
 
+const STEM_RESERVATION: Extract<PostCommunitiesCommunityIdMediaUploadReservationsResponse, { readonly track: "song" }> = {
+  reservation_id: "stem-reservation",
+  track: "song",
+  slot: "vocal_audio",
+  status: "awaiting_upload",
+  upload: { method: "PUT", url: "https://upload.test/stem", required_headers: [{ name: "content-type", value: "audio/mpeg" }], expires_at: "2027-01-01T00:00:00Z" },
+};
+
 class MemoryMediaTransport implements MediaSubmissionTransport {
+  readonly stemCalls: string[] = [];
+  async reserveStem(input: PostCommunitiesCommunityIdMediaUploadReservationsInput): Promise<PostCommunitiesCommunityIdMediaUploadReservationsResponse> {
+    if (input.body.track !== "song") throw new Error("stems are song audio");
+    const slot = input.body.slot;
+    this.stemCalls.push(`reserve:${slot}`);
+    return { ...STEM_RESERVATION, reservation_id: `stem-reservation-${slot}`, slot };
+  }
+  async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput): Promise<MediaSubmissionSnapshot> {
+    this.stemCalls.push(`attach:${input.body.slot}`);
+    const current = this.current;
+    if (current === null) throw new Error("missing stem submission");
+    const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
+    stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
+    const next = { ...current, stems };
+    this.current = next;
+    return next;
+  }
   async listActive() { return { object: "active_song_media_post_submission_page" as const, items: [], next_cursor: null }; }
   readonly kinds: string[] = [];
   readonly commands: PersistedMediaCommand[] = [];
@@ -147,7 +176,7 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
     return this.current;
   }
 
-  async read(): Promise<MediaSubmissionSnapshot | null> {
+  async read(_submissionId?: string, _signal?: AbortSignal): Promise<MediaSubmissionSnapshot | null> {
     return this.current;
   }
 
@@ -252,7 +281,8 @@ describe("media submission coordinator", () => {
   test("recovers only server state and does not repeat upload or bound terms", async () => {
     const transport = new MemoryMediaTransport();
     transport.current = snapshot({ audio_revision: 1, phase: "analysis", creation_revision: 3,
-      lyrics_state: { current: { status: "ready", text: "Accepted lyrics", lyrics_revision: 1, audio_revision: 1 } } });
+      lyrics_state: { current: { status: "ready", text: "Accepted lyrics", lyrics_revision: 1, audio_revision: 1 } },
+      stems: { instrumental_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 1 }, vocal_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 1 } } });
     const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission",
       community_id: "community-1", title: "Server title", song_type: "remix", author_declared_rating: "adult_18",
       terms_state: { current: { status: "ready", license_preset: "commercial-remix", commercial_rev_share_bps: 1250,
@@ -302,6 +332,213 @@ describe("media submission coordinator", () => {
     expect(transport.kinds).toEqual(["reserve", "start", "finalize"]);
     expect(transport.uploadCount).toBe(1);
     expect(coordinator.currentRecord?.upload_status).toBe("sealed");
+  });
+
+  test("attaches instrumental and vocals stems after the song is sealed, once each", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    await coordinator.begin({
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: new File([new Uint8Array([1, 2, 3])], "song.mp3", { type: "audio/mpeg" }),
+      title: "Signal",
+      songType: "original",
+      authorDeclaredRating: "general",
+    });
+    await coordinator.uploadAndFinalize();
+    const instrumental = new File([new Uint8Array([4])], "instrumental.mp3", { type: "audio/mpeg" });
+    const vocals = new File([new Uint8Array([5])], "vocals.mp3", { type: "audio/mpeg" });
+    await coordinator.attachStem({ slot: "instrumental_audio", file: instrumental });
+    const both = await coordinator.attachStem({ slot: "vocal_audio", file: vocals });
+    expect(both.stems).toEqual({
+      instrumental_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 },
+      vocal_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 },
+    });
+    // A stem already on the server is not uploaded again.
+    await coordinator.attachStem({ slot: "vocal_audio", file: vocals });
+    expect(transport.stemCalls).toEqual([
+      "reserve:instrumental_audio", "attach:instrumental_audio", "reserve:vocal_audio", "attach:vocal_audio",
+    ]);
+    expect(transport.uploadCount).toBe(3);
+    expect(both.creation_revision).toBe(1);
+  });
+
+  test("refuses a stem before the song exists", async () => {
+    const coordinator = createMediaSubmissionCoordinator({ transport: new MemoryMediaTransport() });
+    await expect(coordinator.attachStem({
+      slot: "vocal_audio",
+      file: new File([new Uint8Array([5])], "vocals.mp3", { type: "audio/mpeg" }),
+    })).rejects.toThrow();
+  });
+
+  test("refuses a stem before primary audio is sealed", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await expect(coordinator.attachStem({ slot: "vocal_audio",
+      file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) })).rejects.toThrow("Seal the song audio");
+    expect(transport.stemCalls).toEqual([]);
+  });
+
+  test("reconciles an accepted stem whose attachment response was lost without a second upload", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await coordinator.uploadAndFinalize();
+    const attach = transport.attachStem.bind(transport);
+    vi.spyOn(transport, "attachStem").mockImplementationOnce(async input => {
+      await attach(input);
+      throw new Error("response lost");
+    });
+    const result = await coordinator.attachStem({ slot: "vocal_audio",
+      file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) });
+    expect(result.stems?.vocal_audio?.status).toBe("sealed");
+    expect(transport.stemCalls).toEqual(["reserve:vocal_audio", "attach:vocal_audio"]);
+    expect(transport.uploadCount).toBe(2);
+  });
+
+  test("replays the exact uncertain attachment after an authoritative read finds it missing", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await coordinator.uploadAndFinalize();
+    const attach = transport.attachStem.bind(transport);
+    const attaching = vi.spyOn(transport, "attachStem").mockRejectedValueOnce(new Error("attachment lost"));
+    const input = { slot: "vocal_audio" as const, file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) };
+    await expect(coordinator.attachStem(input)).rejects.toThrow("attachment lost");
+    const exactInput = attaching.mock.calls[0]?.[0];
+    attaching.mockImplementation(attach);
+    await coordinator.attachStem(input);
+    expect(attaching.mock.calls[1]?.[0]).toEqual(exactInput);
+    expect(transport.stemCalls.filter(call => call.startsWith("reserve:"))).toHaveLength(1);
+    expect(transport.uploadCount).toBe(2);
+  });
+
+  test("an accepted stem can settle through a read while its attachment response is still pending", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await coordinator.uploadAndFinalize();
+    const attach = transport.attachStem.bind(transport);
+    vi.spyOn(transport, "attachStem").mockImplementationOnce(async input => {
+      await attach(input);
+      return new Promise(() => {});
+    });
+    const result = await coordinator.attachStem({ slot: "vocal_audio",
+      file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) });
+    expect(result.stems?.vocal_audio?.status).toBe("sealed");
+    expect(transport.stemCalls).toEqual(["reserve:vocal_audio", "attach:vocal_audio"]);
+    expect(transport.uploadCount).toBe(2);
+  });
+
+  test("an uncertain stem retains its file and exact command until reconciliation or definitive refusal", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await coordinator.uploadAndFinalize();
+    const original = new File(["original"], "original.mp3", { type: "audio/mpeg" });
+    const replacement = new File(["replacement"], "replacement.mp3", { type: "audio/mpeg" });
+    const attach = transport.attachStem.bind(transport);
+    const attaching = vi.spyOn(transport, "attachStem").mockRejectedValueOnce(new Error("attachment uncertain"));
+    await expect(coordinator.attachStem({ slot: "vocal_audio", file: original })).rejects.toThrow("attachment uncertain");
+    const command = attaching.mock.calls[0]?.[0];
+    expect(coordinator.isStemAttachmentPending("vocal_audio")).toBe(true);
+    expect(coordinator.isStemAttachmentPending("instrumental_audio")).toBe(false);
+    await expect(coordinator.attachStem({ slot: "vocal_audio", file: replacement })).rejects.toThrow("original stem attachment");
+    expect(attaching).toHaveBeenCalledTimes(1);
+    expect(transport.uploadCount).toBe(2);
+    attaching.mockRejectedValueOnce(rejected());
+    await expect(coordinator.attachStem({ slot: "vocal_audio", file: original })).rejects.toBeInstanceOf(RejectedMediaSubmissionError);
+    expect(attaching.mock.calls[1]?.[0]).toEqual(command);
+    expect(coordinator.isStemAttachmentPending("vocal_audio")).toBe(false);
+    attaching.mockImplementation(attach);
+    await coordinator.attachStem({ slot: "vocal_audio", file: replacement });
+    expect(attaching.mock.calls[2]?.[0]?.body.idempotency_key).not.toBe(command?.body.idempotency_key);
+    expect(transport.uploadCount).toBe(3);
+  });
+
+  test.each(["finalize", "stem"] as const)("%s POST completion wins a hung observation GET and aborts its late read", async kind => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    if (kind === "stem") await coordinator.uploadAndFinalize();
+    const stale = transport.current;
+    let releasePost = () => {};
+    let signalPost = () => {};
+    const enteredPost = new Promise<void>(resolve => { signalPost = resolve; });
+    const postHeld = new Promise<void>(resolve => { releasePost = resolve; });
+    const hold = async () => { signalPost(); await postHeld; };
+    const originalDispatch = transport.dispatch.bind(transport);
+    const originalAttach = transport.attachStem.bind(transport);
+    let observing = false;
+    if (kind === "finalize") {
+      vi.spyOn(transport, "dispatch").mockImplementation(async command => {
+        if (command.kind === "finalize") { observing = true; await hold(); }
+        return originalDispatch(command);
+      });
+    } else {
+      vi.spyOn(transport, "attachStem").mockImplementation(async input => {
+        observing = true; await hold(); return originalAttach(input);
+      });
+    }
+    let readSignal: AbortSignal | undefined;
+    let releaseRead: (value: MediaSubmissionSnapshot | null) => void = () => {};
+    const originalRead = transport.read.bind(transport);
+    vi.spyOn(transport, "read").mockImplementation((_id, signal) => {
+      if (!observing) return originalRead();
+      readSignal = signal;
+      return new Promise(resolve => { releaseRead = resolve; });
+    });
+    vi.useFakeTimers();
+    const running = kind === "finalize" ? coordinator.uploadAndFinalize()
+      : coordinator.attachStem({ slot: "vocal_audio", file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) });
+    await enteredPost;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(readSignal).toBeDefined();
+    expect(readSignal?.aborted).toBe(false);
+    releasePost();
+    const result = await running;
+    expect(readSignal?.aborted).toBe(true);
+    releaseRead(stale);
+    await vi.advanceTimersByTimeAsync(0);
+    if (kind === "stem") {
+      expect(result.stems?.vocal_audio?.status).toBe("sealed");
+      expect(coordinator.currentRecord?.snapshot?.stems?.vocal_audio?.status).toBe("sealed");
+    } else {
+      expect(result.audio_revision).toBe(1);
+      expect(coordinator.currentRecord?.snapshot?.audio_revision).toBe(1);
+    }
+  });
+
+  test("a GET that ignores cancellation is bounded without losing the original attachment", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport, observationRequestTimeoutMs: 5 });
+    await coordinator.begin({ communityId: "community-1", personaId: "persona-one", audio: new File(["song"], "song.mp3", { type: "audio/mpeg" }), title: "Signal", songType: "original", authorDeclaredRating: "general" });
+    await coordinator.uploadAndFinalize();
+    const input = { slot: "vocal_audio" as const, file: new File(["vocal"], "vocal.mp3", { type: "audio/mpeg" }) };
+    const attach = transport.attachStem.bind(transport);
+    const attaching = vi.spyOn(transport, "attachStem").mockRejectedValueOnce(new Error("attachment uncertain"));
+    await expect(coordinator.attachStem(input)).rejects.toThrow("attachment uncertain");
+    const command = attaching.mock.calls[0]?.[0];
+    let readSignal: AbortSignal | undefined;
+    const read = vi.spyOn(transport, "read").mockImplementation((_id, signal) => {
+      readSignal = signal;
+      return new Promise(() => {});
+    });
+    await expect(coordinator.refresh()).rejects.toThrow("Song status checking timed out");
+    expect(readSignal?.aborted).toBe(true);
+    expect(coordinator.isStemAttachmentPending("vocal_audio")).toBe(true);
+    read.mockRestore();
+    attaching.mockImplementation(attach);
+    await coordinator.attachStem(input);
+    expect(attaching.mock.calls[1]?.[0]).toEqual(command);
+    expect(transport.uploadCount).toBe(2);
+  });
+
+  test.each([0, 1])("refuses preparation with %i stems before any primary audio request", async count => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    await expect(prepareSongComposer({ coordinator, communityId: "community-1", personaId: "persona-one",
+      song: { title: "Signal", primaryAudioUpload: new File(["song"], "song.mp3", { type: "audio/mpeg" }),
+        ...(count === 1 ? { instrumentalAudioUpload: new File(["instrumental"], "instrumental.mp3", { type: "audio/mpeg" }) } : {}) },
+      songMode: "original", license: { presetId: "commercial-remix" }, royaltySplit: { allocations: [] },
+      authorDeclaredRating: "general" })).rejects.toThrow("Instrumental and Vocals MP3 files are required");
+    expect(transport.kinds).toEqual([]);
+    expect(transport.uploadCount).toBe(0);
   });
 
   test("rejects oversized audio before retaining a command and accepts a smaller replacement", async () => {

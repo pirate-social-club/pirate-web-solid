@@ -53,7 +53,33 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Paper's resting state: a bare 24px box, unchecked and unfocused. */
 export const Default: Story = {
+  render: controlledRender(
+    (args) => args.checked ?? false,
+    (checked, setChecked, args) => (
+      <Checkbox
+        {...args}
+        aria-label="Accept terms"
+        checked={checked()}
+        onChange={(next) => {
+          setChecked(next);
+          args.onChange?.(next);
+        }}
+      />
+    ),
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const checkbox = canvas.getByRole("checkbox", { name: "Accept terms" });
+    await expect(checkbox).not.toBeChecked();
+    await expect(checkbox).not.toHaveFocus();
+    await expect(canvas.queryByText("Accept terms")).toBeNull();
+  },
+};
+
+/** Checking the labelled box; kept apart so Default rests on the board state. */
+export const Interaction: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const checkbox = canvas.getByRole("checkbox", { name: "Accept terms" });

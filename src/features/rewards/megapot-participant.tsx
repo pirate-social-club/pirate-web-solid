@@ -26,7 +26,7 @@ export function MegapotPoolView(props: { readonly pool: ParticipantPool; readonl
       <Show when={props.pool.drawing?.gross_prize_pool_atomic != null && props.pool.drawing?.prize_pool_observed_at}>{observed => <p>
         Gross prize pool: {formatUnits(BigInt(props.pool.drawing!.gross_prize_pool_atomic!), 6)} test USDC, before referral share. Last observed <time datetime={observed()}>{rewardTime(observed())}</time>. This is the drawing’s total prize pool, not your winnings.
       </p>}</Show>
-      <p>Pirate buys and holds the ticket. If the pool wins, your amount is held until you verify to claim it.</p>
+      <p>If the pool wins, your amount is held until you verify to claim it.</p>
       <Show when={props.pool.fallback_disclosure}>{disclosure => <p>{disclosure()}</p>}</Show>
     </Show>
   </section>;
@@ -166,7 +166,7 @@ export function MegapotShareStatus(props: Props) {
   onCleanup(() => { alive = false; ++request; controller?.abort(); clearTimeout(timeout); clearTimeout(expiry); });
   const visible = () => sameScope(state()?.scope, props) ? state() : undefined;
   return <Show when={visible()}>{value => <section aria-label="Your song reward" aria-live="polite" class="rounded-xl border border-border-soft bg-card p-4 text-sm space-y-3" data-megapot-share>
-    <p class="font-semibold">Your Megapot share</p>
+    <p class="font-semibold">Daily lottery</p>
     <Show when={value().snapshot} fallback={<p>{value().content}</p>}>{snapshot => <MegapotShareView snapshot={snapshot()} />}</Show>
     <Button variant="outline" disabled={busy()} onClick={() => { void load(); }}>Check reward status</Button>
   </section>}</Show>;

@@ -34,6 +34,16 @@ test("the complete cached hero renders public media and details without account 
 
 test("a persona fallback name does not repeat its handle", () => {
   const html = renderToString(() => <ProfileLayout name="owned.pirate" handle="owned.pirate" />);
-  expect(html).toContain("owned.pirate");
-  expect(html).not.toContain("data-profile-handle");
+  // The handle is the profile's label, drawn once; there is no second @handle line.
+  expect(html.split(">owned.pirate<").length - 1).toBe(1);
+  expect(html).not.toContain("@owned.pirate");
+});
+
+test("the label is the handle when there is one, otherwise the name", () => {
+  const named = renderToString(() => <ProfileLayout name="Captain One" handle="captain-one.pirate" />);
+  expect(named).toContain(">captain-one.pirate<");
+  expect(named).not.toContain("Captain One");
+  const unnamed = renderToString(() => <ProfileLayout name="User 4KQ7M2" handle={null} />);
+  expect(unnamed).toContain(">User 4KQ7M2<");
+  expect(unnamed).not.toContain("data-profile-handle");
 });

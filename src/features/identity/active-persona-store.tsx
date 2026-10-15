@@ -24,6 +24,12 @@ export interface PersonaSwitchTarget {
   readonly loading?: boolean;
   readonly unavailable?: boolean;
   readonly onRetry?: () => void;
+  /**
+   * True when the page draws its own profile control (the community banner's
+   * profile button), so the shell does not draw its corner control as well.
+   * The shell still owns the switcher sheet the page's control opens.
+   */
+  readonly hostsProfileControl?: boolean;
   readonly nameAction?: { readonly label: string; readonly run: (returnFocus?: HTMLElement) => void };
 }
 

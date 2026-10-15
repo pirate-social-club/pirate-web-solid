@@ -48,7 +48,19 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Paper's resting state: Monthly selected. */
 export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("radiogroup", { name: "Billing cadence" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Monthly/ })).toBeChecked();
+    await expect(canvas.getByRole("radio", { name: /Weekly/ })).not.toBeChecked();
+    await expect(canvas.getByText("Selected monthly")).toBeInTheDocument();
+  },
+};
+
+/** Picking another card moves the selection; kept apart so Default rests on Monthly. */
+export const Interaction: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("radiogroup", { name: "Billing cadence" })).toBeInTheDocument();

@@ -54,7 +54,11 @@ export function PostComposerStepFooter(props: {
     if (preparing() || locked() || controller.submit.loading) return false;
     switch (props.steps.current()) {
       case "song":
-        return (!controller.requirements.songAudioMissing || props.runtime?.prepared === true)
+        return (!controller.requirements.songAudioMissing || props.runtime?.audioPrepared === true || props.runtime?.prepared === true)
+          && (props.runtime?.prepared === true || (
+            (Boolean(controller.song.state.instrumentalAudioUpload) || props.runtime?.stems?.instrumental === true)
+            && (Boolean(controller.song.state.vocalAudioUpload) || props.runtime?.stems?.vocals === true)
+          ))
           && Boolean(controller.song.state.title?.trim())
           && !(props.runtime && !props.runtime.personaId);
       case "rights":
@@ -71,7 +75,7 @@ export function PostComposerStepFooter(props: {
     // Signal writes are not visible to a second handler in the same tick.
     // This synchronous owner prevents a double click from starting a second
     // advance while the audio preparation is still awaiting its response.
-    if (advancing) return;
+    if (advancing || !canAdvance()) return;
     advancing = true;
     const target = getNextComposerStep(props.steps.current(), controller.tabs.activeTab);
     try {

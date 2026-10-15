@@ -80,5 +80,5 @@ test("song detail renders the shared post and counts without private session or 
 test("song reward detail SSR does not construct a browser rewards client", () => {
   vi.stubGlobal("location", undefined);
   const html = renderToString(() => <PublicPostRouteView state={activityState("detail")} />);
-  expect(html).not.toContain("You have a share");
+  expect(html).not.toContain("You’re entered");
 });

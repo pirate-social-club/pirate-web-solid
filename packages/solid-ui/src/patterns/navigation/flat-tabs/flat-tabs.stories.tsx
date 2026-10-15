@@ -51,6 +51,39 @@ export const TabBarWithButtons: Story = {
     await expect(canvas.getByRole("button", { name: "Feed" })).toHaveClass(
       "border-transparent",
     );
+
+    // Owner ruling 5: equal columns on phone; on desktop each tab keeps its
+    // own width (16px side padding) and the bar starts at the left.
+    const feed = canvas.getByRole("button", { name: "Feed" }).getBoundingClientRect();
+    const aboutBox = about.getBoundingClientRect();
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      await expect(aboutBox.left - feed.right).toBeLessThan(1);
+      await expect(feed.width).toBeLessThan(200);
+      await expect(getComputedStyle(canvas.getByRole("button", { name: "Feed" })).paddingLeft).toBe("16px");
+    } else {
+      await expect(Math.abs(feed.width - aboutBox.width)).toBeLessThan(1);
+    }
+  },
+};
+
+/**
+ * Owner ruling 5 on a phone: two tabs share the bar in equal columns. The
+ * desktop story above takes its desktop branch in the sweep, so this case
+ * asks for the phone viewport and asserts the phone layout unconditionally.
+ */
+export const TabBarWithButtonsPhone: Story = {
+  ...TabBarWithButtons,
+  name: "Tab bar with buttons (phone)",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(window.matchMedia("(max-width: 767px)").matches).toBe(true);
+    const feed = canvas.getByRole("button", { name: "Feed" }).getBoundingClientRect();
+    const about = canvas.getByRole("button", { name: "About" }).getBoundingClientRect();
+    await expect(Math.abs(feed.width - about.width)).toBeLessThan(1);
+    // Together the columns fill the bar.
+    const bar = canvas.getByRole("button", { name: "Feed" }).parentElement!.getBoundingClientRect();
+    await expect(Math.abs(feed.width + about.width - bar.width)).toBeLessThan(2);
   },
 };
 

@@ -25,13 +25,14 @@ export const AnonymousDesktop: Story = { render: () => <ShellStory signedIn={fal
 export const AuthenticatedDesktop: Story = { render: () => <ShellStory /> };
 export const ResolvingAccount: Story = { render: () => <ShellStory signedIn={false} personas={[]} sessionResolving communityNavigation={{ kind: "loading" }} /> };
 export const Mobile: Story = { globals: phone, render: () => <ShellStory /> };
-export const MobilePostingEntry: Story = {
+/** The phone home header has the menu and no Post: a post belongs to a community. */
+export const MobileHomeHeader: Story = {
   globals: phone,
   render: () => <ShellStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Choose a community to post in" }, { timeout: 10000 }));
-    await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /communities");
+    await canvas.findByRole("button", { name: "Open navigation" }, { timeout: 10000 });
+    await expect(canvas.queryByRole("button", { name: "Choose a community to post in" })).toBeNull();
   },
 };
 export const CommunityDetailMobile: Story = { globals: phone, render: () => <ShellStory initialPath="/c/harbor" /> };

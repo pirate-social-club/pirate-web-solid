@@ -1,7 +1,7 @@
 import { UiLocaleProvider } from "../../../lib/ui-locale.tsx";
 import { publicProfileFragment } from "../../identity/public-profile-label.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell.tsx";
-import { relativeTime } from "./relative-time.ts";
+import { compactRelativeTime, relativeTime } from "./relative-time.ts";
 import { renderToString } from "@solidjs/web";
 import { expect, test } from "vitest";
 import { CommentCard } from "./comment-card.tsx";
@@ -55,6 +55,20 @@ test("timestamps distinguish minutes from hours and omit invalid dates", () => {
   expect(relativeTime("2026-10-04T08:00:00Z", now)).toBe("1d ago");
   expect(relativeTime("invalid", now)).toBeUndefined();
   expect(relativeTime(undefined, now)).toBeUndefined();
+});
+
+test("post cards use the compact age without a separator or 'ago'", () => {
+  const now = Date.parse("2026-10-05T08:00:00Z");
+  expect(compactRelativeTime("2026-10-05T07:59:50Z", now)).toBe("now");
+  expect(compactRelativeTime("2026-10-05T07:55:00Z", now)).toBe("5m");
+  expect(compactRelativeTime("2026-10-05T06:00:00Z", now)).toBe("2h");
+  expect(compactRelativeTime("2026-10-04T08:00:00Z", now)).toBe("1d");
+  expect(compactRelativeTime("invalid", now)).toBeUndefined();
+  expect(compactRelativeTime(undefined, now)).toBeUndefined();
+  const html = renderToString(() => <CommunityPostCard post={{ id: "aged", title: "Aged post", body: "Text", score: 0, publishedAt: "2026-10-05T08:00:00Z" }} />);
+  expect(html).toContain('datetime="2026-10-05T08:00:00Z"');
+  expect(html).not.toContain("·");
+  expect(html).not.toContain(" ago");
 });
 
 test.each(["ar", "zh"] as const)("public post and comment labels use the %s page locale in SSR", locale => {

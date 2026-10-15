@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
+import { boardWidth } from "@/stories/lib/story-measure";
 import { FormattedText } from "./formatted-text";
 
 const mixedValue = [
@@ -79,8 +80,17 @@ export const LongContent: Story = {
     value:
       "# eZo Festival 2026\n\nIntro line for the festival post.\n\n## Basic info\n\nDoors open at noon and the first act starts at 2pm. This is a long unbroken link that should wrap inside a narrow container: https://example.test/really/long/unbroken/path/that/should/not-expand-mobile-layout\n\n### Los Refrescos -- live\n\nDetails about the live session with **Session Victim**.",
   },
+  // Paper draws long content in a 320px column, which also fits a 390 phone.
+  render: (args) => (
+    <FormattedText class="w-80 max-w-full" dir={args.dir} lang={args.lang} value={args.value} />
+  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const column = canvasElement.firstElementChild as HTMLElement;
+    await expect(Math.round(column.getBoundingClientRect().width)).toBe(boardWidth(320));
+    // The unbroken URL wraps inside the column instead of widening it.
+    await expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
 
     await expect(canvas.getByRole("heading", { level: 2, name: /eZo Festival 2026/ })).toBeVisible();
     await expect(canvas.getByRole("heading", { level: 3, name: "Basic info" })).toBeVisible();

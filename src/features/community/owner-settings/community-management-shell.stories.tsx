@@ -126,10 +126,17 @@ export const Mobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole("navigation", { name: "Primary navigation" })).not.toBeInTheDocument();
-    await expect(canvas.getAllByRole("button", { name: "Close community management" }).length).toBeGreaterThan(0);
 
     // The complementary heading: one exposed here too, now the mobile one.
     expect(visibleHeadings(canvasElement)).toEqual(["Moderation queue"]);
+
+    // On a phone an open section leads back to the list of sections rather
+    // than out of management; the list is where Close lives.
+    await expect(canvas.queryByRole("button", { name: "Close community management" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Back to all sections" }));
+    expect(visibleHeadings(canvasElement)).toEqual(["Community management"]);
+    await expect(canvas.getByRole("button", { name: "Close community management" })).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Back to all sections" })).not.toBeInTheDocument();
   },
 };
 

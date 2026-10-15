@@ -60,12 +60,19 @@ export async function inspectVideoFile(
     const audio = await input.getPrimaryAudioTrack();
     const container = (await input.getMimeType()).split(";")[0]?.trim();
     const duration = await input.computeDuration();
+    // Scan metadata for the whole track: a prefix estimate can miss a later
+    // high-rate section. Packet rate is average video FPS in Mediabunny 1.55.5.
+    const averageFrameRate = video === null ? Number.NaN
+      : await video.computePacketStats().then(stats => stats.averagePacketRate).catch(() => Number.NaN);
     const problem = videoAdmissionProblem({
       container,
       hasVideo: video !== null,
       hasAudio: audio !== null,
       videoCodec: video === null ? null : await video.getCodec(),
       audioCodec: audio === null ? null : await audio.getCodec(),
+      width: video === null ? 0 : await video.getCodedWidth(),
+      height: video === null ? 0 : await video.getCodedHeight(),
+      averageFrameRate,
       durationSeconds: duration,
       maxDurationSeconds: maxDuration,
     });

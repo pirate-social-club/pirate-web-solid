@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
-import { demoAvatarImage } from "@/stories/lib/fixtures";
+import { demoArtworkImage } from "@/stories/lib/fixtures";
 import { StoryRow } from "@/stories/lib/story-layout";
 import { CommunityAvatar } from "./community-avatar";
 
@@ -67,13 +67,20 @@ export const Sizes: Story = {
       />
     </StoryRow>
   ),
+  play: async ({ canvasElement }) => {
+    // Paper PostCard: the 24px avatar carries 9px initials.
+    const xs = within(canvasElement).getByRole("img", { name: "Tide Room" });
+    const initials = xs.querySelector("span[aria-hidden]");
+    if (!initials) throw new Error("no initials");
+    await expect(getComputedStyle(initials).fontSize).toBe("9px");
+  },
 };
 
 export const Variants: Story = {
   render: () => (
     <StoryRow class="items-end">
       <CommunityAvatar
-        avatarSrc={demoAvatarImage}
+        avatarSrc={demoArtworkImage}
         communityId="cmt_atlas"
         displayName="Atlas Gardens"
         size="md"
@@ -85,4 +92,12 @@ export const Variants: Story = {
       />
     </StoryRow>
   ),
+  play: async ({ canvasElement }) => {
+    // The image variant loads its fixture instead of falling back to initials.
+    const image = canvasElement.querySelector("img");
+    await expect(image).not.toBeNull();
+    await waitFor(() =>
+      expect((image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0).toBe(true),
+    );
+  },
 };

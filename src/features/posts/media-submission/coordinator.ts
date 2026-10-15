@@ -3,9 +3,11 @@ import type {
   PostMediaPostSubmissionsSubmissionIdFinalizeInput,
   PostMediaPostSubmissionsSubmissionIdRetryInput,
   PostMediaPostSubmissionsSubmissionIdReferenceInput,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
 } from "@pirate/api-client";
 import { base64UrlToBytes } from "../post-composer/text-submission-contract";
 import {
+  buildAttachSongStemInput,
   buildReserveSongAudioInput,
   buildSongLyricsInput,
   buildSongTermsInput,
@@ -14,6 +16,7 @@ import {
   type ActiveSongMediaPostSubmission,
   type SongLicensePreset,
   type SongRoyaltyAllocation,
+  type SongStemSlot,
 } from "./contracts";
 import {
   createPersistedMediaCommand,
@@ -54,7 +57,11 @@ export interface MediaSubmissionCoordinatorOptions {
   readonly createId?: () => string;
   readonly onStateChange?: (view: SongSubmissionView) => void;
   readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
+  readonly observationRequestTimeoutMs?: number;
 }
+
+type CommandOutcome<Result> = { readonly kind: "result"; readonly result: Result }
+  | { readonly kind: "error"; readonly error: unknown };
 
 interface RevisionCommandBody {
   readonly expected_creation_revision?: number;
@@ -95,15 +102,24 @@ export class MediaSubmissionCoordinator {
   private readonly createId: () => string;
   private readonly onStateChange?: (view: SongSubmissionView) => void;
   private readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
+  private readonly observationRequestTimeoutMs: number;
+  // Retained only for this dialog session, using the generated stems contract.
+  private readonly pendingStems = new Map<SongStemSlot, {
+    readonly file: File;
+    readonly attachment: PostMediaPostSubmissionsSubmissionIdStemsInput;
+  }>();
 
   constructor(options: MediaSubmissionCoordinatorOptions = {}) {
     this.transport = options.transport ?? createSameOriginMediaSubmissionTransport({ origin: options.origin, fetchImpl: options.fetchImpl });
     this.createId = options.createId ?? randomId;
     this.onStateChange = options.onStateChange;
     this.onSnapshotChange = options.onSnapshotChange;
+    this.observationRequestTimeoutMs = options.observationRequestTimeoutMs ?? 15_000;
   }
 
   get currentRecord(): MediaSubmissionRecord | null { return this.record; }
+  get hasPendingStemAttachment(): boolean { return this.pendingStems.size > 0; }
+  isStemAttachmentPending(slot: SongStemSlot): boolean { return this.pendingStems.has(slot); }
   get termsIssued(): boolean {
     return (this.record?.commands.some(command => command.kind === "terms") ?? false)
       || (this.record?.version === MEDIA_RECOVERED_VERSION && this.record.terms_state.current.status === "ready");
@@ -113,6 +129,153 @@ export class MediaSubmissionCoordinator {
       && this.record.snapshot.phase === "awaiting_upload";
   }
   listActive(communityId: string, cursor?: string) { return this.transport.listActive(communityId, cursor); }
+
+  /**
+   * Uploads one stem (instrumental or vocals) and seals it onto the current
+   * submission. Authoritative reads resolve lost responses before a retry.
+   * An uncertain attachment retains its exact input and idempotency key;
+   * only an interrupted reservation or upload needs a new reservation.
+   */
+  async attachStem(input: {
+    readonly slot: SongStemSlot;
+    readonly file: File;
+    readonly signal?: AbortSignal;
+    readonly onProgress?: (sent: number, total: number) => void;
+  }): Promise<MediaSubmissionSnapshot> {
+    input.signal?.throwIfAborted();
+    const record = this.requireRecord();
+    if (record.submission_id === null || record.snapshot === null) {
+      throw new Error("Upload the song before adding its instrumental and vocals");
+    }
+    const observed = await this.refresh(input.signal);
+    if (observed === null) throw new Error("The song submission could not be reconciled");
+    if (observed.stems?.[input.slot]?.status === "sealed") {
+      this.pendingStems.delete(input.slot);
+      return observed;
+    }
+    if (observed.audio_revision < 1 || terminal(observed) || this.termsIssued) {
+      throw new Error("Seal the song audio before attaching its instrumental and vocals, and before issuing terms");
+    }
+    const pending = this.pendingStems.get(input.slot);
+    if (pending !== undefined && pending.file !== input.file) {
+      throw new Error("Confirm the original stem attachment before choosing another file");
+    }
+    let attachment = pending?.attachment;
+    if (attachment === undefined) {
+      const reservation = await this.transport.reserveStem(buildReserveSongAudioInput({
+        communityId: record.community_id,
+        personaId: record.persona_id,
+        idempotencyKey: this.createId(),
+        file: input.file,
+        slot: input.slot,
+      }), input.signal);
+      input.signal?.throwIfAborted();
+      await this.transport.upload(reservation, input.file, input.onProgress, input.signal);
+      input.signal?.throwIfAborted();
+      const current = await this.refresh(input.signal);
+      if (current === null) throw new Error("The song submission could not be reconciled");
+      if (current.stems?.[input.slot]?.status === "sealed") return current;
+      attachment = buildAttachSongStemInput({
+        submissionId: current.submission_id,
+        personaId: record.persona_id,
+        idempotencyKey: this.createId(),
+        expectedCreationRevision: current.creation_revision,
+        slot: input.slot,
+        reservationId: reservation.reservation_id,
+      });
+      this.pendingStems.set(input.slot, { file: input.file, attachment });
+    }
+    try {
+      const snapshot = await this.observeStemAttachment(attachment, input.signal);
+      input.signal?.throwIfAborted();
+      this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+      if (snapshot.stems?.[input.slot]?.status !== "sealed") throw new Error("The stem attachment is not confirmed");
+      this.pendingStems.delete(input.slot);
+      return this.requireRecord().snapshot ?? snapshot;
+    } catch (error) {
+      if (error instanceof RejectedMediaSubmissionError || error instanceof MediaSubmissionConflictError) {
+        this.pendingStems.delete(input.slot);
+      }
+      input.signal?.throwIfAborted();
+      // A server-accepted attachment can outlive its response. A failed read
+      // leaves the exact attempt retained and the composer on Song.
+      const reconciled = await this.refresh(input.signal).catch(() => null);
+      if (reconciled?.stems?.[input.slot]?.status === "sealed") {
+        this.pendingStems.delete(input.slot);
+        return reconciled;
+      }
+      throw error;
+    }
+  }
+
+  private async observeStemAttachment(
+    attachment: PostMediaPostSubmissionsSubmissionIdStemsInput,
+    signal?: AbortSignal,
+  ): Promise<MediaSubmissionSnapshot> {
+    const settled = this.transport.attachStem(attachment, signal).then(
+      result => ({ kind: "result" as const, result }),
+      error => ({ kind: "error" as const, error }),
+    );
+    while (true) {
+      signal?.throwIfAborted();
+      const initial = await Promise.race([settled, finalizeObservationTick()]);
+      const outcome = initial.kind === "tick" ? await this.observeDispatch(settled, signal) : initial;
+      signal?.throwIfAborted();
+      if (outcome.kind === "result") return outcome.result;
+      if (outcome.kind === "error") throw outcome.error;
+      const observed = outcome.snapshot;
+      if (observed?.stems?.[attachment.body.slot]?.status === "sealed") return observed;
+    }
+  }
+
+  /** Bound reads even when an adapter ignores abort; late results never update the record. */
+  private async readSnapshot(submissionId: string, signal?: AbortSignal): Promise<MediaSubmissionSnapshot | null> {
+    signal?.throwIfAborted();
+    const controller = new AbortController();
+    const cancel = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", cancel, { once: true });
+    let rejectAbort = () => {};
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAbort = () => reject(controller.signal.reason);
+      controller.signal.addEventListener("abort", rejectAbort, { once: true });
+    });
+    const timer = setTimeout(() => controller.abort(new DOMException("Song status checking timed out", "TimeoutError")), this.observationRequestTimeoutMs);
+    try {
+      const snapshot = await Promise.race([
+        Promise.resolve().then(() => {
+          controller.signal.throwIfAborted();
+          return this.transport.read(submissionId, controller.signal);
+        }),
+        aborted,
+      ]);
+      controller.signal.throwIfAborted();
+      return snapshot;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+      controller.signal.removeEventListener("abort", rejectAbort);
+    }
+  }
+
+  /** A completed POST wins over its observation GET, without aborting the original write. */
+  private async observeDispatch<Result>(settled: Promise<CommandOutcome<Result>>, signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    const controller = new AbortController();
+    const cancel = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", cancel, { once: true });
+    try {
+      return await Promise.race([
+        settled,
+        this.refresh(controller.signal).then(
+          snapshot => ({ kind: "observed" as const, snapshot }),
+          () => ({ kind: "observed" as const, snapshot: null }),
+        ),
+      ]);
+    } finally {
+      controller.abort();
+      signal?.removeEventListener("abort", cancel);
+    }
+  }
   recover(item: ActiveSongMediaPostSubmission): void {
     if (this.record !== null) throw new Error("Resolve the active media submission before resuming another");
     if (item.object !== "active_song_media_post_submission" || item.submission.track !== "song"
@@ -253,7 +416,8 @@ export class MediaSubmissionCoordinator {
       error => ({ kind: "error" as const, error }),
     );
     while (true) {
-      const outcome = await Promise.race([settled, finalizeObservationTick()]);
+      const initial = await Promise.race([settled, finalizeObservationTick()]);
+      const outcome = initial.kind === "tick" ? await this.observeDispatch(settled) : initial;
       if (outcome.kind === "result") {
         return snapshotResult(outcome.result)
           ? this.requireRecord().snapshot ?? outcome.result
@@ -261,21 +425,12 @@ export class MediaSubmissionCoordinator {
       }
       if (outcome.kind === "error") throw outcome.error;
 
-      const current = this.requireRecord();
-      if (current.submission_id === null) continue;
-      try {
-        const observed = await this.transport.read(current.submission_id);
-        if (observed === null) continue;
-        this.saveSnapshot(observed, this.requireRecord().pending_command);
-        if (observed.audio_revision >= 1 || terminal(observed)) {
-          // The read is authoritative evidence that this exact finalize took
-          // effect. Do not keep the author blocked on a delayed response after
-          // the server has already exposed the result.
-          return this.requireRecord().snapshot ?? observed;
-        }
-      } catch {
-        // The authoritative finalize request owns the result. A transient
-        // observation failure cannot replace or cancel that retained command.
+      const observed = outcome.snapshot;
+      if (observed !== null && (observed.audio_revision >= 1 || terminal(observed))) {
+        // The read is authoritative evidence that this exact finalize took
+        // effect. Do not keep the author blocked on a delayed response after
+        // the server has already exposed the result.
+        return this.requireRecord().snapshot ?? observed;
       }
     }
   }
@@ -285,7 +440,7 @@ export class MediaSubmissionCoordinator {
     const pending = current.pending_command;
     if (pending === null) return;
     if (current.submission_id !== null) {
-      const snapshot = await this.transport.read(current.submission_id, signal);
+      const snapshot = await this.readSnapshot(current.submission_id, signal);
       signal?.throwIfAborted();
       if (snapshot !== null) {
         this.saveSnapshot(snapshot, this.commandAlreadyReflected(pending, snapshot) ? null : pending);
@@ -303,9 +458,14 @@ export class MediaSubmissionCoordinator {
   async refresh(signal?: AbortSignal): Promise<MediaSubmissionSnapshot | null> {
     const current = this.requireRecord();
     if (current.submission_id === null) return null;
-    const snapshot = await this.transport.read(current.submission_id, signal);
+    const snapshot = await this.readSnapshot(current.submission_id, signal);
     signal?.throwIfAborted();
-    if (snapshot !== null) this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+    if (snapshot !== null) {
+      this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+      for (const slot of this.pendingStems.keys()) {
+        if (snapshot.stems?.[slot]?.status === "sealed") this.pendingStems.delete(slot);
+      }
+    }
     return snapshot === null ? null : this.requireRecord().snapshot;
   }
 
@@ -564,6 +724,7 @@ export class MediaSubmissionCoordinator {
       (!terminal(current.snapshot) && current.snapshot.status !== "processing_failed")
     ) throw new Error("Only a terminal media submission may be discarded");
     this.record = null;
+    this.pendingStems.clear();
     this.setView({ status: "editing" });
   }
 }

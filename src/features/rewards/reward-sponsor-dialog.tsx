@@ -216,7 +216,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     : <BoostAmountField id={`reward-${fieldProps.field}`} label={fieldProps.label} prefix={fieldProps.prefix} value={draft()[fieldProps.field]} onChange={value => update(fieldProps.field, value)} />;
   const bonusTerms = () => { const leg = terms()?.leg; return leg?.kind === "asset_bonus" ? leg : undefined; };
   const poolTerms = () => { const leg = terms()?.leg; return leg?.kind === "megapot_pool" ? leg : undefined; };
-  return <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent class="flex max-h-[88dvh] w-full flex-col overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,36rem)] md:max-w-[36rem] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
+  return <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent class="flex max-h-[88dvh] w-full flex-col overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,440px)] md:max-w-[440px] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
     <ModalHeader class="text-start"><ModalTitle>Create a bounty</ModalTitle><ModalDescription>Reward people who practice {props.songTitle}.</ModalDescription></ModalHeader>
     <Show when={error()}>{message => <p role="alert" class="text-destructive-text break-words">{message()}</p>}</Show>
     <Switch>
@@ -238,7 +238,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
                 <Field label="Additional score floor (%)" field="minimumScore" />
                 <Field label="Entry cutoff before drawing (seconds)" field="cutoffSeconds" />
               </div></details>
-              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Pirate buys and holds the tickets. Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</Type>
+              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</Type>
             </>}>
               <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">Token</Type><select class="block w-full rounded-md border border-input bg-background px-3 py-2" value={draft().assetAddress} onChange={event => update("assetAddress", event.currentTarget.value)}>
                 <For each={catalog()?.assets.items}>{asset => <option value={asset.token_address}>{asset.token_symbol} · {asset.token_address}</option>}</For>

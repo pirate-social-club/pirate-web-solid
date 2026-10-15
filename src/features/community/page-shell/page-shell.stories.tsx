@@ -4,8 +4,11 @@ import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { type CommunityData } from "./page-shell-model";
+import { reviewCanplayAttach, reviewPlaybackMint, reviewPosterPath } from "../../posts/feed/public-feed-fixtures";
+import { VideoPlaybackSeamsContext } from "../../posts/video-submission/video-playback-seams";
+import { type CommunityData, type CommunityPost } from "./page-shell-model";
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
+import { RewardServiceAvailabilityContext } from "../../rewards/reward-service-availability.tsx";
 
 const infinity: CommunityData = {
   name: "Infinity", handle: "c/infinity", description: "To infinity and beyond", members: 1_270, followers: 18_400, posts: [],
@@ -146,7 +149,7 @@ export const SortAndManagement: Story = {
     // Focus returns to the trigger a couple of frames after the menu closes.
     await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(canvas.getByRole("button", { name: "More community options" }));
-    await expect(await body.findByRole("menuitem", { name: "Manage community" })).toBeInTheDocument();
+    await expect(await body.findByRole("menuitem", { name: "Manage" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
   },
 };
@@ -214,4 +217,126 @@ export const FeedPostThreadLinks: Story = {
 export const FeedPostThreadLinksOnMobile: Story = {
   ...FeedPostThreadLinks,
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+const twoHoursAgo = () => new Date(Date.now() - 2 * 3_600_000).toISOString();
+
+/** The three kinds of the Paper PostCard sheet, in one feed, with live-route pills. */
+const mixedKindPosts = (): CommunityPost[] => [
+  { id: "kind-text", authorHandle: "wavemaker", title: "Weekly listening thread", body: "What have you had on repeat this week?", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  { id: "kind-song", authorHandle: "wavemaker", kind: "song", title: "Harbor Lights", mediaTitle: "Harbor Lights", mediaArtist: "The Tidewater", body: "Late-night loop, take two.", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  { id: "kind-video", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "", score: 18, commentCount: 24, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "ready" } },
+];
+
+function MixedKindsFixture(props: { posts?: CommunityPost[] }) {
+  return <VideoPlaybackSeamsContext value={{ mint: reviewPlaybackMint, attach: reviewCanplayAttach, posterPath: reviewPosterPath }}>
+    <CommunityPageShell following joined community={{ ...infinity, name: "Harbor Collective", posts: props.posts ?? mixedKindPosts() }}
+      renderPost={(post, render) => render(
+        <EngagementControls score={post.score} commentCount={post.commentCount ?? 0} onVote={() => undefined} onComment={() => undefined} />,
+        [{ label: "Report", run: () => undefined }],
+      )} />
+  </VideoPlaybackSeamsContext>;
+}
+
+/**
+ * Parts/Posts/PostCard: text, song and video in the shared card. The reward
+ * pill is absent on purpose: there is no live activity count and Rewards are
+ * disabled, so it lives only in Patterns/Engagement/RewardPill. Boost also
+ * stays hidden unless the authenticated reward policy service is available.
+ */
+export const MixedKinds: Story = {
+  render: () => <MixedKindsFixture />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("link", { name: "Weekly listening thread" })).toHaveAttribute("href", "/post/kind-text");
+    await expect(canvas.getByRole("button", { name: "Play Harbor Lights" })).toBeVisible();
+    await expect(canvas.getByRole("link", { name: "Open video post" })).toHaveAttribute("href", "/post/kind-video");
+    const frame = canvasElement.querySelector<HTMLElement>('[data-community-video="kind-video"]');
+    if (frame === null) throw new Error("Expected the video frame");
+    // The player mints only while its frame is on screen.
+    frame.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(frame.querySelector("video")?.getAttribute("poster")).toContain("poster"));
+    await waitFor(() => expect(within(frame).getByRole("button", { name: "Play video" })).toBeVisible());
+    await expect(canvas.queryByRole("button", { name: /^Rewards/ })).toBeNull();
+    for (const time of canvasElement.querySelectorAll("[data-community-post] time")) await expect(time).toHaveTextContent("2h");
+  },
+};
+
+export const MixedKindsOnMobile: Story = {
+  ...MixedKinds,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** A video that cannot play yet stays one quiet line over its frame. */
+export const VideoDeliveryStates: Story = {
+  render: () => <MixedKindsFixture posts={[
+    { id: "video-pending", authorHandle: "wavemaker", kind: "video", title: "video", body: "Still processing.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "pending", thumbnail: "pending" } },
+    { id: "video-unavailable", authorHandle: "wavemaker", kind: "video", title: "video", body: "Delivery failed.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "unavailable", thumbnail: "unavailable" } },
+    { id: "video-no-poster", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "Ready before its thumbnail.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "pending" } },
+  ]} />,
+  play: async ({ canvasElement }) => {
+    const frame = (id: string) => {
+      const element = canvasElement.querySelector<HTMLElement>(`[data-community-video="${id}"]`);
+      if (element === null) throw new Error(`Expected the ${id} frame`);
+      return within(element);
+    };
+    await expect(frame("video-pending").getByText("Playback is being prepared.")).toBeVisible();
+    await expect(frame("video-unavailable").getByText("Playback is unavailable.")).toBeVisible();
+    canvasElement.querySelector('[data-community-video="video-no-poster"]')?.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(frame("video-no-poster").getByRole("button", { name: "Play video" })).toBeVisible());
+    await expect(canvasElement.querySelector('[data-community-video="video-no-poster"] video[poster]')).toBeNull();
+  },
+};
+
+/**
+ * Boost is the live sponsor entry point, reached from the song card's
+ * overflow menu: choose it, the sponsor dialog opens over the feed, and
+ * dismissing it returns focus to the menu that opened it.
+ */
+export const SongBoostFromMenu: Story = {
+  // This fixture explicitly models an available service, not financial admission.
+  render: () => <RewardServiceAvailabilityContext value={() => true}><CommunityPageShell following joined community={{ ...infinity, id: "community-boost", name: "Harbor Collective", posts: [
+    { id: "boost-song", authorHandle: "wavemaker", kind: "song", title: "Harbor Lights", mediaTitle: "Harbor Lights", body: "Late-night loop, take two.", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+    { id: "boost-text", authorHandle: "wavemaker", title: "Weekly listening thread", body: "What have you had on repeat this week?", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
+  ] }} /></RewardServiceAvailabilityContext>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const page = within(canvasElement.ownerDocument.body);
+    const song = canvasElement.querySelector<HTMLElement>('[data-community-post="boost-song"]');
+    const text = canvasElement.querySelector<HTMLElement>('[data-community-post="boost-text"]');
+    if (song === null || text === null) throw new Error("Expected both cards");
+    // A text post offers no Boost and, with no other actions, no menu.
+    await expect(within(text).queryByRole("button", { name: "Post options" })).not.toBeInTheDocument();
+    const trigger = within(song).getByRole("button", { name: "Post options" });
+    await userEvent.click(trigger);
+    await userEvent.click(await page.findByRole("menuitem", { name: "Boost" }));
+    const dialog = await page.findByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await expect(canvas.getByRole("button", { name: "Play Harbor Lights" })).toBeVisible();
+  },
+};
+
+/**
+ * An 18+ video in the card. Playback is refused until the viewer proves
+ * their age; the card then offers the age check in its own frame and never
+ * starts playback by itself.
+ */
+export const AdultVideoAccess: Story = {
+  render: () => <VideoPlaybackSeamsContext value={{ mint: async () => { throw new Error("Age verification required"); }, attach: reviewCanplayAttach, posterPath: reviewPosterPath }}>
+    <CommunityPageShell following joined community={{ ...infinity, name: "Harbor Collective", posts: [
+      { id: "adult-video", authorHandle: "wavemaker", kind: "video", title: "video", mediaTitle: "Harbor Lights", body: "After hours.", score: 0, commentCount: 0, publishedAt: twoHoursAgo(), video: { playback: "ready", thumbnail: "ready" }, requiresAgeVerification: true },
+    ] }} />
+  </VideoPlaybackSeamsContext>,
+  play: async ({ canvasElement }) => {
+    const frame = canvasElement.querySelector<HTMLElement>('[data-community-video="adult-video"]');
+    if (frame === null) throw new Error("Expected the video frame");
+    frame.scrollIntoView({ block: "center" });
+    await waitFor(() => expect(within(frame).getByText(/Playback is unavailable/u)).toBeVisible());
+    await expect(within(frame).getByRole("button", { name: /verify/iu })).toBeVisible();
+    await expect(within(frame).queryByRole("button", { name: "Play video" })).not.toBeInTheDocument();
+    await expect(frame.querySelector("video")?.getAttribute("src") ?? null).toBeNull();
+  },
 };

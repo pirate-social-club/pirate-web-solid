@@ -70,6 +70,39 @@ export const Default: Story = {
   },
 };
 
+/**
+ * Paper's Open state: the outline trigger with the menu open beneath it,
+ * aligned to its end edge, holding the single text-only Boost row.
+ */
+export const Open: Story = {
+  args: {
+    label: "Song actions",
+    items: [{ key: "boost", label: "Boost" }],
+    triggerVariant: "outline",
+    placement: "bottom-end",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+
+    const trigger = canvas.getByRole("button", { name: "Song actions" });
+    await userEvent.click(trigger);
+    const menu = await body.findByRole("menu");
+    await expect(menu).toBeVisible();
+    await expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Boost"]);
+    // The menu opens under the trigger, aligned to its end edge.
+    const triggerBox = trigger.getBoundingClientRect();
+    const menuBox = menu.getBoundingClientRect();
+    await expect(menuBox.top).toBeGreaterThanOrEqual(triggerBox.bottom);
+    await expect(Math.round(menuBox.right)).toBe(Math.round(triggerBox.right));
+
+    // Close before the a11y check: an open modal menu hides the page, trigger
+    // included, from assistive tech, so axe runs on the settled page instead.
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("menu")).not.toBeInTheDocument());
+  },
+};
+
 export const Variants: Story = {
   render: (args) => (
     <StoryStack>

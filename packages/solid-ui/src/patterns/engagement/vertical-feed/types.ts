@@ -72,7 +72,6 @@ export interface MediaActionsProps {
   isFollowing?: boolean;
   isLiked: boolean;
   likeCount?: number;
-  isMuted: boolean;
   title?: string;
   artist?: string;
   mediaImageUrl?: string;
@@ -85,6 +84,16 @@ export interface MediaActionsProps {
   /** Host-offered activities, shown above the soundtrack button. */
   activities?: readonly MediaActivityAction[];
   onActivityClick?: (activityId: string) => void;
-  onToggleMute?: () => void;
   onHaptic?: (kind: HapticKind) => void;
+}
+
+/**
+ * A host-supplied row in a post's More menu (phone sheet, desktop menu),
+ * listed after the built-in Mute/Unmute row. Plain data plus the selection
+ * callback; the host decides availability (e.g. Report for members only).
+ */
+export interface MediaMoreAction {
+  readonly id: string;
+  readonly label: string;
+  readonly onSelect: () => void;
 }

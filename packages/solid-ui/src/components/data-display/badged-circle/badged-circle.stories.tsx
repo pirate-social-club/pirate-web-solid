@@ -5,13 +5,18 @@ import { IconCheck } from "@/components/media/icons";
 import { StoryRow } from "@/stories/lib/story-layout";
 import { BadgedCircle } from "./badged-circle";
 
-const subject = (
-  <span class="grid size-14 place-items-center rounded-full bg-primary text-primary-foreground">
+// Solid JSX evaluates to real DOM nodes, so a node shared between two
+// BadgedCircles is moved into the last one rendered. Build a fresh node per use.
+const subject = () => (
+  <span
+    class="grid size-14 place-items-center rounded-full bg-primary text-primary-foreground"
+    data-testid="badged-subject"
+  >
     <span class="text-base font-semibold">P</span>
   </span>
 );
 
-const verifiedBadge = (
+const verifiedBadge = () => (
   <span class="grid size-full place-items-center bg-success text-success-foreground">
     <IconCheck class="size-3" />
   </span>
@@ -22,10 +27,10 @@ const meta = {
   component: BadgedCircle,
   tags: ["autodocs"],
   args: {
-    badge: verifiedBadge,
+    badge: verifiedBadge(),
     badgeLabel: "Verified",
     badgeSize: 18,
-    children: subject,
+    children: subject(),
   },
   argTypes: {
     badgeSize: { control: "number" },
@@ -64,15 +69,15 @@ export const Variants: Story = {
         }
         badgeSize={18}
       >
-        {subject}
+        {subject()}
       </BadgedCircle>
       <BadgedCircle
-        badge={verifiedBadge}
+        badge={verifiedBadge()}
         badgeLabel="Verified"
         badgeSize={20}
         badgeOffsetPercent={24}
       >
-        {subject}
+        {subject()}
       </BadgedCircle>
     </StoryRow>
   ),
@@ -81,5 +86,11 @@ export const Variants: Story = {
     await expect(
       canvas.getByRole("img", { name: "Verified" }),
     ).toBeVisible();
+    // Each BadgedCircle keeps its own subject circle.
+    const subjects = canvas.getAllByTestId("badged-subject");
+    await expect(subjects).toHaveLength(2);
+    for (const node of subjects) {
+      await expect(node.getBoundingClientRect().width).toBe(56);
+    }
   },
 };

@@ -89,6 +89,25 @@ export const Default: Story = {
   },
 };
 
+/** Paper's Destructive confirm: the same panel with a destructive Continue. */
+export const Destructive: Story = {
+  args: {
+    destructive: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Open alert" }));
+    const dialog = await body.findByRole("alertdialog");
+    await expect(dialog).toHaveAccessibleName("Remove this song?");
+    // No close X: Cancel and the confirm action are the only ways out.
+    await expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
+    await expect(within(dialog).getByRole("button", { name: "Continue" })).toHaveClass("bg-destructive");
+    await expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeVisible();
+  },
+};
+
 export const Mobile: Story = {
   parameters: {
     globals: { viewport: "mobile1" },

@@ -95,6 +95,14 @@ export const Default: Story = {
     await expect(within(dialog).queryByRole("button", { name: /Wallet/ })).toBeNull();
     await expect(within(dialog).getByRole("textbox", { name: "Email" })).toBeInTheDocument();
     await expect(within(dialog).getByRole("button", { name: "Continue with email" })).toBeEnabled();
+    await expect(within(dialog).getByRole("button", { name: "Close" })).toBeEnabled();
+    // Paper: a 440 px dialog, radius 16, padding 16 top and 20 elsewhere.
+    if (window.innerWidth >= 640) {
+      const style = getComputedStyle(dialog);
+      await expect(Math.round(dialog.getBoundingClientRect().width)).toBe(440);
+      await expect(style.borderTopLeftRadius).toBe("16px");
+      await expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual(["16px", "20px", "20px", "20px"]);
+    }
   },
 };
 
@@ -209,7 +217,11 @@ export const FailedReturn: Story = {
     const dialog = await within(document.body).findByRole("dialog");
     await expect(within(dialog).queryByText("Signing in…")).toBeNull();
     await expect(within(dialog).getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-    await expect(within(dialog).getByText("Couldn’t sign in. Try again.")).toBeInTheDocument();
+    const error = within(dialog).getByText("Couldn’t sign in. Try again.");
+    await expect(error).toBeInTheDocument();
+    // Paper sets the error line at 14 px, and the dialog can close again.
+    await expect(getComputedStyle(error).fontSize).toBe("14px");
+    await expect(within(dialog).getByRole("button", { name: "Close" })).toBeEnabled();
   },
 };
 
@@ -220,6 +232,11 @@ export const Working: Story = {
     const dialog = await within(document.body).findByRole("dialog");
     await expect(within(dialog).getByText("Signing in…")).toBeInTheDocument();
     await expect(within(dialog).queryByRole("button", { name: "Continue with Google" })).toBeNull();
+    // Paper: the dialog cannot be closed while signing in.
+    await expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    await expect(within(document.body).getByRole("dialog")).toBeInTheDocument();
+    await expect(within(document.body).queryByRole("button", { name: "Reopen sign-in" })).toBeNull();
   },
 };
 

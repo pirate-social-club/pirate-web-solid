@@ -3,7 +3,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
-import { Type } from "@/components/data-display/type/type";
+import { MobileFooterNav } from "@/patterns/navigation/mobile-footer-nav/mobile-footer-nav";
 import { brokenPost, fixturePosts, longCaptionPost } from "./fixtures";
 import { VerticalFeed, type VerticalFeedProps } from "./vertical-feed";
 
@@ -15,9 +15,10 @@ const meta = {
     posts: fixturePosts,
     onActivePostChange: fn(),
     onEndReached: fn(),
-    onLikeClick: fn(),
+    // No onLikeClick or onFollowClick: Paper draws no Like or Follow badge and
+    // the app does not wire them, so the controls stay hidden here. The
+    // LikeAndFollow story shows them for hosts that do pass the callbacks.
     onShareClick: fn(),
-    onFollowClick: fn(),
     onAuthorClick: fn(),
     onSoundtrackClick: fn(),
     onActivityClick: fn(),
@@ -36,6 +37,7 @@ const meta = {
     onAuthorClick: { table: { disable: true } },
     onSoundtrackClick: { table: { disable: true } },
     activities: { table: { disable: true } },
+    moreActions: { table: { disable: true } },
     onActivityClick: { table: { disable: true } },
     onMuteToggle: { table: { disable: true } },
     onViewed: { table: { disable: true } },
@@ -46,7 +48,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Full-screen, snap-scrolling vertical media feed (the TikTok-style pattern). Feed it plain MediaPostData; it autoplays the active post behind the browser's first-interaction gate, supports scroll and ArrowUp/ArrowDown navigation, and reports every intent (like, share, follow, author, soundtrack, mute, view, end-of-feed) through callbacks. Action controls hide when their callback is absent, except mute (local playback state). Use it for immersive media browsing surfaces. Do not use it for mixed-content or text-heavy feeds, and do not expect it to route, notify, or fetch: the host app owns all side effects. Mobile overlay insets read the host-defined CSS variable --safe-area-bottom (typically set to env(safe-area-inset-bottom) plus any tab-bar offset); it falls back to 0px when the host does not define it.",
+          "Full-screen, snap-scrolling vertical media feed (the TikTok-style pattern). Feed it plain MediaPostData; it autoplays the active post behind the browser's first-interaction gate, supports scroll and ArrowUp/ArrowDown navigation, and reports every intent (like, share, follow, author, soundtrack, mute, view, end-of-feed) through callbacks. Rail actions hide when their callback is absent. Mute is not in the rail: a More button (three dots, top right of the video) opens a menu on desktop and a bottom sheet on phone with Mute/Unmute and any host rows (moreActions), such as Report for community members. There is no Boost row: posts have no boost contract yet. Use it for immersive media browsing surfaces. Do not use it for mixed-content or text-heavy feeds, and do not expect it to route, notify, or fetch: the host app owns all side effects. Mobile overlay insets read the host-defined CSS variable --safe-area-bottom (typically set to env(safe-area-inset-bottom) plus any tab-bar offset); it falls back to 0px when the host does not define it.",
       },
     },
   },
@@ -76,7 +78,13 @@ function InteractiveFeed(props: VerticalFeedProps) {
     props.onLikeClick?.(postId);
   };
 
-  return <VerticalFeed {...rest} posts={posts()} onLikeClick={handleLike} />;
+  return (
+    <VerticalFeed
+      {...rest}
+      posts={posts()}
+      onLikeClick={props.onLikeClick ? handleLike : undefined}
+    />
+  );
 }
 
 export const Default: Story = {
@@ -87,16 +95,12 @@ export const Default: Story = {
     const region = canvas.getByRole("region", { name: "Media feed" });
     await expect(region).toBeVisible();
     await expect(canvas.getAllByText("@wavemaker").length).toBeGreaterThan(0);
+    // Mute is not a rail action; it lives in the More menu.
+    await expect(canvas.queryByRole("button", { name: /mute video/i })).toBeNull();
 
-    // Like toggles through the callback and updates the visible state.
-    const likeButton = canvas.getAllByRole("button", { name: "Like video" })[0];
-    await userEvent.click(likeButton);
-    await expect(args.onLikeClick).toHaveBeenCalledWith("post-1");
-    await waitFor(async () => {
-      await expect(
-        canvas.getAllByRole("button", { name: "Unlike video" })[0],
-      ).toHaveAttribute("aria-pressed", "true");
-    });
+    // Paper's rail has no Like control and no Follow badge on the avatar.
+    await expect(canvas.queryByRole("button", { name: /like video/i })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: /^Follow / })).toBeNull();
 
     // Keyboard navigation advances the active post.
     region.focus();
@@ -108,6 +112,36 @@ export const Default: Story = {
     await waitFor(() =>
       expect(args.onActivePostChange).toHaveBeenCalledWith("post-1", 0),
     );
+  },
+};
+
+/**
+ * The optional Like control and Follow badge, which render only when the host
+ * passes onLikeClick and onFollowClick. Paper does not draw them and the app
+ * does not wire them today; this story keeps their callback coverage.
+ */
+export const LikeAndFollow: Story = {
+  args: {
+    onLikeClick: fn(),
+    onFollowClick: fn(),
+  },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    // Like toggles through the callback and updates the visible state.
+    const likeButton = canvas.getAllByRole("button", { name: "Like video" })[0];
+    await userEvent.click(likeButton);
+    await expect(args.onLikeClick).toHaveBeenCalledWith("post-1");
+    await waitFor(async () => {
+      await expect(
+        canvas.getAllByRole("button", { name: "Unlike video" })[0],
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    await expect(
+      canvas.getAllByRole("button", { name: "Follow wavemaker" })[0],
+    ).toBeVisible();
   },
 };
 
@@ -188,19 +222,86 @@ export const Mobile: Story = {
   render: (args) => (
     <div class="relative">
       <InteractiveFeed {...args} />
-      {/* Simulated host-app tab bar the overlays must clear */}
-      <div class="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-border bg-background/90">
-        <Type as="span" variant="caption">Home</Type>
-        <Type as="span" variant="caption">Search</Type>
-        <Type as="span" variant="caption">Activity</Type>
-        <Type as="span" variant="caption">Profile</Type>
-      </div>
+      {/* The real four-tab footer the overlays must clear, as on the board. */}
+      <MobileFooterNav
+        activeItem="home"
+        forceMobile
+        onHomeClick={fn()}
+        onProfileClick={fn()}
+        onSongsClick={fn()}
+        onWalletClick={fn()}
+      />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getAllByRole("button", { name: "Follow wavemaker" })[0],
-    ).toBeVisible();
+    const footer = canvas.getByRole("navigation", { name: "Primary navigation" });
+    await expect(within(footer).getAllByRole("button")).toHaveLength(4);
+    await expect(within(footer).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
+    // The rail keeps its share control; there is no Follow badge.
+    await expect(canvas.getAllByRole("button", { name: /share/i }).length).toBeGreaterThan(0);
+    await expect(canvas.queryByRole("button", { name: /^Follow / })).toBeNull();
+  },
+};
+
+const reportAction = fn();
+const memberMoreActions: VerticalFeedProps["moreActions"] = (postId) =>
+  postId === "post-1"
+    ? [{ id: "report", label: "Report", onSelect: () => reportAction(postId) }]
+    : undefined;
+
+const moreTrigger = (canvasElement: HTMLElement, layout: "desktop" | "phone") => {
+  const button = canvasElement.querySelector<HTMLButtonElement>(
+    `[data-media-post="post-1"] [data-media-more="${layout}"] button`,
+  );
+  if (!button) throw new globalThis.Error(`${layout} More trigger not rendered`);
+  return button;
+};
+
+/** Desktop More menu open under the three dots: Mute, then the host's Report. */
+export const MoreMenuOpen: Story = {
+  args: { moreActions: memberMoreActions },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await waitFor(() => moreTrigger(canvasElement, "desktop")));
+    const page = within(canvasElement.ownerDocument.body);
+    const menu = await page.findByRole("menu");
+    const items = within(menu).getAllByRole("menuitem");
+    await expect(items.map((item) => item.textContent)).toEqual(["Mute", "Report"]);
+  },
+};
+
+/** Choosing a More row: Mute toggles the audio, Report runs the host action once. */
+export const MoreRunsActions: Story = {
+  args: { moreActions: memberMoreActions },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement, args }) => {
+    reportAction.mockClear();
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await waitFor(() => moreTrigger(canvasElement, "desktop")));
+    await userEvent.click(await page.findByRole("menuitem", { name: "Mute" }));
+    await expect(args.onMuteToggle).toHaveBeenCalledWith("post-1", true);
+    await waitFor(() => expect(page.queryByRole("menu")).toBeNull());
+    await userEvent.click(moreTrigger(canvasElement, "desktop"));
+    await expect(await page.findByRole("menuitem", { name: "Unmute" })).toBeVisible();
+    await userEvent.click(page.getByRole("menuitem", { name: "Report" }));
+    await waitFor(() => expect(reportAction).toHaveBeenCalledTimes(1));
+    await expect(reportAction).toHaveBeenCalledWith("post-1");
+  },
+};
+
+/** Phone More sheet open: the handle, then Mute and the host's Report as rows. */
+export const MobileMoreSheet: Story = {
+  args: { moreActions: memberMoreActions, hasMobileFooter: true },
+  globals: {
+    viewport: { value: "mobile1", isRotated: false },
+  },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await waitFor(() => moreTrigger(canvasElement, "phone")));
+    const page = within(canvasElement.ownerDocument.body);
+    const sheet = await page.findByRole("dialog", { name: "More options" });
+    const rows = within(sheet).getAllByRole("button");
+    await expect(rows.map((row) => row.textContent)).toEqual(["Mute", "Report"]);
   },
 };

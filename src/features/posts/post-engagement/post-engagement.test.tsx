@@ -83,6 +83,28 @@ afterEach(() => {
 });
 
 describe("PostEngagement", () => {
+  test("inline: lays the thread under the post and reports a comment with one tap", async () => {
+    const reportComment = vi.fn<PostEngagementTransport["reportComment"]>(async () => ({ report_id: "report-1", case_ref: "case-1", status: "open" }));
+    const readComments = vi.fn(async () => ({ items: [], next_cursor: null }));
+    render(() => <PostEngagement presentation="inline" principalId="user-1" readComments={readComments}
+      pendingStorage={createMemoryPendingEngagementStorage()} transport={{ ...transportFixture(vi.fn()), reportComment }}
+      generateIdempotencyKey={() => "inline-report-key"}
+      initialComments={[{ id: "comment-1", submissionId: null, parentId: null, body: "Visible comment", depth: 0, replyCount: 0, state: "published", caseRef: null, href: "/comments/comment-1", createdAt: new Date(Date.now() - 12 * 60_000).toISOString(), authorLabel: "nightowl" }]}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 1, viewerVote: null }} />);
+    await vi.waitFor(() => expect(readComments).toHaveBeenCalledOnce());
+    const row = document.querySelector("[data-comment-thread='post-1'] [data-comment-id='comment-1']");
+    expect(row?.textContent).toContain("12m");
+    expect(document.querySelector("[data-feed-side-panel], select")).toBeNull();
+    expect(document.querySelector<HTMLInputElement>("input[aria-label='Write a comment']")?.placeholder).toBe("Add a comment");
+    await userEvent.click(button("Comment options"));
+    await userEvent.click(button("Report"));
+    await vi.waitFor(() => expect(button("Misleading")).toBeTruthy());
+    await userEvent.click(button("Misleading"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Report open"));
+    expect(reportComment).toHaveBeenCalledOnce();
+    await expect(decodePendingEngagementAction(reportComment.mock.calls[0]![0])).resolves.toMatchObject({ kind: "report", commentId: "comment-1", reasonCode: "misleading", idempotencyKey: "inline-report-key" });
+  });
+
   test("opens the post menu and retries a report with the retained reason and key", async () => {
     const storage = createMemoryPendingEngagementStorage();
     const transport = transportFixture(vi.fn());
@@ -94,11 +116,14 @@ describe("PostEngagement", () => {
     expect(document.querySelector('[role="menuitem"]')).toBeNull();
     await userEvent.click(button("Post options"));
     await userEvent.click(button("Report"));
-    const reason = document.querySelector('select[aria-label="Post report reason"]')!;
-    await userEvent.selectOptions(reason, "harassment");
-    await userEvent.click(button("Submit report"));
+    // One tap on a reason sends the report; there is no separate submit.
+    await vi.waitFor(() => expect(button("Harassment")).toBeTruthy());
+    await userEvent.click(button("Harassment"));
     await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
-    await userEvent.selectOptions(reason, "spam");
+    expect(reportPost).toHaveBeenCalledTimes(1);
+    // A different reason cannot replace the retained one under a new key.
+    await userEvent.click(button("Spam"));
+    expect(reportPost).toHaveBeenCalledTimes(1);
     const retry = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent?.trim() === "Retry retained request")!;
     await userEvent.click(retry);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Post reported"));
@@ -642,9 +667,14 @@ describe("PostEngagement", () => {
     button("Comments (1)").click();
     await vi.waitFor(() => expect(document.querySelector("[data-comment-id='comment-1']")).not.toBeNull());
     expect([...document.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Hide")).toBe(false);
+    await vi.waitFor(() => expect(document.activeElement?.closest("[role='dialog']")).not.toBeNull());
     await userEvent.click(button("Comment options"));
     await userEvent.click(button("Report"));
+    await vi.waitFor(() => expect(button("Spam")).toBeTruthy());
+    await userEvent.click(button("Spam"));
+    // A sent report closes the reasons and returns to the thread.
     await vi.waitFor(() => expect(button("Hide")).toBeTruthy());
+    expect(transport.reportComment).toHaveBeenCalledTimes(1);
     const reportEnvelope = vi.mocked(transport.reportComment).mock.calls[0]?.[0];
     if (reportEnvelope === undefined) throw new Error("report envelope missing");
     expect(await decodePendingEngagementAction(reportEnvelope)).toMatchObject({
@@ -772,12 +802,13 @@ describe("PostEngagement", () => {
     render(() => <PostEngagement {...props} />);
     button("Comments (1)").click();
     await vi.waitFor(() => expect(button("Comment options")).toBeTruthy());
-    const reason = document.querySelector("select[aria-label='Report reason']");
-    if (!(reason instanceof HTMLSelectElement)) throw new Error("report reason missing");
-    reason.value = "harassment";
-    reason.dispatchEvent(new Event("change", { bubbles: true }));
+    // The sheet takes focus as it opens; a menu opened before that would close.
+    await vi.waitFor(() => expect(document.activeElement?.closest("[role='dialog']")).not.toBeNull());
     await userEvent.click(button("Comment options"));
     await userEvent.click(button("Report"));
+    // The reasons list replaces the old composer select; one tap sends.
+    await vi.waitFor(() => expect(button("Harassment")).toBeTruthy());
+    await userEvent.click(button("Harassment"));
     await vi.waitFor(() => expect(document.body.textContent).toContain("Retrying will reuse the same action key"));
 
     disposers.pop()?.();
@@ -785,13 +816,13 @@ describe("PostEngagement", () => {
     render(() => <PostEngagement {...props} />);
     button("Comments (1)").click();
     await restoredRead;
-    await vi.waitFor(() => {
-      const restoredReason = document.querySelector("select[aria-label='Report reason']");
-      if (!(restoredReason instanceof HTMLSelectElement)) throw new Error("restored report reason missing");
-      expect(restoredReason.value).toBe("harassment");
-    });
+    await vi.waitFor(() => expect(button("Comment options")).toBeTruthy());
+    await vi.waitFor(() => expect(document.activeElement?.closest("[role='dialog']")).not.toBeNull());
     await userEvent.click(button("Comment options"));
     await userEvent.click(button("Report"));
+    // The same reason finds the retained record and replays it under its key.
+    await vi.waitFor(() => expect(button("Harassment")).toBeTruthy());
+    await userEvent.click(button("Harassment"));
     await vi.waitFor(() => expect(document.body.textContent).toContain("Report open"));
     expect(reportComment).toHaveBeenCalledTimes(2);
     expect(reportComment.mock.calls[1]?.[0]).toEqual(reportComment.mock.calls[0]?.[0]);

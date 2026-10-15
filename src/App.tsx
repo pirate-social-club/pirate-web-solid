@@ -9,6 +9,7 @@ import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { ActivePersonaProvider } from "./features/identity/active-persona-store.tsx";
 import { SongSubmissionProvider } from "./features/posts/song-submission/song-submission-store.tsx";
 import { TextSubmissionProvider } from "./features/posts/text-submission/text-submission-store.tsx";
+import { RewardServiceAvailabilityProvider } from "./features/rewards/reward-service-availability.tsx";
 import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import { ApplicationPersonasContext, createApplicationPersonas } from "./features/shell/application-personas.tsx";
@@ -86,6 +87,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   return (
     <ActivePersonaProvider>
       <ApplicationSessionProvider state={session} pending={accountPending}>
+        <RewardServiceAvailabilityProvider>
         <TextSubmissionProvider>
         <SongSubmissionProvider>
         <ApplicationPersonasContext value={personas}>
@@ -96,6 +98,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
           mobileActiveItem={policy().mobileActiveItem}
           mobileTitle={policy().mobileTitle}
           hideMobileHeader={policy().hideMobileHeader}
+          hideMobileFooter={policy().hideMobileFooter}
           mode={policy().mode}
           navigate={(href) => navigate(href)}
           personas={personas.personas()}
@@ -120,6 +123,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         </ApplicationPersonasContext>
         </SongSubmissionProvider>
         </TextSubmissionProvider>
+        </RewardServiceAvailabilityProvider>
       </ApplicationSessionProvider>
     </ActivePersonaProvider>
   );

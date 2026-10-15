@@ -19,7 +19,34 @@ const root = path.resolve(import.meta.dirname, "..");
 const srcRoot = path.join(root, "src");
 const solidUiRoot = path.join(root, "packages", "solid-ui", "src");
 
-const importPattern = /(?:from\s*|import\s*\()\s*["']([^"']+)["']/gu;
+const declarationPattern = /^[ \t]*(import|export)\s+([\s\S]*?)\s*from\s*["']([^"']+)["']/gmu;
+const sideEffectPattern = /^[ \t]*import\s*["']([^"']+)["']/gmu;
+const dynamicPattern = /import\s*\(\s*["']([^"']+)["']\s*\)/gu;
+
+/** True when a declaration's clause names only types, which are erased at runtime. */
+function typeOnlyClause(clause) {
+  const trimmed = clause.trim();
+  if (/^type\s/u.test(trimmed)) return true;
+  const braces = /^\{([\s\S]*)\}$/u.exec(trimmed);
+  if (!braces) return false;
+  const names = braces[1].split(",").map((name) => name.trim()).filter(Boolean);
+  return names.length > 0 && names.every((name) => /^type\s/u.test(name));
+}
+
+/**
+ * The module specifiers a file loads at runtime. Type-only imports and
+ * re-exports are left out: they are erased, so a route that only names a
+ * module's types does not make that module's components reachable.
+ */
+export function runtimeSpecifiers(text) {
+  const specifiers = [];
+  for (const match of text.matchAll(declarationPattern)) {
+    if (!typeOnlyClause(match[2])) specifiers.push(match[3]);
+  }
+  for (const match of text.matchAll(sideEffectPattern)) specifiers.push(match[1]);
+  for (const match of text.matchAll(dynamicPattern)) specifiers.push(match[1]);
+  return specifiers;
+}
 
 const ENTRY_FILES = ["src/App.tsx", "src/Document.tsx", "src/entry-client.tsx", "src/entry-server.tsx", "src/middleware.ts", "src/worker.ts"];
 const ENTRY_DIRECTORIES = ["src/routes"];
@@ -83,10 +110,7 @@ function resolveSpecifier(specifier, fromFile) {
 }
 
 export function importsOf(file) {
-  const text = readFileSync(file, "utf8");
-  const specifiers = [];
-  for (const match of text.matchAll(importPattern)) specifiers.push(match[1]);
-  return specifiers
+  return runtimeSpecifiers(readFileSync(file, "utf8"))
     .map((specifier) => resolveSpecifier(specifier, file))
     .filter((resolved) => resolved !== null);
 }
