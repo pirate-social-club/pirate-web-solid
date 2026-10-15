@@ -1,0 +1,13 @@
+{
+  "event": {
+    "event": "hns_production_worker_deployed",
+    "sha": "193cfc0b7317910e11c25d41d0b67a5b0d57ad8e",
+    "gatewayReference": "hns-community-app-handle-gateway-sha256:c6269d0f8773b51a6ba785e56155911b91e3dd43ba2efdc3b4825e0dffc8bb41",
+    "fingerprint": "solid-hns-ingress-sha256:127d4ba2356437f59d3467d81f5fb34d3b318fa9da2caca807ed3304e31fbc9e"
+  },
+  "workerVersion": "55f3e17e-b91d-4a6c-8449-eff3ce3e359e",
+  "servingPercentage": 100,
+  "textPublishing": "HTTP500; pending attempt retained; not accepted",
+  "phoneVideoPlayback": "not performed",
+  "videoApiChange": "held off"
+}
