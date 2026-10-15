@@ -127,7 +127,7 @@ function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" |
       }>
         {(preview) => <div><Show when={preview().title}><Type as="h3" variant="h3">{preview().title}</Type></Show><Show when={preview().body}><Type as="p" class="mt-2 whitespace-pre-wrap" variant="body">{preview().body}</Type></Show></div>}
       </Show>
-      <Show when={canAct()} fallback={<FormNote>View only. Moderation actions require the moderation.act capability.</FormNote>}>
+      <Show when={canAct()} fallback={<FormNote>View only. You can see the queue but can't act on reports.</FormNote>}>
         <div class="flex flex-wrap gap-2 border-t border-border-soft pt-5">
           <For each={props.item.permitted_actions}>{(action) => {
             const busy = () => props.actionBusy?.caseRef === props.item.case_ref && props.actionBusy.action === action;
@@ -182,7 +182,7 @@ function PolicyEditor(props: Pick<CommunityModerationPolicyPanelProps, "capabili
           )}</For>
         </div>
       </Card>
-      <Show when={canAct()} fallback={<FormNote>View only. Policy changes require the moderation.act capability.</FormNote>}>
+      <Show when={canAct()} fallback={<FormNote>View only. You can see these settings but can't change them.</FormNote>}>
         <CommunityModerationSaveFooter
           disabled={!props.policyDirty}
           loading={props.policySaving}

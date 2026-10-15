@@ -39,7 +39,4 @@ export function getDefaultReceiveChainId(
   }, undefined)?.chainId;
 }
 
-export function truncateReceiveAddress(address: string | null | undefined): string {
-  if (!address) return "";
-  return `${address.slice(0, 10)}...${address.slice(-6)}`;
-}
+

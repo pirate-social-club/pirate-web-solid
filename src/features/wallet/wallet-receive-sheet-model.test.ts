@@ -5,7 +5,6 @@ import {
   chainFiatTotal,
   formatFiatTotal,
   getDefaultReceiveChainId,
-  truncateReceiveAddress,
 } from "./wallet-receive-sheet-model";
 
 describe("wallet receive sheet model", () => {
@@ -43,10 +42,6 @@ describe("wallet receive sheet model", () => {
     expect(chainFiatTotal(sections[0]!)).toBe(20);
     expect(formatFiatTotal(sections[0]!)).toBe("$20.00");
     expect(getDefaultReceiveChainId(sections)).toBe("ethereum");
-  });
-
-  test("truncates only the visual address label", () => {
-    expect(truncateReceiveAddress(sharedWalletAddress)).toBe("0xc74e2d06...873abc");
   });
 });
 
