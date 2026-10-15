@@ -9,6 +9,7 @@ import { beforeAll, afterAll, afterEach, describe, expect, onTestFinished, test,
 
 import type { CommunityData, CommunityPost } from "./page-shell-model.ts";
 import { CommunityPageShell } from "./page-shell.tsx";
+import { RewardServiceAvailabilityContext } from "../../rewards/reward-service-availability.tsx";
 
 const disposers: Array<() => void> = [];
 
@@ -128,6 +129,7 @@ describe("community page shell header actions", () => {
 
   test("exposes the existing Boost entry point on community songs only", async () => {
     const container = render(() => (
+      <RewardServiceAvailabilityContext value={() => true}>
       <CommunityPageShell
         community={{ ...community, id: "community-1" }}
         following={false}
@@ -137,12 +139,13 @@ describe("community page shell header actions", () => {
           { id: "text-1", title: "Discussion", body: "Notes", kind: "text", score: 0, publishedAt: "2026-09-24T08:00:00.000Z" },
         ] })}
       />
+      </RewardServiceAvailabilityContext>
     ));
 
     const song = container.querySelector<HTMLElement>('[data-community-post="song-1"]');
     const text = container.querySelector<HTMLElement>('[data-community-post="text-1"]');
     if (song === null || text === null) throw new Error("Expected both cards");
-    // Boost lives in the post's overflow menu, which a song always has.
+    // Available rewards add Boost to the song's overflow menu.
     const songActions = within(song).getByRole("button", { name: "Post options" });
     expect(within(text).queryByRole("button", { name: "Post options" })).toBeNull();
 

@@ -26,6 +26,7 @@ import {
   type StudyingRecorder,
 } from "./studying-route-model";
 import { StudyingSurface } from "./studying-surface";
+import { STUDY_MIN_RECORDING_DURATION_MS, STUDY_PROVIDER_REVIEW_MESSAGE, STUDY_SHORT_RECORDING_MESSAGE, studyingRecordingFailure } from "./studying-recording-policy.ts";
 import {
   StudyAuthRequiredState,
   StudyRouteLoadFailureState,
@@ -64,6 +65,17 @@ function defaultScheduleAdvance(run: () => void): void {
   window.setTimeout(run, 700);
 }
 
+function initialSurface(payload: StudyingLessonPayload): StudyingSurfaceState {
+  const first = payload.exercises[0];
+  if (first === undefined) return completeSurface({ correctCount: payload.correct_count ?? 0, totalCount: payload.served_count ?? 0 });
+  const surface = exerciseSurface(first);
+  const blocked = payload.spoken_submission;
+  return surface.kind === "say_it_back" && blocked?.state === "provider_outcome_unknown"
+    && blocked.session_item_id === surface.exercise.id && blocked.attempt_number === surface.attemptNumber
+    ? { ...surface, phase: "blocked", submitError: STUDY_PROVIDER_REVIEW_MESSAGE }
+    : surface;
+}
+
 function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   onAuthRequired: () => void;
   onReload: () => void;
@@ -75,13 +87,9 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     previousStreak: props.payload.previous_streak,
     resolvedCount: props.payload.resolved_count,
     servedCount: props.payload.served_count,
-    surface: props.payload.exercises.length > 0
-      ? exerciseSurface(props.payload.exercises[0]!)
-      : completeSurface({
-          correctCount: props.payload.correct_count ?? 0,
-          totalCount: props.payload.served_count ?? 0,
-        }),
+    surface: initialSurface(props.payload),
   });
+  let active = true;
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
   const [micDisclosure, setMicDisclosure] = createSignal<string | null>(null);
@@ -162,6 +170,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   const submitAttempt = (input: Parameters<StudyingClient["submitAttempt"]>[0]) => {
     const exerciseId = input.exercise_id;
     void props.client.submitAttempt(input).then((result) => {
+      if (!active) return;
       // A landed attempt proves we are back in step with the server; spend the
       // recovery budget again only if we drift a second time.
       divergenceRecoveries = 0;
@@ -241,8 +250,23 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         };
       });
     }).catch((rejection: StudyingAttemptRejection) => {
+      if (!active) return;
       if (isStudyingAuthError(rejection)) {
         props.onAuthRequired();
+        return;
+      }
+      const recordingFailure = input.type === "say_it_back" ? studyingRecordingFailure(rejection) : undefined;
+      if (recordingFailure !== undefined) {
+        updateSayItBack(exerciseId, (surface, current) => ({
+          ...current,
+          surface: {
+            ...surface,
+            phase: recordingFailure === "provider_unknown" ? "blocked" : "idle",
+            submitError: recordingFailure === "provider_unknown" ? STUDY_PROVIDER_REVIEW_MESSAGE
+              : recordingFailure === "too_short" ? STUDY_SHORT_RECORDING_MESSAGE
+              : "The speech service declined that recording. Record a new answer.",
+          },
+        }));
         return;
       }
       if (isStudyAttemptDivergence(attemptErrorStatus(rejection)) && recoverFromDivergence()) {
@@ -307,12 +331,18 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         ...latest,
         diff: undefined,
         heardTranscript: undefined,
-        phase: "listening" as const,
+        phase: "acquiring" as const,
         submitError: undefined,
         willReturn: undefined,
       },
     }));
-    void recorder.start().catch((rejection: StudyingAttemptRejection) => {
+    void recorder.start().then(() => {
+      if (!active) return;
+      updateSayItBack(card.exercise.id, (latest, current) => latest.phase === "acquiring"
+        ? { ...current, surface: { ...latest, phase: "listening" } }
+        : current);
+    }).catch((rejection: StudyingAttemptRejection) => {
+      if (!active) return;
       updateSayItBack(card.exercise.id, (latest, current) => ({
         ...current,
         surface: {
@@ -378,6 +408,14 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         surface: { ...latest, phase: "checking" as const },
       }));
       void recorder.stop().then(({ audio, contentType, durationMs }) => {
+        if (!active) return;
+        if (!Number.isSafeInteger(durationMs) || durationMs < STUDY_MIN_RECORDING_DURATION_MS) {
+          updateSayItBack(card.exercise.id, (latest, current) => ({
+            ...current,
+            surface: { ...latest, phase: "idle", submitError: STUDY_SHORT_RECORDING_MESSAGE },
+          }));
+          return;
+        }
         submitAttempt({
           audio,
           audio_duration_ms: durationMs,
@@ -389,6 +427,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           type: "say_it_back",
         });
       }).catch((rejection: StudyingAttemptRejection) => {
+        if (!active) return;
         updateSayItBack(card.exercise.id, (latest, current) => ({
           ...current,
           surface: {
@@ -417,6 +456,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   // Capture cannot outlive this surface: disposal stops any live recording
   // and invalidates permission still being granted.
   onCleanup(() => {
+    active = false;
     void props.recorder?.cancel?.();
   });
 
