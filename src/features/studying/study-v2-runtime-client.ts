@@ -61,6 +61,7 @@ export function studyLessonPayload(session: StudySession): StudyingLessonPayload
     resolved_count: session.lesson.resolved_card_count,
     served_count: session.lesson.total_card_count,
     session_id: session.session_id,
+    spoken_submission: session.spoken_submission,
   };
 }
 

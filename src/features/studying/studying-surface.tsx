@@ -481,7 +481,7 @@ function Body(props: {
 
 function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
   if (state.kind !== "say_it_back") return undefined;
-  if (state.phase === "checking") return <Spinner class="size-5" />;
+  if (state.phase === "checking" || state.phase === "acquiring") return <Spinner class="size-5" />;
   if (state.phase === "listening") return <IconStop class="size-5" />;
   if (state.phase === "idle" || (state.phase === "wrong" && !state.revealReference)) {
     return <IconMicrophone class="size-5" />;
