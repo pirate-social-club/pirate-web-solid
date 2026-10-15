@@ -11,7 +11,7 @@ const meta = {
   component: Avatar,
   tags: ["autodocs"],
   args: {
-    fallback: "Jane Doe",
+    fallback: "journey demonstrator",
     size: "md",
   },
   argTypes: {
@@ -37,7 +37,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const avatar = canvas.getByRole("img", { name: "Jane Doe" });
+    const avatar = canvas.getByRole("img", { name: "journey demonstrator" });
     await expect(avatar).toBeVisible();
   },
 };
@@ -46,8 +46,8 @@ export const Variants: Story = {
   render: () => (
     <StoryStack>
       <StoryRow>
-        <Avatar fallback="Jane Doe" src={demoAvatarImage} />
-        <Avatar fallback="Jane Doe" fallbackSrc={demoAvatarImage} />
+        <Avatar fallback="journey demonstrator" src={demoAvatarImage} />
+        <Avatar fallback="journey demonstrator" fallbackSrc={demoAvatarImage} />
         <Avatar
           fallback="Music"
           fallbackIcon={
@@ -62,15 +62,15 @@ export const Variants: Story = {
 export const Sizes: Story = {
   render: () => (
     <StoryRow class="items-end">
-      <Avatar fallback="Jane Doe" size="xs" />
-      <Avatar fallback="Jane Doe" size="sm" />
-      <Avatar fallback="Jane Doe" size="md" />
-      <Avatar fallback="Jane Doe" size="lg" />
+      <Avatar fallback="journey demonstrator" size="xs" />
+      <Avatar fallback="journey demonstrator" size="sm" />
+      <Avatar fallback="journey demonstrator" size="md" />
+      <Avatar fallback="journey demonstrator" size="lg" />
     </StoryRow>
   ),
   play: async ({ canvasElement }) => {
     // Paper shows the two-letter initials "JD" at every size (24/36/48/56).
-    const avatars = within(canvasElement).getAllByRole("img", { name: "Jane Doe" });
+    const avatars = within(canvasElement).getAllByRole("img", { name: "journey demonstrator" });
     await expect(avatars.map((avatar) => avatar.textContent)).toEqual(["JD", "JD", "JD", "JD"]);
     await expect(avatars.map((avatar) => Math.round(avatar.getBoundingClientRect().width))).toEqual([24, 36, 48, 56]);
   },
@@ -88,11 +88,11 @@ export const Empty: Story = {
 
 /** Paper PostCard: the 24px avatar draws its initials at 9px, semibold. */
 export const ExtraSmallInitials: Story = {
-  args: { fallback: "Jane Doe", size: "xs" },
+  args: { fallback: "journey demonstrator", size: "xs" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const initials = canvas.getByText("JD");
-    const box = canvas.getByRole("img", { name: "Jane Doe" }).getBoundingClientRect();
+    const box = canvas.getByRole("img", { name: "journey demonstrator" }).getBoundingClientRect();
     await expect([box.width, box.height]).toEqual([24, 24]);
     const style = getComputedStyle(initials);
     await expect(style.fontSize).toBe("9px");
