@@ -136,6 +136,12 @@ async function openComposer(container: HTMLElement) {
 
 async function post(container: HTMLElement, text: string) {
   await openComposer(container);
+  // Paper ruling 10: a text post's title is required.
+  const title = form(container)!.querySelector<HTMLInputElement>("input[aria-label='Title']")!;
+  title.value = "Weekly listening thread";
+  title.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  // Typing in a second field is a later event; let the draft take the title first.
+  await new Promise(resolve => setTimeout(resolve, 0));
   const body = form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!;
   body.value = text;
   body.dispatchEvent(new InputEvent("input", { bubbles: true }));
@@ -166,7 +172,7 @@ describe("community page text posting", () => {
     expect(container.querySelector("[data-create-post-form]")).toBeNull();
     await vi.waitFor(() => expect(clear).toHaveBeenCalledOnce());
     // Closing it is the author's decision; the entry does not reopen it.
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(form(container)).toBeNull());
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(form(container)).toBeNull();
@@ -228,7 +234,7 @@ describe("community page text posting", () => {
 
     // Recovery does not depend on the composer. Opening and closing it changes nothing.
     await openComposer(container);
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(form(container)).toBeNull());
     expect(pendingStatus(container)).toBe("delayed");
     // The page is not held either.
@@ -295,17 +301,21 @@ describe("community page text posting", () => {
     await post(container, "Refused words");
     await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
     await openComposer(container);
+    const title = form(container)!.querySelector<HTMLInputElement>("input[aria-label='Title']")!;
+    title.value = "A new thread";
+    title.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
     const body = form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!;
     body.value = "Something new";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await vi.waitFor(() => expect(button(form(container)!, "Post").disabled).toBe(false));
     expect(pending(container)).toBeNull();
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
     button(pending(container)!, "Edit").click();
     await vi.waitFor(() => expect(form(container)).not.toBeNull());
     expect(form(container)!.querySelector<HTMLTextAreaElement>("textarea[aria-label='Post']")!.value).toBe("Something new");
-    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Cancel']")!.click();
+    form(container)!.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(pendingStatus(container)).toBe("rejected"));
   });
 
