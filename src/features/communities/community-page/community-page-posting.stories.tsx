@@ -211,6 +211,7 @@ async function openComposer(canvasElement: HTMLElement) {
 
 async function writeAndPost(canvasElement: HTMLElement, text: string) {
   const form = await openComposer(canvasElement);
+  await userEvent.type(form.getByRole("textbox", { name: "Title" }), "Weekly listening thread");
   await userEvent.type(form.getByRole("textbox", { name: "Post" }), text);
   await userEvent.click(form.getByRole("button", { name: "Post" }));
 }
@@ -237,14 +238,25 @@ export const ComposerReplacesTheFeed: Story = {
     await expect(canvas.queryByRole("dialog")).toBeNull();
     await expect(canvas.queryByText("Feed", { selector: "button" })).toBeNull();
     await expect(canvas.getByRole("complementary", { name: "Community information" })).toBeVisible();
+    // Paper rulings 10 and 11: close and "New post" at the top left, no
+    // Cancel, and Title is required with an asterisk.
+    const form = within(panel);
+    const close = form.getByRole("button", { name: "Close composer" });
+    const heading = form.getByRole("heading", { name: "New post" });
+    await expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(heading.getBoundingClientRect().left);
+    await expect(form.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await expect(form.getByText("*")).toBeVisible();
+    await expect(form.queryByText(/optional/iu)).toBeNull();
+    await userEvent.type(form.getByRole("textbox", { name: "Post" }), "No title yet");
+    await expect(form.getByRole("button", { name: "Post" })).toBeDisabled();
   },
 };
 
 /**
- * The phone presentation recorded in
- * tasks/records/solid-composer-mobile-flat-surface.md, asserted as intent and
- * not only as fit: writing is the whole screen, flat, under the 2026-09-24
- * action bar, with nothing pushing the fields down and no footer.
+ * The phone presentation of Paper rulings 10-12, asserted as intent and not
+ * only as fit: writing is the whole screen, flat, under a bar with close and
+ * "New post", with nothing pushing the fields down, and the labelled Post
+ * button full width in a footer.
  */
 async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: HTMLElement) {
   const doc = canvasElement.ownerDocument;
@@ -271,12 +283,30 @@ async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: H
     expect(within(canvasElement).queryByRole("heading", { name: "Create a post" })).toBeNull();
     // The first field is near the top of the screen.
     expect(firstField.getBoundingClientRect().top).toBeLessThanOrEqual(150);
-    // The actions are in the bar above the fields, not in a footer.
+    // The bar above the fields holds the way out and names the screen.
     expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstField.getBoundingClientRect().top);
     expect(within(bar).getByRole("button", { name: "Close composer" })).toBeVisible();
     expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(view.innerWidth);
   });
   return bar;
+}
+
+/**
+ * Paper rulings 10-12 on the phone text form: the bar names the screen "New
+ * post" beside close, and the labelled Post button is full width in a footer
+ * at the bottom of the screen.
+ */
+async function expectTextPhoneChrome(canvasElement: HTMLElement, bar: HTMLElement) {
+  const view = canvasElement.ownerDocument.defaultView!;
+  const footer = canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!;
+  await waitFor(() => {
+    expect(within(bar).getByRole("heading", { name: "New post" })).toBeVisible();
+    expect(within(bar).queryByRole("button", { name: "Post" })).toBeNull();
+    const post = within(footer).getByRole("button", { name: "Post" });
+    expect(Math.abs(footer.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1);
+    expect(Math.round(post.getBoundingClientRect().width)).toBe(Math.round(footer.getBoundingClientRect().width) - 32);
+  });
+  return footer;
 }
 
 /**
@@ -321,18 +351,23 @@ export const FullWidthComposerOnMobile: Story = {
     const title = form.getByRole("textbox", { name: "Title" });
     const body = form.getByRole("textbox", { name: "Post" });
     const bar = await expectFlatPhoneComposer(canvasElement, title);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeDisabled();
+    const footer = await expectTextPhoneChrome(canvasElement, bar);
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
     // Song and Video are a plain row directly under the text field.
     const song = form.getByRole("button", { name: "Post a song" });
     const video = form.getByRole("button", { name: "Post a video" });
     await expect(song.getBoundingClientRect().top).toBeGreaterThanOrEqual(body.getBoundingClientRect().bottom);
     await expect(Math.abs(song.getBoundingClientRect().top - video.getBoundingClientRect().top)).toBeLessThanOrEqual(1);
-    // There is no second Post button below the fields.
+    // The footer's is the only Post button.
     await expect(form.getAllByRole("button", { name: "Post" })).toHaveLength(1);
     await userEvent.click(body);
     await userEvent.paste(longPost);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeEnabled();
+    // A post needs its title as well as its text.
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
+    await userEvent.type(title, "Weekly listening thread");
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeEnabled();
     await expectBarStaysOnScreen(canvasElement, bar, body);
+    await expectBarStaysOnScreen(canvasElement, footer, body);
     await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
   },
 };
@@ -380,6 +415,7 @@ export const MobileComposerInsideTheAppShell: Story = {
     const form = await openComposer(canvasElement);
     const bar = await expectFlatPhoneComposer(canvasElement, form.getByRole("textbox", { name: "Title" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBe(0));
+    await expectTextPhoneChrome(canvasElement, bar);
     const body = form.getByRole("textbox", { name: "Post" });
     await userEvent.click(body);
     await userEvent.paste(longPost);
@@ -390,13 +426,13 @@ export const MobileComposerInsideTheAppShell: Story = {
 };
 
 export const CancelKeepsTheDraft: Story = {
-  name: "Cancel returns to the feed and keeps the draft",
+  name: "Close returns to the feed and keeps the draft",
   args: pageArgs(standInServer()),
   play: async ({ canvasElement }) => {
     const form = await openComposer(canvasElement);
     await userEvent.type(form.getByRole("textbox", { name: "Title" }), "A draft title");
     await userEvent.type(form.getByRole("textbox", { name: "Post" }), "A draft to return to");
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(await within(canvasElement).findByText(existingPost.title)).toBeVisible();
     await expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull();
     const reopened = await openComposer(canvasElement);
@@ -627,7 +663,7 @@ export const PublishedButAnswerLost: Story = {
     await expect(within(item).queryByRole("button", { name: /discard|dismiss|edit|remove|cancel/iu })).toBeNull();
     // Opening and closing the composer does not stop or remove it.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed");
     // When an answer finally arrives it is the first post, once.
     answersLost = false;
@@ -665,7 +701,7 @@ export const DismissedWhileSending: Story = {
     await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sending"));
     // Open the composer again and dismiss it while the first post is in flight.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(canvas.queryByRole("form", { name: "Create a post" })).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     await expect(canvas.getAllByText("Sent, then I looked away")).toHaveLength(1);

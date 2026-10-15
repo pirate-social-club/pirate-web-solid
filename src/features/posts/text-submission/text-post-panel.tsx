@@ -5,8 +5,8 @@ import { Show, onSettled } from "solid-js";
 import {
   Button,
   Card,
+  FormFieldLabel,
   FormNote,
-  IconArrowUp,
   IconButton,
   IconMusicNote,
   IconVideoCamera,
@@ -42,17 +42,19 @@ export interface TextPostPanelProps {
  * hands the text to the application owner and returns to the feed immediately;
  * delivery and recovery stay with that owner.
  *
- * On a phone the form is a flat surface: no card and no heading, with the
- * 2026-09-24 action bar above the fields, close on the left and the publish
- * arrow on the right, kept on screen while the page scrolls. Song and Video
- * sit in a plain row under the text field, and there is no footer. The rules
- * are stated once in tasks/records/solid-composer-mobile-flat-surface.md.
+ * Paper rulings 10-12 (2026-10-09): the title is required and marked with an
+ * asterisk; the way out is a close at the top left beside "New post", with no
+ * Cancel; on a phone the form is a flat surface whose labelled Post button
+ * sits full width in a footer kept on screen while the page scrolls. Song and
+ * Video sit in a plain row under the text field.
  */
 export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   let bodyInput: HTMLTextAreaElement | undefined;
   let songInput: HTMLInputElement | undefined;
   onSettled(() => { bodyInput?.focus(); });
-  const canPost = () => props.unavailable === undefined && props.draft.body.trim() !== "";
+  const canPost = () => props.unavailable === undefined
+    && props.draft.title.trim() !== ""
+    && props.draft.body.trim() !== "";
   const post = () => { if (canPost()) props.onPost(); };
 
   const isMobile = createPhoneLayout();
@@ -82,17 +84,19 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   );
   const fields = (mobile: boolean) => (
     <>
-      <label class="flex flex-col gap-2">
-        <Type as="span" variant="label">Title</Type>
+      <div class="flex flex-col">
+        <FormFieldLabel htmlFor="text-post-title" label="Title" required />
         <Input
           aria-label="Title"
+          aria-required="true"
           class="w-full"
+          id="text-post-title"
           maxlength={300}
           onInput={(event) => props.onDraftChange({ ...props.draft, title: event.currentTarget.value })}
           placeholder="Give your post a title"
           value={props.draft.title}
         />
-      </label>
+      </div>
       <label class="flex flex-col gap-2">
         <Type as="span" variant="label">Post</Type>
         <Textarea
@@ -110,6 +114,12 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
     </>
   );
 
+  const close = (size: string) => (
+    <IconButton aria-label="Close composer" onClick={() => props.onClose()} type="button" variant="ghost">
+      <IconX class={size} />
+    </IconButton>
+  );
+
   return (
     <div
       class="w-full min-w-0"
@@ -125,9 +135,9 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
         fallback={
           <Card class="w-full">
             <form aria-label="Create a post" class="flex flex-col gap-5 p-5 md:p-6" onSubmit={(event) => { event.preventDefault(); post(); }}>
-              <div class="flex items-center justify-between gap-3">
-                <Type as="h2" variant="h2">Create a post</Type>
-                <Button aria-label="Cancel" onClick={() => props.onClose()} type="button" variant="ghost">Cancel</Button>
+              <div class="-ms-2 flex items-center gap-2">
+                {close("size-5")}
+                <Type as="h2" variant="h2">New post</Type>
               </div>
               {fields(false)}
               <div class="flex flex-wrap items-center gap-2 border-t border-border-soft pt-4">
@@ -139,20 +149,19 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
           </Card>
         }
       >
-        <form aria-label="Create a post" class="flex flex-col gap-5" onSubmit={(event) => { event.preventDefault(); post(); }}>
-          <header class="sticky top-0 z-20 -mx-4 flex min-h-14 items-center justify-between bg-background px-3 pt-[env(safe-area-inset-top)]" data-composer-sticky-header>
-            <IconButton aria-label="Close composer" onClick={() => props.onClose()} type="button" variant="ghost">
-              <IconX class="size-5" />
-            </IconButton>
-            <IconButton aria-label="Post" disabled={!canPost()} type="submit" variant="default">
-              <IconArrowUp class="size-5" />
-            </IconButton>
+        <form aria-label="Create a post" class="flex min-h-dvh flex-col gap-5" onSubmit={(event) => { event.preventDefault(); post(); }}>
+          <header class="sticky top-0 z-20 -mx-4 grid min-h-14 grid-cols-[2.75rem_1fr_2.75rem] items-center bg-background px-3 pt-[env(safe-area-inset-top)]" data-composer-sticky-header>
+            {close("size-5")}
+            <Type as="h2" class="text-center" variant="h3">New post</Type>
           </header>
           {fields(true)}
           <div aria-label="Add to your post" class="flex flex-wrap items-center gap-2" role="group">
             {songEntry()}
             {videoEntry()}
           </div>
+          <footer class="sticky bottom-0 z-20 -mx-4 mt-auto border-t border-border-soft bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3" data-composer-footer>
+            <Button class="h-12 w-full" disabled={!canPost()} size="lg" type="submit">Post</Button>
+          </footer>
         </form>
       </Show>
     </div>
