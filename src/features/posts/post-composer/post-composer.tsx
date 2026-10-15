@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Button, Card, IconButton, IconX, Type, cn } from "../../../design-system";
+import { Card, IconButton, IconX, Type, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -72,6 +72,21 @@ export function PostComposer(props: PostComposerProps) {
     }
   };
 
+  // Paper rulings 11 and 12: the way out and the step's name at the top, the
+  // labelled forward button at the bottom (full width on a phone).
+  const stepHeader = () => (
+    <PostComposerStepFooter
+      controller={controller}
+      layout="header"
+      onClose={() => props.onClose?.()}
+      runtime={props.songFlowRuntime}
+      steps={steps}
+    />
+  );
+  const stepFooter = (placement: "fixed" | "inline" | undefined) => (
+    <PostComposerStepFooter controller={controller} placement={placement} runtime={props.songFlowRuntime} steps={steps} />
+  );
+
   // Mobile header: close on the left; a single-step post publishes from an
   // icon button on the right, whose accessible name is the post label.
   const mobileHeader = () => (
@@ -106,30 +121,24 @@ export function PostComposer(props: PostComposerProps) {
           when={controller.isMobile()}
           fallback={
             <Card class="relative mx-auto w-full max-w-3xl overflow-hidden bg-card shadow-none">
-              <IconButton
-                aria-label="Close composer"
-                class="absolute end-3 top-3 z-10"
-                onClick={() => props.onClose?.()}
-                variant="ghost"
-              >
-                <IconX class="size-6" />
-              </IconButton>
+              <Show when={isMultiStep()} fallback={
+                <IconButton
+                  aria-label="Close composer"
+                  class="absolute end-3 top-3 z-10"
+                  onClick={() => props.onClose?.()}
+                  variant="ghost"
+                >
+                  <IconX class="size-6" />
+                </IconButton>
+              }>
+                {stepHeader()}
+              </Show>
               <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
               {stepContent()}
-              <Show when={isMultiStep()}>
-                <PostComposerStepFooter
-                  controller={controller}
-                  placement={props.attachmentBarPlacement}
-                  runtime={props.songFlowRuntime}
-                  steps={steps}
-                />
-              </Show>
+              <Show when={isMultiStep()}>{stepFooter(props.attachmentBarPlacement)}</Show>
             </Card>
           }
         >
-          {/* Every mobile composer acts from its header: a single-step post
-              publishes top right, and a multi-step track moves between steps
-              there too, so no footer crowds the form or hides under the keyboard. */}
           <Show
             when={isMultiStep()}
             fallback={<>
@@ -137,60 +146,45 @@ export function PostComposer(props: PostComposerProps) {
               {stepContent()}
             </>}
           >
-            {/* The header carries Continue and Post, so it stays in reach
-                however long the lyrics or collaborator list grow. */}
             {/* Pinned at the scroll edge; its padding paints over the form's
                 top padding so nothing is seen scrolling above the header. */}
-            <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>
-            <PostComposerStepFooter
-              controller={controller}
-              layout="header"
-              onClose={() => props.onClose?.()}
-              runtime={props.songFlowRuntime}
-              steps={steps}
-            />
-            </div>
+            <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>{stepHeader()}</div>
             <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
             {stepContent()}
+            {stepFooter(props.attachmentBarPlacement)}
           </Show>
         </Show>
       </div>
       }>
         <Show when={phoneLayout()} fallback={
         <Card class="w-full overflow-hidden">
-          <header class="flex items-center justify-between gap-3 px-5 pt-5 md:px-8 md:pt-6">
-            <Type as="h2" variant="h2">Create a post</Type>
-            <Button aria-label="Cancel" onClick={() => props.onClose?.()} type="button" variant="ghost">Cancel</Button>
-          </header>
-          <Show when={controller.isMobile() && isMultiStep()}>
-            <Type as="h3" class="mt-4 block px-5" variant="h3">{controller.copy.steps[steps.current()]}</Type>
+          <Show when={isMultiStep()} fallback={
+            <header class="flex items-center gap-2 px-5 pt-5 md:px-8 md:pt-6">
+              <IconButton aria-label="Close composer" class="-ms-2" onClick={() => props.onClose?.()} variant="ghost">
+                <IconX class="size-5" />
+              </IconButton>
+              <Type as="h2" variant="h2">New post</Type>
+            </header>
+          }>
+            {stepHeader()}
           </Show>
           <div class="max-md:px-5">
             <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
             {stepContent()}
           </div>
-          <Show when={isMultiStep()}>
-            <PostComposerStepFooter controller={controller} placement="inline" runtime={props.songFlowRuntime} steps={steps} />
-          </Show>
+          <Show when={isMultiStep()}>{stepFooter("inline")}</Show>
         </Card>
         }>
-          {/* A phone gets the 2026-09-24 controls on a flat surface: close or
-              back top left, forward or publish top right, kept on screen while
-              the steps scroll, with no card, heading or footer. */}
-          <div class="w-full" data-presentation="flat">
+          {/* A phone gets a flat surface: close or back beside the step's name
+              at the top, and the labelled forward button full width in a
+              footer, both kept on screen while the steps scroll. */}
+          <div class="flex min-h-dvh w-full flex-col" data-presentation="flat">
             <div class="sticky top-0 z-20 -mx-4 bg-background px-3 pt-[env(safe-area-inset-top)]" data-composer-sticky-header>
-              <Show when={isMultiStep()} fallback={mobileHeader()}>
-                <PostComposerStepFooter
-                  controller={controller}
-                  layout="header"
-                  onClose={() => props.onClose?.()}
-                  runtime={props.songFlowRuntime}
-                  steps={steps}
-                />
-              </Show>
+              <Show when={isMultiStep()} fallback={mobileHeader()}>{stepHeader()}</Show>
             </div>
             <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
             {stepContent()}
+            <Show when={isMultiStep()}>{stepFooter("inline")}</Show>
           </div>
         </Show>
       </Show>

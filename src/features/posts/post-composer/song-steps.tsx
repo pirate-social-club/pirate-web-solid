@@ -46,10 +46,7 @@ function StepCard(props: ParentProps<{
 }>) {
   return (
     <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
-      {/* On mobile the step name sits in the header. */}
-      <Show when={!props.controller.isMobile()}>
-        <Type as="h2" variant="h3">{props.title}</Type>
-      </Show>
+      {/* The step's name sits in the composer header (Paper ruling 11). */}
       {props.children}
     </CardContent>
   );
