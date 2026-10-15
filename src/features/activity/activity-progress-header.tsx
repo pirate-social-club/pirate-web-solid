@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 
-import { cn, IconButton, IconCaretLeft, IconGift } from "../../design-system";
+import { cn, IconButton, IconCaretLeft, IconGift, IconX } from "../../design-system";
 
 export interface ActivityProgressHeaderProps {
   progressMax: number;
@@ -13,6 +13,12 @@ export interface ActivityProgressHeaderProps {
   progressTone?: "success" | "warning";
   onExit?: () => void;
   exitLabel?: string;
+  /**
+   * The exit control's mark. `back` (the default, used by Karaoke) is a
+   * caret; `close` is Study's close mark, since its cards cannot be
+   * revisited and leaving loses nothing (Paper, Flows/Studying/Session).
+   */
+  exitIcon?: "back" | "close";
 }
 
 function clampProgress(value: number, max: number): number {
@@ -31,10 +37,13 @@ export function ActivityProgressHeader(props: ActivityProgressHeaderProps) {
       <IconButton
         aria-label={props.exitLabel ?? "Exit activity"}
         class="size-10 bg-secondary"
+        data-exit-icon={props.exitIcon ?? "back"}
         onClick={props.onExit}
         variant="secondary"
       >
-        <IconCaretLeft class="size-5" />
+        <Show when={props.exitIcon === "close"} fallback={<IconCaretLeft class="size-5" />}>
+          <IconX class="size-5" />
+        </Show>
       </IconButton>
       <div class={cn("flex h-9 min-w-0 flex-1 items-center", rewardPresentation() === "icon" && "gap-3")}>
         <div
