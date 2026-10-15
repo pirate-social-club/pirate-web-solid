@@ -215,8 +215,11 @@ export function primaryActionLabel(
       return state.phase === "listening" ? "Stop" : sayItBackIdleLabel ?? "Record";
     case "multiple_choice":
       if (state.submitting) return "Checking…";
-      if (state.result === "wrong" && state.canRetry) return "Try again";
-      return state.result ? "Continue" : undefined;
+      // Paper (owner, 2026-10-12): a correct answer moves on by itself, so
+      // it has no button; an incorrect one pauses on Continue. When the
+      // server keeps the same card for another attempt, Continue shows it
+      // again, as its next card.
+      return state.result === "wrong" ? "Continue" : undefined;
     case "complete":
       return undefined;
   }

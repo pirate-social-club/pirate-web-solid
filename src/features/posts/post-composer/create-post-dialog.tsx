@@ -98,8 +98,8 @@ export interface CreatePostDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
-  /** A submitted song was handed to the submission owner for this community. */
-  readonly onSongSubmitted?: (communityId: string) => void;
+  /** The song was handed to the song store: its community and submission. */
+  readonly onSongSubmitted?: (communityId: string, submissionId: string) => void;
   /** The owner a submitted song is handed to when the host has no application
    * shell to supply one, as in an isolated page render. */
   readonly songStore?: SongSubmissionStore;
@@ -351,8 +351,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
 
   /**
    * The server has accepted the song. Everything left is the server's work, so
-   * the steps end here: the application's song owner watches it from now on
-   * and the author sees it in the feed. Without that owner, as in an isolated
+   * the steps end here: the application's song owner watches it from now on,
+   * and the host shows its state (Paper ruling 14) or its card in the feed. Without that owner, as in an isolated
    * render, the song stays in this dialog as before.
    */
   function handOverSong(snapshot: MediaSubmissionSnapshot, personaId: string, community: string): boolean {
@@ -372,7 +372,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     });
     handedOver = true;
     props.onOpenChange(false);
-    props.onSongSubmitted?.(community);
+    props.onSongSubmitted?.(community, snapshot.submission_id);
     return true;
   }
 

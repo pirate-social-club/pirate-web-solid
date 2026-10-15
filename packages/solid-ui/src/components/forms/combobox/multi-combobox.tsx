@@ -117,6 +117,9 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
               {(option) => (
                 <Chip
                   aria-label={chipRemoveLabel(props.optionLabel(option))}
+                  // Paper: nested in the field's 12px corner, a chip takes the
+                  // medium radius rather than the standalone full pill.
+                  class="rounded-[var(--radius-md)]"
                   disabled={props.disabled}
                   onClick={() => state.remove(option)}
                   size="sm"
@@ -127,14 +130,20 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
                 </Chip>
               )}
             </For>
-            <KCombobox.Input
-              aria-label={props["aria-label"]}
-              aria-describedby={props["aria-describedby"]}
-              class="h-8 min-w-24 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-            />
-            <KCombobox.Trigger class="group ms-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <IconArrowDown class="size-4 transition-transform group-data-[expanded]:rotate-180" />
-            </KCombobox.Trigger>
+            {/* The input and caret wrap as one unit, so the caret stays at
+                the end of the last row instead of starting a row of its own. */}
+            <div class="flex min-w-36 flex-1 items-center">
+              <KCombobox.Input
+                aria-label={props["aria-label"]}
+                aria-describedby={props["aria-describedby"]}
+                // Paper drops the placeholder once a chip names the selection.
+                placeholder={state.selectedOptions().length > 0 ? "" : props.placeholder}
+                class="h-8 min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+              />
+              <KCombobox.Trigger class="group ms-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <IconArrowDown class="size-4 transition-transform group-data-[expanded]:rotate-180" />
+              </KCombobox.Trigger>
+            </div>
           </>
         )}
       </KCombobox.Control>

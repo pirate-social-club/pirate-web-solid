@@ -117,9 +117,6 @@ export function SongStep(props: {
       onDragOver={(event) => event.preventDefault()}
       onDrop={drop}
     >
-      <Show when={!controller.isMobile()}>
-        <Type as="h2" variant="h3">{controller.copy.steps.song}</Type>
-      </Show>
       <Show when={dragging()}>
         <div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80">
           <div class="flex flex-col items-center gap-3">

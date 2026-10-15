@@ -211,6 +211,7 @@ async function openComposer(canvasElement: HTMLElement) {
 
 async function writeAndPost(canvasElement: HTMLElement, text: string) {
   const form = await openComposer(canvasElement);
+  await userEvent.type(form.getByRole("textbox", { name: "Title" }), "Weekly listening thread");
   await userEvent.type(form.getByRole("textbox", { name: "Post" }), text);
   await userEvent.click(form.getByRole("button", { name: "Post" }));
 }
@@ -237,14 +238,25 @@ export const ComposerReplacesTheFeed: Story = {
     await expect(canvas.queryByRole("dialog")).toBeNull();
     await expect(canvas.queryByText("Feed", { selector: "button" })).toBeNull();
     await expect(canvas.getByRole("complementary", { name: "Community information" })).toBeVisible();
+    // Paper rulings 10 and 11: close and "New post" at the top left, no
+    // Cancel, and Title is required with an asterisk.
+    const form = within(panel);
+    const close = form.getByRole("button", { name: "Close composer" });
+    const heading = form.getByRole("heading", { name: "New post" });
+    await expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(heading.getBoundingClientRect().left);
+    await expect(form.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await expect(form.getByText("*")).toBeVisible();
+    await expect(form.queryByText(/optional/iu)).toBeNull();
+    await userEvent.type(form.getByRole("textbox", { name: "Post" }), "No title yet");
+    await expect(form.getByRole("button", { name: "Post" })).toBeDisabled();
   },
 };
 
 /**
- * The phone presentation recorded in
- * tasks/records/solid-composer-mobile-flat-surface.md, asserted as intent and
- * not only as fit: writing is the whole screen, flat, under the 2026-09-24
- * action bar, with nothing pushing the fields down and no footer.
+ * The phone presentation of Paper rulings 10-12, asserted as intent and not
+ * only as fit: writing is the whole screen, flat, under a bar with close and
+ * "New post", with nothing pushing the fields down, and the labelled Post
+ * button full width in a footer.
  */
 async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: HTMLElement) {
   const doc = canvasElement.ownerDocument;
@@ -271,12 +283,30 @@ async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: H
     expect(within(canvasElement).queryByRole("heading", { name: "Create a post" })).toBeNull();
     // The first field is near the top of the screen.
     expect(firstField.getBoundingClientRect().top).toBeLessThanOrEqual(150);
-    // The actions are in the bar above the fields, not in a footer.
+    // The bar above the fields holds the way out and names the screen.
     expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstField.getBoundingClientRect().top);
     expect(within(bar).getByRole("button", { name: "Close composer" })).toBeVisible();
     expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(view.innerWidth);
   });
   return bar;
+}
+
+/**
+ * Paper rulings 10-12 on the phone text form: the bar names the screen "New
+ * post" beside close, and the labelled Post button is full width in a footer
+ * at the bottom of the screen.
+ */
+async function expectTextPhoneChrome(canvasElement: HTMLElement, bar: HTMLElement) {
+  const view = canvasElement.ownerDocument.defaultView!;
+  const footer = canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!;
+  await waitFor(() => {
+    expect(within(bar).getByRole("heading", { name: "New post" })).toBeVisible();
+    expect(within(bar).queryByRole("button", { name: "Post" })).toBeNull();
+    const post = within(footer).getByRole("button", { name: "Post" });
+    expect(Math.abs(footer.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1);
+    expect(Math.round(post.getBoundingClientRect().width)).toBe(Math.round(footer.getBoundingClientRect().width) - 32);
+  });
+  return footer;
 }
 
 /**
@@ -321,18 +351,23 @@ export const FullWidthComposerOnMobile: Story = {
     const title = form.getByRole("textbox", { name: "Title" });
     const body = form.getByRole("textbox", { name: "Post" });
     const bar = await expectFlatPhoneComposer(canvasElement, title);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeDisabled();
+    const footer = await expectTextPhoneChrome(canvasElement, bar);
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
     // Song and Video are a plain row directly under the text field.
     const song = form.getByRole("button", { name: "Post a song" });
     const video = form.getByRole("button", { name: "Post a video" });
     await expect(song.getBoundingClientRect().top).toBeGreaterThanOrEqual(body.getBoundingClientRect().bottom);
     await expect(Math.abs(song.getBoundingClientRect().top - video.getBoundingClientRect().top)).toBeLessThanOrEqual(1);
-    // There is no second Post button below the fields.
+    // The footer's is the only Post button.
     await expect(form.getAllByRole("button", { name: "Post" })).toHaveLength(1);
     await userEvent.click(body);
     await userEvent.paste(longPost);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeEnabled();
+    // A post needs its title as well as its text.
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
+    await userEvent.type(title, "Weekly listening thread");
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeEnabled();
     await expectBarStaysOnScreen(canvasElement, bar, body);
+    await expectBarStaysOnScreen(canvasElement, footer, body);
     await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
   },
 };
@@ -380,6 +415,7 @@ export const MobileComposerInsideTheAppShell: Story = {
     const form = await openComposer(canvasElement);
     const bar = await expectFlatPhoneComposer(canvasElement, form.getByRole("textbox", { name: "Title" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBe(0));
+    await expectTextPhoneChrome(canvasElement, bar);
     const body = form.getByRole("textbox", { name: "Post" });
     await userEvent.click(body);
     await userEvent.paste(longPost);
@@ -389,14 +425,81 @@ export const MobileComposerInsideTheAppShell: Story = {
   },
 };
 
+/** Posts a song through the phone steps inside the real shell and returns the shell's bottom navigation. */
+async function postSongInsideTheShell(canvasElement: HTMLElement) {
+  const nav = await waitFor(() => {
+    const found = canvasElement.ownerDocument.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
+    expect(found).not.toBeNull();
+    expect(found!.getBoundingClientRect().height).toBeGreaterThan(0);
+    return found!;
+  });
+  const canvas = await openSongInMain(canvasElement);
+  const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+  for (const step of ["Royalties", "Review"]) {
+    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await canvas.findByRole("heading", { name: step });
+  }
+  await userEvent.click(await waitFor(() => footer().getByRole("button", { name: "Post song" })));
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  // The posted state is still part of composing: the shell keeps its bottom
+  // navigation hidden and the composer keeps its history entry for Back.
+  await waitFor(() => expect(nav.getBoundingClientRect().height).toBe(0));
+  await expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).toBe(true);
+  return { canvas, nav, posted };
+}
+
+const songInTheShell = (args: CommunityPageProps) => (
+  <ActivePersonaProvider>
+    <ApplicationChrome currentPath="/c/night-shift" hideMobileHeader mobileActiveItem="none" mode="standard" signedIn>
+      <SongPostingPreview {...args} />
+    </ApplicationChrome>
+  </ActivePersonaProvider>
+);
+
+/** Phone, real shell: Back on the posted song's state returns to the feed and the bottom navigation. */
+export const MobilePostedSongBackInsideTheAppShell: Story = {
+  name: "Mobile posted song: Back inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav } = await postSongInsideTheShell(canvasElement);
+    canvasElement.ownerDocument.defaultView!.history.back();
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+  },
+};
+
+/** Phone, real shell: Close does the same and gives back the history entry it held. */
+export const MobilePostedSongCloseInsideTheAppShell: Story = {
+  name: "Mobile posted song: Close inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav, posted } = await postSongInsideTheShell(canvasElement);
+    await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).not.toBe(true));
+  },
+};
+
 export const CancelKeepsTheDraft: Story = {
-  name: "Cancel returns to the feed and keeps the draft",
+  name: "Close returns to the feed and keeps the draft",
   args: pageArgs(standInServer()),
   play: async ({ canvasElement }) => {
     const form = await openComposer(canvasElement);
     await userEvent.type(form.getByRole("textbox", { name: "Title" }), "A draft title");
     await userEvent.type(form.getByRole("textbox", { name: "Post" }), "A draft to return to");
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(await within(canvasElement).findByText(existingPost.title)).toBeVisible();
     await expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull();
     const reopened = await openComposer(canvasElement);
@@ -417,8 +520,7 @@ async function openSongInMain(canvasElement: HTMLElement, withStems = true) {
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"),
     new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
-  // Desktop names the step with a heading; a phone leaves the bar's centre
-  // empty and names nothing, as decided on 2026-09-24.
+  // The composer header names the step on desktop and phone (Paper ruling 11).
   const form = await canvas.findByRole("form", { name: "Post a song" });
   if (withStems) await selectSongStems(canvas);
   const main = canvas.getByRole("main", { name: "Create a post" });
@@ -433,6 +535,53 @@ async function openSongInMain(canvasElement: HTMLElement, withStems = true) {
   await expect(canvas.queryByRole("dialog")).toBeNull();
   await expect(canvas.queryByText("18+ only")).toBeNull();
   return canvas;
+}
+
+/**
+ * Paper rulings 11 and 12 on the phone song steps: the bar has close or back
+ * beside the step's centred name and no forward control; the labelled
+ * forward button is full width in a footer at the bottom of the screen.
+ */
+async function expectSongPhoneChrome(canvasElement: HTMLElement, step: string, forward: string) {
+  const view = canvasElement.ownerDocument.defaultView!;
+  const bar = within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
+  const footer = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-composer-footer]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await waitFor(() => {
+    expect(bar.getByRole("heading", { name: step })).toBeVisible();
+    expect(bar.queryByRole("button", { name: forward })).toBeNull();
+    const button = within(footer).getByRole("button", { name: forward });
+    expect(Math.abs(footer.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1);
+    expect(Math.round(button.getBoundingClientRect().width)).toBe(Math.round(footer.getBoundingClientRect().width) - 32);
+  });
+  // There is no separate Back button: the bar's arrow is the only way back.
+  await expect(within(footer).queryByRole("button", { name: "Back" })).toBeNull();
+  return footer;
+}
+
+/**
+ * Paper ruling 14: after Post the author stays on the page and sees the
+ * song's one centred state, not the feed. Closing it returns to the feed,
+ * where the pending card carries a song that is still in progress.
+ */
+async function expectPostedSongThenFeed(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull();
+  await expect(canvas.queryByRole("main", { name: "Community feed" })).toBeNull();
+  await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(0);
+  await expect(within(posted).getByRole("heading", { name: /Processing your song|Published/u })).toBeVisible();
+  const stillProcessing = posted.getAttribute("data-posted-song-status") !== "published";
+  await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible());
+  if (stillProcessing) await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
 }
 
 export const SongComposerInMain: Story = {
@@ -452,58 +601,65 @@ export const SongComposerInMainOnMobile: Story = {
     const canvas = await openSongInMain(canvasElement, false);
     const audio = canvas.getByRole("button", { name: "Remove audio" });
     const bar = await expectFlatPhoneComposer(canvasElement, audio);
-    // Forward is the bar's right-hand control; there is no footer.
-    await expect(within(bar).getByRole("button", { name: "Continue" })).toBeVisible();
+    const footer = await expectSongPhoneChrome(canvasElement, "Song", "Continue");
     await expect(canvas.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
     const lyrics = canvas.getByRole("textbox", { name: /Lyrics/u });
     await userEvent.click(lyrics);
     await userEvent.paste(longPost);
     await expectBarStaysOnScreen(canvasElement, bar, lyrics);
+    await expectBarStaysOnScreen(canvasElement, footer, lyrics);
   },
 };
 
 export const SongStepsReturnToFeed: Story = {
-  name: "Song, Royalties and Review stay in the form, then return to feed",
+  name: "Song, Royalties and Review stay in the form, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = await openSongInMain(canvasElement);
     await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled());
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await canvas.findByRole("heading", { name: "Royalties" });
+    const royalties = await canvas.findByRole("heading", { name: "Royalties" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
+    // Paper ruling 11: the way back is the arrow beside the step's name; there
+    // is no Cancel and no separate Back button.
+    const back = canvas.getByRole("button", { name: "Back" });
+    await expect(back.closest("header")).toBe(royalties.closest("header"));
+    await expect(back.getBoundingClientRect().right).toBeLessThanOrEqual(royalties.getBoundingClientRect().left);
+    await expect(canvas.getAllByRole("button", { name: "Back" })).toHaveLength(1);
+    await expect(canvas.queryByRole("button", { name: "Cancel" })).toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await canvas.findByRole("heading", { name: "Review" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Post song" }));
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 
 export const SongStepsReturnToFeedOnMobile: Story = {
-  name: "Mobile song steps move through the bar, then return to feed",
+  name: "Mobile song steps move through the footer, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = await openSongInMain(canvasElement);
     const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
-    // Royalties: back on the left, forward on the right.
+    const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+    await expectSongPhoneChrome(canvasElement, "Song", "Continue");
+    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    // Royalties: back on the left beside the step's name, forward below.
     await waitFor(() => expect(bar().getByRole("button", { name: "Back" })).toBeVisible());
+    await expectSongPhoneChrome(canvasElement, "Royalties", "Continue");
     await expect(canvas.getByText(/earnings/iu)).toBeVisible();
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
-    // Review: the right-hand control publishes.
-    const publish = await waitFor(() => bar().getByRole("button", { name: "Post song" }));
+    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    // Review: the footer's button publishes.
+    await expectSongPhoneChrome(canvasElement, "Review", "Post song");
+    const publish = await waitFor(() => footer().getByRole("button", { name: "Post song" }));
     await expect(canvas.getAllByRole("button", { name: "Post song" })).toHaveLength(1);
     await userEvent.click(publish);
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 
@@ -521,10 +677,10 @@ export const MobileBackRespectsTheSongGuard: Story = {
   play: async ({ canvasElement }) => {
     const view = canvasElement.ownerDocument.defaultView!;
     const canvas = await openSongInMain(canvasElement);
-    const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
     // Continue starts the upload, which the stand-in server holds open.
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).not.toBeNull());
     view.history.back();
     await waitFor(() => expect(canvas.getByText(/unresolved command/iu)).toBeVisible());
@@ -627,7 +783,7 @@ export const PublishedButAnswerLost: Story = {
     await expect(within(item).queryByRole("button", { name: /discard|dismiss|edit|remove|cancel/iu })).toBeNull();
     // Opening and closing the composer does not stop or remove it.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed");
     // When an answer finally arrives it is the first post, once.
     answersLost = false;
@@ -665,7 +821,7 @@ export const DismissedWhileSending: Story = {
     await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sending"));
     // Open the composer again and dismiss it while the first post is in flight.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(canvas.queryByRole("form", { name: "Create a post" })).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     await expect(canvas.getAllByText("Sent, then I looked away")).toHaveLength(1);

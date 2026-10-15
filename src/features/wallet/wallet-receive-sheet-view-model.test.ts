@@ -20,7 +20,8 @@ describe("wallet receive sheet view model", () => {
     const view = buildWalletReceiveSheetView({ chainSections: fiveChainSections, open: true, onOpenChange: () => {} });
     expect(view.selectedChainId).toBe("tempo");
     expect(view.address).toBe(sharedWalletAddress);
-    expect(view.addressLabel).toBe("0xc74e2d06...873abc");
+    // Paper: the address is never cut; it wraps instead.
+    expect(view.addressLabel).toBe(sharedWalletAddress);
   });
 
   test("honors a valid explicit selection and the default chain id", () => {

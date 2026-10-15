@@ -1,24 +1,43 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Show, createSignal, createEffect } from "solid-js";
-import { ActionMenu } from "@pirate/web-solid-ui";
+import { ContentOverflowMenu } from "../posts/shared-engagement/content-overflow-menu.tsx";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
 import { rewardSponsorFixture, rewardSponsorScenarioFixture, rewardSponsorExpiredFixture } from "./reward-sponsor.fixtures.ts";
 const meta = {
   title: "Flows/Rewards/Functional boost",
-  parameters: { layout: "centered", docs: { description: { component: "Open the song menu and choose Boost. This uses controlled API and wallet fixtures with the real creation journal and funding controller. Any email and code 123456 work. No funds move. Close and reopen to resume the saved reward." } } },
+  parameters: { layout: "centered", docs: { description: { component: "Open Post options and choose Boost. This uses controlled API and wallet fixtures with the real creation journal and funding controller. Any email and code 123456 work. No funds move. Close and reopen to resume the saved reward." } } },
 } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const SongMenuToFunding: Story = {
+  parameters: { docs: { description: { story: "The shared Post options menu opens the real dialog. Closing it returns focus to the menu button." } } },
   render: () => {
     const dependencies = rewardSponsorFixture();
     const [open,setOpen] = createSignal(false);
-    return <article class="w-80 rounded-xl border p-5"><div class="flex justify-between"><h2>Salt &amp; Static</h2>
-      <ActionMenu label="Song actions" items={[{ key: "boost", label: "Boost" }]} onAction={() => setOpen(true)} />
+    let card: HTMLElement | undefined;
+    // As the community post card does: the menu item is gone once the menu
+    // closes, so closing the dialog returns focus to the menu trigger.
+    const close = () => {
+      setOpen(false);
+      setTimeout(() => card?.querySelector<HTMLElement>('[aria-label="Post options"]')?.focus(), 0);
+    };
+    return <article ref={element => { card = element; }} class="w-80 rounded-xl border p-5"><div class="flex justify-between"><h2>Salt &amp; Static</h2>
+      <ContentOverflowMenu inline label="Post options" actions={[{ label: "Boost", run: () => setOpen(true) }]} />
     </div><p>Study or sing to qualify for song rewards.</p>
-      <Show when={open()}><RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={dependencies} onClose={() => setOpen(false)} /></Show>
+      <Show when={open()}><RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={dependencies} onClose={close} /></Show>
     </article>;
+  },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const trigger = within(canvasElement).getByRole("button", { name: "Post options" });
+    await userEvent.click(trigger);
+    await userEvent.click(await page.findByRole("menuitem", { name: "Boost" }));
+    const dialog = await page.findByRole("dialog");
+    await expect(within(dialog).getByRole("heading", { name: "Create a bounty" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
 
