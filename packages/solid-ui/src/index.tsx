@@ -391,19 +391,6 @@ export {
   type VotePillProps,
 } from "./patterns/engagement/vote-pill/vote-pill";
 
-export {
-  ActionBanner,
-  type ActionBannerProps,
-} from "./patterns/feedback/action-banner/action-banner";
-export {
-  IllustratedState,
-  type IllustratedStateImage,
-  type IllustratedStateProps,
-} from "./patterns/feedback/illustrated-state/illustrated-state";
-export {
-  StatusCard,
-  type StatusCardProps,
-} from "./patterns/feedback/status-card/status-card";
 
 export {
   CheckboxCard,
@@ -428,16 +415,6 @@ export {
   type FormSectionHeadingProps,
 } from "./patterns/forms/form-layout/form-layout";
 export {
-  ListRow,
-  listRowVariants,
-  type ListRowProps,
-} from "./patterns/forms/list-row/list-row";
-export {
-  MediaUploadField,
-  type MediaUploadFieldProps,
-  type MediaUploadFrame,
-} from "./patterns/forms/media-upload-field/media-upload-field";
-export {
   OptionCard,
   OptionCardGroup,
   optionCardVariants,
@@ -450,12 +427,6 @@ export {
   type ResponsiveOptionSelectProps,
 } from "./patterns/forms/responsive-option-select/responsive-option-select";
 
-export {
-  AvatarBadge,
-  resolveAvatarBadgeSrc,
-  type AvatarBadgeProps,
-  type AvatarBadgeSize,
-} from "./patterns/identity/avatar-badge/avatar-badge";
 
 export {
   PirateBrandMark,
@@ -463,7 +434,6 @@ export {
 } from "./patterns/identity/pirate-brand-mark/pirate-brand-mark";
 
 export {
-  CardShell,
   PageContainer,
   type PageContainerProps,
 } from "./patterns/layout/layout-shell/layout-shell";
@@ -471,10 +441,6 @@ export {
   ActionFooterShell,
   type ActionFooterShellProps,
 } from "./patterns/layout/action-footer-shell/action-footer-shell";
-export {
-  StackPageShell,
-  type StackPageShellProps,
-} from "./patterns/layout/stack-page-shell/stack-page-shell";
 
 export {
   FlatTabBar,
@@ -482,12 +448,6 @@ export {
   type FlatTabBarProps,
   type FlatTabButtonProps,
 } from "./patterns/navigation/flat-tabs/flat-tabs";
-export {
-  StackedSectionNav,
-  type StackedSectionNavItem,
-  type StackedSectionNavProps,
-  type StackedSectionNavSection,
-} from "./patterns/navigation/stacked-section-nav/stacked-section-nav";
 export {
   Sidebar,
   SidebarContent,

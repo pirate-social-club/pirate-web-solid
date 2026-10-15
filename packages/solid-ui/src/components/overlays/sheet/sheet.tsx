@@ -28,6 +28,9 @@ const SheetClose = KDialog.CloseButton;
 const sheetOverlayClass =
   "fixed inset-0 z-50 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ease-out data-expanded:opacity-100 data-closed:opacity-0 motion-reduce:transition-none";
 
+// Side sheets are a column: header and body pack at the top and SheetFooter's
+// mt-auto pins it to the bottom edge (Paper Sheet). A grid would stretch the
+// rows over the full height and push the body far below the description.
 const sheetContentVariants = cva(
   "fixed z-50 grid gap-4 border border-border bg-card p-6 shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
   {
@@ -35,8 +38,8 @@ const sheetContentVariants = cva(
       side: {
         top: "inset-x-0 top-0 rounded-b-[var(--radius-sheet)] border-b data-expanded:translate-y-0 data-closed:-translate-y-full",
         bottom: "inset-x-0 bottom-0 rounded-t-[var(--radius-sheet)] border-t data-expanded:translate-y-0 data-closed:translate-y-full",
-        left: "inset-y-0 start-0 h-full w-3/4 border-e sm:max-w-sm data-expanded:translate-x-0 data-closed:-translate-x-full",
-        right: "inset-y-0 end-0 h-full w-3/4 border-s sm:max-w-sm data-expanded:translate-x-0 data-closed:translate-x-full",
+        left: "flex flex-col inset-y-0 start-0 h-full w-3/4 border-e sm:max-w-sm data-expanded:translate-x-0 data-closed:-translate-x-full",
+        right: "flex flex-col inset-y-0 end-0 h-full w-3/4 border-s sm:max-w-sm data-expanded:translate-x-0 data-closed:translate-x-full",
       },
     },
     defaultVariants: {
@@ -63,7 +66,7 @@ function SheetContent(props: ParentProps<SheetContentProps>) {
   return (
     <KDialog.Portal>
       <KDialog.Overlay class={sheetOverlayClass} />
-      <KDialog.Content forceMount class={className()} {...rest}>
+      <KDialog.Content forceMount {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
           <DialogCloseButtonLayout part={KDialog.CloseButton} />
@@ -86,7 +89,7 @@ function SheetTitle(props: ParentProps<Parameters<typeof KDialog.Title>[0] & { c
   const rest = omit(props, "class", "children");
 
   return (
-    <KDialog.Title class={className()} {...rest}>
+    <KDialog.Title {...rest} class={className()}>
       {props.children}
     </KDialog.Title>
   );
@@ -99,7 +102,7 @@ function SheetDescription(
   const rest = omit(props, "class", "children");
 
   return (
-    <KDialog.Description class={className()} {...rest}>
+    <KDialog.Description {...rest} class={className()}>
       {props.children}
     </KDialog.Description>
   );
