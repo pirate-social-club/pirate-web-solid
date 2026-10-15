@@ -66,6 +66,8 @@ export async function inspectVideoFile(
       hasAudio: audio !== null,
       videoCodec: video === null ? null : await video.getCodec(),
       audioCodec: audio === null ? null : await audio.getCodec(),
+      width: video === null ? 0 : await video.getCodedWidth(),
+      height: video === null ? 0 : await video.getCodedHeight(),
       durationSeconds: duration,
       maxDurationSeconds: maxDuration,
     });

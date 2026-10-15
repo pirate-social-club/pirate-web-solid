@@ -35,12 +35,26 @@ describe("capture source failure boundary", () => {
 describe("saying what is wrong with a video", () => {
   const usable = {
     container: "video/mp4", hasVideo: true, hasAudio: true, videoCodec: "avc", audioCodec: "aac",
+    width: 1080, height: 1920,
     durationSeconds: 12, maxDurationSeconds: 180,
   } as const;
 
   test("accepts a usable video", () => {
     expect(videoAdmissionProblem(usable)).toBeNull();
     expect(videoAdmissionProblem({ ...usable, container: "video/quicktime" })).toBeNull();
+  });
+
+  test.each([[1920, 1080], [1080, 1920], [1920, 1920]])("accepts %s by %s at the server's dimension limit", (width, height) => {
+    expect(videoAdmissionProblem({ ...usable, width, height })).toBeNull();
+  });
+
+  test.each([[1936, 1080], [1080, 1936], [1921, 1920], [3840, 2160]])("refuses %s by %s with an actionable dimension limit", (width, height) => {
+    expect(videoAdmissionProblem({ ...usable, width, height })).toBe("Choose a video no wider or taller than 1920 pixels.");
+  });
+
+  test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1080.5])("refuses unreadable dimensions: %s", dimension => {
+    expect(videoAdmissionProblem({ ...usable, width: dimension })).toContain("dimensions couldn’t be read");
+    expect(videoAdmissionProblem({ ...usable, height: dimension })).toContain("dimensions couldn’t be read");
   });
 
   test("a video that is too short says so and how short", () => {
@@ -85,4 +99,31 @@ test("aborting duration measurement disposes its decoder input", async () => {
     finish(null);
     expect(await measured).toBeNull();
   } finally { track.mockRestore(); dispose.mockRestore(); }
+});
+
+test.each([[1936, 1080], [1080, 1936], [1920, 1080]])("file admission reads coded dimensions %s by %s and releases the input", async (width, height) => {
+  const { Input } = await import("mediabunny");
+  const { inspectVideoFile } = await import("./capture");
+  type VideoTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryVideoTrack"]>>>;
+  type AudioTrack = NonNullable<Awaited<ReturnType<InstanceType<typeof Input>["getPrimaryAudioTrack"]>>>;
+  // SAFETY: default file inspection calls only these video metadata methods; no decoder or portrait path uses this double.
+  const video = { getCodec: async () => "avc", getCodedWidth: async () => width, getCodedHeight: async () => height } as VideoTrack;
+  // SAFETY: file inspection only reads the audio codec from this metadata double.
+  const audio = { getCodec: async () => "aac" } as AudioTrack;
+  const spies = [
+    vi.spyOn(Input.prototype, "getPrimaryVideoTrack").mockResolvedValue(video),
+    vi.spyOn(Input.prototype, "getPrimaryAudioTrack").mockResolvedValue(audio),
+    vi.spyOn(Input.prototype, "getMimeType").mockResolvedValue("video/mp4"),
+    vi.spyOn(Input.prototype, "computeDuration").mockResolvedValue(12),
+  ];
+  const dispose = vi.spyOn(Input.prototype, "dispose");
+  try {
+    const inspected = inspectVideoFile(new File(["take"], "take.mp4", { type: "video/mp4" }));
+    if (Math.max(width, height) > 1920) {
+      await expect(inspected).rejects.toMatchObject({ reason: "invalid_media", message: "Choose a video no wider or taller than 1920 pixels." });
+    } else {
+      await expect(inspected).resolves.toMatchObject({ name: "take.mp4", type: "video/mp4" });
+    }
+    expect(dispose).toHaveBeenCalledOnce();
+  } finally { spies.forEach(spy => spy.mockRestore()); dispose.mockRestore(); }
 });
