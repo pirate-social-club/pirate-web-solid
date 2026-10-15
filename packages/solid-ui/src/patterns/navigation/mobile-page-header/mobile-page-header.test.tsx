@@ -59,6 +59,16 @@ describe("MobilePageHeader", () => {
     expect(within(container).getByRole("img", { name: "Atlas Gardens" })).toBeInTheDocument();
   });
 
+  it("draws the compact Paper header at 56 with a 40px back target", () => {
+    const container = render(() => (
+      <MobilePageHeader density="compact" onBackClick={vi.fn()} title="Harbor Collective" titleAvatarFallback="Harbor Collective" />
+    ));
+    const row = within(container).getByRole("banner").firstElementChild;
+    expect(row).toHaveClass("h-14");
+    expect(within(container).getByRole("button", { name: "Back" })).toHaveClass("size-10");
+    expect(within(container).getByRole("img", { name: "Harbor Collective" })).toHaveClass("size-6");
+  });
+
   it("renders an empty leading slot when neither back nor close is supplied", () => {
     const container = render(() => <MobilePageHeader title="Settings" />);
     expect(within(container).queryAllByRole("button")).toHaveLength(0);

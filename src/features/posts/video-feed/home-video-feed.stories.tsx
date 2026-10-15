@@ -11,6 +11,7 @@ import {
   reviewSongLinks,
 } from "../feed/public-feed-fixtures";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter";
+import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
 
 const emptyPage: FeedPage = { ...publicFeedReviewPage, items: [], topCommunities: [] };
 const textOnlyPage: FeedPage = {
@@ -27,6 +28,28 @@ const playableUnlinked: PublicFeedItem = {
   caption: "A video with its own sound.",
   songPostId: null,
 };
+/** The signed-in viewer is a member of the post's community: Report is offered. */
+const memberVideo: PublicFeedItem = { ...playableLinked, viewerMembershipStatus: "member" };
+const nonMemberVideo: PublicFeedItem = { ...playableLinked, viewerMembershipStatus: "not_member" };
+const reportPost = fn(async () => ({ report_id: "story-report", case_ref: "story-case", status: "open" as const }));
+/** Signed-in review seams: an account id, a spy transport and in-memory records. */
+const signedIn = () => ({
+  principalId: "story-viewer",
+  sourceIdentity: "user:story-viewer",
+  // The finished report flow, reviewed ahead of api-next accepting video reports.
+  videoReportsSupported: true,
+  reportTransport: { reportPost },
+  pendingStorage: createMemoryPendingEngagementStorage(),
+  generateIdempotencyKey: () => "story-report-key",
+});
+const phone = { viewport: { value: "mobile1", isRotated: false } };
+const page = (canvasElement: HTMLElement) => within(canvasElement.ownerDocument.body);
+const moreTrigger = (canvasElement: HTMLElement, layout: "desktop" | "phone") => waitFor(() => {
+  const button = canvasElement.querySelector<HTMLButtonElement>(`[data-media-more="${layout}"] button`);
+  if (!button) throw new Error(`${layout} More trigger not rendered`);
+  return button;
+});
+
 const missingThumbnail: PublicFeedItem = {
   ...playableLinked,
   videoDelivery: { playback: "ready", thumbnail: "pending" },
@@ -135,7 +158,10 @@ export const MissingThumbnail: Story = {
   },
 };
 
-/** Muted first, as browsers require for autoplay; the mute control unmutes. */
+/**
+ * Muted first, as browsers require for autoplay. Mute is not in the rail:
+ * the More menu's Unmute row unmutes, and the row then reads Mute.
+ */
 export const MuteControlPolicy: Story = {
   name: "Mute control policy",
   args: { data: oneVideo(playableLinked) },
@@ -144,9 +170,120 @@ export const MuteControlPolicy: Story = {
     await readyState(canvasElement);
     const player = await waitFor(() => { const video = canvasElement.querySelector("video"); expect(video).not.toBeNull(); return video!; });
     await waitFor(() => expect(player.muted).toBe(true));
-    await userEvent.click(canvas.getByRole("button", { name: "Unmute video" }));
+    await expect(canvas.queryByRole("button", { name: /mute video/i })).toBeNull();
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await userEvent.click(await page(canvasElement).findByRole("menuitem", { name: "Unmute" }));
     await waitFor(() => expect(player.muted).toBe(false));
-    await expect(canvas.getByRole("button", { name: "Mute video" })).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(page(canvasElement).queryByRole("menu")).toBeNull());
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await expect(await page(canvasElement).findByRole("menuitem", { name: "Mute" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+  },
+};
+
+/** Signed in, desktop: the card with More (closed) and the rail beside it. */
+export const SignedInDesktop: Story = {
+  name: "Signed in desktop",
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await expect(await moreTrigger(canvasElement, "desktop")).toBeVisible();
+  },
+};
+
+/** Signed in, phone: full-bleed with More at the top right. */
+export const SignedInMobile: Story = {
+  name: "Signed in mobile",
+  globals: phone,
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await expect(await moreTrigger(canvasElement, "phone")).toBeVisible();
+  },
+};
+
+/** Phone More sheet (Paper 171): Mute, then Report for a member. No Boost. */
+export const MobileMoreSheet: Story = {
+  name: "Mobile More sheet",
+  globals: phone,
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "phone"));
+    const sheet = await page(canvasElement).findByRole("dialog", { name: "More options" });
+    await expect(within(sheet).getAllByRole("button").map(row => row.textContent)).toEqual(["Unmute", "Report"]);
+  },
+};
+
+/** Phone Report reasons (Paper 172): a sheet titled Report with seven reasons. */
+export const MobileReportReasons: Story = {
+  name: "Mobile report reasons",
+  globals: phone,
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "phone"));
+    const sheet = await page(canvasElement).findByRole("dialog", { name: "More options" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Report" }));
+    const reasons = await page(canvasElement).findByRole("dialog", { name: "Report" });
+    await expect(within(reasons).getAllByRole("button").map(row => row.textContent)).toEqual([
+      "Spam", "Harassment", "Hate", "Sexual content", "Graphic content", "Misleading", "Other",
+    ]);
+  },
+};
+
+/** Desktop More menu (Paper 173): under the three dots, Mute then Report. */
+export const DesktopMoreMenu: Story = {
+  name: "Desktop More menu",
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    const menu = await page(canvasElement).findByRole("menu");
+    await expect(within(menu).getAllByRole("menuitem").map(item => item.textContent)).toEqual(["Unmute", "Report"]);
+  },
+};
+
+/** Desktop Report dialog (Paper 174): 420px, title and close, seven reasons. */
+export const DesktopReportDialog: Story = {
+  name: "Desktop report dialog",
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await userEvent.click(await page(canvasElement).findByRole("menuitem", { name: "Report" }));
+    const dialog = await page(canvasElement).findByRole("dialog", { name: "Report" });
+    await expect(within(dialog).getByRole("button", { name: "Close" })).toBeVisible();
+    await expect(within(dialog).getAllByRole("button", { name: /^(Spam|Harassment|Hate|Sexual content|Graphic content|Misleading|Other)$/ })).toHaveLength(7);
+  },
+};
+
+/** One tap on a reason sends the report once, then the dialog closes. */
+export const ReportSendsOnce: Story = {
+  name: "Report sends once",
+  args: { data: oneVideo(memberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    reportPost.mockClear();
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await userEvent.click(await page(canvasElement).findByRole("menuitem", { name: "Report" }));
+    const dialog = await page(canvasElement).findByRole("dialog", { name: "Report" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Misleading" }));
+    await waitFor(() => expect(page(canvasElement).queryByRole("dialog", { name: "Report" })).toBeNull());
+    await expect(reportPost).toHaveBeenCalledTimes(1);
+  },
+};
+
+/** A signed-in viewer outside the post's community gets no Report. */
+export const NonMemberNoReport: Story = {
+  name: "Non-member has no Report",
+  args: { data: oneVideo(nonMemberVideo), ...signedIn() },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    const menu = await page(canvasElement).findByRole("menu");
+    await expect(within(menu).getAllByRole("menuitem").map(item => item.textContent)).toEqual(["Unmute"]);
+    await expect(within(menu).queryByRole("menuitem", { name: "Report" })).toBeNull();
   },
 };
 
@@ -179,12 +316,13 @@ export const AuthenticatedLoader: Story = {
   },
 };
 
-/** The initial load state before the first page resolves. */
+/** The initial load state before the first page resolves (Paper 175). */
 export const Loading: Story = {
+  globals: phone,
   args: { data: new Promise<FeedPage>(() => {}) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByLabelText("Loading videos")).toBeInTheDocument();
+    await expect(canvas.getByRole("status", { name: "Loading videos" })).toBeInTheDocument();
   },
 };
 
@@ -196,25 +334,51 @@ export const Loading: Story = {
  */
 export const FailedFirstPage: Story = {
   name: "Failed first page",
+  globals: phone,
   render: () => (
     <HomeVideoFeed
       data={Promise.reject(new Error("feed unavailable"))}
-      loadPage={async () => emptyPage}
+      loadPage={async () => { throw new Error("feed still unavailable"); }}
       navigate={() => undefined}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("Video feed unavailable")).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText("Couldn't load the feed.")).toBeInTheDocument());
+    await expect(canvas.getByRole("button", { name: "Try again" })).toBeVisible();
   },
 };
 
-/** A feed with no video items says so rather than rendering an empty player. */
+/** Try again re-runs the first-page load through the loader. */
+export const RetryAfterFailure: Story = {
+  name: "Retry after failure",
+  render: () => (
+    <HomeVideoFeed
+      data={Promise.reject(new Error("feed unavailable"))}
+      loadPage={async () => oneVideo(playableLinked)}
+      attachPlayback={loadedAttach}
+      mintPlaybackAccess={reviewPlaybackMint}
+      posterPath={reviewPosterPath}
+      resolveSongLink={reviewSongLinks}
+      studyReady={async () => false}
+      navigate={() => undefined}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Try again" }));
+    await readyState(canvasElement);
+    await waitFor(() => expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(1));
+  },
+};
+
+/** A feed with no video items says so rather than rendering an empty player (Paper 176). */
 export const NoVideos: Story = {
+  globals: phone,
   args: { data: textOnlyPage },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("No videos yet")).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText("Nothing here yet")).toBeInTheDocument());
   },
 };
 
@@ -227,7 +391,14 @@ export const MobilePlayableLinked: Story = {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
     await waitFor(() => expect(canvasElement.querySelector(`[data-media-post="${playableLinked.id}"]`)).not.toBeNull());
-    await expect(canvas.getAllByRole("button", { name: /Harbor lights/ })[0]).toBeVisible();
+    // The phone copy of the soundtrack line is the visible one at this width.
+    const phoneSoundtrack = await waitFor(() => {
+      const visible = canvas.getAllByRole("button", { name: /Harbor lights/ })
+        .find(button => button.getBoundingClientRect().width > 0);
+      if (!visible) throw new Error("no visible soundtrack control yet");
+      return visible;
+    });
+    await expect(phoneSoundtrack).toBeVisible();
   },
 };
 

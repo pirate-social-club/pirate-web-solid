@@ -1,7 +1,6 @@
 import { For, Show } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
-import { Type } from "@/components/data-display/type/type";
 import {
   IconChatCircleDots,
   IconHeart,
@@ -9,8 +8,6 @@ import {
   IconMusicNote,
   IconPlus,
   IconShareNetwork,
-  IconSpeakerHigh,
-  IconSpeakerSlash,
 } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
@@ -28,38 +25,17 @@ function formatCount(count: number): string {
 }
 
 /**
- * MediaActions - vertical action column for one feed post: mute, author,
- * follow, like, share, and soundtrack. Purely presentational; every action is
- * emitted as a callback. Every action hides when its callback is absent,
- * except mute, which is local playback state and stays always visible.
+ * MediaActions - vertical action column for one feed post: author, follow,
+ * like, share, host activities and soundtrack. Purely presentational; every
+ * action is emitted as a callback and hides when its callback is absent.
+ * Mute is not a rail action: it lives in the post's More menu.
  */
 export function MediaActions(props: MediaActionsProps) {
   const iconButtonClass =
-    "rounded-full p-3 transition-colors max-md:bg-transparent md:bg-black/30 md:backdrop-blur-sm md:hover:bg-black/40";
+    "rounded-full p-3 transition-colors max-md:bg-transparent md:bg-black/30 md:hover:bg-black/40";
 
   return (
     <div class={cn("flex flex-col items-center gap-2 md:gap-6", props.class)}>
-      {/* Mute/Unmute */}
-      <button
-        type="button"
-        aria-label={props.isMuted ? "Unmute video" : "Mute video"}
-        aria-pressed={props.isMuted ? "true" : "false"}
-        class="flex cursor-pointer flex-col items-center"
-        onClick={(event) => {
-          event.stopPropagation();
-          props.onToggleMute?.();
-        }}
-      >
-        <div class={iconButtonClass}>
-          <Show
-            when={!props.isMuted}
-            fallback={<IconSpeakerSlash class="size-8 text-foreground md:size-7" />}
-          >
-            <IconSpeakerHigh class="size-8 text-foreground md:size-7" />
-          </Show>
-        </div>
-      </button>
-
       {/* Author avatar with follow badge (hidden when unwired) */}
       <Show when={props.onAuthorClick}>
         <div class="relative">
@@ -122,9 +98,9 @@ export function MediaActions(props: MediaActionsProps) {
             />
           </div>
           <Show when={props.likeCount !== undefined}>
-            <Type as="span" variant="caption" class="font-semibold text-foreground">
+            <span class="text-sm font-semibold leading-5 text-foreground">
               {formatCount(props.likeCount!)}
-            </Type>
+            </span>
           </Show>
         </button>
       </Show>
@@ -167,9 +143,9 @@ export function MediaActions(props: MediaActionsProps) {
                 <IconMicrophoneStage class="size-8 text-foreground md:size-7" />
               </Show>
             </div>
-            <Type as="span" variant="caption" class="font-semibold text-foreground">
+            <span class="text-sm font-semibold leading-5 text-foreground">
               {activity.label}
-            </Type>
+            </span>
           </button>
         )}
       </For>
@@ -183,7 +159,7 @@ export function MediaActions(props: MediaActionsProps) {
               ? `Open ${props.title}${props.artist ? ` by ${props.artist}` : ""}`
               : "Open soundtrack"
           }
-          class="group cursor-pointer"
+          class="group cursor-pointer leading-5"
           onClick={(event) => {
             event.stopPropagation();
             props.onSoundtrackClick?.();

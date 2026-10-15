@@ -39,8 +39,6 @@
     "src/features/posts/media-submission/contracts.test.ts",
     "src/features/posts/media-submission/projection.test.ts",
     "src/features/posts/media-submission/transport.test.ts",
-    "src/features/posts/post-card/nationality.test.ts",
-    "src/features/posts/post-card/navigation.test.ts",
     "src/features/posts/post-composer/audio-artwork.test.ts",
     "src/features/posts/post-composer/invariants.test.ts",
     "src/features/posts/post-composer/media-composer-bridge.test.ts",
@@ -48,9 +46,6 @@
     "src/features/posts/post-composer/utils.test.ts",
     "src/features/posts/post-composer/video-poster.test.ts",
     "src/features/posts/video-feed/home-video-feed-model.test.ts",
-    "src/features/posts/video-player/video-player-model.test.ts",
-    "src/features/profiles/edit-profile-form/edit-profile-form.model.test.ts",
-    "src/features/profiles/public-agent-page/public-agent-page.test.ts",
     "src/features/profiles/public-profile-page/public-profile-preflight.test.ts",
     "src/features/shell/app-sidebar/app-sidebar-theme.test.ts",
     "src/features/shell/shell.test.ts",
@@ -58,7 +53,6 @@
     "src/features/studying/studying-model.test.ts",
     "src/features/studying/studying-surface-rendered.test.tsx",
     "src/lib/async-model.test.ts",
-    "src/lib/async-query-projection.test.ts",
     "src/lib/ui-locale-core.test.ts",
     "src/locales/index.test.ts"
   ]

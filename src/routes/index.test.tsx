@@ -90,7 +90,7 @@ describe("public-first home route", () => {
 
     await vi.waitFor(() => expect(container.querySelector("[data-video-feed-state='ready']")).not.toBeNull());
     expect(container.textContent).toContain("Verify 18+ to view");
-    expect(container.textContent).not.toContain("Video feed unavailable");
+    expect(container.textContent).not.toContain("Couldn't load the feed.");
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 

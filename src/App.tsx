@@ -96,6 +96,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
           mobileActiveItem={policy().mobileActiveItem}
           mobileTitle={policy().mobileTitle}
           hideMobileHeader={policy().hideMobileHeader}
+          hideMobileFooter={policy().hideMobileFooter}
           mode={policy().mode}
           navigate={(href) => navigate(href)}
           personas={personas.personas()}

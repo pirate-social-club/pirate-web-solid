@@ -306,7 +306,7 @@ it("does not follow a completed ID lookup after leaving its age prompt", async (
   expect(replace).not.toHaveBeenCalled();
 });
 
-it("uses the standard song post card and opens its persisted comment thread", async () => {
+it("uses the standard song post card and lays its persisted comment thread under it", async () => {
   window.scrollTo = vi.fn();
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("Expected content");
@@ -319,12 +319,17 @@ it("uses the standard song post card and opens its persisted comment thread", as
   });
   expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
   await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Comments (1)']")?.disabled).toBe(false));
-  container.querySelector<HTMLButtonElement>("button[aria-label='Comments (1)']")!.click();
-  await vi.waitFor(() => expect(document.body.textContent).toContain("A real thread"));
-  const input = document.querySelector<HTMLTextAreaElement>("textarea")!;
+  // The post page shows its thread without opening a sheet.
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-thread='post-1']")?.textContent).toContain("A real thread"));
+  expect(readComments).toHaveBeenCalledOnce();
+  expect(document.querySelector("textarea")).toBeNull();
+  const input = container.querySelector<HTMLInputElement>("input[aria-label='Write a comment']")!;
+  expect(input.placeholder).toBe("Add a comment");
+  const send = () => container.querySelector<HTMLButtonElement>("button[aria-label='Post comment']")!;
+  expect(send().disabled).toBe(true);
   input.value = "After studying"; input.dispatchEvent(new InputEvent("input", { bubbles: true }));
-  await vi.waitFor(() => expect([...document.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Post comment")?.disabled).toBe(false));
-  [...document.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Post comment")!.click();
+  await vi.waitFor(() => expect(send().disabled).toBe(false));
+  send().click();
   await vi.waitFor(() => expect(createComment).toHaveBeenCalledOnce());
   expect(await decodePendingEngagementAction(createComment.mock.calls[0]![0])).toMatchObject({ kind: "comment", personaId: "profile", postId: "post-1", body: "After studying" });
 });
@@ -364,6 +369,75 @@ it("wires text votes, comments and supported post reports", async () => {
   await vi.waitFor(() => expect(castVote).toHaveBeenCalledOnce());
   await userEvent.click(container.querySelector("button[aria-label='Comments (0)']")!);
   await vi.waitFor(() => expect(readComments).toHaveBeenCalledOnce());
+});
+
+function communityTextState(membership: "member" | "not_member" | null, commentCount = 0): PublicPostRouteState {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  // SAFETY: the view reads only the community preview fields set here; wire
+  // completeness belongs to generated-client transport tests.
+  const community = JSON.parse(JSON.stringify({ id: "community", display_name: "Harbor Collective", route_slug: "harbor", avatar_ref: null, viewer_membership_status: membership })) as NonNullable<typeof state.response.content.community>;
+  return { ...state, response: { ...state.response, content: { ...state.response.content, community,
+    post: { ...state.response.content.post, community: "community", post_type: "text", created: 1_790_720_000 }, upvote_count: 18, downvote_count: 0, comment_count: commentCount } } };
+}
+
+const member = { status: "authenticated" as const, userId: "account", personas: [{ personaId: "profile", displayName: "Harbor", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "community", bindingSource: "first_membership" as const } }] };
+const rootComment = { comment_id: "root", parent_comment_id: null, body: "Low Tide on the night bus.", depth: 0, reply_count: 1, status: "published" as const, content_rating: "general" as const, created_at: "2026-09-29T00:00:00Z", author_persona: { persona_id: "nightowl", object: "persona" as const, display_name: "nightowl", avatar_ref: null, primary_public_handle: null } };
+const replyComment = { ...rootComment, comment_id: "reply", parent_comment_id: "root", body: "Same. The second verse.", depth: 1, reply_count: 0 };
+const noTransport = (): PostEngagementTransport => ({ reportPost: vi.fn(), createComment: vi.fn(), createReply: vi.fn(), castVote: vi.fn(), clearVote: vi.fn(), reportComment: vi.fn(), readModerationCase: vi.fn(), moderateCase: vi.fn(), readSubmission: vi.fn() });
+
+it("names the post's community in its page header and lays the text post out as the feed card", async () => {
+  const container = render(communityTextState("member"), undefined, { resolveSession: async () => "anonymous" as const });
+  const banner = container.querySelector("header");
+  expect(banner?.textContent).toContain("Harbor Collective");
+  expect(banner?.querySelector("button[aria-label='Back']")).not.toBeNull();
+  expect(container.querySelector("[data-post-page-header] a")?.getAttribute("href")).toBe("/c/harbor");
+  const heading = container.querySelector("h1");
+  expect(heading?.textContent).toBe("A searchable title");
+  expect(heading?.className).toContain("text-xl");
+  expect(container.querySelector("[data-community-post='post-1'] time")).not.toBeNull();
+});
+
+it("asks a signed-out viewer to sign in from the bottom bar, without reading comments", async () => {
+  const readComments = vi.fn(async () => ({ items: [], next_cursor: null }));
+  const container = render(communityTextState(null, 2), undefined, { resolveSession: async () => "anonymous" as const, readComments });
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-bar] button")?.textContent).toBe("Sign in to comment"));
+  expect(container.querySelector("[data-comment-thread]")).toBeNull();
+  expect(readComments).not.toHaveBeenCalled();
+});
+
+it("gives a signed-in visitor Join to comment in place of the comment box", async () => {
+  const readComments = vi.fn(async () => ({ items: [rootComment], next_cursor: null }));
+  const container = render(communityTextState("not_member", 1), undefined, {
+    resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }),
+    readViewerVote: async () => null, readComments, pendingStorage: createMemoryPendingEngagementStorage(), transport: noTransport(),
+  });
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-thread='post-1']")?.textContent).toContain("Low Tide on the night bus."));
+  const join = [...container.querySelectorAll<HTMLAnchorElement>("[data-comment-bar] a")].find(link => link.textContent === "Join to comment");
+  expect(join?.getAttribute("href")).toBe("/c/harbor");
+  expect(container.querySelector("input[aria-label='Write a comment']")).toBeNull();
+  const reply = [...container.querySelectorAll<HTMLAnchorElement>("[data-comment-row] a")].find(link => link.textContent === "Reply");
+  expect(reply?.getAttribute("href")).toBe("/c/harbor");
+});
+
+it("draws replies one level in, without a Reply of their own, and names whom a reply answers", async () => {
+  const readComments = vi.fn(async (input: { parentId?: string }) => ({ items: input.parentId === "root" ? [replyComment] : [rootComment], next_cursor: null }));
+  const container = render(communityTextState("member", 2), undefined, {
+    resolveSession: async () => member, readViewerVote: async () => null, readComments,
+    pendingStorage: createMemoryPendingEngagementStorage(), transport: noTransport(),
+  });
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-id='root']")).not.toBeNull());
+  const rootRow = container.querySelector("[data-comment-id='root']")!;
+  expect(rootRow.className).not.toContain("border-s-2");
+  expect([...rootRow.querySelectorAll("button")].some(button => button.textContent === "Reply")).toBe(true);
+  await userEvent.click([...rootRow.querySelectorAll("button")].find(button => button.textContent === "View replies")!);
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-id='reply']")).not.toBeNull());
+  const replyRow = container.querySelector("[data-comment-id='reply']")!;
+  expect(replyRow.className).toContain("border-s-2");
+  expect([...replyRow.querySelectorAll("button")].some(button => button.textContent === "Reply")).toBe(false);
+  await userEvent.click([...rootRow.querySelectorAll("button")].find(button => button.textContent === "Reply")!);
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-bar]")?.textContent).toContain("Replying to nightowl"));
+  expect(container.querySelector("input[aria-label='Write a reply']")).not.toBeNull();
 });
 
 it("leaves video details without engagement or private session reads", async () => {

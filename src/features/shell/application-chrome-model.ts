@@ -18,6 +18,8 @@ export interface ApplicationChromePolicy {
   readonly mobileTitle: string;
   readonly mode: ApplicationChromeMode;
   readonly hideMobileHeader?: boolean;
+  /** The page owns the phone's bottom edge with its own bar; no footer tabs. */
+  readonly hideMobileFooter?: boolean;
 }
 
 function pathSegments(pathname: string): readonly string[] {
@@ -64,6 +66,12 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   }
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "bare" };
+  }
+  // One post and its comments (`/post/:id`, `/posts/:slug`). The page draws
+  // its own phone header (back and the post's community) and pins its comment
+  // box to the bottom edge, so the app header and the footer tabs step aside.
+  if ((first === "post" || first === "posts") && segments.length === 2) {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "", mode: "standard", hideMobileHeader: true, hideMobileFooter: true };
   }
   if (activitySession) {
     return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: segments[2] === "study" ? "Study" : "Karaoke", mode: "bare" };

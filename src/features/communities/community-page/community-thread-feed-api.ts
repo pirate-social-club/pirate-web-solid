@@ -8,7 +8,8 @@ import {
   createGeneratedApiClient,
   type ApiClientFactoryOptions,
 } from "../../../api/client.ts";
-import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
+import type { CommunityPost, CommunityPostBase, CommunityPostKind } from "../../community/page-shell/page-shell-model.ts";
+import { projectVideoDelivery } from "../../posts/video-submission/delivery-state.ts";
 import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 
 export type CommunityThreadFeedClient = Pick<PirateApiClient, "get_publicCommunitiesCommunityRefFeed">;
@@ -31,11 +32,28 @@ function finiteCount(value: number | string | null | undefined): number {
 }
 
 type ThreadItem = GetPublicCommunitiesCommunityRefFeedResponse["items"][number];
+type ThreadPost = Exclude<ThreadItem, { readonly kind: "age_locked" }>;
+
+/**
+ * The card renders three kinds. Any other post type is left out rather than
+ * drawn as a text card, so a type the server starts returning degrades to
+ * absence and never to a wrong card.
+ */
+function cardKind(postType: ThreadPost["post"]["post_type"]): CommunityPostKind | null {
+  return postType === "text" || postType === "song" || postType === "video" ? postType : null;
+}
+
+/** The referenced song names a video's soundtrack line; titles are never guessed. */
+function soundtrackTitle(video: ThreadPost["video"]): string | undefined {
+  return video?.soundtrack.kind === "song_reference" ? video.soundtrack.song_reference.song_title.trim() || undefined : undefined;
+}
 
 export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | null {
   if ("kind" in item) return null;
   const post = item.post;
   if (post.status !== "published") return null;
+  const kind = cardKind(post.post_type);
+  if (kind === null) return null;
   const created = typeof post.created === "number" ? new Date(post.created * 1_000) : null;
   if (created === null || Number.isNaN(created.getTime())) return null;
   const persona = post.author_persona;
@@ -46,7 +64,7 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
   const body = post.body ?? post.caption ?? "";
   const upvoteCount = finiteCount(item.upvote_count);
   const downvoteCount = finiteCount(item.downvote_count);
-  return {
+  const base: CommunityPostBase = {
     id: post.id,
     title,
     body,
@@ -61,15 +79,20 @@ export function projectCommunityThreadPost(item: ThreadItem): CommunityPost | nu
     authorProfile: post.identity_mode === "anonymous" ? undefined : persona ?? null,
     authorPersonaId: post.identity_mode === "anonymous" ? undefined : persona?.persona_id,
     authorAvatarSrc: post.identity_mode === "anonymous" ? null : persona?.avatar_ref ?? null,
-    kind: post.post_type === "song" ? "song" : "text",
-    supportsPostReports: post.post_type === "text",
-    ...(post.post_type === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),
+    supportsPostReports: kind === "text",
     commentCount: finiteCount(item.comment_count),
     // Being a song is not a Learn or Karaoke capability. These were derived
     // from post_type alone, which put two buttons with no handlers behind them
     // on every song. The real capability is a server projection this surface
     // does not carry, so nothing is claimed here until it does.
   };
+  if (kind === "text") return { ...base, kind };
+  if (kind === "song") return post.song_title ? { ...base, kind, mediaTitle: post.song_title } : { ...base, kind };
+  // A video card always carries its delivery state; an absent projection
+  // reads as unavailable rather than as a card with nothing to play.
+  const soundtrack = soundtrackTitle(item.video);
+  const video = { ...base, kind, video: projectVideoDelivery(item.video), requiresAgeVerification: post.age_gate_policy === "18_plus" };
+  return soundtrack ? { ...video, mediaTitle: soundtrack } : video;
 }
 
 export function normalizeCommunityThreadPage(
