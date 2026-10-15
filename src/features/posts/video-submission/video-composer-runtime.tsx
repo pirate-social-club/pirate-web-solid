@@ -97,7 +97,7 @@ function VideoComposerSession(props: VideoComposerSessionProps) {
     takeAlignment, confirmingSound, checkingPlayback, playbackFailed, panelShown,
     songActive, songSheetTitle, songLabel, approvedSelection, clipProblem, takeMismatch,
     profileReady, interactionBusy, editing, reservationExpired, otherDestination,
-    reviewVisible, completedUpload, statusText, posted, clearPreviewUrls, openSongSheet,
+    reviewVisible, uploadUnconfirmed, completedUpload, statusText, posted, clearPreviewUrls, openSongSheet,
     confirmSound, chooseFile, toggleCapture, publish, send,
   } = flow;
   let picker: HTMLInputElement | undefined;
@@ -195,7 +195,7 @@ function VideoComposerSession(props: VideoComposerSessionProps) {
       </div>
     </Show>
     <Show when={reviewVisible()}>
-      <OriginalVideoReviewSurface submitting={busy()} submitLabel={busy() && submittedFromReview() ? progress().replace("video…", "video") || "Uploading video" : submittedFromReview() && record() ? "Try upload again" : "Publish video"} publishDisabled={!record() && (!profileReady() || approvedSelection() === undefined || measuring() || finalizing() || takeMismatch() || takeAlignment() === "unaligned" || clipProblem() !== undefined)} notice={(error() && record() ? "Your video couldn’t upload. Try again." : error()) || clipProblem() || (takeMismatch() ? "The song changed. Record a new video." : undefined) || (takeAlignment() === "unaligned" ? "The video couldn’t play in time with the song. Record again." : undefined)} onPublish={() => { void publish(); }}
+      <OriginalVideoReviewSurface submitting={busy()} submitLabel={busy() && submittedFromReview() ? progress().replace("video…", "video") || "Uploading video" : submittedFromReview() && record() ? "Try upload again" : "Publish video"} publishDisabled={!record() && (!profileReady() || approvedSelection() === undefined || measuring() || finalizing() || takeMismatch() || takeAlignment() === "unaligned" || clipProblem() !== undefined)} notice={(uploadUnconfirmed() ? statusText() : error() && record() ? "Your video couldn’t upload. Try again." : error()) || clipProblem() || (takeMismatch() ? "The song changed. Record a new video." : undefined) || (takeAlignment() === "unaligned" ? "The video couldn’t play in time with the song. Record again." : undefined)} onPublish={() => { void publish(); }}
         onBack={() => { if (record()) props.onExit(); else if (!busy()) { clearPreviewUrls(); send({ type: "BACK_FROM_REVIEW" }); } }}
         preview={songActive() && songPlan().kind === "ready" && selection() && takeAlignment() !== "unaligned"
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}

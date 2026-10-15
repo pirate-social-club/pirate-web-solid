@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.114.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.114.0-a2eb47a5.tgz",
-  "sha256": "a2eb47a5118b358ab5c445c2efcdaf030c8b4574ba2cf545d990ae3e596a9186",
-  "source": "api-next-contracts@36e26910030063954d0e094f04ac10667bf26f52e0fa7584968ef4c7743d9894",
-  "openapiSha256": "36e26910030063954d0e094f04ac10667bf26f52e0fa7584968ef4c7743d9894",
-  "clientSha256": "2dd42796b730d8550cdf596036a95a43db9665a5949c4b2c8ecfd402e6e35278",
+  "version": "0.119.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.119.0-cfa54503.tgz",
+  "sha256": "cfa545039c8640420d45c258e2c5b7d1a15e4ebc50b4beb70e0c53a9146654e1",
+  "source": "api-next-contracts@f5e444bc0411d7ce719e04f996d04b4a27f157cbeca36378a8ba731d0bd45737",
+  "openapiSha256": "f5e444bc0411d7ce719e04f996d04b4a27f157cbeca36378a8ba731d0bd45737",
+  "clientSha256": "b77fd900a093ea6cf9a010652562c910c5380054cac78a1e810cffb93c873246",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",

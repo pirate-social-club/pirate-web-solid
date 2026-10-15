@@ -55,6 +55,13 @@ export function canDiscardRejectedVideo(record: PendingVideo | null): boolean {
     && (record.rejection?.command.kind === "reserve" || record.rejection?.command.kind === "start");
 }
 const terminal = (snapshot: VideoSnapshot) => ["published", "blocked", "abandoned"].includes(snapshot.status);
+/** beginFinalize writes phase=finalize before sealing. Only an immutable video
+ * revision and a post-seal state prove that the server accepted the upload. */
+export function isVideoUploadAccepted(snapshot: VideoSnapshot | null | undefined): boolean {
+  return snapshot !== null && snapshot !== undefined
+    && Number.isSafeInteger(snapshot.video_revision) && snapshot.video_revision > 0
+    && (snapshot.status !== "processing" || snapshot.phase === "analysis" || snapshot.phase === "publish");
+}
 const unresolvedProviderDispatch = (snapshot: VideoSnapshot) =>
   snapshot.status === "processing_failed"
   && snapshot.reason_code === "provider_submission_unconfirmed"
@@ -174,7 +181,11 @@ export class VideoCoordinator {
       } else next = { ...next, reservation: result };
     }
     const { rejection: _rejection, ...accepted } = next;
-    await this.save({ ...accepted, pending: null });
+    // Even a successful HTTP response may only report beginFinalize. Keep the
+    // original manifest, digest and key until immutable sealing is authoritative.
+    const pending = command.kind === "finalize" && (!snapshotResult(result) || !isVideoUploadAccepted(result))
+      ? this.require().pending : null;
+    await this.save({ ...accepted, pending });
     this.assertActive();
     return result;
   }
@@ -235,6 +246,7 @@ export class VideoCoordinator {
     return this.exclusive(async () => {
       await this.reconcile();
       let record = this.require();
+      if (record.pending?.command.kind === "finalize" && record.snapshot) return record.snapshot;
       if (record.rejection) throw new VideoContractError("The saved video command was rejected. Resolve it explicitly before continuing.");
       if (!record.reservation) throw new VideoContractError("Reservation has not been reconciled");
       if (!record.snapshot) {
@@ -300,22 +312,21 @@ export class VideoCoordinator {
   }
   /** Once the upload is sealed the server owns the video: this device forgets
    * it without cancelling anything, so the author goes straight back to the
-   * feed and can record again. Returns false while bytes are still owed. */
+   * feed and can record again. Returns false while acceptance is unresolved. */
   async release(): Promise<boolean> {
     return this.exclusive(async () => {
       const snapshot = this.record?.snapshot;
       // An unconfirmed command (a lost finalize response) must stay replayable.
-      if (!snapshot || this.record?.pending || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      if (!isVideoUploadAccepted(snapshot) || this.record?.pending) return false;
       await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
       return true;
     });
   }
   /** Settles a finalize whose answer never arrived. The server may have
    * accepted it anyway, so this reads the same submission (identity checked
-   * by the read) instead of assuming failure. Once the submission has left
-   * the upload phase the finalize is proven accepted and this device forgets
-   * the video, as `release` does. Returns false while the upload is still
-   * owed; the retained command then stays replayable. A failed read throws
+   * by the read) instead of assuming failure. Only the immutable video
+   * revision proves sealing, so phase=finalize alone retains the envelope.
+   * Returns false while upload acceptance is unresolved. A failed read throws
    * and changes nothing. */
   async settleFinalize(): Promise<boolean> {
     return this.exclusive(async () => {
@@ -324,7 +335,7 @@ export class VideoCoordinator {
       if (!record?.snapshot || command?.kind !== "finalize"
         || command.input.path.submissionId !== record.snapshot.submission_id) return false;
       const snapshot = await this.refreshSnapshot();
-      if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      if (!isVideoUploadAccepted(snapshot)) return false;
       await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
       return true;
     });
