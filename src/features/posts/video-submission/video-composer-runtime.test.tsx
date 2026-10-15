@@ -210,7 +210,8 @@ function reopenedWithSubmittedUpload(options: {
   const execute = vi.fn(async (command: VideoCommand) => {
     if (options.failCancel && command.kind === "cancel") throw new Error("The connection dropped");
     if (command.kind === "cancel") held = { ...base, status: "abandoned", creation_revision: 2, reason_code: "author_cancelled_before_finalize" };
-    return command.kind === "cancel" ? held : { ...snapshot, phase: "analysis" as const };
+    if (command.kind === "finalize") held = sealedSnapshots.processing;
+    return held;
   });
   let uploads = 0;
   const fetchImpl = vi.fn<typeof fetch>();
@@ -335,7 +336,7 @@ describe("mounted song-first video flow", () => {
     /** The host’s eligible community profiles; the active profile is inherited. */
     readonly personaOptions?: readonly { readonly id: string; readonly label: string; readonly communityId?: string }[];
     readonly reserve?: "echo" | "different_excerpt";
-    readonly finalSnapshot?: "published" | "song_blocked";
+    readonly finalSnapshot?: "published" | "song_blocked" | "finalizing";
     readonly reader?: "ready" | "failed" | "pending";
     /** What the injected duration measurement answers for the chosen file. */
     readonly clipDurationMs?: number | null;
@@ -359,6 +360,7 @@ describe("mounted song-first video flow", () => {
     readonly loseFinalize?: "before_commit" | "after_commit";
     /** While set, reading the submission fails as a network error would. */
     readonly readFails?: { value: boolean };
+    readonly readFailsAfterFinalize?: boolean;
     readonly onPosted?: () => void;
   }) {
     vi.stubGlobal("crypto", webcrypto);
@@ -408,11 +410,13 @@ describe("mounted song-first video flow", () => {
     let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
     const commands: VideoCommand[] = [];
     let loseFinalize = options.loseFinalize;
+    let finalizeStarted = false;
     const transport: VideoTransport = { async read() {
-      if (options.readFails?.value) throw new Error("offline");
+      if (options.readFails?.value || (finalizeStarted && options.readFailsAfterFinalize)) throw new Error("offline");
       return snapshot;
     }, async execute(command) {
       commands.push(command);
+      if (command.kind === "finalize") finalizeStarted = true;
       if (command.kind === "finalize" && loseFinalize === "before_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       if (command.kind === "reserve") {
         const body = command.input.body;
@@ -428,9 +432,11 @@ describe("mounted song-first video flow", () => {
         // The real transport's check, so a differing echo fails exactly as it would.
         return (await import("./contracts")).verifySongReservation(body, echoed);
       }
-      if (command.kind === "finalize") snapshot = options.finalSnapshot === "song_blocked"
-        ? { ...common, creation_revision: 2, video_revision: 1, status: "blocked", reason_code: "song_reference_invalid", song_post_id: "song-post", song_reason_code: "derivative_video_blocked" }
-        : { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } };
+      if (command.kind === "finalize") snapshot = options.finalSnapshot === "finalizing"
+        ? { ...common, creation_revision: 2, status: "processing", phase: "finalize" }
+        : options.finalSnapshot === "song_blocked"
+          ? { ...common, creation_revision: 2, video_revision: 1, status: "blocked", reason_code: "song_reference_invalid", song_post_id: "song-post", song_reason_code: "derivative_video_blocked" }
+          : { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } };
       if (command.kind === "finalize" && loseFinalize === "after_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       return snapshot;
     } };
@@ -1430,15 +1436,50 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("hasn't finished uploading");
   });
 
-  test("an unconfirmed finalize goes Home and preserves its receipt without sending twice", async () => {
+  test.each([
+    { loseFinalize: "before_commit" as const },
+    { loseFinalize: "after_commit" as const, finalSnapshot: "finalizing" as const },
+    { loseFinalize: "after_commit" as const, readFailsAfterFinalize: true },
+    { finalSnapshot: "finalizing" as const },
+  ])("an unconfirmed finalize stays recoverable without Home or another automatic send: %o", async outcome => {
     let posted = 0;
-    const fixture = songSetup({ preflight: "accepted", loseFinalize: "before_commit", onPosted: () => { posted += 1; } });
+    const fixture = songSetup({ preflight: "accepted", ...outcome, onPosted: () => { posted += 1; } });
     await loadSongMetadata(); await awaitPlan("ready"); await chooseFile(); await publish();
-    await vi.waitFor(() => expect(posted).toBe(1));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("We couldn’t confirm this upload yet."));
+    await vi.waitFor(() => expect(button("Try upload again")?.disabled).toBe(false));
+    expect(posted).toBe(0);
     expect(fixture.current()?.pending?.command.kind).toBe("finalize");
     expect(fixture.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
-    expect(button("Try again")).toBeUndefined();
+    expect(button("Home")).toBeUndefined();
+    expect(document.body.textContent).not.toContain("Your video has uploaded.");
     expect(button("Cancel upload")).toBeUndefined();
+  });
+
+  test.each([false, true])("reload retains the exact pending finalize with no duplicate upload when reads fail=%s", async readFailsAfterFinalize => {
+    const fixture = songSetup({ preflight: "accepted", finalSnapshot: "finalizing" });
+    await loadSongMetadata(); await awaitPlan("ready"); await chooseFile(); await publish();
+    await vi.waitFor(() => expect(button("Try upload again")?.disabled).toBe(false));
+    const retained = fixture.current();
+    if (!retained) throw new Error("expected retained upload");
+    const envelope = retained.pending;
+    expect(envelope?.command.kind).toBe("finalize");
+    disposers.pop()!(); document.body.replaceChildren();
+    const posted = vi.fn();
+    const resumed = songSetup({ preflight: "accepted", finalSnapshot: "finalizing", earlierUpload: retained, readFailsAfterFinalize, onPosted: posted });
+    await vi.waitFor(() => expect(button("Try again")?.disabled).toBe(false));
+    expect(document.body.textContent).toContain("We couldn’t confirm this upload yet.");
+    expect(resumed.current()?.pending).toEqual(envelope);
+    expect(resumed.commands).toEqual([envelope?.command]);
+    expect(resumed.fetchImpl).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
+    expect(button("Home")).toBeUndefined();
+    button("Try again")!.click();
+    await vi.waitFor(() => expect(resumed.commands).toHaveLength(2));
+    await vi.waitFor(() => expect(button("Try again")?.disabled).toBe(false));
+    expect(resumed.commands).toEqual([envelope?.command, envelope?.command]);
+    expect(resumed.current()?.pending).toEqual(envelope);
+    expect(resumed.fetchImpl).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
   });
 
   test("the soundtrack controls are frozen while the take records", async () => {
