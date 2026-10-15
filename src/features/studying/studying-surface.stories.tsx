@@ -129,9 +129,21 @@ export const SayItBackWrongSpentWillReturn: Story = {
     docs: {
       description: {
         story:
-          "A spent miss reports Incorrect with the final destructive treatment; the card comes back later in this lesson.",
+          "Paper: a spent miss shows one Incorrect box with what was heard, and waits for Continue. No word diff and no 'comes back later' line.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvasElement.querySelector<HTMLElement>("[data-study-result='incorrect']");
+    if (box === null) throw new Error("Expected the Incorrect box");
+    await expect(within(box).getByText("Incorrect")).toBeVisible();
+    await expect(within(box).getByText("You said: “yo no se por que”")).toBeVisible();
+    await expect(canvasElement.querySelector("[data-transcript-diff]")).toBeNull();
+    await expect(canvas.queryByText(/comes back later/u)).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeVisible();
+    // Study's exit is a close mark: its cards cannot be revisited.
+    await expect(canvas.getByRole("button", { name: "Exit study" })).toHaveAttribute("data-exit-icon", "close");
   },
 };
 
@@ -187,9 +199,16 @@ export const MultipleChoiceCorrect: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Correct reveal; the route auto-advances after a short highlight, no banner.",
+        story: "Paper: Correct shows the green box and no button; the route moves on by itself after 700 ms.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvasElement.querySelector<HTMLElement>("[data-study-result='correct']");
+    if (box === null) throw new Error("Expected the Correct box");
+    await expect(within(box).getByText("Correct")).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Continue" })).toBeNull();
   },
 };
 
@@ -208,9 +227,22 @@ export const MultipleChoiceWrong: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Wrong reveal shows both the missed selection and the disclosed correct option.",
+        story: "Paper: the missed selection and the right option are marked, the Incorrect box sits under the options, and the card waits for Continue.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvasElement.querySelector<HTMLElement>("[data-study-result='incorrect']");
+    if (box === null) throw new Error("Expected the Incorrect box");
+    await expect(within(box).getByText("Incorrect")).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
+    // Paper's desktop column is 640 wide.
+    if (window.innerWidth >= 768) {
+      const options = box.parentElement!;
+      await expect(Math.round(options.getBoundingClientRect().width)).toBe(640);
+    }
   },
 };
 

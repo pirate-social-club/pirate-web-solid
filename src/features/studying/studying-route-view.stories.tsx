@@ -32,7 +32,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const noop = () => {};
-const immediateAdvance = (run: () => void) => run();
+// Advances as soon as the correct result is on screen, like the route's own
+// 700 ms timer but without the wait. A synchronous call would run before the
+// result is stored and never advance.
+const immediateAdvance = (run: () => void) => queueMicrotask(run);
 
 /** The disclosure acknowledgment persists per browser; consent stories reset it. */
 const resetMicDisclosure = (canvasElement: HTMLElement): void => {
@@ -90,7 +93,7 @@ export const MissedAttempts: Story = {
     // The miss is final for this appearance: feedback, then Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     await expect(await canvas.findByText(/Incorrect/)).toBeInTheDocument();
-    await expect(await canvas.findByText(/We heard:/)).toBeInTheDocument();
+    await expect(await canvas.findByText(/You said:/)).toBeInTheDocument();
     await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
 
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
@@ -246,8 +249,8 @@ export const Completion: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
+    // A correct choice moves on by itself (Paper): no Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "I don't know why you left so early" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
     await waitFor(() => expect(canvas.getByText("day streak")).toBeInTheDocument());
   },
 };
@@ -293,8 +296,8 @@ export const QualificationNotAchieved: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
+    // A correct choice moves on by itself (Paper): no Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "I don't know why you left so early" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
     await waitFor(() => expect(canvasElement.querySelector("[data-activity-results]")).not.toBeNull());
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Study again" })).toBeInTheDocument();

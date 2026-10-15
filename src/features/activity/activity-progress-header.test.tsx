@@ -34,4 +34,10 @@ describe("ActivityProgressHeader", () => {
     const html = renderHeader({ progressValue: 4 });
     expect(html).toContain('aria-valuenow="4"');
   });
+
+  // Karaoke keeps its back caret; Study opts into a close mark (Paper).
+  test("draws the back caret by default and a close mark when asked", () => {
+    expect(renderHeader()).toContain('data-exit-icon="back"');
+    expect(renderHeader({ exitIcon: "close" })).toContain('data-exit-icon="close"');
+  });
 });

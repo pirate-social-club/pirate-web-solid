@@ -232,9 +232,11 @@ describe("footer derivation", () => {
     expect(primaryActionLabel(base)).toBeUndefined();
     expect(primaryActionLabel({ ...base, selectedOptionId: "opt-a" })).toBeUndefined();
     expect(primaryActionLabel({ ...base, submitting: true })).toBe("Checking…");
-    expect(primaryActionLabel({ ...base, result: "correct" })).toBe("Continue");
+    // Paper: a correct answer moves on by itself; an incorrect one pauses on
+    // Continue, which also covers the server keeping the card for a retry.
+    expect(primaryActionLabel({ ...base, result: "correct" })).toBeUndefined();
     expect(primaryActionLabel({ ...base, result: "wrong" })).toBe("Continue");
-    expect(primaryActionLabel({ ...base, result: "wrong", canRetry: true })).toBe("Try again");
+    expect(primaryActionLabel({ ...base, result: "wrong", canRetry: true })).toBe("Continue");
   });
 
   test("variants and disabled states match the study reference", () => {
