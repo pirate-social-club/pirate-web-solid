@@ -7,7 +7,7 @@ import type { SongPickerSource } from "../post-composer/song-picker";
 import type { FreshVideoEntry } from "../video-outcomes/fresh-composer-entry.ts";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { clipFitMessage, fitClipToExcerpt } from "./clip-duration";
-import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import { isVideoUploadAccepted, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import type { GuideSourcePreparation } from "./buffered-guide";
 import type { GuidedTakeAlignment } from "./guided-take-alignment";
 import { VideoComposerMedia, type GuideAudio } from "./video-composer-media";
@@ -157,12 +157,20 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
   const operations: ComposerOperations = {
     async restore(signal) {
       if (freshVideo !== undefined) return { record: null, released: false, resume: false };
-      const next = await coordinator.restore();
+      let next: PendingVideo | null;
+      try { next = await coordinator.restore(); }
+      catch (failure) {
+        const retained = coordinator.current;
+        if (signal.aborted || disposed) return { record: null, released: false, resume: false };
+        if (retained?.pending?.command.kind !== "finalize") throw failure;
+        showFile(retained.file);
+        return { record: retained, released: false, resume: false };
+      }
       if (signal.aborted || disposed || !next) return { record: null, released: false, resume: false };
       if (await coordinator.release()) return { record: null, released: true, resume: false };
       if (signal.aborted || disposed) return { record: null, released: false, resume: false };
       showFile(next.file);
-      const resume = !next.rejection
+      const resume = !next.rejection && next.pending?.command.kind !== "finalize"
         && (next.pending !== null || !next.snapshot || (next.snapshot.status === "processing" && next.snapshot.phase === "awaiting_upload"))
         && next.communityId === chosenCommunityId() && next.personaId === chosenPersonaId();
       return { record: next, released: false, resume };
@@ -209,8 +217,8 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
       try { await coordinator.submit(); }
       catch (failure) {
         if (coordinator.current?.pending?.command.kind === "finalize") {
-          await coordinator.settleFinalize().catch(() => false);
-          return { posted: true };
+          const settled = await coordinator.settleFinalize().catch(() => false);
+          return { posted: settled && !signal.aborted && !disposed };
         }
         const current = coordinator.current;
         const snapshot = current?.snapshot;
@@ -317,11 +325,12 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
     && (record()!.communityId !== chosenCommunityId() || record()!.personaId !== chosenPersonaId());
   const reviewVisible = () => file() !== null && (editing()
     || (submittedFromReview() && !record()?.rejection && !reservationExpired()));
-  const completedUpload = () => record()?.pending?.command.kind === "finalize"
-    || (!awaiting() && state() !== undefined && !record()?.rejection);
+  const uploadUnconfirmed = () => record()?.pending?.command.kind === "finalize";
+  const completedUpload = () => !record()?.pending && !record()?.rejection && isVideoUploadAccepted(state());
   const statusText = () => {
     if (otherDestination()) return "Finish this upload in the community where you started it.";
     if (record()?.rejection) return songReservationRefusalText(record()?.rejection?.reasonCode) ?? "This video wasn’t accepted.";
+    if (uploadUnconfirmed()) return "We couldn’t confirm this upload yet. Your video is saved here. Try again to resume the same upload.";
     if (reservationExpired()) return error() ? "Couldn’t start over. Try again." : "This upload expired.";
     if (completedUpload()) return "Your video has uploaded.";
     if (busy()) return progress() || "Uploading video…";
@@ -365,7 +374,7 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
     enteredCapture, takeSoundtrack, takeAlignment, confirmingSound, checkingPlayback, playbackFailed,
     panelShown, songActive, songSheetTitle, songLabel, approvedSelection, clipProblem, takeMismatch,
     profileReady, interactionBusy, state, editing, awaiting, reservationExpired, otherDestination,
-    reviewVisible, completedUpload, statusText, posted, clearPreviewUrls,
+    reviewVisible, uploadUnconfirmed, completedUpload, statusText, posted, clearPreviewUrls,
     openSongSheet, confirmSound, chooseFile, toggleCapture, publish, send,
   };
 }

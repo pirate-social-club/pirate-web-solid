@@ -3,6 +3,7 @@ import type {
   StudyingLessonState,
   StudyingServerExercise,
 } from "./studying-model";
+import type { StudySession } from "./study-v2-api.ts";
 
 // Client seam for the studying route. The route view owns no network, mic, or
 // timer policy of its own: every effectful operation is one of these injected
@@ -19,6 +20,8 @@ export interface StudyingLessonPayload {
   resolved_count?: number;
   served_count?: number;
   session_id?: string;
+  /** Authoritative current-card provider uncertainty, retained across reloads. */
+  spoken_submission?: StudySession["spoken_submission"];
   /** Pre-session streak snapshot; only the completion slot animation reads it. */
   previous_streak?: number;
   reward_label?: string;
@@ -69,6 +72,7 @@ export interface StudyingAttemptRejection {
   status?: number;
   code?: string;
   message?: string;
+  details?: unknown;
 }
 
 export function attemptErrorStatus(rejection: StudyingAttemptRejection): number | undefined {
