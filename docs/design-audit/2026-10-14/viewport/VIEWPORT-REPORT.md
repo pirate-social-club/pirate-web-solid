@@ -1,5 +1,7 @@
 # Storybook viewport report: requested size against actual preview size
 
+> Historical context, 2026-10-15: This report measures 32c35aa7. The runner and associated story fixes landed in #75. Subsequent hosted audits verify requested width and height at play start and end. The invalid reset story remains an explicit Naming/Spaces exception. The original findings below are retained as historical evidence.
+
 This report is report-only. No story, script or open PR was changed. It answers one question:
 
 > When CI runs a story's play function, is the preview frame the size that story asks for?
