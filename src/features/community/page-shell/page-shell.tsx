@@ -9,6 +9,7 @@ import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
 import { RewardSponsorDialog } from "../../rewards/reward-sponsor-dialog.tsx";
+import { useRewardServiceAvailability } from "../../rewards/reward-service-availability.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createEffect, createMemo, createSignal } from "solid-js";
@@ -181,7 +182,10 @@ export function CommunityPostCard(props: {
   detail?: boolean;
 }) {
   const locale = usePageUiLocale();
-  const [boosting, setBoosting] = createSignal(false);
+  // Capability changes must synchronously retire an open sponsor dialog.
+  const [boosting, setBoosting] = createSignal(false, { ownedWrite: true });
+  const rewardsAvailable = useRewardServiceAvailability();
+  createEffect(rewardsAvailable, available => { if (!available) setBoosting(false); });
   let card: HTMLElement | undefined;
   // The dialog opens from a menu item that no longer exists once the menu
   // closes, so the card returns focus to the menu trigger that led there.
@@ -189,13 +193,12 @@ export function CommunityPostCard(props: {
     setBoosting(false);
     setTimeout(() => card?.querySelector<HTMLElement>('[aria-label="Post options"]')?.focus(), 0);
   };
-  // Boost is the live sponsor entry point. It sits in the post's overflow
-  // menu, as the Paper feed's More menu does, until the reward pill replaces
-  // it on a real activity count and an authorized rewards surface.
+  // Service availability only exposes the entry point. The server separately
+  // checks the financial brake and authorization for every reward operation.
   const menuActions = (): readonly ContentAction[] | undefined => {
     const communityId = props.communityId;
-    if (props.post.kind !== "song" || !communityId) return props.menuActions;
-    return [...(props.menuActions ?? []), { label: "Boost", run: () => setBoosting(true) }];
+    if (!rewardsAvailable() || props.post.kind !== "song" || !communityId) return props.menuActions;
+    return [...(props.menuActions ?? []), { label: "Boost", run: () => { if (rewardsAvailable()) setBoosting(true); } }];
   };
   const author = () => props.post.authorProfile !== undefined
     ? publicProfileLabel(props.post.authorProfile, locale, props.post.authorPublicHandle)
@@ -213,7 +216,7 @@ export function CommunityPostCard(props: {
         <Show when={compactRelativeTime(props.post.publishedAt)}>{age => <Type as="span" class="shrink-0 text-sm" variant="caption"><time datetime={props.post.publishedAt} title={new Date(props.post.publishedAt).toUTCString()}>{age()}</time></Type>}</Show>
         <div class="relative z-10 ml-auto flex shrink-0 items-center"><ContentOverflowMenu inline label="Post options" actions={menuActions()} /></div>
       </div>
-      <Show when={boosting() && props.communityId}>
+      <Show when={rewardsAvailable() && boosting() && props.communityId}>
         {communityId => <RewardSponsorDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={closeBoost} />}
       </Show>
       <Show when={props.post.kind === "video"}>

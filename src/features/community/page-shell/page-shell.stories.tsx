@@ -8,6 +8,7 @@ import { reviewCanplayAttach, reviewPlaybackMint, reviewPosterPath } from "../..
 import { VideoPlaybackSeamsContext } from "../../posts/video-submission/video-playback-seams";
 import { type CommunityData, type CommunityPost } from "./page-shell-model";
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
+import { RewardServiceAvailabilityContext } from "../../rewards/reward-service-availability.tsx";
 
 const infinity: CommunityData = {
   name: "Infinity", handle: "c/infinity", description: "To infinity and beyond", members: 1_270, followers: 18_400, posts: [],
@@ -240,8 +241,8 @@ function MixedKindsFixture(props: { posts?: CommunityPost[] }) {
 /**
  * Parts/Posts/PostCard: text, song and video in the shared card. The reward
  * pill is absent on purpose: there is no live activity count and Rewards are
- * disabled, so it lives only in Patterns/Engagement/RewardPill. Song cards
- * keep Boost in the author row, the live sponsor entry point.
+ * disabled, so it lives only in Patterns/Engagement/RewardPill. Boost also
+ * stays hidden unless the authenticated reward policy service is available.
  */
 export const MixedKinds: Story = {
   render: () => <MixedKindsFixture />,
@@ -293,10 +294,11 @@ export const VideoDeliveryStates: Story = {
  * dismissing it returns focus to the menu that opened it.
  */
 export const SongBoostFromMenu: Story = {
-  render: () => <CommunityPageShell following joined community={{ ...infinity, id: "community-boost", name: "Harbor Collective", posts: [
+  // This fixture explicitly models an available service, not financial admission.
+  render: () => <RewardServiceAvailabilityContext value={() => true}><CommunityPageShell following joined community={{ ...infinity, id: "community-boost", name: "Harbor Collective", posts: [
     { id: "boost-song", authorHandle: "wavemaker", kind: "song", title: "Harbor Lights", mediaTitle: "Harbor Lights", body: "Late-night loop, take two.", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
     { id: "boost-text", authorHandle: "wavemaker", title: "Weekly listening thread", body: "What have you had on repeat this week?", score: 18, commentCount: 24, publishedAt: twoHoursAgo() },
-  ] }} />,
+  ] }} /></RewardServiceAvailabilityContext>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
