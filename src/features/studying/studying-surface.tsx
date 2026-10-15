@@ -506,16 +506,20 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
     <section class={cn("flex h-dvh w-full flex-col overflow-y-auto bg-background text-foreground", props.class)}>
       {/* A finished lesson needs no exit arrow or progress bar; Continue leaves. */}
       <Show when={!complete()}>
-      <ActivityProgressHeader
-        exitIcon="close"
-        exitLabel="Exit study"
-        onExit={props.onExit}
-        progressMax={Math.max(0, props.lessonProgress?.totalCount ?? 0)}
-        progressValue={Math.max(0, Math.min(props.lessonProgress?.totalCount ?? 0, props.lessonProgress?.resolvedCount ?? 0))}
-        progressTone="success"
-        rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
-        rewardPresentation="badge"
-      />
+        {/* Paper: on desktop the header sits in the card's 640 column. The
+            shared header stays full width for Karaoke; Study caps it here. */}
+        <div class="mx-auto w-full max-w-[640px]" data-study-header>
+        <ActivityProgressHeader
+          exitIcon="close"
+          exitLabel="Exit study"
+          onExit={props.onExit}
+          progressMax={Math.max(0, props.lessonProgress?.totalCount ?? 0)}
+          progressValue={Math.max(0, Math.min(props.lessonProgress?.totalCount ?? 0, props.lessonProgress?.resolvedCount ?? 0))}
+          progressTone="success"
+          rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
+          rewardPresentation="badge"
+        />
+        </div>
       </Show>
       <Body onOptionSelect={props.onOptionSelect} rewardSlot={props.rewardSlot} state={props.state} />
       <ActivityFooter

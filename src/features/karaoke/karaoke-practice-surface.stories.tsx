@@ -39,6 +39,14 @@ export const NotScorable: Story = {
       },
     },
   },
+  play: async ({ canvasElement }) => {
+    // Karaoke keeps the shared header as it was: the back caret, full width.
+    const exit = canvasElement.querySelector<HTMLElement>("[data-exit-icon]");
+    if (exit === null) throw new Error("Expected the activity header");
+    await expect(exit).toHaveAttribute("data-exit-icon", "back");
+    const header = exit.closest("header")!.getBoundingClientRect();
+    await expect(Math.round(header.width)).toBe(Math.round(canvasElement.ownerDocument.documentElement.clientWidth));
+  },
 };
 
 export const PausedPrimed: Story = {

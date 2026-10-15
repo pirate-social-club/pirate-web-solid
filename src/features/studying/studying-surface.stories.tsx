@@ -238,10 +238,16 @@ export const MultipleChoiceWrong: Story = {
     await expect(within(box).getByText("Incorrect")).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeVisible();
     await expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
-    // Paper's desktop column is 640 wide.
+    // Paper's desktop column is 640 wide, header included: the header is
+    // centred and lines up with the card column.
     if (window.innerWidth >= 768) {
-      const options = box.parentElement!;
-      await expect(Math.round(options.getBoundingClientRect().width)).toBe(640);
+      const column = box.parentElement!.getBoundingClientRect();
+      await expect(Math.round(column.width)).toBe(640);
+      const header = canvasElement.querySelector<HTMLElement>("[data-study-header] header")!.getBoundingClientRect();
+      await expect(Math.round(header.width)).toBe(640);
+      await expect(Math.round(header.left)).toBe(Math.round(column.left));
+      await expect(Math.round(header.right)).toBe(Math.round(column.right));
+      await expect(Math.abs(header.left - (window.innerWidth - header.right))).toBeLessThanOrEqual(1);
     }
   },
 };
