@@ -1,0 +1,18 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6106
+Catalog: 131 files / 760 stories; selected 131 files / 760 stories
+Axe: 757 pass, 0 violation-fail, 3 indeterminate
+Axe incomplete checks: 211 (reported separately; not violations or indeterminate)
+Interactions: 751 pass, 6 fail, 3 indeterminate
+Panel evidence: 760 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: FAIL
+Failures:
+- flows-posts-videopost-authoring--desktop-review: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-error: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-playback: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--review-posting-as: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- flows-posts-videopost-authoring--review-stall: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--upload-progress: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--uploaded-video-too-long: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-videopost-authoring--video-not-accepted: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- flows-posts-videopost-authoring--video-not-accepted-by-song: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)

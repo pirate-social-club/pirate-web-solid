@@ -93,10 +93,8 @@ describe("Application navigation", () => {
     expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
     footer.querySelector<HTMLButtonElement>('button[aria-label="Your Songs"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/songs");
-    const post = container.querySelector<HTMLButtonElement>('button[aria-label="Choose a community to post in"]');
-    expect(post?.textContent).toBe("Post");
-    post!.click();
-    expect(navigate).toHaveBeenLastCalledWith("/communities");
+    // The immersive home has no Post: a post belongs to a community.
+    expect(container.querySelector('button[aria-label="Choose a community to post in"]')).toBeNull();
   });
 
   test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {

@@ -43,7 +43,8 @@ export const Default: Story = {
   name: "Success",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    // The label is the handle when there is one.
+    await expect(canvas.getByRole("heading", { level: 1, name: "nightshift" })).toBeInTheDocument();
   },
 };
 
@@ -79,7 +80,8 @@ export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    // The label is the handle when there is one.
+    await expect(canvas.getByRole("heading", { level: 1, name: "nightshift" })).toBeInTheDocument();
     // Created communities are no longer listed on the profile.
     await expect(canvas.queryByRole("link", { name: /Night Shift/u })).not.toBeInTheDocument();
   },

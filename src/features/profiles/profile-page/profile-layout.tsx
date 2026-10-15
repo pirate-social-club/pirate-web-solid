@@ -26,7 +26,16 @@ export function profileMediaUrl(reference: string | null | undefined, servingOri
   } catch { return undefined; }
 }
 
-/** Shared public identity hero and responsive supporting details for both routes. */
+/**
+ * One profile page for both routes, after the Paper Profile sheet: a cover
+ * across the page, then one column (640px on desktop, 20px gutters) holding
+ * the identity block, the viewer's action and the posts feed.
+ *
+ * The label is the handle when there is one, otherwise the name, matching the
+ * post card's author label. The sheet's community line under the label is
+ * not drawn: no profile read projects the community's name, and it is not
+ * derived from handle grants.
+ */
 export function ProfileLayout(props: ProfileLayoutProps) {
   const servingOrigin = () => {
     if (props.servingOrigin) return props.servingOrigin;
@@ -35,26 +44,27 @@ export function ProfileLayout(props: ProfileLayoutProps) {
   };
   const avatar = () => profileMediaUrl(props.avatarRef, servingOrigin());
   const cover = () => profileMediaUrl(props.coverRef, servingOrigin());
-  return <section class="mx-auto flex w-full min-w-0 max-w-[65.5rem] flex-col gap-5 px-3 py-3 md:px-6 md:py-6" data-profile-layout>
-    <section aria-label="Profile" class="overflow-hidden md:rounded-3xl md:border md:border-border-soft md:bg-card">
-      <div class="relative h-36 overflow-hidden bg-muted md:h-48" data-profile-cover>
-        <Show when={cover()}>{source => <img src={source()} alt="" class="size-full object-cover" />}</Show>
-      </div>
-      <div class="relative flex flex-col gap-4 pb-4 md:px-6 md:pb-6">
-        <div class="relative -mt-10 grid size-20 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-background bg-muted md:-mt-12 md:size-24">
-          <Show when={avatar()} fallback={<Type variant="h2" aria-hidden="true">{props.name.slice(0, 1).toUpperCase()}</Type>}>{source => <img src={source()} alt="" class="size-full object-cover" />}</Show>
-        </div>
-        <div class="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div class="min-w-0 flex-1">
-            <Type as="h1" variant="h2" class="break-words">{props.name}</Type>
-            <Show when={props.handle && props.handle !== props.name ? props.handle : undefined}>{handle => <Type as="p" variant="caption" class="mt-1 break-all" data-profile-handle={handle()}>@{handle()}</Type>}</Show>
-            <Show when={props.bio}>{bio => <Type as="p" variant="body" class="mt-3 whitespace-pre-wrap break-words">{bio()}</Type>}</Show>
+  const handle = () => props.handle?.trim() || undefined;
+  const label = () => handle() ?? props.name;
+  return <section class="flex w-full min-w-0 flex-col" data-profile-layout>
+    <div class="relative h-36 w-full overflow-hidden bg-muted md:h-[200px]" data-profile-cover>
+      <Show when={cover()}>{source => <img src={source()} alt="" class="size-full object-cover" />}</Show>
+    </div>
+    <div class="mx-auto flex w-full min-w-0 max-w-[640px] flex-col">
+      <section aria-label="Profile" class="flex flex-col gap-4 border-b border-border-soft px-5 pb-4 pt-5">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary">
+            <Show when={avatar()} fallback={<span aria-hidden="true" class="text-2xl font-semibold leading-6 text-foreground">{label().slice(0, 1).toUpperCase()}</span>}>{source => <img src={source()} alt="" class="size-full object-cover" />}</Show>
           </div>
-          <div class="flex w-full shrink-0 empty:hidden md:w-auto"><OwnProfileSettings personaId={props.personaId} handle={props.handle ?? undefined} /></div>
+          <div class="flex min-w-0 flex-1 basis-0 flex-col gap-1">
+            <Type as="h1" variant="h2" class="break-words leading-8" data-profile-handle={handle()}>{label()}</Type>
+          </div>
+          <Show when={props.bio}>{bio => <Type as="p" variant="body" class="basis-full whitespace-pre-wrap break-words">{bio()}</Type>}</Show>
+          <Show when={props.names?.length}><section aria-labelledby="profile-names-heading" class="flex min-w-0 basis-full flex-wrap items-center gap-x-3 gap-y-1"><Type as="h2" variant="label" class="text-sm" id="profile-names-heading">Names</Type><ul aria-label="Names" class="flex flex-wrap gap-x-3 gap-y-1"><For each={props.names}>{name => <li><Type variant="caption" class="break-all text-sm">{name}</Type></li>}</For></ul></section></Show>
         </div>
-      </div>
-    </section>
-    <Show when={props.names?.length}><section aria-labelledby="profile-names-heading" class="flex min-w-0 flex-wrap items-center gap-3"><Type as="h2" variant="label" id="profile-names-heading">Names</Type><ul aria-label="Names" class="flex flex-wrap gap-3"><For each={props.names}>{name => <li><Type variant="caption" class="break-all">{name}</Type></li>}</For></ul></section></Show>
-    {props.children}
+        <div class="flex w-full empty:hidden"><OwnProfileSettings personaId={props.personaId} handle={props.handle ?? undefined} /></div>
+      </section>
+      <div class="px-5">{props.children}</div>
+    </div>
   </section>;
 }

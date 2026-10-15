@@ -35,8 +35,8 @@ it("labels the gross prize and exposes qualification, count, cutoff and claim te
 });
 it("confirms a server-held share and never equates sponsor fallback with a participant share", async () => {
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={data()} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share in drawing 42"));
-  expect(host.textContent).toContain("does not add another share");
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered."));
+  expect(host.textContent).toContain("does not add another entry");
   expect(participantMessage({ pool, standing: { ...standing, share_held: false, participant_state: "entry_open", sponsor_fallback_state: "fallback_active" } })).toContain("No share is confirmed");
 });
 it("clears private results on session refresh and ignores the obsolete in-flight response", async () => {
@@ -45,16 +45,16 @@ it("clears private results on session refresh and ignores the obsolete in-flight
   fake.standing = vi.fn().mockResolvedValueOnce({ pool, standing })
     .mockImplementationOnce(() => new Promise(r => { resolve = r; })).mockRejectedValueOnce(new Error("signed out"));
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   // The private result is on screen; a session change must take it down at once.
   refreshSession();
-  await vi.waitFor(() => expect(host.textContent).not.toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).not.toContain("You’re entered"));
   await vi.waitFor(() => expect(fake.standing).toHaveBeenCalledTimes(2));
   refreshSession();
   await vi.waitFor(() => expect(host.textContent).toContain("unavailable"));
   resolve({ pool, standing });
   await new Promise(r => setTimeout(r, 0));
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
 });
 it("fences results across a song change, even when the old transport ignores cancellation", async () => {
   let resolve!: (value: ParticipantRewardSnapshot) => void;
@@ -67,7 +67,7 @@ it("fences results across a song change, even when the old transport ignores can
   await vi.waitFor(() => expect(fake.standing).toHaveBeenCalledTimes(2));
   resolve({ pool, standing });
   await vi.waitFor(() => expect(host.textContent).toContain("unavailable"));
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
 });
 it("allows an explicit retry when completion processing has not confirmed a share", async () => {
   const fake = data();
@@ -75,7 +75,7 @@ it("allows an explicit retry when completion processing has not confirmed a shar
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
   await vi.waitFor(() => expect(host.textContent).toContain("No share is confirmed"));
   host.querySelector("button")!.click();
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
 });
 it("defers compact discovery until visible and makes no private requests", async () => {
   let intersect!: IntersectionObserverCallback;
@@ -104,7 +104,7 @@ it("waits for the actual Study completion surface before reading standing", asyn
   await new Promise(r => setTimeout(r, 0));
   expect(fake.pool).not.toHaveBeenCalled();
   setState({ kind: "complete", correctCount: 8, scorePercent: 80, totalCount: 10 });
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect(fake.standing).toHaveBeenCalledOnce();
 });
 it("waits for Karaoke to end and keeps its Continue action beside reward status", async () => {
@@ -114,7 +114,7 @@ it("waits for Karaoke to end and keeps its Continue action beside reward status"
   await new Promise(r => setTimeout(r, 0));
   expect(fake.pool).not.toHaveBeenCalled();
   setStatus("ended");
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect([...host.querySelectorAll("button")].some(button => button.textContent?.includes("Continue"))).toBe(true);
 });
 
@@ -124,7 +124,7 @@ it("does not promise a later share after entries close", async () => {
   await vi.waitFor(() => expect(host.textContent).toContain("Entries are closed"));
   expect(host.textContent).toContain("Play again when the next drawing opens");
   expect(host.textContent).not.toContain("pending");
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
 });
 
 it("keeps open-drawing copy neutral about qualification and distinguishes a hold from closure", () => {
@@ -161,13 +161,13 @@ it("shows a retryable error only after a pool has been observed for the song", a
   const fake = data();
   fake.pool = vi.fn().mockResolvedValueOnce(pool).mockRejectedValueOnce(new MegapotPoolUnavailableError()).mockResolvedValue(pool);
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   host.querySelector("button")!.click();
   await vi.waitFor(() => expect(host.textContent).toContain("temporarily unavailable"));
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
   expect(host.querySelector("button")!.disabled).toBe(false);
   host.querySelector("button")!.click();
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect(fake.pool).toHaveBeenCalledTimes(3);
 });
 
@@ -176,7 +176,7 @@ it("forgets an observed pool when the song changes", async () => {
   fake.pool = vi.fn(async (scope: ParticipantScope) => { if (scope.postId === "post-2") throw new MegapotPoolUnavailableError(); return pool; });
   const [postId, setPostId] = createSignal("post-1");
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId={postId()} data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   setPostId("post-2");
   await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
   await settle();
@@ -187,7 +187,7 @@ it("forgets an observed pool after an authoritative no-pool reply", async () => 
   const fake = data();
   fake.pool = vi.fn().mockResolvedValueOnce(pool).mockResolvedValueOnce(null).mockRejectedValue(new Error("offline"));
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   refreshSession();
   await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
   await settle();
@@ -201,13 +201,13 @@ it("forgets an observed pool after an authoritative no-pool reply", async () => 
 it("drops private standing when hidden and reloads when visible again without a focus event", async () => {
   const fake = data();
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   setVisibility("hidden");
   await vi.waitFor(() => expect(host.textContent).toBe(""));
   await settle();
   expect(fake.pool).toHaveBeenCalledOnce();
   setVisibility("visible");
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect(fake.pool).toHaveBeenCalledTimes(2);
   expect(fake.standing).toHaveBeenCalledTimes(2);
 });
@@ -220,10 +220,10 @@ it.each([
   const signals: AbortSignal[] = [];
   fake.pool = vi.fn(async (_scope: ParticipantScope, signal: AbortSignal) => { signals.push(signal); return pool; });
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   setVisibility("hidden");
   comeBack();
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   await settle();
   expect(fake.pool).toHaveBeenCalledTimes(2);
   expect(fake.standing).toHaveBeenCalledTimes(2);
@@ -235,14 +235,14 @@ it("still reloads on a later focus once the previous load has settled", async ()
   let now = 10_000;
   vi.spyOn(Date, "now").mockImplementation(() => now);
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   window.dispatchEvent(new Event("focus"));
   await settle();
   expect(fake.pool).toHaveBeenCalledOnce();
   now += 1_000;
   window.dispatchEvent(new Event("focus"));
   await vi.waitFor(() => expect(fake.pool).toHaveBeenCalledTimes(2));
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
 });
 
 it("does not imply that a below-threshold Study completion is awaiting a share", async () => {
@@ -252,7 +252,7 @@ it("does not imply that a below-threshold Study completion is awaiting a share",
   await vi.waitFor(() => expect(host.textContent).toContain("No share is confirmed"));
   expect(host.textContent).toContain("Only qualifying activities earn a share");
   expect(host.textContent).not.toContain("pending");
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
 });
 
 it("renders nothing and asks nothing for a song without a community id", async () => {
@@ -329,7 +329,7 @@ it("removes its window, document and session listeners when the share status is 
   const windowRemoved = vi.spyOn(window, "removeEventListener");
   const documentRemoved = vi.spyOn(document, "removeEventListener");
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   disposers.splice(0).forEach(dispose => dispose());
   expect(windowRemoved.mock.calls.some(call => call[0] === "focus")).toBe(true);
   expect(documentRemoved.mock.calls.some(call => call[0] === "visibilitychange")).toBe(true);
@@ -344,13 +344,13 @@ it("keeps the box in place while a known pool reloads", async () => {
   const fake = data();
   fake.standing = vi.fn().mockResolvedValueOnce({ pool, standing }).mockImplementationOnce(() => new Promise(r => { release = r; }));
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={fake} />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   host.querySelector("button")!.click();
   await vi.waitFor(() => expect(host.textContent).toContain("Checking your share"));
-  expect(host.textContent).not.toContain("You have a share");
+  expect(host.textContent).not.toContain("You’re entered");
   expect(host.querySelector("[data-megapot-share]")).not.toBeNull();
   release({ pool, standing });
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
 });
 
 // The real data, client and session modules: only fetch is replaced.
@@ -392,14 +392,14 @@ it("makes no private read for a signed-out viewer, and loads the share after sig
   expect(calls).toEqual({ pool: 1, account: 1, standing: 0 });
   session.signedIn = true;
   refreshSession();
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect(calls).toEqual({ pool: 3, account: 4, standing: 1 });
 });
 it("takes the share down when the server refuses an established session, and does not ask again", async () => {
   const { session, calls } = realSessionPath();
   session.signedIn = true;
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   expect(calls).toEqual({ pool: 2, account: 3, standing: 1 });
   // The server now refuses the session and nothing can renew it.
   session.signedIn = false;
@@ -417,7 +417,7 @@ it("takes the share down on sign-out without another read, and asks nothing priv
   const { session, calls } = realSessionPath();
   session.signedIn = true;
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" />);
-  await vi.waitFor(() => expect(host.textContent).toContain("You have a share"));
+  await vi.waitFor(() => expect(host.textContent).toContain("You’re entered"));
   session.signedIn = false;
   clearSession();
   await vi.waitFor(() => expect(host.querySelector("[data-megapot-share]")).toBeNull());

@@ -5,6 +5,14 @@ import type { PostEngagementTransport } from "../../posts/post-engagement/post-e
 import type { ProfileActivityDependencies } from "./profile-activity.tsx";
 
 const persona = { persona_id: "owned", object: "persona" as const, display_name: "Owned profile", avatar_ref: "/storybook/karaoke-artwork.svg", primary_public_handle: "owned.pirate" };
+const engagement = { thread_snapshot: null, like_count: 0, viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en", translation_state: "same_language" as const, machine_translated: false };
+const authored = { object: "post" as const, community: "harbor", author_persona: persona, authorship_mode: "human_direct" as const, identity_mode: "public" as const, status: "published" as const, visibility: "public" as const, analysis_state: "allow" as const, content_safety_state: "safe" as const, age_gate_policy: "none" as const };
+
+/**
+ * The Paper Profile sheet's feed: a song, a video and a text post, newest
+ * first as the server orders them. The comment row is what the server's
+ * overview surface would add; the posts feed never asks for it.
+ */
 export const profileActivityFixture: GetPublicProfileActivityResponse = {
   object: "profile_activity_page",
   next_cursor: null,
@@ -12,8 +20,29 @@ export const profileActivityFixture: GetPublicProfileActivityResponse = {
     {
       kind: "post", activity_id: "profile-story-post", activity_at: "2026-10-05T12:00:00.000000Z", community_id: "harbor", post_id: "profile-story-post", href: "/posts/harbor-lights",
       content: {
-        post: { id: "profile-story-post", object: "post", community: "harbor", author_persona: persona, authorship_mode: "human_direct", identity_mode: "public", post_type: "text", status: "published", visibility: "public", title: "Harbor Lights", body: "A new song for our next listening session.", analysis_state: "allow", content_safety_state: "safe", age_gate_policy: "none", created: 1791201600 },
-        thread_snapshot: null, upvote_count: 4, downvote_count: 1, like_count: 0, comment_count: 2, viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en", translation_state: "same_language", machine_translated: false, source_hash: "profile-story-source",
+        ...engagement,
+        post: { ...authored, id: "profile-story-post", post_type: "song", title: null, song_title: "Harbor Lights", body: "Late-night loop, take two.", created: 1791201600 },
+        upvote_count: 20, downvote_count: 2, comment_count: 24, source_hash: "profile-story-source",
+      },
+    },
+    {
+      kind: "post", activity_id: "profile-story-video", activity_at: "2026-10-05T09:00:00.000000Z", community_id: "harbor", post_id: "profile-story-video", href: "/posts/harbor-lights-video",
+      content: {
+        ...engagement,
+        post: { ...authored, id: "profile-story-video", post_type: "video", title: null, body: null, caption: null, created: 1791190800 },
+        video: { track: "video", caption: null, caption_dir: null, caption_lang: null,
+          soundtrack: { kind: "song_reference", render_mode: "canonical_replace", song_reference: { song_post_id: "profile-story-post", song_title: "Harbor Lights", song_author_persona_id: "owned" } },
+          playback: { status: "ready", provider: "stream", playback_ref: "story-playback" }, thumbnail: { status: "ready", artifact_ref: "story-thumbnail" },
+          data_registration: "registered", capabilities: { can_post_with_song: true } },
+        upvote_count: 20, downvote_count: 2, comment_count: 24, source_hash: "profile-story-video-source",
+      },
+    },
+    {
+      kind: "post", activity_id: "profile-story-text", activity_at: "2026-10-04T12:00:00.000000Z", community_id: "harbor", post_id: "profile-story-text", href: "/posts/weekly-listening-thread",
+      content: {
+        ...engagement,
+        post: { ...authored, id: "profile-story-text", post_type: "text", title: "Weekly listening thread", body: "What have you had on repeat this week?", created: 1791115200 },
+        upvote_count: 20, downvote_count: 2, comment_count: 24, source_hash: "profile-story-text-source",
       },
     },
     {

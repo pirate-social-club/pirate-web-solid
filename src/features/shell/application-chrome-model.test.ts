@@ -56,6 +56,20 @@ describe("application chrome policy", () => {
     expect(resolveApplicationChrome("/communities/new")).toMatchObject({ mode: "bare", activeItemId: "create-community", mobileTitle: "Create community" });
   });
 
+  test("gives the post page its own header and bottom bar, without footer tabs", () => {
+    for (const path of ["/post/post-1", "/posts/harbor-lights"]) {
+      expect(resolveApplicationChrome(path)).toMatchObject({
+        mode: "standard",
+        activeItemId: "none",
+        mobileActiveItem: "none",
+        hideMobileHeader: true,
+        hideMobileFooter: true,
+      });
+    }
+    expect(resolveApplicationChrome("/posts/harbor-lights/karaoke/leaderboard").hideMobileFooter).toBeUndefined();
+    expect(resolveApplicationChrome("/p/persona-1").hideMobileFooter).toBeUndefined();
+  });
+
   test("highlights Profile only on the viewer's own public profile", () => {
     const own = resolveApplicationChrome("/u/captain.pirate", "/u/captain.pirate");
     expect(own).toMatchObject({ mode: "standard", activeItemId: "profile", mobileActiveItem: "profile" });

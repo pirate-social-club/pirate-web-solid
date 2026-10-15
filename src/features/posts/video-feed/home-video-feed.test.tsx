@@ -4,9 +4,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
-import type { FeedPageLoader } from "../feed/public-feed.tsx";
+import type { FeedPageLoader } from "../feed/public-feed-adapter.ts";
 import { HomeVideoFeed } from "./home-video-feed.tsx";
 import { makeStudyAvailabilityLookup } from "./home-feed-study.ts";
+import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
+import {
+  createMemoryPendingEngagementStorage,
+  decodePendingEngagementAction,
+  type PendingEngagementStorage,
+} from "../post-engagement/post-engagement-pending.ts";
 
 const disposers: Array<() => void> = [];
 
@@ -137,7 +143,7 @@ test("keeps continuation visible after four video-free pages and loads a later v
   const container = render(() => <HomeVideoFeed data={page([], "page-2")} loadPage={loadPage} />);
   await vi.waitFor(() => expect(container.querySelector("[data-video-feed-state]")?.getAttribute("data-video-feed-state")).toBe("ready"));
   expect(loadPage).toHaveBeenCalledTimes(3);
-  expect(container.textContent).toContain("No videos yet");
+  expect(container.textContent).toContain("Nothing here yet");
   const continuation = container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]");
   expect(continuation).not.toBeNull();
   continuation!.click();
@@ -165,7 +171,7 @@ test("retains the cursor for retry after a continuation failure", async () => {
 
 test("does not offer continuation at terminal exhaustion in empty and processing states", async () => {
   const empty = render(() => <HomeVideoFeed data={page([], null)} loadPage={vi.fn()} />);
-  await vi.waitFor(() => expect(empty.textContent).toContain("No videos yet"));
+  await vi.waitFor(() => expect(empty.textContent).toContain("Nothing here yet"));
   expect(empty.querySelector("[data-video-feed-continuation]")).toBeNull();
 
   const pending = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
@@ -325,7 +331,7 @@ test("an age-locked feed offers in-place verification without inventing a video 
   const container = render(() => <HomeVideoFeed data={first} loadPage={load} verifyAge={verify} />);
   await vi.waitFor(() => expect(container.querySelector("[data-age-access-prompt]")).not.toBeNull());
   expect(container.querySelector("video, img")).toBeNull();
-  expect(container.textContent).not.toContain("No videos yet");
+  expect(container.textContent).not.toContain("Nothing here yet");
   const region = container.querySelector('[role="region"]');
   if (!(region instanceof HTMLElement)) throw new Error("feed scroll region missing");
   region.scrollTop = 57;
@@ -469,8 +475,21 @@ function streamedFeed(options: {
   readonly navigate?: (href: string) => void;
   readonly studyReady?: boolean;
   readonly karaokeReady?: boolean;
+  readonly principalId?: string;
+  readonly videoReportsSupported?: boolean;
+  readonly membership?: PublicFeedItem["viewerMembershipStatus"];
+  readonly reportPost?: PostEngagementTransport["reportPost"];
+  readonly pendingStorage?: PendingEngagementStorage;
 } = {}) {
-  const item = { ...video([]), id: "video-stream", caption: "Stream caption", videoDelivery: delivered, songPostId: "post_song", songTitle: options.songTitle ?? "Harbor song" };
+  const item: PublicFeedItem = {
+    ...video([]),
+    id: "video-stream",
+    caption: "Stream caption",
+    videoDelivery: delivered,
+    songPostId: "post_song",
+    songTitle: options.songTitle ?? "Harbor song",
+    ...(options.membership !== undefined ? { viewerMembershipStatus: options.membership } : {}),
+  };
   let mints = 0;
   const attached: HTMLVideoElement[] = [];
   const container = render(() => (
@@ -493,6 +512,11 @@ function streamedFeed(options: {
       })}
       studyReady={async () => options.studyReady ?? false}
       {...(options.navigate ? { navigate: options.navigate } : {})}
+      {...(options.principalId ? { principalId: options.principalId, sourceIdentity: `user:${options.principalId}` } : {})}
+      videoReportsSupported={options.videoReportsSupported ?? true}
+      {...(options.reportPost ? { reportTransport: { reportPost: options.reportPost } } : {})}
+      pendingStorage={options.pendingStorage ?? createMemoryPendingEngagementStorage()}
+      generateIdempotencyKey={() => "feed-report-key"}
     />
   ));
   return { container, mints: () => mints, attached };
@@ -514,20 +538,151 @@ test("a Stream video renders in the full-screen feed layout with signed playback
   expect(feed.container.querySelector("[data-video-feed-card]")).toBeNull();
 });
 
-test("the feed starts muted, and the design-system mute control unmutes", async () => {
+const phoneMore = async (container: HTMLElement): Promise<HTMLButtonElement> => vi.waitFor(() => {
+  const button = container.querySelector<HTMLButtonElement>('[data-media-more="phone"] button');
+  if (!button) throw new Error("phone More button not rendered");
+  return button;
+});
+
+const moreSheetRows = async (): Promise<HTMLButtonElement[]> => vi.waitFor(() => {
+  const sheet = document.body.querySelector('[role="dialog"][aria-labelledby]');
+  const rows = [...document.body.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")];
+  if (!sheet || rows.length === 0) throw new Error("More sheet not open");
+  return rows;
+});
+
+test("the feed starts muted, and More's Unmute row unmutes; the rail has no mute", async () => {
   const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  const feed = streamedFeed();
+  const feed = streamedFeed({ principalId: "user-1" });
   await vi.waitFor(() => expect(feed.mints()).toBe(1));
-  const mute = await vi.waitFor(() => {
-    const button = feed.container.querySelector<HTMLButtonElement>('button[aria-label="Unmute video"]');
-    expect(button).not.toBeNull();
-    return button!;
-  });
+  expect(feed.container.querySelector('button[aria-label$="mute video"], button[aria-label$="Mute video"]')).toBeNull();
   expect(feed.container.querySelector("video")!.muted).toBe(true);
-  mute.click();
+  (await phoneMore(feed.container)).click();
+  const rows = await moreSheetRows();
+  expect(rows.map(row => row.textContent)).toEqual(["Unmute"]);
+  rows[0]!.click();
   await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(false));
-  expect(feed.container.querySelector('button[aria-label="Mute video"]')).not.toBeNull();
+  await vi.waitFor(() => expect(document.body.querySelector("[data-media-more-row]")).toBeNull());
+  (await phoneMore(feed.container)).click();
+  expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Mute"]);
   play.mockRestore();
+});
+
+test("signed-out viewers keep Mute after a tap unmutes, from a More below the Sign in header", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const feed = streamedFeed({});
+  await vi.waitFor(() => expect(feed.mints()).toBe(1));
+  const more = await phoneMore(feed.container);
+  expect(more.closest<HTMLElement>('[data-media-more="phone"]')?.style.top).toContain("4rem");
+  more.click();
+  const rows = await moreSheetRows();
+  expect(rows.map(row => row.textContent)).toEqual(["Unmute"]);
+  rows[0]!.click();
+  await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(false));
+  await vi.waitFor(() => expect(document.body.querySelector("[data-media-more-row]")).toBeNull());
+  (await phoneMore(feed.container)).click();
+  const muteRows = await moreSheetRows();
+  expect(muteRows.map(row => row.textContent)).toEqual(["Mute"]);
+  muteRows[0]!.click();
+  await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(true));
+  play.mockRestore();
+});
+
+describe("Report in the feed", () => {
+  test("is left out while the API does not accept reports on video posts", async () => {
+    const member = streamedFeed({ principalId: "user-1", membership: "member", videoReportsSupported: false });
+    (await phoneMore(member.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute"]);
+  });
+
+  test("is offered only to signed-in members of the post's community", async () => {
+    const member = streamedFeed({ principalId: "user-1", membership: "member" });
+    (await phoneMore(member.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute", "Report"]);
+    for (const dispose of disposers.splice(0)) dispose();
+    document.body.replaceChildren();
+
+    const nonMember = streamedFeed({ principalId: "user-1", membership: "not_member" });
+    (await phoneMore(nonMember.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute"]);
+    for (const dispose of disposers.splice(0)) dispose();
+    document.body.replaceChildren();
+
+    // Signed out: More offers no Report without an account.
+    const signedOut = streamedFeed({ membership: "member" });
+    (await phoneMore(signedOut.container)).click();
+    expect((await moreSheetRows()).map(row => row.textContent)).toEqual(["Unmute"]);
+  });
+
+  test("one tap on a reason sends it once with its idempotency key", async () => {
+    let resolveReport: (() => void) | undefined;
+    const reportPost = vi.fn<PostEngagementTransport["reportPost"]>(() => new Promise(resolve => {
+      resolveReport = () => resolve({ report_id: "report-1", case_ref: "case-1", status: "open" });
+    }));
+    const storage = createMemoryPendingEngagementStorage();
+    const feed = streamedFeed({ principalId: "user-1", membership: "member", reportPost, pendingStorage: storage });
+    (await phoneMore(feed.container)).click();
+    const report = (await moreSheetRows()).find(row => row.textContent === "Report")!;
+    report.click();
+    const reasons = await vi.waitFor(() => {
+      const buttons = [...document.body.querySelectorAll<HTMLButtonElement>("[data-report-reason]")];
+      if (buttons.length !== 7) throw new Error("report reasons not open");
+      return buttons;
+    });
+    expect(reasons.map(reason => reason.textContent)).toEqual([
+      "Spam", "Harassment", "Hate", "Sexual content", "Graphic content", "Misleading", "Other",
+    ]);
+    reasons[1]!.click();
+    reasons[1]!.click();
+    reasons[3]!.click();
+    await vi.waitFor(() => expect(reportPost).toHaveBeenCalledTimes(1));
+    await expect(decodePendingEngagementAction(reportPost.mock.calls[0]![0])).resolves.toEqual({
+      kind: "post_report", postId: "video-stream", reasonCode: "harassment", idempotencyKey: "feed-report-key",
+    });
+    resolveReport!();
+    await vi.waitFor(() => expect(document.body.querySelector("[data-report-reason]")).toBeNull());
+    expect(reportPost).toHaveBeenCalledTimes(1);
+    expect(await storage.listForPost("user-1", "video-stream")).toEqual([]);
+    expect(feed.container.textContent).toContain("Report sent.");
+  });
+
+  test("a failed report stays open and a retry replays the same key", async () => {
+    const reportPost = vi.fn<PostEngagementTransport["reportPost"]>()
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ report_id: "report-1", case_ref: "case-1", status: "open" });
+    const feed = streamedFeed({ principalId: "user-1", membership: "member", reportPost });
+    (await phoneMore(feed.container)).click();
+    (await moreSheetRows()).find(row => row.textContent === "Report")!.click();
+    const spam = await vi.waitFor(() => {
+      const button = document.body.querySelector<HTMLButtonElement>('[data-report-reason="spam"]');
+      if (!button) throw new Error("report reasons not open");
+      return button;
+    });
+    spam.click();
+    await vi.waitFor(() => expect(document.body.querySelector('[role="alert"]')).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.querySelector<HTMLButtonElement>('[data-report-reason="spam"]')?.disabled).toBe(false));
+    document.body.querySelector<HTMLButtonElement>('[data-report-reason="spam"]')!.click();
+    await vi.waitFor(() => expect(reportPost).toHaveBeenCalledTimes(2));
+    expect(reportPost.mock.calls[1]![0]).toEqual(reportPost.mock.calls[0]![0]);
+    await vi.waitFor(() => expect(document.body.querySelector("[data-report-reason]")).toBeNull());
+  });
+});
+
+test("a failed first page offers Try again, which reloads through the loader", async () => {
+  const loadPage = vi.fn(async () => page([video([{ playback_url: "https://media.pirate.test/video-1.mp4" }])], null));
+  const failed = Promise.reject(new Error("feed unavailable"));
+  failed.catch(() => {});
+  const container = render(() => <HomeVideoFeed data={failed} loadPage={loadPage} />);
+  const retry = await vi.waitFor(() => {
+    const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Try again");
+    if (!button) throw new Error("Try again not rendered");
+    return button;
+  });
+  expect(container.textContent).toContain("Couldn't load the feed.");
+  retry.click();
+  await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"));
+  expect(loadPage).toHaveBeenCalledTimes(1);
+  expect(container.querySelector('[data-media-post="video-1"]')).not.toBeNull();
 });
 
 test("the soundtrack line opens the referenced song", async () => {
@@ -604,7 +759,7 @@ describe("sign-in continuity", () => {
     feed.setIdentity("user:one");
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready");
-    expect(feed.container.textContent).not.toContain("Video feed unavailable");
+    expect(feed.container.textContent).not.toContain("Couldn't load the feed.");
     expect(row(feed.container, "video-kept")).toBe(before);
     expect(feed.mints()).toBe(1);
   });
