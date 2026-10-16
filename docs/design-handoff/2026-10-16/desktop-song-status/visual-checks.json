@@ -1,0 +1,154 @@
+{
+  "tool": "agent-browser isolated local session",
+  "viewport": [
+    1280,
+    900
+  ],
+  "liveProductTest": false,
+  "results": [
+    {
+      "state": "processing",
+      "accessibilitySnapshot": "processing-accessibility.txt",
+      "screenshot": "processing.png",
+      "geometry": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "scroll": [
+          1280,
+          900
+        ],
+        "card": {
+          "x": 320,
+          "y": 189,
+          "width": 640,
+          "height": 448
+        },
+        "close": "Close song status",
+        "heading": "Processing your song",
+        "action": null
+      }
+    },
+    {
+      "state": "published",
+      "accessibilitySnapshot": "published-accessibility.txt",
+      "screenshot": "published.png",
+      "geometry": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "scroll": [
+          1280,
+          900
+        ],
+        "card": {
+          "x": 320,
+          "y": 189,
+          "width": 640,
+          "height": 448
+        },
+        "close": "Close song status",
+        "heading": "Published",
+        "action": "View song"
+      }
+    },
+    {
+      "state": "failed",
+      "accessibilitySnapshot": "failed-accessibility.txt",
+      "screenshot": "failed.png",
+      "geometry": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "scroll": [
+          1280,
+          900
+        ],
+        "card": {
+          "x": 320,
+          "y": 189,
+          "width": 640,
+          "height": 448
+        },
+        "close": "Close song status",
+        "heading": "Couldn\u2019t process this song",
+        "action": "Try again"
+      }
+    },
+    {
+      "state": "review",
+      "accessibilitySnapshot": "review-accessibility.txt",
+      "screenshot": "review.png",
+      "geometry": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "scroll": [
+          1280,
+          900
+        ],
+        "card": {
+          "x": 320,
+          "y": 189,
+          "width": 640,
+          "height": 448
+        },
+        "close": "Close song status",
+        "heading": "Waiting for review",
+        "action": null
+      }
+    }
+  ],
+  "interaction": {
+    "state": "review",
+    "closeToFeedObserved": true,
+    "feedCardReopensDetailObserved": true,
+    "reopenedHeading": "Waiting for review",
+    "focusAfterReturn": "close",
+    "newOperation": false,
+    "liveProductTest": false
+  },
+  "visualInspection": "All four screenshots visually inspected; no clipping or horizontal/vertical overflow at1280x900.",
+  "allStateInteractionChecks": {
+    "at": "2026-10-16T12:01:55.232360+00:00",
+    "method": "Local prototype DOM interaction via agent-browser; not runtime app tests.",
+    "results": [
+      {
+        "cardWidth": 640,
+        "closeFocused": true,
+        "feedVisible": true,
+        "heading": "Processing your song",
+        "returnedSameHeading": true,
+        "state": "processing"
+      },
+      {
+        "cardWidth": 640,
+        "closeFocused": true,
+        "feedVisible": true,
+        "heading": "Published",
+        "returnedSameHeading": true,
+        "state": "published"
+      },
+      {
+        "cardWidth": 640,
+        "closeFocused": true,
+        "feedVisible": true,
+        "heading": "Couldn\u2019t process this song",
+        "returnedSameHeading": true,
+        "state": "failed"
+      },
+      {
+        "cardWidth": 640,
+        "closeFocused": true,
+        "feedVisible": true,
+        "heading": "Waiting for review",
+        "returnedSameHeading": true,
+        "state": "review"
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "status": "design_proposals_for_review_before_runtime_implementation",
+  "date": "2026-10-16",
+  "source": "60d8f61f209127793741500ea181e9b7c50f2a48",
+  "authorityDigest": "241c61fa3285503a06e4bbd96b8c1a980afd95bc401630b6bfe86fe4520acab4",
+  "files": {
+    "src/features/posts/song-submission/posted-song.tsx": {
+      "gitBlob": "5a7e2546f0e657e9afa89e478e7adbcec94b635d",
+      "sha256": "830092a0d384faa8e31649bd5e9d3682bfb9d6d8256ebc654fd06063ed4db912"
+    },
+    "src/features/posts/song-submission/pending-songs.tsx": {
+      "gitBlob": "25ac45554ae7913f5f769d56e6bf3f8ad21aac49",
+      "sha256": "3fa0d897f7f05241c5e10065bacb2ba88a13090e5d5fb1448cde6453935b599a"
+    },
+    "src/features/posts/song-submission/song-submission-store.tsx": {
+      "gitBlob": "642a28df4301d84e1369538a1fb0c5cb8c1fdb5d",
+      "sha256": "27ba4a849608ad0baa8c8cfe2da1df9c8b41ced4f476779bab09b7d1ac622f6e"
+    },
+    "packages/solid-ui/src/styles/tokens.css": {
+      "gitBlob": "9e166017af4a8f1df950cd9d23f0b9cc2d3a1dd3",
+      "sha256": "9031ce1f7b8ffb03bf81f051728d786661e6adc9765f80ca9a25a98ad78da685"
+    }
+  },
+  "states": {
+    "processing": [
+      "uploading",
+      "reconciling",
+      "processing"
+    ],
+    "published": [
+      "published"
+    ],
+    "failed": [
+      "processing_failed"
+    ],
+    "review": [
+      "manual_review"
+    ]
+  },
+  "geometry": {
+    "desktopViewport": [
+      1280,
+      900
+    ],
+    "columnWidth": 640,
+    "cardMinHeight": 448,
+    "cardPadding": 24
+  },
+  "submissionIdentity": "Use retained accountId and submissionId; no second operation or invented persistent URL. Published navigation uses postHref.",
+  "feedDetailProposal": "A separate status-detail entry opens the retained submission, including processing, failed and review. Published post destination remains available.",
+  "limits": [
+    "Drawings only; not implemented, approved artwork or production evidence.",
+    "No network, authentication, financial, storage or API calls.",
+    "No changes to phone UI, Live capability boundaries or navigation.",
+    "Other terminal states retain PendingSongs rendering.",
+    "Availability after refresh or store eviction must be verified against actual recovery rules."
+  ]
+}
