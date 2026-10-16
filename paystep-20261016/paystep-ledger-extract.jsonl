@@ -1,0 +1,52 @@
+{"run": "2026-10-16T08-00-17-284Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-00-17-284Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": ["TestingLibraryElementError: Unable to find an element with the text: Harbor persona"], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-00-17-284Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-00-17-284Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-23-732Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-23-732Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": [], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-03-23-732Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-23-732Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-43-314Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-43-314Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": [], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-03-43-314Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-03-43-314Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-04-02-700Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-04-02-700Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": [], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-04-02-700Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-04-02-700Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-06-53-957Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-06-53-957Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": [], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-06-53-957Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-06-53-957Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-16-071Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-16-071Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": [], "alert": ["This step could not be completed. Keep your saved attempt and check its status before continuing."]}
+{"run": "2026-10-16T08-07-16-071Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-16-071Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-36-054Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-36-054Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-36-054Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-07-36-054Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-10-42-931Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-10-42-931Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-10-42-931Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-10-42-931Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-02-177Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-02-177Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-02-177Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-02-177Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-22-566Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-22-566Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-22-566Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-22-566Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-43-698Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-43-698Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-43-698Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-11-43-698Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-12-04-067Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-12-04-067Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-12-04-067Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-12-04-067Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-14-31-708Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review", "interaction": "fail", "errors": ["AssertionError: expected 1 to be +0 // Object.is equality"], "alert": []}
+{"run": "2026-10-16T08-14-31-708Z", "storyId": "flows-rewards-functional-boost--pay-step-transfer-review-mobile", "interaction": "fail", "errors": ["AssertionError: expected 1 to be +0 // Object.is equality"], "alert": []}
+{"run": "2026-10-16T08-14-31-708Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock", "interaction": "pass", "errors": [], "alert": []}
+{"run": "2026-10-16T08-14-31-708Z", "storyId": "flows-rewards-functional-boost--pay-step-wallet-unlock-mobile", "interaction": "pass", "errors": [], "alert": []}

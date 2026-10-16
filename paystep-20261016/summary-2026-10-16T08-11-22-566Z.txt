@@ -1,0 +1,9 @@
+Storybook axe/interaction sweep
+Base URL: http://localhost:6109
+Catalog: 125 files / 823 stories; selected 1 files / 10 stories
+Axe: 10 pass, 0 violation-fail, 0 indeterminate
+Axe incomplete checks: 5 (reported separately; not violations or indeterminate)
+Interactions: 10 pass, 0 fail, 0 indeterminate
+Panel evidence: 10 bare/no-counter result(s) (diagnostic only; never a pass)
+Viewports: 2 requested a preset; 2 ran once at the requested width and height from start to end; 0 did not
+Exit: PASS
