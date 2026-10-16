@@ -27,6 +27,7 @@ import type { CommunityViewerVoteClient } from "./community-viewer-vote-api.ts";
 import { ActivePersonaProvider } from "../../identity/active-persona-store.tsx";
 import { ApplicationChrome } from "../../shell/media-shell/media-shell.tsx";
 import { createHeldSongUploadTransport } from "./song-upload-story-fixtures";
+import { installCommunityActivityStoryFixture } from "./community-page-activity-story-fixtures.ts";
 
 const communityId = "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345";
 
@@ -198,6 +199,7 @@ const meta = {
   component: CommunityPage,
   args: { pathSegment: "night-shift" },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
+  beforeEach: () => installCommunityActivityStoryFixture(communityId, memberSession),
 } satisfies Meta<typeof CommunityPage>;
 
 export default meta;
@@ -718,13 +720,13 @@ export const LostAcknowledgement: Story = {
   name: "Lost acknowledgement, then confirmed",
   args: pageArgs(lostAcknowledgementServer),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     const before = lostAcknowledgementServer.publishedCount();
     await writeAndPost(canvasElement, "Did this arrive?");
     await waitFor(() => expect(pending(canvasElement)).not.toBeNull());
     // Nothing asks the author to check, and nothing calls it failed.
-    await expect(canvas.queryByText(/check again/iu)).toBeNull();
-    await expect(canvas.queryByRole("alert")).toBeNull();
+    const item = within(pending(canvasElement)!);
+    await expect(item.queryByText(/check again/iu)).toBeNull();
+    await expect(item.queryByRole("alert")).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     // The replay confirmed the first post instead of making a second one.
     await expect(lostAcknowledgementServer.publishedCount() - before).toBe(1);

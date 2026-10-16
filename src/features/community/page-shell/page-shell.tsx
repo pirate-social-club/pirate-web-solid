@@ -98,6 +98,8 @@ export interface CommunityPageShellProps {
   feedLead?: () => JSX.Element;
   /** How many entries the lead holds, so an empty feed is not called empty. */
   feedLeadCount?: number;
+  /** Server-backed activity summary supplied by the owning activity lane. */
+  activitySummary?: () => JSX.Element;
   /** Feed posts kept first whatever the sort, newest pin first. */
   pinnedPostIds?: readonly string[];
   renderPost?: (
@@ -536,6 +538,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       </div>
 
       <Show when={!props.composer}>
+        <Show when={props.activitySummary}>{summary => <div class="px-5 py-4 md:px-8">{summary()()}</div>}</Show>
         <div data-community-tabs>
         {/* A phone shares the width among three tabs. Desktop keeps Feed and
             Songs at their own width on the left; About is the card beside

@@ -1,4 +1,7 @@
 import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
+import { ActivityCompletion } from "../activity/activity-completion.tsx";
+import type { CompletionTarget } from "../activity/activity-private-api.ts";
+import { ActivityLeaderboard } from "../activity/activity-leaderboard.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
 import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { KaraokeApiError } from "./karaoke-session-bridge.ts";
@@ -70,6 +73,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   const [authError, setAuthError] = createSignal(false);
   let pendingSongMs = 0;
   let attemptPersonaId: string | undefined;
+  const [completionTarget, setCompletionTarget] = createSignal<CompletionTarget & { ownerAccountId: string }>();
   let active = true;
   let sessionEpoch = 0;
   const [sessionFailed, setSessionFailed] = createSignal(false);
@@ -127,13 +131,17 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   const createScoring = untrack(() => props.createScoring) ?? useKaraokeScoring;
   const scoring = createScoring({
     communityId,
-    createKaraokeSession: (community, postId, idempotencyKey, signal) => {
+    createKaraokeSession: async (community, postId, idempotencyKey, signal) => {
       const selected = attemptPersonaId;
       if (!selected
         || (selected !== preparedPersonaId && !eligible().some(persona => persona.personaId === selected))) {
         return Promise.reject(new Error("Choose a persona bound to this community before singing."));
       }
-      return props.client.createSession({ communityId: community, personaId: selected, idempotencyKey, postId, signal });
+      const owner = session();
+      const result = await props.client.createSession({ communityId: community, personaId: selected, idempotencyKey, postId, signal });
+      const current = session();
+      if (active && !signal?.aborted && owner && owner !== "anonymous" && (current === undefined || (current !== "anonymous" && current.userId === owner.userId))) setCompletionTarget({ communityId: community, postId, personaId: selected, ownerAccountId: owner.userId, attempt: { kind: "karaoke", session_id: result.id, attempt_id: result.attempt } });
+      return result;
     },
     enabled: Boolean(communityId && scorableLines().length > 0),
     postId: props.postId,
@@ -187,10 +195,11 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   // direct start and the persona-choice continuation route through here.
   const beginScoredTake = (songMs: number) => {
     if (!micDisclosureAcknowledged()) {
-      pendingScoredStart = () => scoring.controls.start(songMs);
+      pendingScoredStart = () => { setCompletionTarget(undefined); scoring.controls.start(songMs); };
       setDisclosureOpen(true);
       return;
     }
+    setCompletionTarget(undefined);
     scoring.controls.start(songMs);
   };
 
@@ -272,7 +281,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     >
       <Title>{props.payload.title ? `${props.payload.title} · Karaoke` : "Karaoke"}</Title>
       <KaraokePracticeSurface
-        rewardSlot={<Show when={communityId}><MegapotShareStatus communityId={communityId} postId={props.postId} /></Show>}
+        rewardSlot={<Show when={communityId}><div class="space-y-4"><Show when={scoring.state()?.status === "ended" && completionTarget()}>{target => <ActivityCompletion {...target()} dependencies={{ resolveSession: props.resolveSession }} />}</Show><MegapotShareStatus communityId={communityId} postId={props.postId} /><ActivityLeaderboard communityId={communityId} postId={props.postId} /></div></Show>}
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
         playbackAccess={props.payload.playback_access ? {
