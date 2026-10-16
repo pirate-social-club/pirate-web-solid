@@ -78,8 +78,19 @@ export function rewardSponsorScenarioFixture(
     },
   };
 }
+/** What the fixture wallet was asked to do: a story can prove nothing was signed or sent. */
+export interface RewardSponsorWalletCalls {
+  /** Fee estimates; read-only, no signature. */
+  estimate: number;
+  /** Signed and broadcast transfers. */
+  send: number;
+  /** Server observations of a broadcast transaction. */
+  observe: number;
+}
+
 /** Controlled Storybook/test server and wallet. No network calls or real signing. */
-export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_unfunded" } = {}): RewardSponsorDependencies {
+export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_unfunded"; calls?: RewardSponsorWalletCalls } = {}): RewardSponsorDependencies {
+  const calls = options.calls;
   const records = new Map<string,string>(), receipts = new Map<string,RewardFundingReceipt>();
   const queues = new Map<string, Promise<void>>();
   const exclusive = <T,>(key: string, operation: () => Promise<T>): Promise<T> => {
@@ -92,7 +103,7 @@ export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_u
     fundingRecovery,
     fundingApi: {
       async load(_target, actor) { return { actor, walletIndex: 0, funding }; },
-      async observe(_target, _actor, hash) { funding = { ...funding, status: "confirmed", transaction_hash: hash, confirmed_amount_atomic: funding.expected_amount_atomic }; return funding; },
+      async observe(_target, _actor, hash) { if (calls) calls.observe += 1; funding = { ...funding, status: "confirmed", transaction_hash: hash, confirmed_amount_atomic: funding.expected_amount_atomic }; return funding; },
     },
     journal: {
       read: key => records.get(key) ?? null,
@@ -135,11 +146,11 @@ export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_u
       const controller = createRewardFundingController({ ...options,
         api: {
           async load() { return { actor: options.actor, walletIndex: 0, funding }; },
-          async observe(_target,_actor,hash) { funding = { ...funding, status: "confirmed", transaction_hash: hash, confirmed_amount_atomic: funding.expected_amount_atomic }; return funding; },
+          async observe(_target,_actor,hash) { if (calls) calls.observe += 1; funding = { ...funding, status: "confirmed", transaction_hash: hash, confirmed_amount_atomic: funding.expected_amount_atomic }; return funding; },
         },
         wallet: {
-          async estimate() { if (!authorized) throw new Error("wallet_reauthentication_required"); return { gasLimit: "21000", gasPriceAtomic: "2000000000", executionFeeAtomic: "42000000000000" }; },
-          async send(_context,_fee,beforeBroadcast) { await beforeBroadcast(); return `0x${"d".repeat(64)}`; },
+          async estimate() { if (calls) calls.estimate += 1; if (!authorized) throw new Error("wallet_reauthentication_required"); return { gasLimit: "21000", gasPriceAtomic: "2000000000", executionFeeAtomic: "42000000000000" }; },
+          async send(_context,_fee,beforeBroadcast) { if (calls) calls.send += 1; await beforeBroadcast(); return `0x${"d".repeat(64)}`; },
           dispose() { authorized = false; },
         },
         recovery: fundingRecovery,
