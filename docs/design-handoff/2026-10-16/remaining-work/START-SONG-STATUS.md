@@ -2,6 +2,10 @@
 
 The shared-file hold is RELEASED. Continue in the SAME existing isolated cloud Paper writer associated with phone close-controls PR94. This is a follow-up source tranche, not a new agent, coordinator or competing writer. The owner-adopted design and the rollout coordinator's explicit source handback supply authority; no renewed design or execution permission is needed.
 
+## Existing writer refresh received
+
+The [existing cloud writer receipt](https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6224119132), posted at 2026-10-16 20:30 UTC, confirms base and checked-out HEAD `b542afb15cb2ac2df9138cd38607f6c5a745b9af` on `fix/paper-song-status-detail-20261017`, frozen install completed, and phone head `4b5b74532114d27c798bab56951adf7e4b95c69b` preserved. The writer reports a separate cloud worktree within the same session and is continuing implementation. The coordinator independently read the receipt and verified the phone PR head, without inspecting the remote filesystem. See [REFRESH-RECEIPT.json](REFRESH-RECEIPT.json). Do not create another writer or repeat the completed refresh merely because this document retains its startup instructions.
+
 ## Accepted source and custody evidence
 
 Use exact accepted Solid main `b542afb15cb2ac2df9138cd38607f6c5a745b9af`, the [normal protected PR93 merge](https://github.com/pirate-social-club/pirate-web-solid/pull/93). Its tree exactly equals reviewed `b42ccbc801c73c7ecb49326d91b26f3fb2825e6b`: `1e778ec0ddb16d4b3b50889bf608ac0e90f88612`. All 30 paths match manifest SHA256 `2461d61e3c83e7f25a82dffa87305bb61740fbfa68948a32c44924e6b1f88c4d`. Separate review returned ACCEPT_FOR_PROTECTED_SOURCE_INTEGRATION, and all 27 local maintained commands plus required hosted verify, Storybook audit and Solid Doctor PR passed. The coordinator explicitly returned source custody at 2026-10-16 20:23 UTC. [STATE.json](STATE.json) carries the cloud-readable summary.
@@ -12,7 +16,7 @@ The high unpatched braces advisory is still open under the reviewer's limited so
 
 First finish any currently running phone-tranche processes and preserve its committed source/evidence. Keep PR94 at `4b5b74532114d27c798bab56951adf7e4b95c69b` for its separate independent review. Do not overwrite, reset, clean away, rebase or amend that work as part of this handback.
 
-In that same cloud writer's checkout, once its working tree is clean, fetch main and create the song-status branch from the exact accepted commit. These are instructions for the cloud writer; the coordinator has not claimed to execute them remotely.
+In that same cloud writer's checkout, once its working tree is clean, fetch main and create the song-status branch from the exact accepted commit. The existing writer has already reported this refresh in the receipt above. The commands below preserve the exact startup procedure; the coordinator did not execute them remotely.
 
 ```sh
 git status --short
@@ -39,7 +43,7 @@ Report the actual fetched base, branch and HEAD after refresh, confirm the phone
 }
 ```
 
-Send the receipt in the existing task/conversation or reply to the coordinator's source-release comment on PR94. Then continue the authorized implementation; this receipt is an execution update, not another approval gate. Until that reply arrives, the recorded remote refresh remains unconfirmed.
+Send the receipt in the existing task/conversation or reply to the coordinator's source-release comment on PR94. Then continue the authorized implementation; this receipt is an execution update, not another approval gate. That reply has now arrived and is recorded above; continue the implementation without a further approval question.
 
 ## One next source deliverable
 

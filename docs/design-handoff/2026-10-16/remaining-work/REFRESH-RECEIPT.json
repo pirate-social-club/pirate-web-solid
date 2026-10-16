@@ -1,0 +1,30 @@
+{
+  "received_at": "2026-10-16T20:32:49.887915+00:00",
+  "comment_created_at": "2026-10-16T20:30:07Z",
+  "comment_id": 6224119132,
+  "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6224119132",
+  "writer_report": {
+    "writer": "same existing cloud Paper writer",
+    "base": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
+    "branch": "fix/paper-song-status-detail-20261017",
+    "head_after_refresh": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
+    "phone_pr94_head_preserved": "4b5b74532114d27c798bab56951adf7e4b95c69b",
+    "new_writer_created": false,
+    "next_deliverable": "One source-only song-status entry and detail PR"
+  },
+  "writer_reported_checks": [
+    "Phone working tree clean before branching",
+    "Original phone branch head preserved without amend/rebase/reset",
+    "Accepted b542 is ancestor of fetched origin/main; tree equals reviewed b42",
+    "bun install --frozen-lockfile completed"
+  ],
+  "writer_reports_separate_cloud_worktree_same_session": true,
+  "coordinator_verified": {
+    "accepted_base_is_published_main": true,
+    "phone_pr94_head_still_exact": true,
+    "comment_receipt_read_back": true
+  },
+  "remote_filesystem_independently_inspected": false,
+  "new_local_writer_or_worktree_opened": false,
+  "next_state": "Existing writer continuing source-only song-status implementation"
+}

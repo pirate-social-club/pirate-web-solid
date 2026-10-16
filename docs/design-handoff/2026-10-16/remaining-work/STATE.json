@@ -72,7 +72,7 @@
       }
     ]
   },
-  "song_status_source_assignment": "RELEASED_TO_SAME_EXISTING_WRITER_AFTER_BASE_REFRESH",
+  "song_status_source_assignment": "RELEASED_REFRESH_ACKNOWLEDGED_IMPLEMENTATION_IN_PROGRESS",
   "accepted_base": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
   "shared_page_path": "src/features/communities/community-page/community-page.tsx",
   "shared_page_source_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/b542afb15cb2ac2df9138cd38607f6c5a745b9af/src/features/communities/community-page/community-page.tsx",
@@ -100,18 +100,24 @@
     "receipt_sha256": "72f0bcd99537eb1754c9b7146eacd98c7aabb2a04fa8eba8f9d051969c5a7237"
   },
   "existing_writer_refresh": {
-    "status": "AWAITING_EXISTING_CLOUD_WRITER_RECEIPT",
+    "status": "ACKNOWLEDGED_BY_SAME_EXISTING_CLOUD_WRITER",
     "expected_base": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-    "actual_cloud_checkout_head": null,
-    "same_writer_task_url": "https://claude.ai/code/session_01JMbhkWU1hvEJJoumFWcKjU",
-    "new_writer_created": false
+    "actual_cloud_checkout_head_reported": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
+    "branch": "fix/paper-song-status-detail-20261017",
+    "receipt_url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6224119132",
+    "new_writer_created_reported": false,
+    "phone_pr94_head_verified": "4b5b74532114d27c798bab56951adf7e4b95c69b",
+    "separate_cloud_worktree_same_session_reported": true,
+    "remote_filesystem_independently_inspected": false
   },
-  "next_deliverable": "One source-only PR for retained feed song-status entry and detail under the clarified01b96161 acceptance",
+  "next_deliverable": "Existing writer implementing one source-only feed Status entry/detail PR under01b96161; no new source PR or completion claimed yet",
   "paired_runtime_accepted": false,
   "deployment_or_financial_authority_changed": false,
   "recorded_production": {
     "source": "40123b659543b4ce288f51af03c635542b9c07a1",
     "worker": "69e2892f-3f9c-4093-99fc-c1e2aa405412",
     "new_provider_readback": false
-  }
+  },
+  "refresh_receipt_observed_at": "2026-10-16T20:32:49.887915+00:00",
+  "actual_refresh_receipt": "REFRESH-RECEIPT.json"
 }
