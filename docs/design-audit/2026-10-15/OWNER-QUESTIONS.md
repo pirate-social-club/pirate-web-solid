@@ -2,7 +2,7 @@
 
 These questions are for the workspace_owner, prepared by the paper_release_coordinator. The reviewed Paper queue completes the planned presentation tranches. The choices below still affect full design fidelity, and existing behavior remains until each choice is settled. Design decisions do not enable financial operations or supply missing API contracts.
 
-1. Should dialog and sheet scrims keep their current blur, or leave the background sharp as Paper draws it? The audit explicitly leaves this choice open. A sharp scrim would be a separate change to the shared primitives, verified across both catalogs.
+1. Resolved on 2026-10-16: the workspace_owner confirmed that dialog and sheet scrims should leave the background sharp as Paper draws it. Remove their blur and preserve the existing dim. The separate phone close-control decision below remains open.
 
 2. Should phone sheets and modals retain their close button, or use Paper's presentation without it? Treat this separately from scrim blur. Any replacement must keep a clear accessible way to leave; Escape alone does not serve a touch-only phone.
 

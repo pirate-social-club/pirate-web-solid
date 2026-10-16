@@ -69,6 +69,15 @@ function SheetTemplate(props: { side: "top" | "bottom" | "left" | "right" }) {
   );
 }
 
+/** The overlay behind an open dialog: Paper dims the page and leaves it sharp. */
+async function expectSharpScrim() {
+  const scrim = [...document.body.querySelectorAll<HTMLElement>("div")].find(element => element.className.includes("bg-black/55"));
+  if (scrim === undefined) throw new Error("Expected the overlay scrim");
+  const style = getComputedStyle(scrim);
+  await expect(style.backdropFilter === "" || style.backdropFilter === "none").toBe(true);
+  await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+}
+
 export const Default: Story = {
   render: () => <SheetTemplate side="right" />,
   play: async ({ canvasElement }) => {
@@ -78,6 +87,7 @@ export const Default: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Open (right)" }));
     const dialog = await body.findByRole("dialog", { name: "Sheet Title" });
     await expect(dialog).toBeVisible();
+    await expectSharpScrim();
 
     await userEvent.keyboard("{Escape}");
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();

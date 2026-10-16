@@ -25,8 +25,9 @@ const Sheet = KDialog;
 const SheetTrigger = KDialog.Trigger;
 const SheetClose = KDialog.CloseButton;
 
+// Paper: the scrim dims the page and leaves it sharp; there is no blur.
 const sheetOverlayClass =
-  "fixed inset-0 z-50 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ease-out data-expanded:opacity-100 data-closed:opacity-0 motion-reduce:transition-none";
+  "fixed inset-0 z-50 bg-black/55 transition-opacity duration-300 ease-out data-expanded:opacity-100 data-closed:opacity-0 motion-reduce:transition-none";
 
 // Side sheets are a column: header and body pack at the top and SheetFooter's
 // mt-auto pins it to the bottom edge (Paper Sheet). A grid would stretch the
