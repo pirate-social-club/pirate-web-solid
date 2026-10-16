@@ -38,7 +38,7 @@ import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.t
 import { useComposingSurface } from "../../shell/composing-surface.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
-import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
+import { PendingSongs, pendingSongStatusSelector } from "../../posts/song-submission/pending-songs.tsx";
 import { PostedSong, selectPostedSong, type PostedSongKey } from "../../posts/song-submission/posted-song.tsx";
 import {
   createSongSubmissionStore,
@@ -568,10 +568,14 @@ function SuccessState(props: {
   // clears it, kept report included.
   const [postedSongKey, setPostedSongKey] = createSignal<PostedSongKey | null>(null, { ownedWrite: true });
   const [postedSongLast, setPostedSongLast] = createSignal<SongSubmissionItem | null>(null, { ownedWrite: true });
+  // The feed card whose Status button opened the state, if one did: closing
+  // returns focus there while that card is still shown, otherwise to Post.
+  let statusOrigin: string | null = null;
   const postedSong = createMemo<SongSubmissionItem | null>(() =>
     selectPostedSong(postedSongKey(), engagement.postingSession()?.userId, pendingSongs(), postedSongLast()));
   createEffect(postedSong, (item) => { if (item !== null) setPostedSongLast(item); });
   const clearPostedSong = () => {
+    statusOrigin = null;
     setPostedSongKey(null);
     setPostedSongLast(null);
   };
@@ -583,8 +587,27 @@ function SuccessState(props: {
     },
   );
   const closePostedSong = () => {
+    const origin = statusOrigin;
+    statusOrigin = null;
     clearPostedSong();
-    queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
+    queueMicrotask(() => {
+      const trigger = origin === null ? null : document.querySelector<HTMLElement>(pendingSongStatusSelector(origin));
+      (trigger ?? document.querySelector<HTMLElement>("[data-community-post-slot]"))?.focus();
+    });
+  };
+  /**
+   * A feed card's Status opens that song's state again. It selects only a
+   * song this account still has in the store for this community, so a
+   * dismissed song, or another account's or community's, cannot open; it
+   * starts no operation. The state lasts as the store does: until the page
+   * is reloaded.
+   */
+  const openSongStatus = (submissionId: string) => {
+    const accountId = engagement.postingSession()?.userId;
+    if (accountId === undefined || !pendingSongs().some(item => item.submissionId === submissionId)) return;
+    statusOrigin = submissionId;
+    setPostedSongKey({ accountId, submissionId });
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-posted-song-close]")?.focus());
   };
   createEffect(
     () => pendingSongs().filter(item => item.view.status === "published").map(item => item.submissionId).join(","),
@@ -901,6 +924,7 @@ function SuccessState(props: {
             onPublished={href => { if (href !== undefined) navigate(href); }}
             onSongSubmitted={(_community, submissionId) => {
               const accountId = engagement.postingSession()?.userId;
+              statusOrigin = null;
               if (accountId !== undefined) setPostedSongKey({ accountId, submissionId });
             }}
             onOpenChange={(open) => {
@@ -955,6 +979,7 @@ function SuccessState(props: {
                 items={pendingSongs()}
                 onCheck={songStore.check}
                 onDismiss={songStore.dismiss}
+                onOpenStatus={openSongStatus}
                 onRetry={songStore.retry}
                 onBindOriginal={songStore.bindOriginal}
                 onRetryOriginal={songStore.retryOriginal}

@@ -63,7 +63,7 @@ export const ProcessingMobile: Story = {
     await expect(canvas.getByText("You can leave this page.")).toBeVisible();
     await expect(canvas.getByRole("heading", { name: "Song" })).toBeVisible();
     await expect(canvas.getAllByRole("button")).toHaveLength(1);
-    await expect(canvas.getByRole("button", { name: "Close" })).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Close song status" })).toBeVisible();
   },
 };
 
@@ -124,7 +124,7 @@ export const PublishedDesktop: Story = {
   args: { item: published },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const close = canvas.getByRole("button", { name: "Close" });
+    const close = canvas.getByRole("button", { name: "Close song status" });
     const heading = canvas.getByRole("heading", { name: "Song" });
     await expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(heading.getBoundingClientRect().left);
     await expect(canvas.getByRole("heading", { name: "Published" })).toBeVisible();

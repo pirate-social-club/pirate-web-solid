@@ -486,7 +486,7 @@ export const MobilePostedSongCloseInsideTheAppShell: Story = {
   render: songInTheShell,
   play: async ({ canvasElement }) => {
     const { canvas, nav, posted } = await postSongInsideTheShell(canvasElement);
-    await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+    await userEvent.click(within(posted).getByRole("button", { name: "Close song status" }));
     await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
     await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
     await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
@@ -581,7 +581,7 @@ async function expectPostedSongThenFeed(canvasElement: HTMLElement) {
   await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(0);
   await expect(within(posted).getByRole("heading", { name: /Processing your song|Published/u })).toBeVisible();
   const stillProcessing = posted.getAttribute("data-posted-song-status") !== "published";
-  await userEvent.click(within(posted).getByRole("button", { name: "Close" }));
+  await userEvent.click(within(posted).getByRole("button", { name: "Close song status" }));
   await waitFor(() => expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible());
   if (stillProcessing) await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
 }
@@ -1004,6 +1004,12 @@ function SongFrame(props: {
   readonly rerun?: readonly MediaSubmissionSnapshot[];
   readonly originalRequired?: boolean;
   readonly originalUnanswered?: boolean;
+  /** Run again never settles, so the rerun stays busy. */
+  readonly heldRetry?: boolean;
+  /** Adopt the song for another account or community than the page's. */
+  readonly adoptAs?: { readonly accountId?: string; readonly communityId?: string };
+  /** Adopt nothing: a fresh store, as after a reload. */
+  readonly empty?: boolean;
 }) {
   const answers = [...untrack(() => props.answers)];
   const rerun = [...untrack(() => props.rerun ?? [])];
@@ -1012,10 +1018,10 @@ function SongFrame(props: {
   const store = createSongSubmissionStore({ observeIntervalMs: 700 });
   const [session] = createSignal<ApplicationSessionState>(memberSession);
   const [onCommunity, setOnCommunity] = createSignal(true);
-  store.adopt({
+  if (!props.empty) store.adopt({
     submissionId: "song-1",
-    accountId: memberSession.userId,
-    communityId,
+    accountId: props.adoptAs?.accountId ?? memberSession.userId,
+    communityId: props.adoptAs?.communityId ?? communityId,
     title: "Midnight Waves",
     authorHandle: "Harbor",
     view: { status: "processing", submissionId: "song-1", phase: "finalize" },
@@ -1038,6 +1044,7 @@ function SongFrame(props: {
         return current;
       },
       retry: async () => {
+        if (props.heldRetry) return new Promise<MediaSubmissionSnapshot>(() => {});
         const next = rerun.shift() ?? songProcessing("analysis");
         answers.splice(0, answers.length, ...rerun.splice(0), songPublished);
         return next;
@@ -1242,7 +1249,8 @@ export const SongWaitingForReview: Story = {
     await expect(item.queryByRole("progressbar")).toBeNull();
     await expect(item.queryByText(SONG_PROCESSING_TEXT)).toBeNull();
     await expect(item.queryByRole("alert")).toBeNull();
-    await expect(item.queryByRole("button")).toBeNull();
+    // Its only control is Status, which opens the wait; nothing dismisses it.
+    await expect(item.getAllByRole("button").map(button => button.textContent)).toEqual(["Status"]);
   },
 };
 
@@ -1289,5 +1297,240 @@ export const SongStatusUnanswered: Story = {
     await expect(item.queryByRole("alert")).toBeNull();
     await expect(pendingSong(canvasElement)!.textContent ?? "").not.toMatch(/failed|couldn.t|stopped/iu);
     await expect(item.getByRole("button", { name: "Check now" })).toBeVisible();
+  },
+};
+
+const desktop = {
+  globals: { viewport: { value: "desktopReview", isRotated: false } },
+  parameters: { viewport: { options: { desktopReview: { name: "Desktop", styles: { width: "1280px", height: "900px" }, type: "desktop" } } } },
+} as const;
+
+const failedRetryable = songAnswer({ status: "processing_failed", reason_code: "analysis_failed", retryable: true });
+const failedFinal = songAnswer({ status: "processing_failed", reason_code: "analysis_failed", retryable: false });
+const reviewRequired = songAnswer({ status: "manual_review", reason_code: "review_required", review_ref: "review-1" });
+const reviewUnavailable = songAnswer({ status: "manual_review", reason_code: "moderation_unavailable", review_ref: "review-1" });
+const originalRequired = songAnswer({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } });
+
+const statusButton = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLButtonElement>("[data-pending-song-open-status='song-1']");
+const postedSong = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+
+/** Waits for the feed card to reach `status`, then checks how it and its Status button are named. */
+async function expectNamedCard(canvasElement: HTMLElement, status: string, description: string) {
+  await waitFor(() => expect(pendingSong(canvasElement)).toHaveAttribute("data-pending-song-status", status), { timeout: 8_000 });
+  const card = pendingSong(canvasElement)!;
+  await expect(card).toHaveAccessibleName("Midnight Waves");
+  await expect(card).toHaveAccessibleDescription(description);
+  const open = within(card).getByRole("button", { name: "Status for Midnight Waves" });
+  await expect(open).toHaveTextContent("Status");
+  await expect(open).toHaveAccessibleDescription(description);
+  // Status is a sibling of the card's other controls, never around them.
+  await expect(open.querySelector("a, button, input, textarea, select")).toBeNull();
+  return open;
+}
+
+/** Opens the status from the feed card: the close takes focus, and no operation starts. */
+async function openStatus(canvasElement: HTMLElement, heading: string) {
+  const open = statusButton(canvasElement)!;
+  await userEvent.click(open);
+  const posted = await waitFor(() => { const element = postedSong(canvasElement); expect(element).not.toBeNull(); return element!; });
+  await expect(await within(posted).findByRole("heading", { name: heading })).toBeVisible();
+  const close = within(posted).getByRole("button", { name: "Close song status" });
+  await waitFor(() => expect(close).toHaveFocus());
+  return { posted, close };
+}
+
+/** Desktop: Status opens the processing card in the real 736px main column; closing returns to Status. */
+export const SongStatusFromTheFeed: Story = {
+  ...desktop,
+  name: "Song status: open from the feed, then close",
+  render: () => <SongFrame answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView!.innerWidth).toBe(1280));
+    await expectNamedCard(canvasElement, "processing", SONG_PROCESSING_TEXT);
+    const { posted, close } = await openStatus(canvasElement, "Processing your song");
+    // The approved card fills the main column beside the 320px About rail.
+    const column = posted.closest("main")!;
+    await expect(Math.round(column.getBoundingClientRect().width)).toBe(736);
+    const card = posted.firstElementChild!;
+    await expect(Math.round(card.getBoundingClientRect().width)).toBe(736);
+    await expect(card.getBoundingClientRect().height).toBeGreaterThanOrEqual(448);
+    await expect(getComputedStyle(card).paddingTop).toBe("24px");
+    // The banner and community header stay above it.
+    await expect(canvasElement.querySelector("[aria-label='Community overview']")).not.toBeNull();
+    // The drawing's annotation about reloading ships in no state.
+    await expect(canvasElement.textContent ?? "").not.toMatch(/Reloading or stopping watching/u);
+    await userEvent.click(close);
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    await waitFor(() => expect(statusButton(canvasElement)).toHaveFocus());
+  },
+};
+
+/** Waiting for review, in both of the server's wordings. */
+export const SongStatusWaitingForReview: Story = {
+  ...desktop,
+  name: "Song status: waiting for review",
+  render: () => <SongFrame answers={[reviewRequired]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "manual_review", "This song is waiting for a moderator's review before it can be published.");
+    const { posted } = await openStatus(canvasElement, "Waiting for review");
+    await expect(within(posted).getByText("A moderator will check this song.")).toBeVisible();
+    await expect(within(posted).getAllByRole("button").map(button => button.getAttribute("aria-label") ?? button.textContent)).toEqual(["Close song status"]);
+  },
+};
+
+export const SongStatusChecksUnavailable: Story = {
+  ...desktop,
+  name: "Song status: waiting for review, checks unavailable",
+  render: () => <SongFrame answers={[reviewUnavailable]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "manual_review", "This song is waiting for review because automatic checks aren't available right now.");
+    const { posted } = await openStatus(canvasElement, "Waiting for review");
+    await expect(within(posted).getByText("Automatic checks aren't available right now, so a moderator will check this song.")).toBeVisible();
+  },
+};
+
+/** A retryable failure: Try again runs it once and stays busy in both places while it runs. */
+export const SongStatusRetryBusy: Story = {
+  ...desktop,
+  name: "Song status: retryable failure, busy rerun",
+  render: () => <SongFrame answers={[failedRetryable]} heldRetry />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing_failed", "Processing stopped before this song was published.");
+    const { posted, close } = await openStatus(canvasElement, "Couldn't process this song");
+    const again = within(posted).getByRole("button", { name: "Try again" });
+    await expect(again).toBeEnabled();
+    await userEvent.click(again);
+    // The action is redrawn as the rerun starts; read it again each time.
+    await waitFor(() => expect(within(posted).getByRole("button", { name: "Try again" })).toBeDisabled());
+    await userEvent.click(close);
+    await waitFor(() => expect(within(pendingSong(canvasElement)!).getByRole("button", { name: "Try processing again" })).toBeDisabled());
+  },
+};
+
+/** A final failure offers no retry; Dismiss removes the card, and nothing can reopen it. */
+export const SongStatusFinalFailureDismissed: Story = {
+  ...desktop,
+  name: "Song status: final failure, dismissed",
+  render: () => <SongFrame answers={[failedFinal]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing_failed", "This song couldn't be processed and wasn't published.");
+    const card = within(pendingSong(canvasElement)!);
+    await expect(card.queryByRole("button", { name: "Try processing again" })).toBeNull();
+    const { posted, close } = await openStatus(canvasElement, "Couldn't process this song");
+    await expect(within(posted).queryByRole("button", { name: "Try again" })).toBeNull();
+    await userEvent.click(close);
+    await userEvent.click(within(pendingSong(canvasElement)!).getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull());
+    await expect(statusButton(canvasElement)).toBeNull();
+    await expect(postedSong(canvasElement)).toBeNull();
+  },
+};
+
+/** Slow reads: the processing state offers Check now, and the feed keeps Stop watching here. */
+export const SongStatusSlowChecks: Story = {
+  ...desktop,
+  name: "Song status: slow checks",
+  render: () => <SongFrame answers={["unanswered"]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(pendingSong(canvasElement)?.textContent ?? "").toContain("taking longer than usual"), { timeout: 20_000 });
+    const card = within(pendingSong(canvasElement)!);
+    await expect(card.getByRole("button", { name: "Stop watching here" })).toBeVisible();
+    const { posted } = await openStatus(canvasElement, "Processing your song");
+    await expect(within(posted).getByRole("button", { name: "Check now" })).toBeVisible();
+  },
+};
+
+/**
+ * Naming the original song is not one of the drawn states: the status shows
+ * the feed card's own controls, without a second Status inside it.
+ */
+export const SongStatusOriginalRequired: Story = {
+  ...desktop,
+  name: "Song status: original song required",
+  render: () => <SongFrame originalRequired answers={[originalRequired]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "action_required", "The original song this one is based on has to be named before it can be published.");
+    const { posted } = await openStatus(canvasElement, "Song");
+    await expect(within(posted).getByRole("textbox", { name: "Original song link" })).toBeVisible();
+    await expect(within(posted).queryByRole("button", { name: /^Status for/u })).toBeNull();
+  },
+};
+
+/**
+ * The song publishes while its status is open: the status says Published and
+ * links to the post; the feed then carries the post and the card goes, so
+ * closing falls back to Post.
+ */
+export const SongStatusPublishedWhileOpen: Story = {
+  ...desktop,
+  name: "Song status: published while open",
+  render: () => <SongFrame answers={[songProcessing("analysis"), songProcessing("analysis"), songProcessing("decision"), songPublished]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing", SONG_PROCESSING_TEXT);
+    const { posted, close } = await openStatus(canvasElement, "Processing your song");
+    await expect(await within(posted).findByRole("heading", { name: "Published" }, { timeout: 8_000 })).toBeVisible();
+    const view = within(posted).getByRole("link", { name: "View song" });
+    await expect(view).toHaveAttribute("href", "/posts/midnight-waves");
+    await expect(view).toHaveAttribute("rel", "external");
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+    await userEvent.click(close);
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    // The card that opened it is gone: focus falls back to Post, and nothing recreates the card.
+    await waitFor(() => expect(canvasElement.ownerDocument.activeElement).toBe(canvasElement.querySelector("[data-community-post-slot]")));
+    await expect(pendingSong(canvasElement)).toBeNull();
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+/** No card and no Status for a song this page's viewer does not own here, or after a reload. */
+async function expectNoSongEntry(canvasElement: HTMLElement) {
+  await within(canvasElement).findByText("What is the best live arrangement?");
+  await expect(pendingSong(canvasElement)).toBeNull();
+  await expect(canvasElement.querySelector("[data-pending-song-open-status]")).toBeNull();
+  await expect(postedSong(canvasElement)).toBeNull();
+}
+
+/** Another account's song in the same store. */
+export const SongStatusNotForAnotherAccount: Story = {
+  ...desktop,
+  name: "Song status: not for another account",
+  render: () => <SongFrame adoptAs={{ accountId: "account-2" }} answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/** This account's song in another community. */
+export const SongStatusNotForAnotherCommunity: Story = {
+  ...desktop,
+  name: "Song status: not for another community",
+  render: () => <SongFrame adoptAs={{ communityId: "community_other" }} answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/** A fresh store, as after a reload: the status entry is session-only. */
+export const SongStatusAbsentAfterReload: Story = {
+  ...desktop,
+  name: "Song status: absent from a fresh store",
+  render: () => <SongFrame empty answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/**
+ * A blocked song is not a drawn state, so its status shows the feed card's
+ * own controls. Dismissing there closes the status and removes the card;
+ * nothing is left to reopen it.
+ */
+export const SongStatusDismissedFromTheStatus: Story = {
+  ...desktop,
+  name: "Song status: dismissed from the status",
+  render: () => <SongFrame answers={[songAnswer({ status: "blocked", reason_code: "policy_violation" })]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "blocked", "This song was blocked by policy and wasn't published.");
+    const { posted } = await openStatus(canvasElement, "Song");
+    await userEvent.click(within(posted).getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull());
+    await expect(statusButton(canvasElement)).toBeNull();
+    await waitFor(() => expect(canvasElement.ownerDocument.activeElement).toBe(canvasElement.querySelector("[data-community-post-slot]")));
   },
 };
