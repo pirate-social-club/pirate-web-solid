@@ -121,19 +121,24 @@ test.each(["study_provider_refused", "study_recording_too_short"] as const)("%s 
   expect(api.loadLesson).toHaveBeenCalledOnce();
 });
 
-test("an unknown provider outcome blocks recording without reload or retry", async () => {
+test("an unknown provider outcome blocks recording and offers only an explicit new lesson", async () => {
   const api = client();
   api.submitAttempt.mockRejectedValue(rejection("study_provider_outcome_unknown"));
   const capture = recorder();
   const exit = vi.fn();
-  const { container } = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} onExit={exit} />);
+  const studyAgain = vi.fn();
+  const { container } = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} onExit={exit} onStudyAgain={studyAgain} />);
   await recordAndSubmit(container);
   await vi.waitFor(() => expect(button(container, "Recording paused")?.disabled).toBe(true));
-  expect(container.textContent).toContain("needs support review");
+  expect(container.textContent).toContain("start over with a new lesson");
   button(container, "Recording paused")?.click();
   expect(button(container, "Record")).toBeUndefined();
   expect(api.submitAttempt).toHaveBeenCalledOnce();
   expect(api.loadLesson).toHaveBeenCalledOnce();
+  expect(studyAgain).not.toHaveBeenCalled();
+  await press(container, "Study again");
+  expect(studyAgain).toHaveBeenCalledOnce();
+  expect(api.submitAttempt).toHaveBeenCalledOnce();
   container.querySelector<HTMLButtonElement>('[aria-label="Exit study"]')?.click();
   expect(exit).toHaveBeenCalledOnce();
 });
@@ -143,15 +148,20 @@ test("a fresh route read retains the exact blocked card and cannot start capture
   payload.spoken_submission = { state: "provider_outcome_unknown", session_item_id: "item", attempt_number: 1, next_action: "operator_review" };
   const api = client(payload);
   const capture = recorder();
-  const first = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} />);
+  const studyAgain = vi.fn();
+  const first = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} onStudyAgain={studyAgain} />);
   await vi.waitFor(() => expect(button(first.container, "Recording paused")?.disabled).toBe(true));
   first.dispose();
   first.container.remove();
-  const next = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} />);
+  const next = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} onStudyAgain={studyAgain} />);
   await vi.waitFor(() => expect(button(next.container, "Recording paused")?.disabled).toBe(true));
   expect(capture.start).not.toHaveBeenCalled();
   expect(api.submitAttempt).not.toHaveBeenCalled();
   expect(api.loadLesson).toHaveBeenCalledTimes(2);
+  expect(studyAgain).not.toHaveBeenCalled();
+  await press(next.container, "Study again");
+  expect(studyAgain).toHaveBeenCalledOnce();
+  expect(api.submitAttempt).not.toHaveBeenCalled();
 });
 
 test("leaving during microphone acquisition cancels and ignores the late grant", async () => {
