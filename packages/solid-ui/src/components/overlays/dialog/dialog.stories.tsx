@@ -72,6 +72,15 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** The overlay behind an open dialog: Paper dims the page and leaves it sharp. */
+async function expectSharpScrim() {
+  const scrim = [...document.body.querySelectorAll<HTMLElement>("div")].find(element => element.className.includes("bg-black/55"));
+  if (scrim === undefined) throw new Error("Expected the overlay scrim");
+  const style = getComputedStyle(scrim);
+  await expect(style.backdropFilter === "" || style.backdropFilter === "none").toBe(true);
+  await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+}
+
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -84,6 +93,7 @@ export const Default: Story = {
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleName("Edit profile");
     await expect(dialog).toHaveAccessibleDescription("");
+    await expectSharpScrim();
 
     await expect(body.getByRole("button", { name: "Close" })).toBeVisible();
     await expect(body.getByRole("button", { name: "Cancel" })).toBeVisible();

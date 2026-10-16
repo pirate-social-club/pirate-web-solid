@@ -12,8 +12,9 @@ import { cn } from "@/lib/cn";
  * recipes and layout helpers live here once.
  */
 
+// Paper: the scrim dims the page and leaves it sharp; there is no blur.
 export const dialogOverlayClass =
-  "fixed inset-0 z-50 bg-black/55 backdrop-blur-sm";
+  "fixed inset-0 z-50 bg-black/55";
 
 export const dialogContentClass =
   "fixed inset-x-0 bottom-4 top-auto z-50 mx-auto grid max-h-[calc(100dvh-2rem)] w-[min(100%-2rem,32rem)] translate-y-0 gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl sm:bottom-auto sm:top-[50%] sm:translate-y-[-50%]";
