@@ -1,0 +1,154 @@
+{
+  "observed_at": "2026-10-16T19:05:38.174211+00:00",
+  "purpose": "Portable cloud-agent source handoff; no workstation files required",
+  "solid_repository": "pirate-social-club/pirate-web-solid",
+  "api_repository": "pirate-social-club/api-next",
+  "solid_main": "594c493030c9d33f91de652a1b5cd18a454fa019",
+  "api_main": "28f5f6690e5caaf0c2d740cd49a7d66e20ba3187",
+  "solid_pr93": {
+    "headRefOid": "b6005cf81c1b9d50722afec722ee1a3802b42e86",
+    "isDraft": true,
+    "number": 93,
+    "state": "OPEN",
+    "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/93",
+    "checks": [
+      {
+        "name": "Solid Doctor (PR)",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38911067443/job/117006749677"
+      },
+      {
+        "name": "verify",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38911066534/job/117006746307"
+      },
+      {
+        "name": "storybook-audit",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38911066534/job/117006746564"
+      },
+      {
+        "name": "Solid Doctor (main)",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38911067443/job/117006751649"
+      }
+    ]
+  },
+  "api_pr622": {
+    "headRefOid": "a9537ff1af803a22ec9d386417df849fae2b2153",
+    "isDraft": true,
+    "number": 622,
+    "state": "OPEN",
+    "url": "https://github.com/pirate-social-club/api-next/pull/622",
+    "checks": [
+      {
+        "name": "Advisory policy",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264249/job/116990485295"
+      },
+      {
+        "name": "check",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486740"
+      },
+      {
+        "name": "secret-boundary",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264401/job/116990487910"
+      },
+      {
+        "name": "postgres17-namespace",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486782"
+      },
+      {
+        "name": "postgres17-recovery",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486406"
+      },
+      {
+        "name": "hns-regtest",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486830"
+      },
+      {
+        "name": "postgres17-general-0",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990487065"
+      },
+      {
+        "name": "postgres17-general-1",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486930"
+      },
+      {
+        "name": "postgres17-general-2",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486985"
+      },
+      {
+        "name": "postgres17-general-3",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486967"
+      },
+      {
+        "name": "postgres17-general-4",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486724"
+      },
+      {
+        "name": "postgres18-shape",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/116990486722"
+      },
+      {
+        "name": "postgres17",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/pirate-social-club/api-next/actions/runs/38906264303/job/117014728430"
+      }
+    ]
+  },
+  "song_status_handoff_sha": "01b961610542b05d51fd43380edd634960487fde",
+  "song_status_source_assignment": "HOLD",
+  "release_conditions": [
+    "Accepted Activity UI source is published on Solid main",
+    "Explicit community-page.tsx source custody release"
+  ],
+  "notification_owner_role": "rollout_coordinator",
+  "notification_ownership_acknowledged": true,
+  "private_custody_release_received": false,
+  "recorded_production": {
+    "source": "40123b659543b4ce288f51af03c635542b9c07a1",
+    "worker": "69e2892f-3f9c-4093-99fc-c1e2aa405412",
+    "new_provider_readback": false
+  },
+  "adopted_direction_sha256": "241c61fa3285503a06e4bbd96b8c1a980afd95bc401630b6bfe86fe4520acab4",
+  "observation_finished_at": "2026-10-16T19:05:46.144724+00:00",
+  "additional_coordinator_observation": {
+    "dance_review": "CHANGES_REQUIRED",
+    "dance_spec_candidate": "ec97eda300f72a28755c89cd30e0929e12ac0b3e",
+    "repair_scope": [
+      "post-Submit visibility scope",
+      "rejected-screen wording",
+      "authoritative cue observation"
+    ],
+    "runtime_admitted": false
+  }
+}
