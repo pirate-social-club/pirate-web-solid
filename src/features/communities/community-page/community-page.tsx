@@ -31,6 +31,7 @@ import {
   communityRequestOrigin,
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
+import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
@@ -931,6 +932,7 @@ function SuccessState(props: {
       <Link rel="canonical" href={canonicalUrl()} />
       <div class="min-h-[calc(100dvh-4rem)] bg-background">
           <CommunityPageShell
+            activitySummary={() => <ActivityLeaderboard compact communityId={communityId} />}
             onBack={() => navigate("/communities")}
             canJoin
             community={community()}

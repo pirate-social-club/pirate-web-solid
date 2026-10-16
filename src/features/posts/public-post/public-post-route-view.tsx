@@ -15,6 +15,7 @@ import type { PublicPostContentResponse, PublicPostRouteState } from "./public-p
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
 import { SongVideoEntry } from "./song-video-entry.tsx";
+import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
 import { CommunityPostCard } from "../../community/page-shell/page-shell";
@@ -195,6 +196,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
                 <CommunityPostCard flush post={cardPost("song")} actions={controls} menuActions={menuActions} />
                 <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <ActivityLeaderboard communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <Show when={route()}>
                   {(songRoute) => (
                     <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
