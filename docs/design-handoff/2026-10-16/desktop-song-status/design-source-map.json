@@ -1,9 +1,47 @@
 {
-  "status": "design_proposals_for_review_before_runtime_implementation",
-  "date": "2026-10-16",
-  "source": "60d8f61f209127793741500ea181e9b7c50f2a48",
-  "authorityDigest": "241c61fa3285503a06e4bbd96b8c1a980afd95bc401630b6bfe86fe4520acab4",
+  "at": "2026-10-16T12:41:35.975204+00:00",
+  "baseline": "594c493030c9d33f91de652a1b5cd18a454fa019",
+  "preservedDesignSource": "bd2f371dd9a6f6a74f1ade50dcef20405e0fdf53",
+  "reviewAuthority": "workspace_owner review in the active conversation: four state cards approved; geometry and feed/reload behavior require correction.",
+  "cardApproval": "The four card bodies/styles remain approved as drawn. The revision fixes surrounding geometry, semantics and handoff conditions.",
+  "geometry": {
+    "viewportWidth": 1280,
+    "captureHeight": 1200,
+    "pageContainer": 1152,
+    "gridPadding": 32,
+    "gridGap": 32,
+    "mainColumn": 736,
+    "aboutRail": 320,
+    "bannerHeight": 224,
+    "overviewAvatar": 96,
+    "cardMinHeight": 448,
+    "cardPadding": 24,
+    "fluidMainAtOtherWidths": true
+  },
+  "decisions": {
+    "feed": "Retain the existing article and all its controls. Add a separate Status button; no whole-card button.",
+    "accessibleArticleName": "song title",
+    "accessibleArticleDescription": "current status",
+    "accessibleStatusButtonName": "Status for <song title>; includes visible Status label and title",
+    "accessibleStatusButtonDescription": "same current status",
+    "reload": "Option(a), session-only for this tranche; no persistence and no new API dependency.",
+    "closeLabel": "Close song status",
+    "closeFocus": "Specific Status trigger if still present and authorized; otherwise safe existing Post/feed fallback.",
+    "links": "Both published title and View song stay native anchors using server postHref and rel=external. Prototype uses the existing story fixture /posts/song-post-1 and intercepts navigation only in this isolated drawing.",
+    "publishedReconciliation": "Normal feed reconciliation may remove the pending entry before reload. Preserve the open screen\u2019s same-account last report, but do not recreate an entry after Close.",
+    "dismissal": "Explicit Dismiss/Stop watching removes the entry and selected detail; never resurrect from last-report fallback. Closing alone does not dismiss.",
+    "sourceCustody": "Existing cloud writer and rollout shared-source sequence; no local product writer.",
+    "originalFallback": "The existing original-binding PendingSongs fallback stays available in detail without a recursive Status button. Feed controls remain in place. Extra original cases in the prototype illustrate this existing fallback, not a fifth newly approved state card."
+  },
   "files": {
+    "src/features/community/page-shell/page-shell.tsx": {
+      "gitBlob": "54a5d5e01dd46e3daedbdc150917c0331a697bb3",
+      "sha256": "44ce00c7623975a4e2fe4b753c255b10703a9423e02ee2ba1f10bd526bc56079"
+    },
+    "src/features/communities/community-page/community-page.tsx": {
+      "gitBlob": "38920cb330be6416a0ff0b41a51b74e7176e2240",
+      "sha256": "e3d3d0cf0d3d7d8b3ae5cc58b2292b4a61badf59da70560f0cd48a15204e2740"
+    },
     "src/features/posts/song-submission/posted-song.tsx": {
       "gitBlob": "5a7e2546f0e657e9afa89e478e7adbcec94b635d",
       "sha256": "830092a0d384faa8e31649bd5e9d3682bfb9d6d8256ebc654fd06063ed4db912"
@@ -16,43 +54,18 @@
       "gitBlob": "642a28df4301d84e1369538a1fb0c5cb8c1fdb5d",
       "sha256": "27ba4a849608ad0baa8c8cfe2da1df9c8b41ced4f476779bab09b7d1ac622f6e"
     },
+    "src/features/posts/song-submission/posted-song.stories.tsx": {
+      "gitBlob": "aa157327d29f156102216ad15db8d85f9c39c24f",
+      "sha256": "559a69d934baccb311814ea933260fcb7bcf51a63dd9f9315e777888a34abd69"
+    },
     "packages/solid-ui/src/styles/tokens.css": {
       "gitBlob": "9e166017af4a8f1df950cd9d23f0b9cc2d3a1dd3",
       "sha256": "9031ce1f7b8ffb03bf81f051728d786661e6adc9765f80ca9a25a98ad78da685"
     }
   },
-  "states": {
-    "processing": [
-      "uploading",
-      "reconciling",
-      "processing"
-    ],
-    "published": [
-      "published"
-    ],
-    "failed": [
-      "processing_failed"
-    ],
-    "review": [
-      "manual_review"
-    ]
-  },
-  "geometry": {
-    "desktopViewport": [
-      1280,
-      900
-    ],
-    "columnWidth": 640,
-    "cardMinHeight": 448,
-    "cardPadding": 24
-  },
-  "submissionIdentity": "Use retained accountId and submissionId; no second operation or invented persistent URL. Published navigation uses postHref.",
-  "feedDetailProposal": "A separate status-detail entry opens the retained submission, including processing, failed and review. Published post destination remains available.",
-  "limits": [
-    "Drawings only; not implemented, approved artwork or production evidence.",
-    "No network, authentication, financial, storage or API calls.",
-    "No changes to phone UI, Live capability boundaries or navigation.",
-    "Other terminal states retain PendingSongs rendering.",
-    "Availability after refresh or store eviction must be verified against actual recovery rules."
-  ]
+  "runtimeAccepted": false,
+  "appTestsRun": false,
+  "deploymentPerformed": false,
+  "decisionRole": "paper_release_coordinator",
+  "ownerApprovalScope": "Four state cards at bd2f371d. Geometry and feed/reload corrections are directed by the review; no runtime acceptance is claimed."
 }

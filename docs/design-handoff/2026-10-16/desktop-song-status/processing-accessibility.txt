@@ -1,12 +1,86 @@
-- navigation "Choose a design" [ref=e2]
-  - button "Processing" [ref=e5]
-  - button "Published" [ref=e6]
-  - button "Failed" [ref=e7]
-  - button "Review" [ref=e8]
+- banner "Design review controls"
+  - StaticText "Desktop song status · Revised community layout"
+    - InlineTextBox "Desktop song status · Revised community layout"
+  - generic
+    - StaticText "Card bodies approved at bd2f371d · Separate Status entry · Session-only detail · Preview, no live operations"
+      - InlineTextBox "Card bodies approved at bd2f371d · Separate Status entry · Session-only detail · Preview, no live "
+      - InlineTextBox "operations"
+  - navigation "Choose a design" [ref=e2]
+    - button "Processing" [ref=e8]
+      - StaticText "Processing"
+        - InlineTextBox "Processing"
+    - button "Published" [ref=e9]
+      - StaticText "Published"
+        - InlineTextBox "Published"
+    - button "Failed" [ref=e10]
+      - StaticText "Failed"
+        - InlineTextBox "Failed"
+    - button "Review" [ref=e11]
+      - StaticText "Review"
+        - InlineTextBox "Review"
 - main "Desktop design canvas" [ref=e1]
-  - heading "Music" [level=1, ref=e9]
-  - region "Song status detail" [ref=e3]
-    - button "Close song status" [ref=e10]
-    - heading "Song" [level=2, ref=e11]
-    - heading "Processing your song" [level=3, ref=e12]
-- heading "PROCESSING · DESKTOP DETAIL" [level=2, ref=e4]
+  - generic
+    - generic
+      - button "Go back" [ref=e16]
+        - StaticText "←"
+          - InlineTextBox "←"
+      - button "Community options" [ref=e17]
+        - StaticText "⋯"
+          - InlineTextBox "⋯"
+  - region "Community overview" [ref=e3]
+    - heading "Music" [level=1, ref=e12]
+      - StaticText "Music"
+        - InlineTextBox "Music"
+    - paragraph
+      - StaticText "256 members · 1K followers · Member"
+        - InlineTextBox "256 members · 1K followers · Member"
+  - generic
+    - region "Song status detail" [ref=e13]
+      - sectionheader
+        - button "Close song status" [ref=e18]
+          - image
+        - heading "Song" [level=2, ref=e19]
+          - StaticText "Song"
+            - InlineTextBox "Song"
+      - status
+        - heading "Processing your song" [level=3, ref=e20]
+          - StaticText "Processing your song"
+            - InlineTextBox "Processing your song"
+        - paragraph
+          - StaticText "You can leave this page."
+            - InlineTextBox "You can leave this page."
+  - complementary "Community information"
+    - heading "About" [level=2, ref=e14]
+      - StaticText "About"
+        - InlineTextBox "About"
+    - paragraph
+      - StaticText "A place to share music, discover songs and learn together."
+        - InlineTextBox "A place to share music, discover "
+        - InlineTextBox "songs and learn together."
+    - StaticText "@music"
+      - InlineTextBox "@music"
+- complementary "Proposal notes"
+  - heading "PROCESSING · COMMUNITY DETAIL" [level=2, ref=e4]
+    - StaticText "PROCESSING · COMMUNITY DETAIL"
+      - InlineTextBox "PROCESSING · COMMUNITY DETAIL"
+  - paragraph
+    - StaticText "Existing page: 1152px container, 32px grid padding/gap, 736px main and 320px About rail at 1280px. Banner and community header remain visible. No layout change is proposed."
+      - InlineTextBox "Existing page: 1152px container, 32px grid padding/gap, 736px main and 320px About rail at 1280px. Banner and community header remain visible. No layout change is proposed."
+  - checkbox "Slow checks" [checked=false, ref=e5]
+  - checkbox "Non-retryable failure" [checked=false, ref=e6]
+  - checkbox "Automatic checks unavailable" [checked=false, ref=e7]
+  - LabelText
+    - StaticText "Extra feed case"
+      - InlineTextBox "Extra feed case"
+    - combobox "Extra feed case" [expanded=false, ref=e15]: Selected state
+      - MenuListPopup
+        - option "Selected state" [selected, ref=e21]
+        - option "Original song required" [ref=e22]
+        - option "Original request unconfirmed" [ref=e23]
+  - paragraph
+    - StaticText "Session-only: the existing store is dropped on reload. Keep account fences, explicit dismissal and published reconciliation. The Status entry supplements the existing controls; it never replaces them."
+      - InlineTextBox "Session-only: the existing store is dropped on reload. Keep account fences, explicit dismissal and published reconciliation. The Status entry supplements the existing controls; it never replaces "
+      - InlineTextBox "them."
+  - status
+    - StaticText "Preview only. Close to inspect the feed controls and the separate Status entry."
+      - InlineTextBox "Preview only. Close to inspect the feed controls and the separate Status entry."

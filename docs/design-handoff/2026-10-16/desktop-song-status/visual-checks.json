@@ -1,154 +1,314 @@
 {
-  "tool": "agent-browser isolated local session",
-  "viewport": [
+  "at": "2026-10-16T12:49:28.306Z",
+  "scope": "Isolated design prototype, not product tests or actual reload recovery.",
+  "capture": [
     1280,
-    900
+    1200
   ],
-  "liveProductTest": false,
+  "actualDesktopViewportCheck": {
+    "viewport": [
+      1280,
+      900
+    ],
+    "main": 736,
+    "rail": 320,
+    "banner": 224,
+    "card": 448,
+    "horizontalOverflow": false
+  },
+  "accessibilityMethod": "Chromium Accessibility.getFullAXTree on this task-owned browser session; names and descriptions read from the AX tree. Interactions use fresh agent-browser snapshot references.",
   "results": [
     {
       "state": "processing",
-      "accessibilitySnapshot": "processing-accessibility.txt",
-      "screenshot": "processing.png",
       "geometry": {
         "viewport": [
           1280,
-          900
+          1200
         ],
-        "scroll": [
-          1280,
-          900
-        ],
-        "card": {
-          "x": 320,
-          "y": 189,
-          "width": 640,
+        "page": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 880
+        },
+        "main": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
           "height": 448
         },
-        "close": "Close song status",
-        "heading": "Processing your song",
-        "action": null
-      }
+        "rail": {
+          "x": 864,
+          "y": 472,
+          "width": 320,
+          "height": 164
+        },
+        "card": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
+          "height": 448
+        },
+        "banner": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 224
+        },
+        "padding": "32px",
+        "gap": "32px",
+        "scroll": [
+          1280,
+          1200
+        ],
+        "links": []
+      },
+      "feed": {
+        "description": "Processing your song. This usually takes about a minute.",
+        "focus": "open-detail",
+        "nestedInteractive": 0,
+        "titleLink": null,
+        "progressVisible": true,
+        "retryVisible": false,
+        "dismissVisible": false
+      },
+      "accessibility": {
+        "articleName": "Night tide",
+        "articleDescription": "Processing your song. This usually takes about a minute.",
+        "statusName": "Status for Night tide",
+        "statusDescription": "Processing your song. This usually takes about a minute."
+      },
+      "focusReturn": "Status -> Close -> Status"
     },
     {
       "state": "published",
-      "accessibilitySnapshot": "published-accessibility.txt",
-      "screenshot": "published.png",
       "geometry": {
         "viewport": [
           1280,
-          900
+          1200
         ],
-        "scroll": [
-          1280,
-          900
-        ],
-        "card": {
-          "x": 320,
-          "y": 189,
-          "width": 640,
+        "page": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 880
+        },
+        "main": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
           "height": 448
         },
-        "close": "Close song status",
-        "heading": "Published",
-        "action": "View song"
-      }
+        "rail": {
+          "x": 864,
+          "y": 472,
+          "width": 320,
+          "height": 164
+        },
+        "card": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
+          "height": 448
+        },
+        "banner": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 224
+        },
+        "padding": "32px",
+        "gap": "32px",
+        "scroll": [
+          1280,
+          1200
+        ],
+        "links": [
+          {
+            "text": "View song",
+            "href": "/posts/song-post-1",
+            "rel": "external"
+          }
+        ]
+      },
+      "feed": {
+        "description": "Published",
+        "focus": "open-detail",
+        "nestedInteractive": 0,
+        "titleLink": "/posts/song-post-1",
+        "progressVisible": false,
+        "retryVisible": false,
+        "dismissVisible": false
+      },
+      "accessibility": {
+        "articleName": "Night tide",
+        "articleDescription": "Published",
+        "statusName": "Status for Night tide",
+        "statusDescription": "Published"
+      },
+      "focusReturn": "Status -> Close -> Status"
     },
     {
       "state": "failed",
-      "accessibilitySnapshot": "failed-accessibility.txt",
-      "screenshot": "failed.png",
       "geometry": {
         "viewport": [
           1280,
-          900
+          1200
         ],
-        "scroll": [
-          1280,
-          900
-        ],
-        "card": {
-          "x": 320,
-          "y": 189,
-          "width": 640,
+        "page": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 880
+        },
+        "main": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
           "height": 448
         },
-        "close": "Close song status",
-        "heading": "Couldn\u2019t process this song",
-        "action": "Try again"
-      }
+        "rail": {
+          "x": 864,
+          "y": 472,
+          "width": 320,
+          "height": 164
+        },
+        "card": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
+          "height": 448
+        },
+        "banner": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 224
+        },
+        "padding": "32px",
+        "gap": "32px",
+        "scroll": [
+          1280,
+          1200
+        ],
+        "links": []
+      },
+      "feed": {
+        "description": "Processing stopped before this song was published.",
+        "focus": "open-detail",
+        "nestedInteractive": 0,
+        "titleLink": null,
+        "progressVisible": false,
+        "retryVisible": true,
+        "dismissVisible": true
+      },
+      "accessibility": {
+        "articleName": "Night tide",
+        "articleDescription": "Processing stopped before this song was published.",
+        "statusName": "Status for Night tide",
+        "statusDescription": "Processing stopped before this song was published."
+      },
+      "focusReturn": "Status -> Close -> Status"
     },
     {
       "state": "review",
-      "accessibilitySnapshot": "review-accessibility.txt",
-      "screenshot": "review.png",
       "geometry": {
         "viewport": [
           1280,
-          900
+          1200
         ],
-        "scroll": [
-          1280,
-          900
-        ],
-        "card": {
-          "x": 320,
-          "y": 189,
-          "width": 640,
+        "page": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 880
+        },
+        "main": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
           "height": 448
         },
-        "close": "Close song status",
-        "heading": "Waiting for review",
-        "action": null
-      }
+        "rail": {
+          "x": 864,
+          "y": 472,
+          "width": 320,
+          "height": 164
+        },
+        "card": {
+          "x": 96,
+          "y": 472,
+          "width": 736,
+          "height": 448
+        },
+        "banner": {
+          "x": 64,
+          "y": 72,
+          "width": 1152,
+          "height": 224
+        },
+        "padding": "32px",
+        "gap": "32px",
+        "scroll": [
+          1280,
+          1200
+        ],
+        "links": []
+      },
+      "feed": {
+        "description": "This song is waiting for a moderator\u2019s review before it can be published.",
+        "focus": "open-detail",
+        "nestedInteractive": 0,
+        "titleLink": null,
+        "progressVisible": false,
+        "retryVisible": false,
+        "dismissVisible": false
+      },
+      "accessibility": {
+        "articleName": "Night tide",
+        "articleDescription": "This song is waiting for a moderator\u2019s review before it can be published.",
+        "statusName": "Status for Night tide",
+        "statusDescription": "This song is waiting for a moderator\u2019s review before it can be published."
+      },
+      "focusReturn": "Status -> Close -> Status"
     }
   ],
-  "interaction": {
-    "state": "review",
-    "closeToFeedObserved": true,
-    "feedCardReopensDetailObserved": true,
-    "reopenedHeading": "Waiting for review",
-    "focusAfterReturn": "close",
-    "newOperation": false,
-    "liveProductTest": false
-  },
-  "visualInspection": "All four screenshots visually inspected; no clipping or horizontal/vertical overflow at1280x900.",
-  "allStateInteractionChecks": {
-    "at": "2026-10-16T12:01:55.232360+00:00",
-    "method": "Local prototype DOM interaction via agent-browser; not runtime app tests.",
-    "results": [
-      {
-        "cardWidth": 640,
-        "closeFocused": true,
-        "feedVisible": true,
-        "heading": "Processing your song",
-        "returnedSameHeading": true,
-        "state": "processing"
-      },
-      {
-        "cardWidth": 640,
-        "closeFocused": true,
-        "feedVisible": true,
-        "heading": "Published",
-        "returnedSameHeading": true,
-        "state": "published"
-      },
-      {
-        "cardWidth": 640,
-        "closeFocused": true,
-        "feedVisible": true,
-        "heading": "Couldn\u2019t process this song",
-        "returnedSameHeading": true,
-        "state": "failed"
-      },
-      {
-        "cardWidth": 640,
-        "closeFocused": true,
-        "feedVisible": true,
-        "heading": "Waiting for review",
-        "returnedSameHeading": true,
-        "state": "review"
-      }
-    ]
-  }
+  "conditional": [
+    {
+      "case": "slow checks",
+      "detail": "Check now",
+      "feed": [
+        "Check now",
+        "Stop watching here"
+      ]
+    },
+    {
+      "case": "non-retryable failure",
+      "retryAbsent": true,
+      "dismissRetained": true
+    },
+    {
+      "case": "moderation unavailable",
+      "existingAlternativeCopy": true
+    },
+    {
+      "case": "original required",
+      "feedFormRetained": true,
+      "existingDetailFallback": true,
+      "noRecursiveStatusButton": true,
+      "existingInputModeAndRequired": true
+    },
+    {
+      "case": "original unconfirmed",
+      "inputsDisabled": true,
+      "retryAndCheckRetained": true
+    },
+    {
+      "case": "dismiss",
+      "entryGone": true,
+      "focusFallback": "Post",
+      "selectedDetailNotRevived": true
+    }
+  ],
+  "visualInspection": "All four corrected state drawings visually inspected in the real community geometry, plus failed and original-unconfirmed feed examples. No clipping or horizontal overflow in the captures."
 }

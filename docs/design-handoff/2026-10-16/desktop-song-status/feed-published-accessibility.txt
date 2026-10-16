@@ -1,0 +1,103 @@
+- banner "Design review controls"
+  - StaticText "Desktop song status · Revised community layout"
+    - InlineTextBox "Desktop song status · Revised community layout"
+  - generic
+    - StaticText "Card bodies approved at bd2f371d · Separate Status entry · Session-only detail · Preview, no live operations"
+      - InlineTextBox "Card bodies approved at bd2f371d · Separate Status entry · Session-only detail · Preview, no live "
+      - InlineTextBox "operations"
+  - navigation "Choose a design" [ref=e2]
+    - button "Processing" [ref=e9]
+      - StaticText "Processing"
+        - InlineTextBox "Processing"
+    - button "Published" [ref=e10]
+      - StaticText "Published"
+        - InlineTextBox "Published"
+    - button "Failed" [ref=e11]
+      - StaticText "Failed"
+        - InlineTextBox "Failed"
+    - button "Review" [ref=e12]
+      - StaticText "Review"
+        - InlineTextBox "Review"
+- main "Desktop design canvas" [ref=e1]
+  - generic
+    - generic
+      - button "Go back" [ref=e20]
+        - StaticText "←"
+          - InlineTextBox "←"
+      - button "Community options" [ref=e21]
+        - StaticText "⋯"
+          - InlineTextBox "⋯"
+  - region "Community overview" [ref=e3]
+    - heading "Music" [level=1, ref=e13]
+      - StaticText "Music"
+        - InlineTextBox "Music"
+    - paragraph
+      - StaticText "256 members · 1K followers · Member"
+        - InlineTextBox "256 members · 1K followers · Member"
+    - button "Post" [ref=e14]
+      - StaticText "Post"
+        - InlineTextBox "Post"
+  - navigation "Community views" [ref=e4]
+    - button "Feed" [ref=e15]
+      - StaticText "Feed"
+        - InlineTextBox "Feed"
+    - button "Songs" [ref=e16]
+      - StaticText "Songs"
+        - InlineTextBox "Songs"
+  - generic
+    - region "Community feed" [ref=e17]
+      - article "Night tide" [ref=e22]
+        - StaticText "You"
+          - InlineTextBox "You"
+        - heading "Night tide" [level=3, ref=e23]
+          - link "Night tide" [ref=e28]
+            - StaticText "Night tide"
+              - InlineTextBox "Night tide"
+        - status
+          - StaticText "Published"
+            - InlineTextBox "Published"
+        - button "Status for Night tide" [ref=e24]
+          - generic
+            - StaticText "Status"
+              - InlineTextBox "Status"
+          - generic
+            - StaticText "for"
+              - InlineTextBox "for"
+        - paragraph
+          - StaticText "Reloading or stopping watching removes this status entry here. It does not cancel the submission."
+            - InlineTextBox "Reloading or stopping watching removes this status entry here. It does not cancel the submission."
+  - complementary "Community information"
+    - heading "About" [level=2, ref=e18]
+      - StaticText "About"
+        - InlineTextBox "About"
+    - paragraph
+      - StaticText "A place to share music, discover songs and learn together."
+        - InlineTextBox "A place to share music, discover "
+        - InlineTextBox "songs and learn together."
+    - StaticText "@music"
+      - InlineTextBox "@music"
+- complementary "Proposal notes"
+  - heading "PUBLISHED · COMMUNITY FEED" [level=2, ref=e5]
+    - StaticText "PUBLISHED · COMMUNITY FEED"
+      - InlineTextBox "PUBLISHED · COMMUNITY FEED"
+  - paragraph
+    - StaticText "Existing page: 1152px container, 32px grid padding/gap, 736px main and 320px About rail at 1280px. Banner and community header remain visible. No layout change is proposed."
+      - InlineTextBox "Existing page: 1152px container, 32px grid padding/gap, 736px main and 320px About rail at 1280px. Banner and community header remain visible. No layout change is proposed."
+  - checkbox "Slow checks" [checked=false, ref=e6]
+  - checkbox "Non-retryable failure" [checked=false, ref=e7]
+  - checkbox "Automatic checks unavailable" [checked=false, ref=e8]
+  - LabelText
+    - StaticText "Extra feed case"
+      - InlineTextBox "Extra feed case"
+    - combobox "Extra feed case" [expanded=false, ref=e19]: Selected state
+      - MenuListPopup
+        - option "Selected state" [selected, ref=e25]
+        - option "Original song required" [ref=e26]
+        - option "Original request unconfirmed" [ref=e27]
+  - paragraph
+    - StaticText "Session-only: the existing store is dropped on reload. Keep account fences, explicit dismissal and published reconciliation. The Status entry supplements the existing controls; it never replaces them."
+      - InlineTextBox "Session-only: the existing store is dropped on reload. Keep account fences, explicit dismissal and published reconciliation. The Status entry supplements the existing controls; it never replaces "
+      - InlineTextBox "them."
+  - status
+    - StaticText "Returned to the feed. The Status entry has the song title in its name and the status as its description."
+      - InlineTextBox "Returned to the feed. The Status entry has the song title in its name and the status as its description."
