@@ -8,6 +8,7 @@ import {
   createStoryLessonClient,
   createStoryRecorder,
   storyCorrectAttempt,
+  storyLessonPayload,
   storyPostId,
   storyWrongAttempt,
 } from "./studying-story-fixtures";
@@ -36,6 +37,27 @@ const noop = () => {};
 // 700 ms timer but without the wait. A synchronous call would run before the
 // result is stored and never advance.
 const immediateAdvance = (run: () => void) => queueMicrotask(run);
+
+export const RecordingOutcomeUnknown: Story = {
+  render: () => (
+    <StudyingRouteView
+      client={createStoryLessonClient({ loadLesson: async () => ({
+        ...storyLessonPayload,
+        spoken_submission: { state: "provider_outcome_unknown", session_item_id: "ex-say-1", attempt_number: 1, next_action: "operator_review" },
+      }) })}
+      onExit={noop}
+      onStudyAgain={noop}
+      postId={storyPostId}
+      recorder={createStoryRecorder()}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("button", { name: "Recording paused" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Study again" })).toBeEnabled();
+    await expect(canvas.getByText(/start over with a new lesson/)).toBeInTheDocument();
+  },
+};
 
 /** The disclosure acknowledgment persists per browser; consent stories reset it. */
 const resetMicDisclosure = (canvasElement: HTMLElement): void => {

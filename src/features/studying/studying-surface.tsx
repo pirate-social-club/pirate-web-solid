@@ -489,6 +489,7 @@ function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
 
 export function StudyingSurface(props: StudyingSurfaceProps) {
   const complete = () => props.state.kind === "complete";
+  const recordingBlocked = () => props.state.kind === "say_it_back" && props.state.phase === "blocked";
   // Results: one Continue back to the song, with "Study again" as the quiet option.
   const primaryLabel = () => complete()
     ? props.completeActionLabel
@@ -500,7 +501,7 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
       : props.onExit ?? props.onStudyAgain
     : props.onPrimaryAction;
   const primaryIcon = () => complete() ? undefined : primaryActionIcon(props.state);
-  const secondaryLabel = () => complete() && props.onExit && props.onStudyAgain && !props.completeActionLabel ? "Study again" : undefined;
+  const secondaryLabel = () => props.onStudyAgain && (recordingBlocked() || (complete() && props.onExit && !props.completeActionLabel)) ? "Study again" : undefined;
 
   return (
     <section class={cn("flex h-dvh w-full flex-col overflow-y-auto bg-background text-foreground", props.class)}>

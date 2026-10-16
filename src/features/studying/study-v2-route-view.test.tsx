@@ -9,7 +9,7 @@ import { StudyV2RouteView } from "./study-v2-route-view";
 import { createStudySessionStartCoordinator } from "./study-session-start-coordinator.ts";
 
 /** Deterministic coordinator seam: shared memory storage and a per-name lock chain. */
-function testCoordinator(api: StudyV2Api, key = "test-session-key") {
+function testCoordinator(api: StudyV2Api, key: string | (() => string) = "test-session-key") {
   const map = new Map<string, string>();
   const chains = new Map<string, Promise<void>>();
   return createStudySessionStartCoordinator({
@@ -42,7 +42,7 @@ function testCoordinator(api: StudyV2Api, key = "test-session-key") {
         }
       },
     },
-    generateKey: () => key,
+    generateKey: () => typeof key === "string" ? key : key(),
     timezone: () => "UTC",
   });
 }
@@ -65,7 +65,7 @@ function render(ui: () => JSX.Element): HTMLElement {
 }
 
 function studyApi(
-  createSession = vi.fn(() => new Promise<StudySession>(() => {})),
+  createSession: StudyV2Api["createSession"] = vi.fn(() => new Promise<StudySession>(() => {})),
   getSession: StudyV2Api["getSession"] = async () => {
     throw new Error("unused");
   },
@@ -504,6 +504,43 @@ describe("Study v2 production route", () => {
     return [...container.querySelectorAll("button")]
       .find((button) => button.textContent?.trim() === "Record");
   };
+
+  test("Study again leaves an uncertain attempt intact and resumes a distinct new session on reentry", async () => {
+    const blocked: StudySession = {
+      ...routeSession(),
+      spoken_submission: { state: "provider_outcome_unknown", session_item_id: "item-1", attempt_number: 1, next_action: "operator_review" },
+    };
+    const fresh = { ...routeSession(), session_id: "session-2" };
+    const createSession = vi.fn<StudyV2Api["createSession"]>().mockResolvedValueOnce(blocked).mockResolvedValue(fresh);
+    const getSession = vi.fn<StudyV2Api["getSession"]>(async ({ sessionId }) => sessionId === blocked.session_id ? blocked : fresh);
+    const api = studyApi(createSession, getSession);
+    const submitAudio = vi.spyOn(api, "submitAudio");
+    let starts = 0;
+    const coordinator = testCoordinator(api, () => `explicit-start-${++starts}`);
+    const view = () => <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => learnerSession} startCoordinator={coordinator} />;
+    const container = render(view);
+    const findButton = (text: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === text);
+
+    await vi.waitFor(() => expect(findButton("Recording paused")?.disabled).toBe(true));
+    expect(createSession).toHaveBeenCalledOnce();
+    expect(findButton("Record")).toBeUndefined();
+    findButton("Study again")!.click();
+    await vi.waitFor(() => expect(findButton("Record")?.disabled).toBe(false));
+    expect(createSession).toHaveBeenCalledTimes(2);
+    expect(createSession.mock.calls.map(([input]) => input.idempotencyKey)).toEqual(["explicit-start-1", "explicit-start-2"]);
+    expect(getSession).toHaveBeenLastCalledWith({ communityId: "community-1", sessionId: "session-2" });
+    expect(submitAudio).not.toHaveBeenCalled();
+    expect(blocked.status).toBe("active");
+    expect(blocked.spoken_submission?.state).toBe("provider_outcome_unknown");
+
+    disposers.pop()!();
+    const reentered = render(view);
+    await vi.waitFor(() => expect(reentered.textContent).toContain("Record"));
+    expect(reentered.textContent).not.toContain("Recording paused");
+    expect(createSession).toHaveBeenCalledTimes(2);
+    expect(getSession).toHaveBeenLastCalledWith({ communityId: "community-1", sessionId: "session-2" });
+    expect(submitAudio).not.toHaveBeenCalled();
+  });
 
   test("shows the required first-use microphone disclosure before the first capture", async () => {
     localStorage.clear();
