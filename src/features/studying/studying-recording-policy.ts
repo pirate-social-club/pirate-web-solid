@@ -3,7 +3,7 @@ import type { StudyingAttemptRejection } from "./studying-route-model.ts";
 /** Product floor for browser-reported elapsed capture time, not decoded audio. */
 export const STUDY_MIN_RECORDING_DURATION_MS = 1_000;
 export const STUDY_SHORT_RECORDING_MESSAGE = "Record for at least one second, then try again.";
-export const STUDY_PROVIDER_REVIEW_MESSAGE = "We couldn't confirm the recording's outcome. Recording is paused for this lesson and needs support review. You can leave Study.";
+export const STUDY_PROVIDER_REVIEW_MESSAGE = "We couldn't confirm the recording's outcome. Recording is paused for this lesson. Choose Study again to start over with a new lesson, or leave Study.";
 
 /** Handle declared recovery details before the generic 400/409 reload path. */
 export function studyingRecordingFailure(rejection: StudyingAttemptRejection): "too_short" | "provider_refused" | "provider_unknown" | undefined {
