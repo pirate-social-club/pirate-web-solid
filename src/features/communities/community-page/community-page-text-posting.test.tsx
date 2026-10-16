@@ -3,7 +3,7 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { Show, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { clearSession, type AuthenticatedSession, type SessionResolution } from "../../../api/session.ts";
+import { clearSession, refreshSession, type AuthenticatedSession, type SessionResolution } from "../../../api/session.ts";
 import type { CommunityPost } from "../../community/page-shell/page-shell-model.ts";
 import type { PendingSubmissionEnvelopeV1 } from "../../posts/post-composer/pending-submission.ts";
 import type { TextContentSubmissionV1 } from "../../posts/post-composer/text-submission-contract.ts";
@@ -18,6 +18,7 @@ import { ApplicationSessionProvider, type ApplicationSessionState } from "../../
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import CommunityPage from "./community-page.tsx";
 import type { CommunityPageSuccess } from "./community-page.model.ts";
+import { communityActivityStoryFetch } from "./community-page-activity-story-fixtures.ts";
 
 const communityId = "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345";
 const data: CommunityPageSuccess = {
@@ -94,6 +95,8 @@ function render(view: () => JSX.Element): HTMLElement {
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
+  clearSession();
+  vi.unstubAllGlobals();
 });
 
 function page(
@@ -198,18 +201,29 @@ describe("community page text posting", () => {
     expect(posts[0]!.getAttribute("data-community-post")).toBe("post-1");
   });
 
-  test("confirms a post whose acknowledgement was lost without creating a second one", async () => {
+  test.each(["healthy", "unavailable"] as const)("confirms a lost acknowledgement once with %s independent activity", async activity => {
+    const assets = vi.fn(async () => { throw new Error("Unexpected network request"); });
+    const fixture = communityActivityStoryFetch(communityId, session, assets);
+    const transport = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => activity === "healthy" ? fixture(input, init)
+      : Response.json({ error: { code: "not_found", message: "No Storybook API", retryable: false } }, { status: 404 }));
+    vi.stubGlobal("fetch", transport); clearSession(); refreshSession();
     const fake = server(attempt => attempt === 1 ? "lost" : "ok");
     const container = render(() => page(fake));
+    const activityPanel = () => container.querySelector<HTMLElement>("[data-activity-leaderboard]")!;
+    await vi.waitFor(() => expect(activityPanel().textContent).toContain(activity === "healthy" ? "Your streak: 3 days" : "Streak summary unavailable"));
     await post(container, "Hello world");
     await vi.waitFor(() => expect(pending(container)).not.toBeNull());
-    expect(container.querySelector("[role='alert']")).toBeNull();
+    expect(pending(container)!.querySelector("[role='alert']")).toBeNull();
+    expect(pending(container)!.textContent).not.toMatch(/check again|failed/iu);
+    await vi.waitFor(() => expect(activityPanel().querySelector("[role='alert']") !== null).toBe(activity === "unavailable"));
     await vi.waitFor(() => expect(container.querySelectorAll("[data-community-post]")).toHaveLength(1), { timeout: 4_000 });
     expect(pending(container)).toBeNull();
     expect(fake.dispatched).toHaveLength(2);
     expect(fake.dispatched[1]!.idempotency_key).toBe(fake.dispatched[0]!.idempotency_key);
     expect(fake.dispatched[1]!.body_sha256).toBe(fake.dispatched[0]!.body_sha256);
     expect(fake.accepted.size).toBe(1);
+    expect(assets).not.toHaveBeenCalled();
+    if (activity === "healthy") expect(transport.mock.calls.some(([input]) => String(input).endsWith("/rewards/progress"))).toBe(true);
   });
 
   test("a post the server published but never acknowledged is not called unsent and cannot be dismissed", async () => {
