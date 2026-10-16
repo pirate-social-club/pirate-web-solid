@@ -340,3 +340,24 @@ export const AdultVideoAccess: Story = {
     await expect(frame.querySelector("video")?.getAttribute("src") ?? null).toBeNull();
   },
 };
+
+/** The phone More sheet keeps a visible close above its rows (ruling 2026-10-16). */
+export const MobileMoreSheet: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <CommunityPageShell community={geometryCommunity} following joined={false} onFollowToggle={() => undefined} onManage={() => undefined} />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView?.matchMedia("(max-width: 767px)").matches).toBe(true));
+    const trigger = canvasElement.querySelector<HTMLElement>("[data-community-more='sheet']")!;
+    await userEvent.click(trigger);
+    const sheet = await body.findByRole("dialog", { name: "More community options" });
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-community-more-action]")];
+    await expect(rows.map(row => row.textContent)).toEqual(["Share", "Unfollow", "Manage"]);
+    const close = within(sheet).getByRole("button", { name: "Close" });
+    await expect(close).toBeVisible();
+    await expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(rows[0]!.getBoundingClientRect().top);
+    await userEvent.click(close);
+    await waitFor(() => expect(sheet).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};

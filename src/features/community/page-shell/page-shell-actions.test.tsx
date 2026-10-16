@@ -247,6 +247,9 @@ describe("the banner's More menu", () => {
     expect(rows.map(row => row.textContent)).toEqual(["Share", "Unfollow", "Manage"]);
     expect(rows[0]?.className).toContain("h-14");
     expect(rows[1]?.className).toContain("border-t");
+    // The sheet keeps its visible close, outside the rows.
+    const close = within(sheet).getByRole("button", { name: "Close" });
+    expect(rows).not.toContain(close);
     rows[1]?.click();
     expect(toggle).toHaveBeenCalledOnce();
   });

@@ -211,9 +211,20 @@ export const MobileMoreSheet: Story = {
     await readyState(canvasElement);
     await userEvent.click(await moreTrigger(canvasElement, "phone"));
     const sheet = await page(canvasElement).findByRole("dialog", { name: "More options" });
-    await expect(within(sheet).getAllByRole("button").map(row => row.textContent)).toEqual(["Unmute", "Report"]);
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")];
+    await expect(rows.map(row => row.textContent)).toEqual(["Unmute", "Report"]);
+    await expectPhoneSheetClose(sheet, rows[0]!);
   },
 };
+
+/** A phone sheet keeps a visible close, clear of its first row, that closes it (ruling 2026-10-16). */
+async function expectPhoneSheetClose(sheet: HTMLElement, firstRow: Element) {
+  const close = within(sheet).getByRole("button", { name: "Close" });
+  await expect(close).toBeVisible();
+  await expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstRow.getBoundingClientRect().top);
+  await userEvent.click(close);
+  await waitFor(() => expect(sheet).not.toBeInTheDocument());
+}
 
 /** Phone Report reasons (Paper 172): a sheet titled Report with seven reasons. */
 export const MobileReportReasons: Story = {
@@ -226,9 +237,15 @@ export const MobileReportReasons: Story = {
     const sheet = await page(canvasElement).findByRole("dialog", { name: "More options" });
     await userEvent.click(within(sheet).getByRole("button", { name: "Report" }));
     const reasons = await page(canvasElement).findByRole("dialog", { name: "Report" });
-    await expect(within(reasons).getAllByRole("button").map(row => row.textContent)).toEqual([
+    const rows = [...reasons.querySelectorAll<HTMLButtonElement>("[data-report-reason]")];
+    await expect(rows.map(row => row.textContent)).toEqual([
       "Spam", "Harassment", "Hate", "Sexual content", "Graphic content", "Misleading", "Other",
     ]);
+    // The close sits beside the title, clear of the reasons.
+    const title = within(reasons).getByRole("heading", { name: "Report" });
+    const close = within(reasons).getByRole("button", { name: "Close" });
+    await expect(close.getBoundingClientRect().left).toBeGreaterThanOrEqual(title.getBoundingClientRect().right);
+    await expectPhoneSheetClose(reasons, rows[0]!);
   },
 };
 

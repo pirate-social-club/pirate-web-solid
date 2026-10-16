@@ -55,6 +55,8 @@ export interface SheetContentProps
   class?: string;
   dir?: "ltr" | "rtl" | "auto";
   hideCloseButton?: boolean;
+  /** Keeps the close control visible but unusable while an operation holds the overlay open. */
+  closeButtonDisabled?: boolean;
 }
 
 function SheetContent(props: ParentProps<SheetContentProps>) {
@@ -62,7 +64,7 @@ function SheetContent(props: ParentProps<SheetContentProps>) {
   const className = createMemo(() =>
     cn(sheetContentVariants({ side }), `sheet-enter-${side}`, props.class),
   );
-  const rest = omit(props, "class", "side", "hideCloseButton", "children");
+  const rest = omit(props, "class", "side", "hideCloseButton", "closeButtonDisabled", "children");
 
   return (
     <KDialog.Portal>
@@ -70,7 +72,7 @@ function SheetContent(props: ParentProps<SheetContentProps>) {
       <KDialog.Content forceMount {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
-          <DialogCloseButtonLayout part={KDialog.CloseButton} />
+          <DialogCloseButtonLayout disabled={props.closeButtonDisabled} part={KDialog.CloseButton} />
         </Show>
       </KDialog.Content>
     </KDialog.Portal>

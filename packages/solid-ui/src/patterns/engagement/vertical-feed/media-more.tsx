@@ -130,10 +130,11 @@ export function MediaMore(props: MediaMoreProps) {
           <IconDotsThree class="size-8" />
         </button>
       </div>
+      {/* The sheet keeps its visible close (ruling 2026-10-16). Its header is
+          the close control's height, so the first row starts below it. */}
       <Sheet open={sheetOpen()} onOpenChange={setSheetOpen}>
         <SheetContent
           side="bottom"
-          hideCloseButton
           class="gap-0 border-x-0 border-b-0 border-t border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_24px_80px_#0000002E] md:hidden"
           onCloseAutoFocus={() => {
             const action = pendingSheetAction;
@@ -142,8 +143,8 @@ export function MediaMore(props: MediaMoreProps) {
           }}
         >
           <SheetTitle class="sr-only">{MORE_LABEL}</SheetTitle>
-          <div aria-hidden="true" class="justify-self-center pb-3">
-            <div class="h-1.5 w-12 rounded-full bg-border" />
+          <div class="flex h-11 justify-center" data-media-more-header>
+            <div aria-hidden="true" class="h-1.5 w-12 rounded-full bg-border" />
           </div>
           <div class="flex flex-col">
             <For each={rows()}>

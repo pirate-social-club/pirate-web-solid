@@ -232,11 +232,31 @@ export const Working: Story = {
     const dialog = await within(document.body).findByRole("dialog");
     await expect(within(dialog).getByText("Signing in…")).toBeInTheDocument();
     await expect(within(dialog).queryByRole("button", { name: "Continue with Google" })).toBeNull();
-    // Paper: the dialog cannot be closed while signing in.
-    await expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
+    // Paper: the dialog cannot be closed while signing in. The close control
+    // stays visible on a phone and desktop alike, disabled until it can act.
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    await expect(close).toBeVisible();
+    await expect(close).toBeDisabled();
+    await userEvent.click(close, { pointerEventsCheck: 0 });
     await userEvent.keyboard("{Escape}");
     await expect(within(document.body).getByRole("dialog")).toBeInTheDocument();
     await expect(within(document.body).queryByRole("button", { name: "Reopen sign-in" })).toBeNull();
+  },
+};
+
+/** The phone sheet while signing in: the close stays visible, disabled until it can act. */
+export const WorkingMobile: Story = {
+  name: "OAuth handoff in progress (mobile sheet)",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <SignInStory forceMobile state={signInStarted(ready, "working")} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByText("Signing in…")).toBeInTheDocument();
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    await expect(close).toBeVisible();
+    await expect(close).toBeDisabled();
+    await userEvent.click(close, { pointerEventsCheck: 0 });
+    await expect(within(document.body).getByRole("dialog")).toBeInTheDocument();
   },
 };
 

@@ -36,10 +36,11 @@ const signInCopy = {
  */
 export function SignInModal(props: SignInModalProps): JSX.Element {
   const copy = () => signInCopy;
-  // Paper: the dialog cannot be closed while signing in. The close control is
-  // removed and Escape or an outside press leaves it open until the attempt
-  // settles, which returns to a phase that can close, or until the lock
-  // expires for an attempt that never settles.
+  // Paper: the dialog cannot be closed while signing in. The close control
+  // stays visible but disabled (ruling 2026-10-16: a phone viewer always sees
+  // the way out), and Escape or an outside press leaves it open until the
+  // attempt settles, which returns to a phase that can close, or until the
+  // lock expires for an attempt that never settles.
   const [stalled, setStalled] = createSignal(false, { ownedWrite: true });
   let lockTimer: ReturnType<typeof setTimeout> | undefined;
   createEffect(
@@ -64,7 +65,7 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
       <ModalContent
         aria-label={copy().title}
         class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:max-h-[90vh] sm:max-w-[440px] sm:rounded-[var(--radius-2xl)] sm:px-5 sm:pb-5 sm:pt-4"
-        hideCloseButton={signingIn()}
+        closeButtonDisabled={signingIn()}
         mobileSide="bottom"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
