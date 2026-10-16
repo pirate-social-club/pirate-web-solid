@@ -18,8 +18,11 @@ export const optionValue = (option: DemoOption) => option.value;
 export const optionLabel = (option: DemoOption) => option.label;
 export const optionDisabled = (option: DemoOption) => option.disabled ?? false;
 
-/** Shared mascot image fixture for stories; it uses the production asset contract. */
-export const demoAvatarImage = "/mascots/error-ghost-256.png";
+/**
+ * Mascot image fixture for avatar stories. Like the artwork below, it is an
+ * owned asset in public/storybook, so it loads in both catalogs.
+ */
+export const demoAvatarImage = "/storybook/avatar-ghost.svg";
 
 /**
  * Artwork stand-in that loads in the app catalog (and so in CI's storybook

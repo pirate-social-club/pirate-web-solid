@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { IconMusicNote } from "@/components/media/icons";
 import { demoAvatarImage } from "@/stories/lib/fixtures";
@@ -57,6 +57,17 @@ export const Variants: Story = {
       </StoryRow>
     </StoryStack>
   ),
+  play: async ({ canvasElement }) => {
+    // Both image avatars show the mascot: the fixture is a served asset, so
+    // neither falls through to initials.
+    const images = [...canvasElement.querySelectorAll("img")];
+    await expect(images).toHaveLength(2);
+    await waitFor(() => {
+      for (const image of images) {
+        expect(image.complete && image.naturalWidth > 0).toBe(true);
+      }
+    });
+  },
 };
 
 export const Sizes: Story = {
