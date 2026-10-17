@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.120.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.120.0-4a3acbc9.tgz",
-  "sha256": "4a3acbc91610120e34deb5ed8f4e5da059baa1286a481b3a541ec546466469d0",
-  "source": "api-next-contracts@40d2c1d2756381fbe6c8d6d18b5169a503e911f4f81e07109e194e1c79c8d119",
-  "openapiSha256": "40d2c1d2756381fbe6c8d6d18b5169a503e911f4f81e07109e194e1c79c8d119",
-  "clientSha256": "290a8e5c134f5110af6b0c1fdaee44f158be38659a70dd47ea2d2b6a1e09c9d7",
+  "version": "0.121.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.121.0-70c02f0a.tgz",
+  "sha256": "70c02f0a2fdc7913db52b82a627b1b0bf76e9c3d2eeb7a19770ac5f2f6d138f3",
+  "source": "api-next-contracts@5e2b660bd7dae2b1e840d47dda2610dd0ed8bb0a2f835a8da278296f2990450c",
+  "openapiSha256": "5e2b660bd7dae2b1e840d47dda2610dd0ed8bb0a2f835a8da278296f2990450c",
+  "clientSha256": "280f26c9d99cc03d74d3c9d73bc63d68726f95c9241adaa0e27d7a3ebb0067b3",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -133,6 +133,13 @@
     "get_communitiesCommunityIdKaraokeSessionsSessionIdAttemptsAttemptIdCompletion",
     "get_communitiesCommunityIdPostsPostIdRewardsProgress",
     "get_communitiesCommunityIdRewardsProgress",
-    "get_communitiesCommunityIdRewardsPresentationPersona"
-  ]
+    "get_communitiesCommunityIdRewardsPresentationPersona",
+    "get_commentsCommentIdLocation",
+    "get_postsPostIdComments",
+    "get_meNotifications",
+    "post_meNotificationsNotificationIdRead"
+  ],
+  "validatedSourceCommit": null,
+  "pullRequest": null,
+  "intakeStatus": "Contract-only; package verified by parent; final backend source/PR binding, backend gates and paired serving acceptance pending."
 }

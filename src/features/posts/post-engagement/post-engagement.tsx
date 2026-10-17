@@ -5,7 +5,10 @@ import type { ContentAction } from "../shared-engagement/content-overflow-menu.t
 import type { CommentThreadReader } from "./comment-thread-api.ts";
 import { createCommentThreadController } from "./comment-thread-controller.ts";
 import type { JSX } from "@solidjs/web";
-import { For, Show, createEffect, createMemo, createSignal, onSettled, untrack } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onSettled, untrack } from "solid-js";
+import type { CommentNavigation, CommentNavigationReader } from "../../notifications/comment-navigation-api.ts";
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
+import { useTargetedPersona } from "../../notifications/targeted-persona-context.ts";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import { publicProfileLabel } from "../../identity/public-profile-label.ts";
 
@@ -107,6 +110,9 @@ export interface PostEngagementProps {
    * replaced by Join to comment, and Reply leads to the same place.
    */
   readonly joinHref?: string;
+  readonly target?: CommentNavigation;
+  readonly readTarget?: CommentNavigationReader;
+  readonly votesReady?: boolean;
 }
 
 type ComposeTarget =
@@ -125,6 +131,7 @@ type ReportTarget =
 const replyPillClass = "inline-flex h-11 w-fit cursor-pointer items-center gap-2 rounded-full border border-border-soft bg-background px-4 text-base font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function PostEngagement(props: PostEngagementProps) {
+  const targetedContext = useTargetedPersona();
   const initial = untrack(() => ({
     transport: props.transport ?? createPostEngagementTransport(),
     generateKey: props.generateIdempotencyKey ?? defaultIdempotencyKey,
@@ -160,6 +167,7 @@ export function PostEngagement(props: PostEngagementProps) {
   const [actionBusyId, setActionBusyId] = createSignal<string>();
   const inline = untrack(() => props.presentation === "inline");
   let composerInput: HTMLInputElement | undefined;
+  let threadElement: HTMLElement | undefined;
 
   const targetParent = createMemo(() => {
     const target = composeTarget();
@@ -179,15 +187,23 @@ export function PostEngagement(props: PostEngagementProps) {
       : undefined);
   };
 
-  const thread = createCommentThreadController({postId:props.post.id,readComments:props.readComments,comments,setComments});
+  const thread = untrack(() => createCommentThreadController({postId:props.post.id,readComments:props.readComments,comments,setComments,target:props.target,readTarget:props.readTarget,onTargetRefused:targetedContext?.refuse}));
+  createEffect(() => props.personaId, (_, previous) => {
+    if (previous !== undefined && props.target) { thread.clear(); void thread.refresh(new AbortController().signal); }
+  });
+  let voteSyncActive = true;
+  onCleanup(() => { voteSyncActive = false; });
+  createEffect(() => [props.post.viewerVote, props.votesReady] as const, ([value, ready]) => {
+    queueMicrotask(() => { if (voteSyncActive && ready !== false) setViewerVote(value); });
+  });
   const loadThread = () => {
-    if (props.initialComments === undefined || props.readComments !== undefined) void thread.load();
+    if (!props.target && (props.initialComments === undefined || props.readComments !== undefined)) void thread.load();
   };
   const openComments = () => {
     if (inline) {
       // The thread is already on the page; the pill takes the viewer to the box.
       if (composerInput && !composerInput.disabled) composerInput.focus();
-      else document.querySelector<HTMLElement>(`[data-comment-thread="${props.post.id}"]`)?.scrollIntoView?.({ block: "start" });
+      else threadElement?.scrollIntoView?.({ block: "start" });
       return;
     }
     setPanelOpen(true);
@@ -381,7 +397,7 @@ export function PostEngagement(props: PostEngagementProps) {
   };
 
   const vote = async (direction: "up" | "down" | null) => {
-    if (voteBusy()) return;
+    if (voteBusy() || props.votesReady === false) return;
     const value: -1 | 1 | null = direction === "up" ? 1 : direction === "down" ? -1 : null;
     setVoteBusy(true);
     setIssue(undefined);
@@ -668,7 +684,7 @@ export function PostEngagement(props: PostEngagementProps) {
 
   const controls = () => (
     <div class="flex flex-wrap items-center gap-3" data-post-engagement-controls data-viewer-control>
-      <EngagementControls busy={voteBusy()} onVote={vote} score={score()}
+      <EngagementControls busy={voteBusy()} onVote={props.votesReady === false ? undefined : vote} score={score()}
         viewerVote={viewerVote() === 1 ? "up" : viewerVote() === -1 ? "down" : null}
         commentCount={commentCount()} onComment={openComments} />
       <Show when={!props.children}><ContentOverflowMenu label="Post options" actions={postMenuActions()} /></Show>
@@ -923,14 +939,20 @@ export function PostEngagement(props: PostEngagementProps) {
   );
 
   const inlineThread = () => (
-    <section aria-label="Comments" class="flex min-w-0 flex-col gap-5 pt-5" data-comment-thread={props.post.id}>
+    <section ref={threadElement} aria-label="Comments" class="flex min-w-0 flex-col gap-5 pt-5" data-comment-thread={props.post.id}>
+      <Show when={thread.target()}><a class={buttonVariants({ variant: "secondary", size: "sm", class: "w-fit" })} href={typeof location === "undefined" ? "/" : location.pathname} onClick={() => void thread.reset()}>View all comments</a></Show>
+      <Show when={thread.earlier(null)}><p class="text-sm text-muted-foreground">Earlier comments are omitted.</p></Show>
+      <Show when={thread.targetIssue()}>{issue => <><Show when={issue() === "age"} fallback={<p role="alert">{issue() === "missing" ? "This comment is not available." : "This comment thread could not be loaded."}</p>}><AgeAccessPrompt onVerified={thread.refresh} /></Show><Button onClick={() => void thread.refresh(new AbortController().signal)} size="sm" variant="secondary">Retry comment thread</Button></>}</Show>
       <Show when={comments().length > 0} fallback={<Type variant="caption">{inlineEmptyText()}</Type>}>
         <For each={thread.ordered()}>{item => (
+          <div tabindex={-1} ref={element => thread.focus(element, item.id)} data-inline-comment={item.id}>
           <CommentCard item={item} menuActions={commentMenuActions(item)} onAgeVerified={thread.refresh} variant="row">
+            <Show when={thread.earlier(item.id)}><p class="text-sm text-muted-foreground">Earlier replies are omitted.</p></Show>
             <Show when={showsInlineReply(item) || canLoadReplies(item) || canRefresh(item) || commentModerationActions(item).length > 0}>
               <div class="flex flex-wrap items-center gap-2">{commentRowActions(item, showsInlineReply(item))}</div>
             </Show>
           </CommentCard>
+          </div>
         )}</For>
       </Show>
       <Show when={thread.pages().root?.state === "error" || (thread.pages().root?.state === "ready" && thread.pages().root?.cursor !== null)}>

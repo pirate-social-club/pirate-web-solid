@@ -128,7 +128,7 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
   );
 }
 
-function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNavigation?: boolean }) {
+function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNavigation?: boolean; isolatePlayback?: boolean }) {
   return (
     <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted p-3">
       <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
@@ -144,7 +144,7 @@ function SongPost(props: { post: CommunityPost; titleHref?: string; nativeNaviga
           {artist => <Type class="block truncate text-sm" variant="caption">{artist()}</Type>}
         </Show>
       </div>
-      <div class="relative z-10 shrink-0 has-[audio]:basis-full"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} /></div>
+      <div class="relative z-10 shrink-0 has-[audio]:basis-full"><SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} cacheAccess={props.isolatePlayback ? false : undefined} /></div>
     </div>
   );
 }
@@ -182,6 +182,8 @@ export function CommunityPostCard(props: {
    * keeps its line breaks. Feed cards leave this off and are unchanged.
    */
   detail?: boolean;
+  /** Private targeted routes discard playback grants with their route owner. */
+  isolatePlayback?: boolean;
 }) {
   const locale = usePageUiLocale();
   // Capability changes must synchronously retire an open sponsor dialog.
@@ -244,7 +246,7 @@ export function CommunityPostCard(props: {
         <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
           <Type variant="body">{props.post.body}</Type>
         </Show>
-        <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} />
+        <SongPost post={props.post} titleHref={props.titleHref} nativeNavigation={props.nativeNavigation} isolatePlayback={props.isolatePlayback} />
         <Show when={props.communityId}>{communityId => <MegapotPoolSummary communityId={communityId()} postId={props.post.id} compact />}</Show>
       </Show>
       </Show>

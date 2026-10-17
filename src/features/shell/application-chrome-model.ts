@@ -40,9 +40,8 @@ export function isCommunityManagementRoute(pathname: string): boolean {
 
 /**
  * The four mobile tabs are For You, Your Songs, Wallet and Profile; desktop
- * adds the shared community sections. Search, Live and
- * Activity keep their routes so old links resolve, but they are unlisted and
- * highlight no item. A viewer's own public profile highlights Profile; anyone
+ * adds the shared community sections and Notifications. Search and Live
+ * remain unlisted. A viewer's own public profile highlights Profile; anyone
  * else's profile highlights nothing, which is what `viewerProfilePath`
  * distinguishes.
  */
@@ -122,7 +121,7 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
     return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Live", mode: "standard" };
   }
   if (activity) {
-    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Activity", mode: "standard" };
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Notifications", mode: "standard" };
   }
   return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "standard" };
 }

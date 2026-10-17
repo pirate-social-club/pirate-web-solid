@@ -8,11 +8,16 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.108.0 adds Telegram linking. The existing operation review found
-// only optional binding_generation on HNS attachment reads; see the intake evidence.
-const expectedDigest = "713a9a40d7813fe5040c2b0933850b9355ab4ebeeabf02e9500faa44a09f23f4";
+// Client 0.121.0 adds private Notifications/resolution and the adopted video
+// detail branch. See docs/notifications-client-intake.md for exact provenance
+// and retained runtime-schema delta evidence. Existing operation scope remains.
+const expectedDigest = "9a9bb51c0b2c7d51c2ae5ed501ee94a5b99ec88c1e10f7db9fbd68fdeb79e4ea";
 
 const operations = [
+  "get_meNotifications",
+  "post_meNotificationsNotificationIdRead",
+  "get_commentsCommentIdLocation",
+  "get_postsPostIdComments",
   "get_telegramLinkAccount",
   "post_telegramLinkTransactions",
   "get_telegramLinkTransactionsTransactionId",

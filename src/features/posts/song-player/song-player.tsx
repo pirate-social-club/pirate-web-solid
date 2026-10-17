@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup } from "solid-js";
+import { Show, createSignal, onCleanup, untrack } from "solid-js";
 import { Button, IconPlay, Type } from "../../../design-system.ts";
 import { readSongPlaybackAccess, type SongPlaybackGrant } from "./song-player-api.ts";
 
@@ -58,6 +58,8 @@ export interface SongPlayerProps {
    * and the granted native audio wraps to its own full-width line beneath it.
    */
   readonly compact?: boolean;
+  /** Targeted private detail owns its grant for this mount only. */
+  readonly cacheAccess?: boolean;
 }
 /** Native controls provide seeking, volume and keyboard access to the real full mix. */
 export function SongPlayer(props: SongPlayerProps) {
@@ -70,7 +72,7 @@ export function SongPlayer(props: SongPlayerProps) {
   const [issue, setIssue] = createSignal<string>();
   const now = () => Math.floor((props.now?.() ?? Date.now()) / 1000);
   const [grant, setGrant] = createSignal<PlayerGrant | undefined>(
-    cachedPlaybackGrant(props.postId, now()),
+    untrack(() => props.cacheAccess === false ? undefined : cachedPlaybackGrant(props.postId, now())),
   );
   const clearTimer = () => {
     if (timer !== undefined) clearTimeout(timer);
@@ -84,13 +86,13 @@ export function SongPlayer(props: SongPlayerProps) {
     audio?.load();
   });
   onCleanup(subscribePlaybackGrant(props.postId, next => {
-    if (!disposed) setGrant(next);
+    if (!disposed && props.cacheAccess !== false) setGrant(next);
   }));
   const renew = async (start: boolean): Promise<void> => {
     if (busy() || disposed) return;
     clearTimer();
     setIssue(undefined);
-    const cached = cachedPlaybackGrant(props.postId, now());
+    const cached = props.cacheAccess === false ? undefined : cachedPlaybackGrant(props.postId, now());
     if (cached !== undefined) {
       // A still-valid grant must not pause playback on a retry. Reuse the
       // element, or let the freshly rendered one resume on metadata.
@@ -129,7 +131,7 @@ export function SongPlayer(props: SongPlayerProps) {
         throw new Error("Invalid playback grant");
       // Cache before the disposal check so a replaced component still leaves
       // reusable access for the one that follows it.
-      cachePlaybackGrant(props.postId, next);
+      if (props.cacheAccess !== false) cachePlaybackGrant(props.postId, next);
       if (disposed) return;
       setGrant(next);
     } catch {

@@ -1,6 +1,7 @@
 import { createPirateApiClient, type PirateApiClientOptions } from "@pirate/api-client";
 import { validateApiNextOrigin } from "../../../api/origin.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
+import { commentSelector, withCommentSelector } from "../../notifications/comment-selector.ts";
 import { resolveLocaleLanguageTag, resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import {
   decodePublicPostSlug,
@@ -70,6 +71,15 @@ export async function resolvePublicPostPreflight(
   if (idRoute === null || legacyRoute === null) return { requestPath, state: { kind: "invalid", status: 400 } };
   if (slugRoute !== undefined && decodePublicPostSlug(slugRoute.rawSlug) === null) {
     return { requestPath, state: { kind: "invalid", status: 400 } };
+  }
+  const url = new URL(request.url), selector = commentSelector(url.search);
+  if (selector.kind === "invalid") return { requestPath: requestPath + url.search, state: { kind: "invalid", status: 400 } };
+  if (selector.kind === "target") {
+    if ((slugRoute?.activity ?? idRoute?.activity ?? legacyRoute?.activity) !== "detail") return { requestPath: requestPath + url.search, state: { kind: "invalid", status: 400 } };
+    const ownedPath = withCommentSelector(requestPath, selector.id);
+    // Deliberately serialize no authenticated detail/windows. The browser
+    // establishes its current account before the generated targeted reads.
+    return { requestPath: ownedPath, state: { kind: "target-entry", status: 200, requestPath: ownedPath, locale: resolvePublicPostLocale(url, request.headers.get("accept-language")), canonicalOrigin: publicAppCanonicalOrigin } };
   }
 
   let client;
