@@ -35,7 +35,6 @@ export default defineConfig({
     include: [
       "src/features/activity/activity-leaderboard-ssr.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking-ssr.test.tsx",
-      "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx",
       "src/features/communities/community-page/community-page-ssr.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status-ssr.test.tsx",
       "src/features/communities/handle-storefront/handle-storefront-preflight.test.ts",

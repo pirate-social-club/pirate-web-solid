@@ -64,13 +64,10 @@ test("missing CSRF stops callback verification before network traffic", () => {
 });
 
 // The installed router's own matcher, so the classifier is checked against what is routed.
-const routes = [
-  "/telegram/link", "/telegram/link/callback", "/telegram/link/account",
-  "/internal/telegram-login-probe", "/internal/telegram-login-probe/callback",
-];
+const routes = ["/telegram/link", "/telegram/link/callback", "/telegram/link/account"];
 const spellings = (path: string) => [
   path, `${path}/`, path.toUpperCase(), `${path.toUpperCase()}/`, `//${path.slice(1)}//`,
-  path.replace("-", "%2D"), path.replace("i", "%69"), path.replace("t", "%54"), path.replace("/", "/%2F"),
+  path.replace("i", "%69"), path.replace("t", "%54"), path.replace("t", "%74"), path.replace("/", "/%2F"),
 ];
 
 test.each(routes)("private Telegram classification covers every spelling the router routes to %s", async (route) => {

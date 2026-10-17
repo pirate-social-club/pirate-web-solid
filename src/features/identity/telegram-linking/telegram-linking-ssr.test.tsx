@@ -52,6 +52,24 @@ test.each(privatePaths)("server entry scrubs callback values from request event,
   expect(response.headers.get("content-security-policy")).toContain("script-src 'nonce-");
 });
 
+// Every other spelling the router routes to a private Telegram page (case, trailing or extra
+// slashes, percent-encoding) is refused privately before routing, with callback values scrubbed.
+const aliases = [
+  "/telegram/link/", "/TELEGRAM/LINK", "//telegram/link//", "/telegram/link/callback/",
+  "/TELEGRAM/LINK/CALLBACK", "/TELEGRAM/LINK/CALLBACK/", "/telegram/l%69nk/callback",
+  "/%74elegram/link/callback", "/Telegram/Link/Account/", "/telegram/link/%61ccount",
+];
+test.each(aliases)("server entry refuses the route alias %s privately and scrubs callbacks", async alias => {
+  const { event, response, body } = await renderRequest(`https://pirate.test${alias}?code=private-code&state=private-state&navigation_reference=private-reference#private-fragment`);
+  expect(response.status).toBe(404);
+  expect(body).toBe("");
+  for (const value of ["private-code", "private-state", "private-reference", "private-fragment"]) {
+    expect(event.request.url).not.toContain(value);
+    expect(body).not.toContain(value);
+  }
+  expectPrivateHeaders(response);
+});
+
 test("unrelated server routes retain their query and ordinary response policy", async () => {
   const { event, response, body } = await renderRequest("https://pirate.test/search?q=song");
   expect(event.request.url).toBe("https://pirate.test/search?q=song");

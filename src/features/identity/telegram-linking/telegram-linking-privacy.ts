@@ -1,7 +1,4 @@
-const TELEGRAM_PRIVATE_PATHS: readonly string[] = [
-  "/telegram/link", "/telegram/link/callback", "/telegram/link/account",
-  "/internal/telegram-login-probe", "/internal/telegram-login-probe/callback",
-];
+const TELEGRAM_PRIVATE_PATHS: readonly string[] = ["/telegram/link", "/telegram/link/callback", "/telegram/link/account"];
 
 /**
  * The spelling @solidjs/router matches a pathname by: leading and repeated trailing slashes
