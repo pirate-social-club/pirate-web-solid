@@ -519,7 +519,9 @@ describe("CommunityPage", () => {
     // open composer is identified by its own surface.
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
     expect(document.querySelector('[aria-label="Soundtrack"]')).not.toBeNull();
-    expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Publish video")).toBe(false);
+    // The composer opens on the song, not its final step: it offers no Post of its own.
+    const composer = document.querySelector('[aria-label="Video composer"]')!;
+    expect([...composer.querySelectorAll("button")].some(button => button.textContent?.trim() === "Post")).toBe(false);
   });
 
   test("dismissing the song-entry composer clears the URL marker", async () => {

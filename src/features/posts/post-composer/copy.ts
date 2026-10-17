@@ -141,7 +141,8 @@ export interface ComposerCopy {
 export const defaultComposerCopy: ComposerCopy = {
   actions: {
     back: "Back",
-    continue: "Continue",
+    // Ruling 2026-10-16: Next moves forward, Post publishes. The key stays.
+    continue: "Next",
     post: "Post",
     publish: "Publish",
   },
