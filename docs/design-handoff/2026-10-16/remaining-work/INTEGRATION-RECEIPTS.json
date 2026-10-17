@@ -1,0 +1,116 @@
+{
+  "observed_at": "2026-10-17T04:54:39.668476+00:00",
+  "prs": [
+    {
+      "headRefOid": "5160d2eb31319cb4cf6df79808961b8e6df9b156",
+      "mergeCommit": {
+        "oid": "dafc46d5abc87bf98cd443439dd1db9ec3993b3c"
+      },
+      "mergedAt": "2026-10-17T04:23:08Z",
+      "number": 95,
+      "state": "MERGED",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-16T21:45:59Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38971517564/job/117210759522",
+          "name": "Solid Doctor (PR)",
+          "startedAt": "2026-10-16T21:45:42Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-16T21:54:46Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38971517452/job/117210759272",
+          "name": "verify",
+          "startedAt": "2026-10-16T21:45:41Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-16T21:45:38Z",
+          "conclusion": "SKIPPED",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38971517564/job/117210761182",
+          "name": "Solid Doctor (main)",
+          "startedAt": "2026-10-16T21:45:39Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-16T21:58:05Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38971517452/job/117210759009",
+          "name": "storybook-audit",
+          "startedAt": "2026-10-16T21:45:41Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        }
+      ],
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/95"
+    },
+    {
+      "headRefOid": "fdf130adf3b52ca7267ba6d77a4445e400781453",
+      "mergeCommit": {
+        "oid": "a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6"
+      },
+      "mergedAt": "2026-10-17T04:50:37Z",
+      "number": 94,
+      "state": "MERGED",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T04:35:39Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39003131279/job/117310052134",
+          "name": "Solid Doctor (PR)",
+          "startedAt": "2026-10-17T04:35:26Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T04:44:27Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39003131278/job/117310051991",
+          "name": "verify",
+          "startedAt": "2026-10-17T04:35:25Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T04:35:23Z",
+          "conclusion": "SKIPPED",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39003131279/job/117310053266",
+          "name": "Solid Doctor (main)",
+          "startedAt": "2026-10-17T04:35:23Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T04:49:29Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39003131278/job/117310051877",
+          "name": "storybook-audit",
+          "startedAt": "2026-10-17T04:35:26Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        }
+      ],
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94"
+    }
+  ],
+  "public_independent_reviews": [
+    "https://github.com/pirate-social-club/pirate-web-solid/pull/95#issuecomment-6229529717",
+    "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229712666"
+  ],
+  "next_source_handoff": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229844166",
+  "limits": "Source review and exact-head CI acceptance, not deployment. Earlier current-main push failure from expired enabled-flow fixture is preserved inPR94 comment6229654801; accepted test-only repair pins only test time and preserves runtime expiry. Full live checker passed with named coordination-body changes openly retained; no all-input stability claim.",
+  "no_new_writer_or_financial_credentials_authority": true
+}

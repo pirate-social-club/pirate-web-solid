@@ -1,5 +1,9 @@
 # Cloud agent handoff for remaining Paper and v1 work
 
+Current source update, 2026-10-17. Song-status PR95 and phone close-controls PR94 are now accepted on protected main a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6 after independent review and required exact-head checks. All finite staging merge holds are released; there is no continuing b542 pin. Continue the SAME existing cloud writer with [Next then Post](START-NEXT-POST.md). [STATE.json](STATE.json) and [INTEGRATION-RECEIPTS.json](INTEGRATION-RECEIPTS.json) hold the current own-source facts. New producer refresh is not claimed before its actual receipt.
+
+The dated snapshot below is preserved as history. Its PR93/source-hold and old branch/check states are superseded by the source update above. Other v1 lane statuses below are historical; consult the owning rollout coordinator for current API/runtime state. No production, financial or credential authority changes.
+
 This handoff is for a cloud agent with repository access and no previous conversation or workstation access. Paper is the design reference. The work below changes the standalone web application's UI to follow those designs; it does not require updating the Paper design files.
 
 The primary assignment is the remaining Paper UI implementation and review. Other v1 lanes are included so the agent understands dependencies and does not duplicate their writers. Activity source release was verified on 2026-10-16 at 20:25 UTC (October 17 in the workspace timezone); re-read current GitHub checks before acting. `STATE.json` beside this file contains the exact observed heads, check links and released shared-file custody.

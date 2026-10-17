@@ -1,123 +1,66 @@
 {
-  "observed_at": "2026-10-16T20:25:56.680603+00:00",
-  "solid_main": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-  "api_main": "6cf3018177d05c05b8e8aeaa25e81ec11e5c8799",
-  "pr93": {
-    "headRefOid": "b42ccbc801c73c7ecb49326d91b26f3fb2825e6b",
-    "mergeCommit": {
-      "oid": "b542afb15cb2ac2df9138cd38607f6c5a745b9af"
+  "observed_at": "2026-10-17T04:54:39.668476+00:00",
+  "scope": "Current own Paper source and next existing-cloud-writer tranche; other v1 lane source/runtime state is not refreshed here",
+  "previous_state_immutable_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/aad53bd2c34a0e79033d22128b0bb9c66e6aedf2/docs/design-handoff/2026-10-16/remaining-work/STATE.json",
+  "solid_main": "a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6",
+  "accepted_tree": "9b9762586e19899db576ee241612f4f18061f131",
+  "completed_source": [
+    {
+      "pr": 95,
+      "head": "5160d2eb31319cb4cf6df79808961b8e6df9b156",
+      "merge": "dafc46d5abc87bf98cd443439dd1db9ec3993b3c",
+      "scope": "Song status feed entry/detail under clarified01b96161"
     },
-    "mergedAt": "2026-10-16T20:20:05Z",
-    "number": 93,
-    "state": "MERGED",
-    "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/93",
-    "checks": [
-      {
-        "name": "Solid Doctor (PR)",
-        "status": "COMPLETED",
-        "conclusion": "SUCCESS",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38958411868/job/117167006997"
-      },
-      {
-        "name": "verify",
-        "status": "COMPLETED",
-        "conclusion": "SUCCESS",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38958411876/job/117167006737"
-      },
-      {
-        "name": "Solid Doctor (main)",
-        "status": "COMPLETED",
-        "conclusion": "SKIPPED",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38958411868/job/117167008458"
-      },
-      {
-        "name": "storybook-audit",
-        "status": "COMPLETED",
-        "conclusion": "SUCCESS",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38958411876/job/117167007086"
-      }
-    ]
+    {
+      "pr": 94,
+      "head": "fdf130adf3b52ca7267ba6d77a4445e400781453",
+      "merge": "a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6",
+      "scope": "Visible phone close controls plus exact test-clock fixture repair"
+    }
+  ],
+  "all_required_exact_head_checks_before_merges": "verify,storybook-audit,Solid Doctor(PR) passed; independent source review accepted",
+  "canonical_checkout": "Clean at accepted main; no new local source worktree",
+  "source_only": true,
+  "new_main_push_ci": "Not claimed completed by this source handback",
+  "high_braces_advisory": "Still open under limited exact-source integration disposition; no audit-green or blanket waiver",
+  "existing_cloud_writer": {
+    "session": "session_01JMbhkWU1hvEJJoumFWcKjU",
+    "custody": "Retained; no competing writer",
+    "prior_actual_refresh_receipt": "REFRESH-RECEIPT.json (historical song-status startup)",
+    "next_actual_refresh": "Awaiting producer receipt at this snapshot; dispatch is not execution"
   },
-  "phone_close_pr94": {
-    "headRefOid": "4b5b74532114d27c798bab56951adf7e4b95c69b",
-    "mergeCommit": null,
-    "mergedAt": null,
-    "number": 94,
-    "state": "OPEN",
-    "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94",
-    "checks": [
-      {
-        "name": "Solid Doctor (PR)",
-        "status": "COMPLETED",
-        "conclusion": "SUCCESS",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38960987759/job/117175677754"
-      },
-      {
-        "name": "verify",
-        "status": "COMPLETED",
-        "conclusion": "SUCCESS",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38960987619/job/117175676850"
-      },
-      {
-        "name": "storybook-audit",
-        "status": "IN_PROGRESS",
-        "conclusion": "",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38960987619/job/117175676600"
-      },
-      {
-        "name": "Solid Doctor (main)",
-        "status": "COMPLETED",
-        "conclusion": "SKIPPED",
-        "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/38960987759/job/117175679358"
-      }
-    ]
+  "next_deliverable": "One Next then Post composer wording PR; START-NEXT-POST.md",
+  "actual_next_handoff": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229844166",
+  "later_paper": [
+    "Three-page community creation and circular avatar",
+    "Royalties empty-state Earnings split/Add collaborator wording, preserving conforming share behavior",
+    "Usable supported Base Receive default, otherwise explicit network selection"
+  ],
+  "already_conforming": [
+    "Member Unfollow hidden for active members and visitor Profile retained where accessible",
+    "Explicit positive collaborator shares totalling100 percent",
+    "Product host Song/Video-only including desktop/phone/overflow; retain unused generic capabilities"
+  ],
+  "remaining_design_questions": [
+    "Management report detail",
+    "Studying Correct box"
+  ],
+  "rollout_ownership": "Notifications/API, Rewards resources and pilot remain with existing rollout coordinator; no parallel feature/source custody transfer",
+  "runtime_acceptance": "No new source deployment or paired-runtime admission is claimed here; consult owning rollout evidence",
+  "all_three_finite_merge_dispatch_holds": "Released; no continuingb542 pin",
+  "own_merge_queue": "No issued,pending or unknown merge",
+  "recorded_serving_observations": {
+    "production": {
+      "source": "40123b659543b4ce288f51af03c635542b9c07a1",
+      "worker": "69e2892f-3f9c-4093-99fc-c1e2aa405412",
+      "new_provider_readback_by_this_update": false
+    },
+    "staging": {
+      "source": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
+      "worker_reported_by_rollout": "584c4d7a-1874-4c57-80a7-936a2b0a63e5",
+      "new_provider_readback_by_this_update": false
+    }
   },
-  "song_status_source_assignment": "RELEASED_REFRESH_ACKNOWLEDGED_IMPLEMENTATION_IN_PROGRESS",
-  "accepted_base": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-  "shared_page_path": "src/features/communities/community-page/community-page.tsx",
-  "shared_page_source_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/b542afb15cb2ac2df9138cd38607f6c5a745b9af/src/features/communities/community-page/community-page.tsx",
-  "custody_release": {
-    "at": "2026-10-16T20:23:42.350352+00:00",
-    "owner_role": "rollout_coordinator",
-    "decision": "RELEASE_SHARED_SOURCE_CUSTODY",
-    "accepted_main": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-    "reviewed_source": "b42ccbc801c73c7ecb49326d91b26f3fb2825e6b",
-    "tree": "1e778ec0ddb16d4b3b50889bf608ac0e90f88612",
-    "source_manifest_sha256": "2461d61e3c83e7f25a82dffa87305bb61740fbfa68948a32c44924e6b1f88c4d",
-    "pr": "https://github.com/pirate-social-club/pirate-web-solid/pull/93",
-    "independent_reviewer": "01a1449c-38e2-73b1-904c-278013306e3d",
-    "verdict": "ACCEPT_FOR_PROTECTED_SOURCE_INTEGRATION",
-    "review_sha256": "b9f7622a892e6ff9717547061141ec3752467fa69ed035c276320c5705854cd1",
-    "local_gates": "27 maintained verify/build/product commands passed exact source; no timeout/audit weakening",
-    "hosted_gates": "verify, storybook-audit, Solid Doctor (PR) SUCCESS; normal protected merge",
-    "scope": "Existing Paper handoff only. No competing writer, deployment, provider, credentials, financial effects or drawing-note shipping. API runtime is not a source-handback prerequisite. Activity API migrations and paired runtime remain unaccepted.",
-    "advisory": "High unpatched braces remains open; exact source-integration-only disposition recorded by independent reviewer; dependency audit not green"
-  },
-  "verification": {
-    "merged_tree_equals_reviewed_tree": true,
-    "accepted_changed_paths_count": 30,
-    "required_hosted_checks_passed": true,
-    "receipt_sha256": "72f0bcd99537eb1754c9b7146eacd98c7aabb2a04fa8eba8f9d051969c5a7237"
-  },
-  "existing_writer_refresh": {
-    "status": "ACKNOWLEDGED_BY_SAME_EXISTING_CLOUD_WRITER",
-    "expected_base": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-    "actual_cloud_checkout_head_reported": "b542afb15cb2ac2df9138cd38607f6c5a745b9af",
-    "branch": "fix/paper-song-status-detail-20261017",
-    "receipt_url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6224119132",
-    "new_writer_created_reported": false,
-    "phone_pr94_head_verified": "4b5b74532114d27c798bab56951adf7e4b95c69b",
-    "separate_cloud_worktree_same_session_reported": true,
-    "remote_filesystem_independently_inspected": false
-  },
-  "next_deliverable": "Existing writer implementing one source-only feed Status entry/detail PR under01b96161; no new source PR or completion claimed yet",
-  "paired_runtime_accepted": false,
-  "deployment_or_financial_authority_changed": false,
-  "recorded_production": {
-    "source": "40123b659543b4ce288f51af03c635542b9c07a1",
-    "worker": "69e2892f-3f9c-4093-99fc-c1e2aa405412",
-    "new_provider_readback": false
-  },
-  "refresh_receipt_observed_at": "2026-10-16T20:32:49.887915+00:00",
-  "actual_refresh_receipt": "REFRESH-RECEIPT.json"
+  "production_financial_credentials_authority": "Unchanged; none delegated",
+  "docs_branch_runtime_warning": "This branch preserves historical runtime base and design evidence. Start implementation from actual protected main, not this docs branch."
 }

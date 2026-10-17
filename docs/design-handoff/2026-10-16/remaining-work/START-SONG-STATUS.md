@@ -1,5 +1,7 @@
 # Start the existing song status source tranche
 
+Completed source update, 2026-10-17. This song-status assignment is fulfilled by PR95, reviewed source5160d2eb31319cb4cf6df79808961b8e6df9b156 and normal merge dafc46d5abc87bf98cd443439dd1db9ec3993b3c. Phone PR94 is also accepted on current main a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6. Continue the SAME writer with [START-NEXT-POST.md](START-NEXT-POST.md); do not repeat the song-status startup or implementation. The original startup instructions below remain dated history, and the drawings are untouched.
+
 The shared-file hold is RELEASED. Continue in the SAME existing isolated cloud Paper writer associated with phone close-controls PR94. This is a follow-up source tranche, not a new agent, coordinator or competing writer. The owner-adopted design and the rollout coordinator's explicit source handback supply authority; no renewed design or execution permission is needed.
 
 ## Existing writer refresh received
