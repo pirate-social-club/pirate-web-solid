@@ -107,13 +107,13 @@ describe("original-audio video design surfaces", () => {
     expect(control("Upload")!.disabled).toBe(false);
   });
 
-  test("keeps review to the take, its song, no text field and Publish", () => {
+  test("keeps review to the take, its song, no text field and Post", () => {
     render(() => <OriginalVideoReviewSurface songLabel="A song · 0:00 to 0:15" />);
 
     expect(document.querySelector("textarea")).toBeNull();
     expect(document.querySelector("input[aria-label='Title']")).toBeNull();
     expect(document.body.textContent).toContain("A song · 0:00 to 0:15");
-    expect(document.body.textContent).toContain("Post");
+    expect([...document.querySelectorAll("button")].map(button => button.textContent?.trim())).toContain("Post");
     expect(document.body.textContent).not.toContain("Settings");
     expect(document.body.textContent).not.toContain("Poster");
     expect(document.body.textContent).not.toContain("Rights");
