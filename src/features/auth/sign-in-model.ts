@@ -62,6 +62,15 @@ export function isRegistrationRequired(error: unknown): boolean {
   return error instanceof PrivyIdentityBootstrapRequired;
 }
 
+/**
+ * The provider authenticated an identity that has no Pirate account, on a
+ * surface that must not register one. Recovery offers the methods again so a
+ * different sign-in can be tried.
+ */
+export function signInNoAccount(state: SignInState, recovery: SignInPhase): SignInState {
+  return { ...state, phase: recovery, busy: false, message: "No Pirate account uses this sign-in." };
+}
+
 /** Offer identity methods while the controller prepares their exchange. */
 export function signInReady(state: SignInState): SignInState {
   return { ...state, phase: "choose", busy: false };

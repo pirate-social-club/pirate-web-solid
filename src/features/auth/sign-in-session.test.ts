@@ -72,6 +72,7 @@ async function withStubbedNavigation(assign: () => void, body: () => Promise<voi
 }
 
 function harness(options: {
+  allowRegistration?: () => boolean;
   createExchange: () => Promise<PrivySessionExchange>;
   enabled?: () => boolean;
   onAuthenticated?: () => void;
@@ -80,6 +81,7 @@ function harness(options: {
   return createRoot((dispose) => {
     disposers.push(dispose);
     const session = createSignInSession({
+      allowRegistration: options.allowRegistration,
       createExchange: options.createExchange,
       enabled: options.enabled,
       onAuthenticated: options.onAuthenticated,
@@ -207,6 +209,51 @@ describe("sign-in session controller", () => {
     // progress phase; it returns to the method list with its error shown.
     expect(session.state().phase).toBe("choose");
     expect(session.state().message.length).toBeGreaterThan(0);
+  });
+
+  test("a surface that refuses registration never registers a first-visit identity", async () => {
+    const register = vi.fn(async () => undefined);
+    const onAuthenticated = vi.fn();
+    const session = harness({
+      allowRegistration: () => false,
+      createExchange: async () => fakeExchange({
+        loginWithWallet: vi.fn(async () => {
+          throw new PrivyIdentityBootstrapRequired("did:privy:wallet-user");
+        }),
+        register,
+      }),
+      onAuthenticated,
+      walletAvailable: () => true,
+    });
+    await settle();
+
+    session.chooseMethod("wallet");
+    flush();
+    await settle();
+
+    // Recovery and Connect prove an existing account; they never create one.
+    expect(register).not.toHaveBeenCalled();
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().message).toBe("No Pirate account uses this sign-in.");
+  });
+
+  test("a refusing surface still signs in an identity that has an account", async () => {
+    const onAuthenticated = vi.fn();
+    const session = harness({
+      allowRegistration: () => false,
+      createExchange: async () => fakeExchange({ loginWithWallet: vi.fn(async () => undefined) }),
+      onAuthenticated,
+      walletAvailable: () => true,
+    });
+    await settle();
+
+    session.chooseMethod("wallet");
+    flush();
+    await settle();
+
+    expect(onAuthenticated).toHaveBeenCalledOnce();
+    expect(session.state().phase).toBe("signed-in");
   });
 
   test("registers a first-visit email-code identity without a second step", async () => {

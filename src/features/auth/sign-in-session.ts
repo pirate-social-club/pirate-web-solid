@@ -12,6 +12,7 @@ import {
   isRegistrationRequired,
   signInFailed,
   signInMoved,
+  signInNoAccount,
   signInReady,
   signInStarted,
   signInSucceeded,
@@ -47,6 +48,13 @@ export interface SignInSessionOptions {
   readonly enabled?: () => boolean;
   /** Test seam for the browser's injected EIP-1193 provider discovery. */
   readonly walletAvailable?: () => boolean;
+  /**
+   * Whether a first-visit identity may register a new account. Surfaces that
+   * prove an existing account, such as Telegram progress recovery and Connect,
+   * return false: an identity with no Pirate account is refused there and never
+   * registered, so those flows cannot create a second account. Defaults to true.
+   */
+  readonly allowRegistration?: () => boolean;
 }
 
 export interface SignInSession {
@@ -138,6 +146,12 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     bootstrap: "register" | "reject",
   ) => {
     if (bootstrap === "register" && isRegistrationRequired(error)) {
+      if (options.allowRegistration?.() === false) {
+        // Nothing calls register on this path, so the exchange's pending
+        // registration token is never used and is dropped when it is cleared.
+        setState((current) => signInNoAccount(current, recovery));
+        return;
+      }
       // `attempt` is declared below and only ever reached from inside one, so
       // it is initialized by the time this runs.
       attempt(
