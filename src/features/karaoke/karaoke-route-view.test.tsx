@@ -1,3 +1,4 @@
+import { completionFixture } from "../activity/activity-contract-fixtures.ts";
 import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -34,7 +35,7 @@ function mount(personas: AuthenticatedSession["personas"], resolveSession = asyn
   localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const createSession = vi.fn(() => new Promise<never>(() => {}));
+  const createSession = vi.fn<KaraokeApiClient["createSession"]>(() => new Promise<never>(() => {}));
   const unused = async (): Promise<never> => { throw new Error("unused"); };
   const client: KaraokeApiClient = {
     createSession, getAttempt: unused, getLeaderboard: unused,
@@ -60,6 +61,39 @@ async function start(host: HTMLElement) {
   await Promise.resolve();
   [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start karaoke")!.click();
 }
+
+test("a finished Karaoke take reads the exact issued session/attempt, and Sing again reads the new take", async () => {
+  const transport = vi.fn(async (input: RequestInfo | URL) => {
+    const path = new URL(String(input)).pathname;
+    const match = path.match(/\/karaoke\/sessions\/([^/]+)\/attempts\/([^/]+)\/completion$/);
+    return match ? Response.json({ ...completionFixture, community_id: "community-here", post_id: "post-1", persona_id: "here", attempt: { kind: "karaoke", session_id: match[1], attempt_id: match[2] } })
+      : Response.json({ error: { code: "auth_error", message: "fixture anonymous", retryable: false } }, { status: 401 });
+  });
+  vi.stubGlobal("fetch", transport);
+  const scoringFactory = (options: UseKaraokeScoringOptions): UseKaraokeScoringResult => {
+    const [state, setState] = createSignal<KaraokeScoringState | null>(null);
+    return { ...createScoring(options), state, controls: { ...createScoring(options).controls,
+      start: () => {
+        setState({ status: "connecting", phase: "idle", lineScores: [], latestLineId: null, partialTranscript: "", summary: null, micError: null, error: null });
+        void options.createKaraokeSession(options.communityId, options.postId, "fixture-take", new AbortController().signal).then(() => {
+          setState({ status: "ended", phase: "closed", lineScores: [], latestLineId: null, partialTranscript: "", summary: null, micError: null, error: null });
+        });
+      },
+    } };
+  };
+  const { host, createSession } = mount([persona("here", "community-here")], undefined, undefined, scoringFactory);
+  disposers.push(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  let sequence = 0;
+  createSession.mockImplementation(async () => { const number = ++sequence; return { object: "karaoke_session", id: `issued-${number}`, attempt: `take-${number}`, protocol_version: 1, websocket_url: "wss://fixture.invalid/socket", token_expires_at: 1, session_expires_at: 2, scoring_policy: { kind: "disabled" } }; });
+  await start(host); await vi.waitFor(() => expect(host.textContent).toContain("This attempt qualified"));
+  [...host.querySelectorAll("button")].find(item => item.textContent?.trim() === "Sing again")!.click();
+  await vi.waitFor(() => expect(createSession).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(transport.mock.calls.filter(([input]) => String(input).endsWith("/completion"))).toHaveLength(2));
+  expect(transport.mock.calls.filter(([input]) => String(input).endsWith("/completion")).map(([input]) => new URL(String(input)).pathname)).toEqual([
+    "/api/communities/community-here/karaoke/sessions/issued-1/attempts/take-1/completion",
+    "/api/communities/community-here/karaoke/sessions/issued-2/attempts/take-2/completion",
+  ]);
+});
 
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();

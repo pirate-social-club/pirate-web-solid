@@ -88,7 +88,7 @@ export function PostedSong(props: PostedSongProps): JSX.Element {
         ? "sticky top-0 z-20 -mx-4 grid min-h-14 grid-cols-[2.75rem_1fr_2.75rem] items-center bg-background px-3 pt-[env(safe-area-inset-top)]"
         : "-ms-2 flex items-center gap-2"}
     >
-      <IconButton aria-label="Close" onClick={() => props.onClose()} type="button" variant="ghost">
+      <IconButton aria-label="Close song status" data-posted-song-close onClick={() => props.onClose()} type="button" variant="ghost">
         <IconX class="size-5" />
       </IconButton>
       <Type as="h2" class={phone() ? "text-center" : undefined} variant={phone() ? "h3" : "h2"}>Song</Type>

@@ -1,3 +1,4 @@
+import { completionFixture } from "../activity/activity-contract-fixtures.ts";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -173,6 +174,26 @@ function routeSession(): StudySession {
     timezone: "UTC",
   };
 }
+
+test("completed Study reads current qualification for its owned session instead of deriving it from a high score", async () => {
+  const base = routeSession();
+  const completed: StudySession = { ...base, status: "completed", completed_at: "2026-10-16T12:00:00Z",
+    lesson: { ...base.lesson, current: null, completion_reason: "all_resolved", resolved_card_count: base.lesson.total_card_count },
+    progress: { ...base.progress, first_pass_correct: base.progress.qualifying_exercise_count, answered_exercise_count: base.progress.qualifying_exercise_count, score_bps: 10000 },
+  };
+  const transport = vi.fn(async (input: RequestInfo | URL) => String(input).endsWith("/completion")
+    ? Response.json({ ...completionFixture, community_id: completed.community_id, post_id: completed.post_id, persona_id: completed.persona_id, attempt: { kind: "study", session_id: completed.session_id }, decision: { status: "unknown", reason: "historical_decision_unavailable" } })
+    : Response.json({ error: { code: "auth_error", message: "fixture anonymous", retryable: false } }, { status: 401 }));
+  vi.stubGlobal("fetch", transport);
+  const api = studyApi(async () => completed, async () => completed);
+  const container = render(() => <StudyV2RouteView api={api} postId={completed.post_id} startCoordinator={testCoordinator(api)} resolveSession={async () => ({ status: "authenticated", userId: "study-owner", personas: [{ avatarRef: null, displayName: "Community learner", personaId: completed.persona_id, primaryPublicHandle: null, communityBinding: { communityId: completed.community_id, bindingSource: "activity_participation" } }] })} />);
+  disposers.push(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  await vi.waitFor(() => expect(container.textContent).toContain("historical qualification decision is unavailable"));
+  expect(container.textContent).not.toContain("This attempt qualified");
+  expect(transport.mock.calls.filter(([input]) => String(input).endsWith("/completion")).map(([input]) => new URL(String(input)).pathname)).toEqual([
+    `/api/communities/${completed.community_id}/study/v2/sessions/${completed.session_id}/completion`,
+  ]);
+});
 
 describe("Study v2 production route", () => {
   test("explains missing stems without offering to start or generate a lesson", async () => {

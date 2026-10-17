@@ -13,6 +13,17 @@ export interface PendingSongsProps {
   readonly onRetryOriginal?: (submissionId: string) => void;
   readonly onBindOriginal?: (submissionId: string, link: string) => void;
   readonly onDismiss: (submissionId: string) => void;
+  /**
+   * Opens the song's status on this page. When given, each card gets a
+   * separate Status button beside its other controls; the host decides what
+   * may open. Left out where the card is itself shown inside a status.
+   */
+  readonly onOpenStatus?: (submissionId: string) => void;
+}
+
+/** The selector a host uses to return focus to a card's Status button. */
+export function pendingSongStatusSelector(submissionId: string): string {
+  return `[data-pending-song-open-status="${CSS.escape(submissionId)}"]`;
 }
 
 /**
@@ -94,9 +105,20 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
         const stage = () => songStageIndex(item().view);
         const note = () => attention(item().view);
         const author = () => item().authorHandle ?? "You";
+        // The card is named by its title and described by its status, and the
+        // Status button says which song it opens and refers to that status.
+        const titleId = `pending-song-title-${submissionId}`;
+        const statusId = `pending-song-status-${submissionId}`;
+        const statusText = () => {
+          if (item().view.status === "published") return "Published";
+          if (stage() !== null) return SONG_PROCESSING_TEXT;
+          return note()?.text ?? null;
+        };
         return (
           <article
             aria-busy={item().view.status === "processing" ? "true" : "false"}
+            aria-describedby={statusText() === null ? undefined : statusId}
+            aria-labelledby={titleId}
             class="relative flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0"
             data-pending-song={item().submissionId}
             data-pending-song-status={item().view.status}
@@ -108,7 +130,7 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
             <div class="flex items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
               <div class="grid size-14 shrink-0 place-items-center rounded-lg bg-secondary"><IconMusicNote class="size-7 text-muted-foreground" /></div>
               <div class="min-w-0 flex-1">
-                <Type class="block truncate" variant="body-strong">
+                <Type class="block truncate" id={titleId} variant="body-strong">
                   <Show when={postHref()} fallback={songTitle(item().title)}>
                     {/* A full page load, as publishing a song has always ended:
                         the post page is server-rendered for its canonical
@@ -117,10 +139,10 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
                   </Show>
                 </Type>
                 <Show when={item().view.status === "published"}>
-                  <Type class="block" role="status" variant="caption">Published</Type>
+                  <Type class="block" id={statusId} role="status" variant="caption">Published</Type>
                 </Show>
                 <Show when={stage() !== null}>
-                  <Type class="block" role="status" variant="caption">{SONG_PROCESSING_TEXT}</Type>
+                  <Type class="block" id={statusId} role="status" variant="caption">{SONG_PROCESSING_TEXT}</Type>
                   <div
                     aria-label="Song processing"
                     aria-valuemax={SONG_PROCESSING_PHASES}
@@ -162,13 +184,30 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
             <Show when={note()}>
               {current => (
                 <div class="flex flex-wrap items-center gap-2" role={current().tone}>
-                  <Type variant="caption">{current().text}</Type>
+                  <Type id={statusId} variant="caption">{current().text}</Type>
                   <Show when={retryable()}>
                     <Button disabled={item().rerunning} loading={item().rerunning} onClick={() => props.onRetry(item().submissionId)} size="sm" type="button" variant="outline">Try processing again</Button>
                   </Show>
                   <Show when={item().view.status !== "manual_review"}>
                     <Button onClick={() => props.onDismiss(item().submissionId)} size="sm" type="button" variant="ghost">Dismiss</Button>
                   </Show>
+                </div>
+              )}
+            </Show>
+            {/* Status sits on its own row, after the card's controls and never
+                around them, so each control stays a sibling of the others. */}
+            <Show when={props.onOpenStatus}>
+              {open => (
+                <div class="flex justify-end">
+                  <Button
+                    aria-describedby={statusText() === null ? undefined : statusId}
+                    aria-label={`Status for ${songTitle(item().title)}`}
+                    data-pending-song-open-status={item().submissionId}
+                    onClick={() => open()(item().submissionId)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >Status</Button>
                 </div>
               )}
             </Show>

@@ -1,4 +1,6 @@
 import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
+import { ActivityCompletion } from "../activity/activity-completion.tsx";
+import { ActivityLeaderboard } from "../activity/activity-leaderboard.tsx";
 import type { verifyAdultViewing } from "../verification/age-verification.ts";
 import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { Title } from "@solidjs/meta";
@@ -57,7 +59,7 @@ type RouteState =
       communityId: string;
       session: AuthenticatedSession;
     }
-  | { kind: "lesson"; session: StudySession };
+  | { kind: "lesson"; session: StudySession; accountId: string };
 
 export interface StudyV2RouteViewProps {
   verifyAge?: typeof verifyAdultViewing;
@@ -166,7 +168,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         communityId: input.communityId,
         sessionId: result.sessionId,
       });
-      if (active) setState({ kind: "lesson", session });
+      if (active) setState({ kind: "lesson", session, accountId: input.session.userId });
     } catch {
       if (active) {
         setState({ kind: "failed", message: "Study could not open the started session. Retry once the connection is stable." });
@@ -433,7 +435,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                       {(lesson) => (
                         <StudyingRouteView
                           client={createStudyV2RuntimeClient({ api, initialSession: lesson().session })}
-                          rewardSlot={<MegapotShareStatus communityId={lesson().session.community_id} postId={props.postId} />}
+                          rewardSlot={<div class="space-y-4"><ActivityCompletion communityId={lesson().session.community_id} postId={props.postId} personaId={lesson().session.persona_id} ownerAccountId={lesson().accountId} dependencies={{ resolveSession: props.resolveSession }} attempt={{ kind: "study", session_id: lesson().session.session_id }} /><MegapotShareStatus communityId={lesson().session.community_id} postId={props.postId} /><ActivityLeaderboard communityId={lesson().session.community_id} postId={props.postId} /></div>}
                           onExit={() => navigate(props.exitPath ?? "/")}
                           onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
                           onStudyAgain={() => {
