@@ -8,10 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.121.0 adds private Notifications/resolution and the adopted video
-// detail branch. See docs/notifications-client-intake.md for exact provenance
-// and retained runtime-schema delta evidence. Existing operation scope remains.
-const expectedDigest = "9a9bb51c0b2c7d51c2ae5ed501ee94a5b99ec88c1e10f7db9fbd68fdeb79e4ea";
+// Client 0.122.0 fixes escaped standalone definition lookup. Its response,
+// success and error table bytes are identical to 0.121.0. This digest changes
+// solely to cover profile activity as well; every prior operation is retained.
+// See docs/notifications-client-intake.md for exact successor comparison evidence.
+const expectedDigest = "88168c4e8c90762a32de2a78e54ca41e4e07a53bb884337e70bcc70f86a4204d";
 
 const operations = [
   "get_meNotifications",
@@ -122,6 +123,7 @@ const operations = [
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
   "get_assetBonusLegsLegIdFundingFundingEffectId",
+  "get_publicPersonasPersonaIdActivity",
 ];
 
 const tables = [

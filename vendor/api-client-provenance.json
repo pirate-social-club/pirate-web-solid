@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.121.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.121.0-70c02f0a.tgz",
-  "sha256": "70c02f0a2fdc7913db52b82a627b1b0bf76e9c3d2eeb7a19770ac5f2f6d138f3",
-  "source": "api-next-contracts@5e2b660bd7dae2b1e840d47dda2610dd0ed8bb0a2f835a8da278296f2990450c",
-  "openapiSha256": "5e2b660bd7dae2b1e840d47dda2610dd0ed8bb0a2f835a8da278296f2990450c",
-  "clientSha256": "280f26c9d99cc03d74d3c9d73bc63d68726f95c9241adaa0e27d7a3ebb0067b3",
+  "version": "0.122.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.122.0-f8e20a02.tgz",
+  "sha256": "f8e20a02368394ca0c41d29b0e4723ee3519057659c54c2e318002ea2e7f6c34",
+  "source": "api-next-contracts@0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3",
+  "openapiSha256": "0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3",
+  "clientSha256": "a6431a6a9e7e71c7c0ec0a057c91d2e8069075f9a77986baf75d6923965cc221",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -141,5 +141,5 @@
   ],
   "validatedSourceCommit": null,
   "pullRequest": null,
-  "intakeStatus": "Contract-only; package verified by parent; final backend source/PR binding, backend gates and paired serving acceptance pending."
+  "intakeStatus": "Source-only successor intake; package verification passed locally. API107 source remains local/uncommitted; final source/PR binding, P1 compatibility transition and exact deprecation review, required/CI/migration and paired serving gates remain pending."
 }

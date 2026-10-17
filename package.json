@@ -71,7 +71,7 @@
     "test:e2e:happy-path:attempt": "node scripts/run-happy-path-attempt.mjs"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.121.0-70c02f0a.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.122.0-f8e20a02.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@selfxyz/sdk-common": "1.0.0",

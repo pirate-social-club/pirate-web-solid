@@ -120,6 +120,8 @@ try {
             controls: [...element.querySelectorAll('input,button')].map(control => ({ tag: control.tagName, disabled: control.disabled, tabIndex: control.tabIndex })) }));
           assert(focus.inside, `${locale}: focus escaped submitting dialog ${JSON.stringify({ key, index, focus })}`);
         }
+        // Submitting precedes async preparation; wait for the actual held POST.
+        for (let attempt = 0; attempt < 40 && releaseConfirmation === undefined; attempt += 1) await page.waitForTimeout(50);
         assert(typeof releaseConfirmation === "function", "Confirmation fixture was not held");
         releaseConfirmation();
         await page.getByText(copy.requestExpired, { exact: true }).waitFor();

@@ -90,4 +90,24 @@ describe("the feed's song reference projection", () => {
       expect(page.items[0]?.songPostId).toBeNull();
     }
   });
+
+  test.each(["song_reference", "original_audio"] as const)("%s redaction preserves delivery and never reconstructs a previous author", kind => {
+    const soundtrack = (author: string | null) => kind === "song_reference"
+      ? { kind, render_mode: "canonical_replace", song_reference: { song_post_id: "song-post-1", song_title: "A song", song_author_persona_id: author } }
+      : { kind, original_sound_id: "sound-1", origin_video_post_id: "post-1", origin_author_persona_id: author };
+    const page = (author: string | null) => normalizePublicFeed({ items: [{ community,
+      post: { post: { ...post, author_persona: null }, translation_state: "same_language",
+        video: { ...delivery, soundtrack: soundtrack(author) } },
+    }], top_communities: [], next_cursor: null });
+    page("earlier-private-persona");
+    const current = page(null);
+    expect(current.items).toHaveLength(1);
+    expect(current.items[0]).toMatchObject({ authorPersonaId: null, authorDisplayName: null,
+      authorPrimaryPublicHandle: null, videoDelivery: { playback: "ready", thumbnail: "ready" },
+      songPostId: kind === "song_reference" ? "song-post-1" : null,
+      songTitle: kind === "song_reference" ? "A song" : null });
+    expect(JSON.stringify(current)).not.toContain("earlier-private-persona");
+    expect(current.items[0]).not.toHaveProperty("songAuthorPersonaId");
+    expect(current.items[0]).not.toHaveProperty("originAuthorPersonaId");
+  });
 });
