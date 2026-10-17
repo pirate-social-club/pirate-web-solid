@@ -27,6 +27,7 @@ import {
   type NamespaceSettingsCommandInput,
   type NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
+import { CommunityHnsPublicationControls } from "./community-hns-publication-controls";
 import type { CommunityHnsWallet } from "./community-hns-wallet";
 
 export interface CommunityNamespaceSettingsPanelProps {
@@ -202,9 +203,9 @@ function ConnectedNameCard(props: { action: Extract<NamespaceNextAction, { kind:
   );
 }
 
-function SecondaryAction(props: Pick<CommunityNamespaceSettingsPanelProps, "idempotencyKeys" | "onCommand" | "snapshot">) {
+function SecondaryAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "snapshot">) {
   return (
-    <Button onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "change_namespace" }))} variant="secondary">
+    <Button disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "change_namespace" }))} variant="secondary">
       Use a different namespace
     </Button>
   );
@@ -272,7 +273,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <FormNote>The server will prepare the complete Handshake resource for this name.</FormNote>
           <Button loading={props.busy} disabled={preparing() || props.preparationDisabled} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
         </Card>
-        <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+        <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
       </Show>
 
       <Show when={signAction(action())}>
@@ -314,7 +315,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </Button>
               </div>
             </Card>
-            <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+            <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
           </>
         )}
       </Show>
@@ -401,27 +402,16 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </Show>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
-                <div class="flex flex-wrap gap-3">
-                  <Button loading={props.busy} disabled={current().check_pending || props.publicationBlocked} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
-                  <Show when={props.wallet?.isAvailable() && current().records.every((record) => record.wallet_record)}>
-                    <Button
-                      loading={props.busy || walletBusy()}
-                      disabled={current().check_pending || props.publicationBlocked}
-                      onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
-                        // The broadcast happens before the API is asked, so a
-                        // blocked snapshot must never reach the wallet.
-                        if (props.publicationBlocked || current().check_pending || publicationDeadlinePassed(props.snapshot)) return;
-                        const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
-                        await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
-                        dispatch({ kind: "acknowledge_complete_resource" });
-                      })}
-                    >
-                      Publish to {props.snapshot.root_label}/ with Bob Wallet
-                    </Button>
-                  </Show>
-                </div>
+                <CommunityHnsPublicationControls
+                  snapshot={props.snapshot}
+                  wallet={props.wallet}
+                  busy={props.busy}
+                  blocked={Boolean(current().check_pending || props.publicationBlocked || publicationDeadlinePassed(props.snapshot))}
+                  onBusyChange={setWalletBusy}
+                  onCommand={dispatch}
+                />
               </Show>
             </div>
             <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
@@ -448,7 +438,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </FormNote>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Button loading={props.busy} disabled>Verify published records</Button>
             </div>
           </>
@@ -489,7 +479,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </Show>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Button loading={props.busy} onClick={() => dispatch({ kind: "poll" })}>Check again</Button>
             </div>
           </>
@@ -521,7 +511,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               }[current().reason_code]}</FormNote>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={current().retryable}><Button onClick={() => dispatch({ kind: "restart" })}>Try a new verification</Button></Show>
             </div>
           </>
@@ -566,7 +556,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <FormNote tone="warning">This verification has expired. Get a new record list for .{props.snapshot.root_label} before publishing.</FormNote>
         </Card>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+          <SecondaryAction busy={props.busy || walletBusy()} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
           <Button loading={props.busy} disabled={props.busy || props.preparationDisabled} onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
         </div>
       </Show>

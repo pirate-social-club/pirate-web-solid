@@ -241,6 +241,8 @@ export type NamespaceAttachment = Readonly<{
 }>;
 
 export type NamespaceSettingsSnapshot = Readonly<{
+  root_import_session_id?: string;
+  publish_plan_sha256?: string | null;
   expires_at?: string;
   attachment?: NamespaceAttachment | null;
   community_id: string;
@@ -265,7 +267,7 @@ export type NamespaceSettingsCommandInput =
   | Readonly<{ family: NamespaceFamily; kind: "select_namespace"; root_label: string }>
   | Readonly<{ kind: "start_verification" }>
   | Readonly<{ kind: "submit_name_signature"; signature: string }>
-  | Readonly<{ kind: "acknowledge_complete_resource" }>
+  | Readonly<{ kind: "acknowledge_complete_resource"; publication?: Readonly<{ root_import_session_id: string; publish_plan_sha256: string }> }>
   | Readonly<{ kind: "poll" }>
   | Readonly<{
       acknowledged_complete_resource_replacement: true;
