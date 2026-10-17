@@ -23,11 +23,13 @@ export interface DialogContentProps extends KDialogContentProps {
   class?: string;
   dir?: "ltr" | "rtl" | "auto";
   hideCloseButton?: boolean;
+  /** Keeps the close control visible but unusable while an operation holds the overlay open. */
+  closeButtonDisabled?: boolean;
 }
 
 function DialogContent(props: ParentProps<DialogContentProps>) {
   const className = createMemo(() => cn(dialogContentClass, props.class));
-  const rest = omit(props, "class", "hideCloseButton", "children");
+  const rest = omit(props, "class", "hideCloseButton", "closeButtonDisabled", "children");
 
   return (
     <KDialog.Portal>
@@ -35,7 +37,7 @@ function DialogContent(props: ParentProps<DialogContentProps>) {
       <KDialog.Content {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
-          <DialogCloseButtonLayout part={KDialog.CloseButton} />
+          <DialogCloseButtonLayout disabled={props.closeButtonDisabled} part={KDialog.CloseButton} />
         </Show>
       </KDialog.Content>
     </KDialog.Portal>

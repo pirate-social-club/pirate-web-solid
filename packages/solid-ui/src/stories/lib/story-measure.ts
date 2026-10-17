@@ -1,3 +1,5 @@
+import { expect, userEvent, waitFor, within } from "storybook/test";
+
 /**
  * Measurement helpers for play functions that assert a story matches the
  * Paper board geometry.
@@ -35,4 +37,16 @@ export async function untilViewportBelow(px: number, timeoutMs = 5000): Promise<
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
+}
+
+/**
+ * A phone sheet keeps a visible close control (ruling 2026-10-16): checks the
+ * control is there, clear of the sheet's first row, and closes the sheet.
+ */
+export async function expectPhoneSheetClose(sheet: HTMLElement, firstRow: Element): Promise<void> {
+  const close = within(sheet).getByRole("button", { name: "Close" });
+  await expect(close).toBeVisible();
+  await expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstRow.getBoundingClientRect().top);
+  await userEvent.click(close);
+  await waitFor(() => expect(sheet).not.toBeInTheDocument());
 }

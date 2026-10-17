@@ -14,14 +14,15 @@ export interface VideoFeedReportProps {
 
 /**
  * The feed's Report reasons: a bottom sheet on phone, a 420px dialog on
- * desktop. One tap on a reason sends it; the host owns the submission.
+ * desktop. One tap on a reason sends it; the host owns the submission. Both
+ * keep the visible close control (ruling 2026-10-16), which sits beside the
+ * title.
  */
 export function VideoFeedReport(props: VideoFeedReportProps) {
   const mobile = createIsMobile();
   return (
     <Modal open={props.open} onOpenChange={props.onOpenChange} forceMobile={mobile()}>
       <ModalContent
-        hideCloseButtonOnMobile
         class={mobile()
           ? "gap-0 border-x-0 border-b-0 border-t border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_24px_80px_#0000002E]"
           : "w-[min(100%-2rem,420px)] gap-0 rounded-[var(--radius-lg)] border-border-soft bg-card px-6 pb-4 pt-2 shadow-none"}
@@ -31,7 +32,7 @@ export function VideoFeedReport(props: VideoFeedReportProps) {
             <div class="h-1.5 w-12 rounded-full bg-border" />
           </div>
         </Show>
-        <div class={mobile() ? "pb-3 pt-1" : "flex h-14 items-center"}>
+        <div class={mobile() ? "pb-3 pe-12 pt-1" : "flex h-14 items-center pe-12"}>
           <ModalTitle class={mobile() ? "text-xl font-semibold leading-7 tracking-normal" : "text-lg font-semibold leading-6 tracking-normal"}>
             Report
           </ModalTitle>

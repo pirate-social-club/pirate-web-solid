@@ -97,13 +97,16 @@ export function CommunityMoreMenu(props: {
           <SheetTrigger aria-label="More community options" class={triggerClass} data-community-manage={manageAttribute()} data-community-more="sheet">
             <IconDotsThree class="size-5" />
           </SheetTrigger>
+          {/* The sheet keeps its visible close (ruling 2026-10-16). Its header
+              is the close control's height, so the first row starts below it. */}
           <SheetContent
             side="bottom"
-            hideCloseButton
             class="flex flex-col gap-0 rounded-t-[var(--radius-sheet)] bg-background px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 shadow-none"
             data-community-more-content="sheet"
           >
-            <div aria-hidden="true" class="h-1.5 w-12 shrink-0 self-center rounded-full bg-border" />
+            <div class="flex h-11 shrink-0 justify-center" data-community-more-header>
+              <div aria-hidden="true" class="h-1.5 w-12 rounded-full bg-border" />
+            </div>
             <SheetTitle class="sr-only">More community options</SheetTitle>
             <div role="group" aria-label="More community options" class="flex flex-col">
               <For each={props.actions}>{(action, index) => (

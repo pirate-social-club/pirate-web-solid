@@ -298,8 +298,10 @@ describe("VerticalFeed", () => {
     await user.click(phoneMoreButton(container, "post-1"));
     flush();
     const sheet = await screen.findByRole("dialog", { name: "More options" });
-    const rows = within(sheet).getAllByRole("button");
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")];
     expect(rows.map((row) => row.textContent)).toEqual(["Unmute"]);
+    // The sheet keeps its visible close beside the rows.
+    expect(within(sheet).getByRole("button", { name: "Close" })).toBeTruthy();
     await user.click(rows[0]!);
     flush();
     expect(onMuteToggle).toHaveBeenCalledWith("post-1", false);
@@ -321,7 +323,7 @@ describe("VerticalFeed", () => {
     await user.click(phoneMoreButton(container, "post-1"));
     flush();
     const sheet = await screen.findByRole("dialog", { name: "More options" });
-    expect(within(sheet).getAllByRole("button").map((row) => row.textContent)).toEqual(["Mute", "Report"]);
+    expect([...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")].map((row) => row.textContent)).toEqual(["Mute", "Report"]);
     await user.click(within(sheet).getByRole("button", { name: "Report" }));
     flush();
     await vi.waitFor(() => expect(onReport).toHaveBeenCalledTimes(1));
