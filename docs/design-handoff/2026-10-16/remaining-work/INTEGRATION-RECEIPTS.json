@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-17T04:54:39.668476+00:00",
+  "observed_at": "2026-10-17T06:00:10.383800+00:00",
   "prs": [
     {
       "headRefOid": "5160d2eb31319cb4cf6df79808961b8e6df9b156",
@@ -104,13 +104,81 @@
         }
       ],
       "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/94"
+    },
+    {
+      "headRefOid": "6100ce93eb4059b6005276ffbca0ec44b10037bb",
+      "mergeCommit": {
+        "oid": "60371f47b2a5d4e435e18fd0f299963a0324ef5b"
+      },
+      "mergedAt": "2026-10-17T05:58:50Z",
+      "number": 96,
+      "state": "MERGED",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T05:38:31Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39006979589/job/117321331400",
+          "name": "Solid Doctor (PR)",
+          "startedAt": "2026-10-17T05:38:13Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T05:44:19Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39006979557/job/117321331327",
+          "name": "verify",
+          "startedAt": "2026-10-17T05:38:12Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T05:38:10Z",
+          "conclusion": "SKIPPED",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39006979589/job/117321332117",
+          "name": "Solid Doctor (main)",
+          "startedAt": "2026-10-17T05:38:10Z",
+          "status": "COMPLETED",
+          "workflowName": "Solid Doctor"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-10-17T05:54:12Z",
+          "conclusion": "SUCCESS",
+          "detailsUrl": "https://github.com/pirate-social-club/pirate-web-solid/actions/runs/39006979557/job/117321331521",
+          "name": "storybook-audit",
+          "startedAt": "2026-10-17T05:38:13Z",
+          "status": "COMPLETED",
+          "workflowName": "ci"
+        }
+      ],
+      "url": "https://github.com/pirate-social-club/pirate-web-solid/pull/96"
     }
   ],
   "public_independent_reviews": [
     "https://github.com/pirate-social-club/pirate-web-solid/pull/95#issuecomment-6229529717",
-    "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229712666"
+    "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229712666",
+    "https://github.com/pirate-social-club/pirate-web-solid/pull/96#issuecomment-6230353237"
   ],
-  "next_source_handoff": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229844166",
+  "next_source_handoff": "START-COMMUNITY-CREATION.md",
   "limits": "Source review and exact-head CI acceptance, not deployment. Earlier current-main push failure from expired enabled-flow fixture is preserved inPR94 comment6229654801; accepted test-only repair pins only test time and preserves runtime expiry. Full live checker passed with named coordination-body changes openly retained; no all-input stability claim.",
-  "no_new_writer_or_financial_credentials_authority": true
+  "no_new_writer_or_financial_credentials_authority": true,
+  "previous_next_source_handoff": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229844166",
+  "latest_preintegration_register": {
+    "completed_at": "2026-10-17T05:57:15.331435+00:00",
+    "exit_code": 0,
+    "summary": [
+      "tasks-check: 1146 task file(s) valid, 265 warning(s)"
+    ],
+    "changed_full_inputs": [
+      "tasks/records/v1-functional-completion-20261015.md",
+      "tasks/records/v1-notifications-contract-api-20261016.md"
+    ],
+    "changed_headers": [],
+    "limits": "Named foreign record-body/root changes retained; actual checker fields/configuration/Solid identities rechecked before merge, no all-input stability claim"
+  },
+  "new_tranche_admission": "Awaiting actual same-writer community refresh receipt"
 }

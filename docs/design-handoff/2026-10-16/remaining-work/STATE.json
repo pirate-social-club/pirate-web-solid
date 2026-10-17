@@ -1,9 +1,9 @@
 {
-  "observed_at": "2026-10-17T04:54:39.668476+00:00",
+  "observed_at": "2026-10-17T06:00:10.383800+00:00",
   "scope": "Current own Paper source and next existing-cloud-writer tranche; other v1 lane source/runtime state is not refreshed here",
-  "previous_state_immutable_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/aad53bd2c34a0e79033d22128b0bb9c66e6aedf2/docs/design-handoff/2026-10-16/remaining-work/STATE.json",
-  "solid_main": "a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6",
-  "accepted_tree": "9b9762586e19899db576ee241612f4f18061f131",
+  "previous_state_immutable_url": "https://github.com/pirate-social-club/pirate-web-solid/blob/95e3abd3f9b964a34fd187a82a7f4d4685bdf574/docs/design-handoff/2026-10-16/remaining-work/STATE.json",
+  "solid_main": "60371f47b2a5d4e435e18fd0f299963a0324ef5b",
+  "accepted_tree": "3c7b36ccca74af9e8c968c2effacb4500992c495",
   "completed_source": [
     {
       "pr": 95,
@@ -16,23 +16,34 @@
       "head": "fdf130adf3b52ca7267ba6d77a4445e400781453",
       "merge": "a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6",
       "scope": "Visible phone close controls plus exact test-clock fixture repair"
+    },
+    {
+      "pr": 96,
+      "head": "6100ce93eb4059b6005276ffbca0ec44b10037bb",
+      "merge": "60371f47b2a5d4e435e18fd0f299963a0324ef5b",
+      "scope": "Next for composer progression and Post for initial final submission, preserve retries/guards/capabilities"
     }
   ],
   "all_required_exact_head_checks_before_merges": "verify,storybook-audit,Solid Doctor(PR) passed; independent source review accepted",
   "canonical_checkout": "Clean at accepted main; no new local source worktree",
   "source_only": true,
-  "new_main_push_ci": "Not claimed completed by this source handback",
+  "new_main_push_ci": "Separate from successful PR checks; new main runs are not claimed completed by this source handback",
   "high_braces_advisory": "Still open under limited exact-source integration disposition; no audit-green or blanket waiver",
   "existing_cloud_writer": {
     "session": "session_01JMbhkWU1hvEJJoumFWcKjU",
     "custody": "Retained; no competing writer",
     "prior_actual_refresh_receipt": "REFRESH-RECEIPT.json (historical song-status startup)",
-    "next_actual_refresh": "Awaiting producer receipt at this snapshot; dispatch is not execution"
+    "next_actual_refresh": "Community/avatar refresh awaiting actual producer receipt; publication is not admission",
+    "actual_next_post_delivery": {
+      "head": "6100ce93eb4059b6005276ffbca0ec44b10037bb",
+      "branch": "fix/paper-next-then-post-20261017",
+      "pr": 96,
+      "accepted_on_main": "60371f47b2a5d4e435e18fd0f299963a0324ef5b"
+    }
   },
-  "next_deliverable": "One Next then Post composer wording PR; START-NEXT-POST.md",
-  "actual_next_handoff": "https://github.com/pirate-social-club/pirate-web-solid/pull/94#issuecomment-6229844166",
+  "next_deliverable": "One community-creation presentation PR, three pages and circular avatar; START-COMMUNITY-CREATION.md",
+  "actual_next_handoff": "START-COMMUNITY-CREATION.md",
   "later_paper": [
-    "Three-page community creation and circular avatar",
     "Royalties empty-state Earnings split/Add collaborator wording, preserving conforming share behavior",
     "Usable supported Base Receive default, otherwise explicit network selection"
   ],
@@ -62,5 +73,27 @@
     }
   },
   "production_financial_credentials_authority": "Unchanged; none delegated",
-  "docs_branch_runtime_warning": "This branch preserves historical runtime base and design evidence. Start implementation from actual protected main, not this docs branch."
+  "docs_branch_runtime_warning": "This branch preserves historical runtime base and design evidence. Start implementation from actual protected main, not this docs branch.",
+  "preintegration_register": {
+    "completed_at": "2026-10-17T05:57:15.331435+00:00",
+    "exit_code": 0,
+    "summary": [
+      "tasks-check: 1146 task file(s) valid, 265 warning(s)"
+    ],
+    "changed_full_inputs": [
+      "tasks/records/v1-functional-completion-20261015.md",
+      "tasks/records/v1-notifications-contract-api-20261016.md"
+    ],
+    "changed_headers": [],
+    "limits": "Named foreign record-body/root changes retained; actual checker fields/configuration/Solid identities rechecked before merge, no all-input stability claim"
+  },
+  "hosted_storybook_evidence": {
+    "run": 39006979557,
+    "artifact": 12091871334,
+    "stories": 846,
+    "axe_pass": 846,
+    "interaction_pass": 846,
+    "correct_single_run_valid_viewport_requests": 177,
+    "exception": "Known Naming/Spaces invalid reset preset remains"
+  }
 }

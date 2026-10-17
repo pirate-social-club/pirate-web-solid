@@ -1,5 +1,11 @@
 # Cloud agent handoff for remaining Paper and v1 work
 
+Current own-source update, 2026-10-17. Next/Post PR96 is accepted on protected main60371f47b2a5d4e435e18fd0f299963a0324ef5b, tree3c7b36ccca74af9e8c968c2effacb4500992c495, following required exact-head checks, independent source review and the fresh live register. It preserves the earlier accepted song-status and phone-close histories. Continue the SAME existing cloud writer with [community creation and circular avatars](START-COMMUNITY-CREATION.md). Next/Post implementation is complete; new community-branch refresh is not claimed before the actual writer receipt.
+
+All earlier source/other-lane snapshots below are retained as dated history. STATE.json and INTEGRATION-RECEIPTS.json hold the current own-source binding. Source acceptance does not prove current serving or paired runtime, and the main-push checks are separately observed. No deployment, new writer, financial or credential authority is granted.
+
+Previous handoff snapshots follow unchanged.
+
 Current source update, 2026-10-17. Song-status PR95 and phone close-controls PR94 are now accepted on protected main a029f666123080e0ef7bdcf5c6bc1a6c46ea5db6 after independent review and required exact-head checks. All finite staging merge holds are released; there is no continuing b542 pin. Continue the SAME existing cloud writer with [Next then Post](START-NEXT-POST.md). [STATE.json](STATE.json) and [INTEGRATION-RECEIPTS.json](INTEGRATION-RECEIPTS.json) hold the current own-source facts. New producer refresh is not claimed before its actual receipt.
 
 The dated snapshot below is preserved as history. Its PR93/source-hold and old branch/check states are superseded by the source update above. Other v1 lane statuses below are historical; consult the owning rollout coordinator for current API/runtime state. No production, financial or credential authority changes.
