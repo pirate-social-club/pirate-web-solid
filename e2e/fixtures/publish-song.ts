@@ -98,7 +98,7 @@ export async function publishSongAndVerifyPlayback(
   }
   else expect(review).not.toContain("No lyrics added");
 
-  await composer.getByRole("button", { name: "Post song" }).click();
+  await composer.getByRole("button", { name: "Post", exact: true }).click();
   // The steps end when the server accepts the song. Paper ruling 14: the
   // author then sees the song's one centred state on the same page, not a
   // card in the feed, until it is published.

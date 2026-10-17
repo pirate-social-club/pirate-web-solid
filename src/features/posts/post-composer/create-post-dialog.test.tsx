@@ -195,13 +195,13 @@ function audioWithEmbeddedArtwork(name: string): File {
 }
 
 async function continueToReview(): Promise<void> {
-  await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-  button("Continue").click();
+  await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+  button("Next").click();
   await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
-  await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-  button("Continue").click();
+  await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+  button("Next").click();
   await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
-  await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
+  await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
 }
 
 describe("create post request", () => {
@@ -264,7 +264,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("unresolved.mp3");
     await continueToReview();
-    button("Post song").click();
+    button("Post").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("network uncertain"));
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
@@ -300,8 +300,8 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("stoppable.mp3");
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(button("Stop upload")).toBeInstanceOf(HTMLButtonElement));
     button("Stop upload").click();
 
@@ -342,7 +342,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("moderated.mp3");
     await continueToReview();
-    button("Post song").click();
+    button("Post").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("This song is awaiting manual review."));
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
@@ -383,7 +383,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("failed.mp3");
     await continueToReview();
-    button("Post song").click();
+    button("Post").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
     expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Retry processing")).toBe(false);
 
@@ -425,7 +425,7 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("shares.mp3");
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
     button("Add collaborator").click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
@@ -471,7 +471,7 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("sheet-reset.mp3");
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
 
     button("Add collaborator").click();
@@ -584,14 +584,14 @@ describe("create post request", () => {
     expect(document.body.textContent).not.toContain("18+");
     expect(document.body.textContent).not.toContain("Is this your own song");
     expect(document.body.querySelector('input[type="file"][accept^="image/"]')).toBeNull();
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
-    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
-    button("Post song").click();
+    await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
+    button("Post").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve",
@@ -626,16 +626,16 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("master.mp3", false);
     expect(document.body.textContent).toContain("Both are required to continue and unlock Karaoke and Study.");
-    expect(button("Continue").disabled).toBe(true);
+    expect(button("Next").disabled).toBe(true);
     for (const [label, name] of [["Upload instrumental", "backing.mp3"], ["Upload vocals", "voice.mp3"]] as const) {
       const input = document.body.querySelector<HTMLInputElement>(`input[aria-label='${label}']`)!;
       Object.defineProperty(input, "files", { configurable: true, value: [new File([new Uint8Array([1])], name, { type: "audio/mpeg" })] });
       input.dispatchEvent(new Event("change", { bubbles: true }));
       await vi.waitFor(() => expect(document.body.textContent).toContain(name));
-      if (label === "Upload instrumental") expect(button("Continue").disabled).toBe(true);
+      if (label === "Upload instrumental") expect(button("Next").disabled).toBe(true);
     }
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
     expect(mediaTransport.stemCalls).toEqual([
       "reserve:instrumental_audio", "attach:instrumental_audio", "reserve:vocal_audio", "attach:vocal_audio",
@@ -670,8 +670,8 @@ describe("create post request", () => {
         mediaTransport={transport} onOpenChange={() => {}} open
         personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
       await uploadAudio();
-      await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-      button("Continue").click();
+      await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+      button("Next").click();
       await vi.waitFor(() => expect(transport.failed).toBe(true));
       if (failure !== "attachment response lost") {
         await vi.waitFor(() => expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Vocals"));
@@ -681,12 +681,12 @@ describe("create post request", () => {
         if (failure === "upload fails") {
           // The primary is retained, but a failed stem remains editable.
           button("Remove vocals").click();
-          await vi.waitFor(() => expect(button("Continue").disabled).toBe(true));
+          await vi.waitFor(() => expect(button("Next").disabled).toBe(true));
           await selectStem("vocals", "replacement-vocals.mp3");
         }
         transport.failReads = false;
-        await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-        button("Continue").click();
+        await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+        button("Next").click();
       }
       await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
       expect(transport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
@@ -713,9 +713,9 @@ describe("create post request", () => {
       mediaTransport={transport} onOpenChange={() => {}} open
       personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
     await uploadAudio();
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Stem attachment uncertain"));
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
     const original = transport.attachments.find(call => call.body.slot === slot);
     const input = document.body.querySelector<HTMLInputElement>(`input[aria-label="Upload ${label}"]`)!;
     const remove = button(`Remove ${label}`);
@@ -731,7 +731,7 @@ describe("create post request", () => {
     expect(document.body.textContent).toContain(`${label}.mp3`);
     expect(document.body.textContent).not.toContain("replacement.mp3");
     expect(transport.attachments.filter(call => call.body.slot === slot)).toHaveLength(1);
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
     const attempts = transport.attachments.filter(call => call.body.slot === slot);
     expect(attempts).toHaveLength(2);
@@ -783,7 +783,7 @@ describe("create post request", () => {
     lyrics.value = "Reviewed words";
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
 
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
 
     button("Add collaborator").click();
@@ -814,11 +814,11 @@ describe("create post request", () => {
     twenty.click();
     await vi.waitFor(() => expect(twenty.getAttribute("aria-checked")).toBe("true"));
 
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
-    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
-    button("Post song").click();
+    await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
+    button("Post").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve", "start", "finalize", "lyrics", "terms",
@@ -854,13 +854,13 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
     await uploadAudio("wordless.mp3");
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
-    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
-    button("Post song").click();
+    await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
+    button("Post").click();
 
     // Deliberately empty lyrics never bind: no lyrics command is issued.
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
@@ -901,8 +901,8 @@ describe("create post request", () => {
       open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("prepared.mp3");
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
     expect(document.body.querySelector("[data-media-composer-state]")).toBeNull();
     expect(document.body.textContent).not.toContain("Audio uploaded.");
@@ -936,8 +936,8 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
     await uploadAudio("unsent.mp3");
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
 
     // A retained failed upload gets a focused recovery screen with the real
     // error and an action that retries the same audio reservation.
@@ -977,7 +977,7 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("retry.mp3");
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(button("Try upload again")).toBeInstanceOf(HTMLButtonElement));
     button("Try upload again").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
@@ -1003,14 +1003,14 @@ describe("create post request", () => {
     Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "transient.mp3", { type: "audio/mpeg" })] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
     await selectBothStems();
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
-    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
-    button("Continue").click();
+    await vi.waitFor(() => expect(button("Next").disabled).toBe(false));
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
-    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
-    button("Post song").click();
+    await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
+    button("Post").click();
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve", "start", "finalize", "terms",
     ]));
@@ -1046,7 +1046,7 @@ describe("create post request", () => {
     });
     lyrics.value = "Verse one carries through";
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
-    button("Continue").click();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
 
     button("Back").click();

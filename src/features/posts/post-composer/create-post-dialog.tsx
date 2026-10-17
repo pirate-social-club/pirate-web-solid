@@ -761,7 +761,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 submit={{
                   get disabled() { return songSubmitDisabled(); },
                   get error() { return error() || null; },
-                  label: "Post song",
+                  label: "Post",
                   get loading() { return mode() === "song" ? mediaBusy() : false; },
                   onSubmit: submit,
                 }}

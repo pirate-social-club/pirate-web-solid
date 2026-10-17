@@ -312,7 +312,7 @@ test("the complete Use this song journey publishes a song-backed video", async (
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
     await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 15_000 }).toBe(1);
     await expect(page.locator("textarea")).toBeVisible();
-    await page.getByRole("button", { name: "Publish video", exact: true }).click();
+    await page.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.getByRole("link", { name: "View published post", exact: true })).toBeVisible({ timeout: 15_000 });
     const ledger = await readLedger(page);
     expect(ledger.calls).toContain("command:reserve");
@@ -341,7 +341,7 @@ test("an unresolved moderation result survives reload and must be abandoned befo
     await input.setInputFiles({ name: "fits.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
     // The song's controls are folded; its plan only needs to be ready.
     await expect(page.locator('[data-song-plan="ready"]')).toBeAttached();
-    await page.getByRole("button", { name: "Publish video", exact: true }).click();
+    await page.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.getByText("provider submission is unconfirmed", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: /Retry processing|Retry publication/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Start a new video", exact: true })).toHaveCount(0);
@@ -374,7 +374,7 @@ for (const stage of ["measurement", "stop"] as const) {
     try {
       context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture&prepareHang=${stage}`);
       const page = context.pages()[0] ?? await context.newPage();
-      await page.getByRole("button", { name: "Continue to video", exact: true }).click();
+      await page.getByRole("button", { name: "Next", exact: true }).click();
       await page.getByRole("button", { name: "Start recording", exact: true }).click();
       await expect(page.getByText("The recording couldn’t finish. Record again.", { exact: true }))
         .toBeVisible({ timeout: 45_000 });
@@ -384,7 +384,7 @@ for (const stage of ["measurement", "stop"] as const) {
       expect(timedOut.calls).toContain("capture:cancelled");
       expect(timedOut.calls.some(call => call.startsWith("command:"))).toBe(false);
       await page.getByRole("button", { name: "Start recording", exact: true }).click();
-      const publish = page.getByRole("button", { name: "Publish video", exact: true });
+      const publish = page.getByRole("button", { name: "Post", exact: true });
       await expect(publish).toBeEnabled({ timeout: 20_000 });
       await publish.click();
       await expect.poll(async () => (await readLedger(page)).calls).toContain("posted");

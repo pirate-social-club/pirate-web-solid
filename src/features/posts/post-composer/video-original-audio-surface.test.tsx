@@ -113,7 +113,7 @@ describe("original-audio video design surfaces", () => {
     expect(document.querySelector("textarea")).toBeNull();
     expect(document.querySelector("input[aria-label='Title']")).toBeNull();
     expect(document.body.textContent).toContain("A song · 0:00 to 0:15");
-    expect(document.body.textContent).toContain("Publish video");
+    expect(document.body.textContent).toContain("Post");
     expect(document.body.textContent).not.toContain("Settings");
     expect(document.body.textContent).not.toContain("Poster");
     expect(document.body.textContent).not.toContain("Rights");

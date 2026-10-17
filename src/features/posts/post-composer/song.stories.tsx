@@ -38,7 +38,7 @@ function StatefulRightsStep() {
     ]}
     lyricsValue={lyrics()} onLyricsValueChange={setLyrics} license={license()} onLicenseChange={setLicense}
     royaltySplit={royaltySplit()} onRoyaltySplitChange={setRoyaltySplit}
-    submit={{ canPost: true, label: "Post song", onSubmit: () => undefined }} /></ComposerFrame>;
+    submit={{ canPost: true, label: "Post", onSubmit: () => undefined }} /></ComposerFrame>;
 }
 
 export const RightsCollaborators: Story = {
@@ -57,7 +57,7 @@ export const RightsCollaborators: Story = {
     await userEvent.tab();
     await userEvent.click(await within(sheet).findByRole("button", { name: "Add" }));
     await expect(await body.findByText("75%")).toBeVisible();
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled();
   },
 };
 
