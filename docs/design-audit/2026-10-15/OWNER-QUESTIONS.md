@@ -23,9 +23,13 @@ Each ruling is checked against `main` at `60d8f61f`. Conforms means the code alr
 - The host's composer stays Song and Video only, including its overflow controls, on desktop and mobile. The generic capability code, such as the composer's Live tab, stays intact and stays unused by this host.
 - Notifications gets its navigation entry together with its functional inbox. Remaining: `/activity` currently renders "Notifications are unavailable", and the header's notification action is hidden. The entry and the inbox ship together, and ruling 6's reply targeting builds on them.
 
-### Still undecided
+### Adopted 2026-10-17
 
-This batch does not decide:
+The two questions this batch left undecided were settled by the workspace_owner on 2026-10-17:
+
+> Adopted 2026-10-17. Management reports remain inline cards in the moderation queue for v1; Paper's report-detail page is deferred. Studying keeps immediate advancement on a correct spoken answer; Paper 077's Correct box is not adopted for v1.
+
+Both keep current behavior, so neither adds runtime work. They were previously listed here as still undecided:
 - Management report detail. Paper draws a report-detail page; the app's queue uses inline cards.
 - Studying Correct box (Paper 077). Correct spoken answers still advance immediately.
 
