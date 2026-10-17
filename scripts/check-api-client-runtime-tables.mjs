@@ -8,11 +8,17 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.108.0 adds Telegram linking. The existing operation review found
-// only optional binding_generation on HNS attachment reads; see the intake evidence.
-const expectedDigest = "713a9a40d7813fe5040c2b0933850b9355ab4ebeeabf02e9500faa44a09f23f4";
+// Client 0.122.0 fixes escaped standalone definition lookup. Its response,
+// success and error table bytes are identical to 0.121.0. This digest changes
+// solely to cover profile activity as well; every prior operation is retained.
+// See docs/notifications-client-intake.md for exact successor comparison evidence.
+const expectedDigest = "88168c4e8c90762a32de2a78e54ca41e4e07a53bb884337e70bcc70f86a4204d";
 
 const operations = [
+  "get_meNotifications",
+  "post_meNotificationsNotificationIdRead",
+  "get_commentsCommentIdLocation",
+  "get_postsPostIdComments",
   "get_telegramLinkAccount",
   "post_telegramLinkTransactions",
   "get_telegramLinkTransactionsTransactionId",
@@ -117,6 +123,7 @@ const operations = [
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
   "get_assetBonusLegsLegIdFundingFundingEffectId",
+  "get_publicPersonasPersonaIdActivity",
 ];
 
 const tables = [

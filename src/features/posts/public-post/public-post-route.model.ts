@@ -2,6 +2,7 @@ import type {
   GetPublicPostsBySlugResponse,
   PirateApiClient,
 } from "@pirate/api-client";
+import type { CommentNavigation } from "../../notifications/comment-navigation-api.ts";
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -20,6 +21,7 @@ export type PublicPostRouteState =
       readonly response: PublicPostContentResponse;
       readonly canonicalPath: string | null;
       readonly canonicalUrl: string | null;
+      readonly navigation?: CommentNavigation;
     }>
   | Readonly<{
       readonly kind: "age-locked";
@@ -31,7 +33,10 @@ export type PublicPostRouteState =
   | Readonly<{ readonly kind: "invalid"; readonly status: 400 }>
   | Readonly<{ readonly kind: "method-not-allowed"; readonly status: 405 }>
   | Readonly<{ readonly kind: "not-found"; readonly status: 404 }>
-  | Readonly<{ readonly kind: "unavailable"; readonly status: 502 }>;
+  | Readonly<{ readonly kind: "unavailable"; readonly status: 502 }>
+  | Readonly<{ readonly kind: "target-entry"; readonly status: 200; readonly requestPath: string; readonly locale: string; readonly canonicalOrigin?: string }>
+  | Readonly<{ readonly kind: "target-sign-in"; readonly status: 200; readonly returnPath: string }>
+  | Readonly<{ readonly kind: "target-age-locked"; readonly status: 200 }>;
 
 export type DecodedPostSlug = Readonly<{
   readonly logical: string;
@@ -197,6 +202,7 @@ export function projectPublicPostResponse(options: Readonly<{
   ) return { kind: "unavailable", status: 502 };
 
   const route = options.response.route;
+  if (options.response.content.post.post_type === "video" && (route !== null || options.activity !== "detail")) return { kind: "not-found", status: 404 };
   if (route === null) {
     return {
       kind: "content",

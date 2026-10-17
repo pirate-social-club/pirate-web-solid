@@ -31,6 +31,7 @@ import { navigationPath, profilePath, profileSwitch, scopedPrimaryNavigation, pr
 import { NavigationDrawer, type DrawerCommunity } from "../navigation-drawer.tsx";
 import { loadCommunityAppNavigation, loadCommunityNavigation as loadDefaultCommunityNavigation } from "../community-navigation-api.ts";
 import type { ShellNavItem } from "../shell-model.ts";
+import { notificationsNavigation } from "../navigation-model.ts";
 
 export type MediaShellRoute = ApplicationChromeRoute;
 
@@ -112,7 +113,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   };
   const communityScope = () => { const current = scope(); return current.kind === "community" ? current : undefined; };
   const homePath = () => navigationHomePath(scope());
-  const activeItem = () => scope().kind === "community" && props.currentPath === homePath() ? "home" : props.activeItemId ?? "home";
+  const activeItem = () => props.currentPath === notificationsNavigation.href ? notificationsNavigation.id : scope().kind === "community" && props.currentPath === homePath() ? "home" : props.activeItemId ?? "home";
   const mode = () => props.mode ?? (props.immersive ? "immersive" : "standard");
   const immersive = () => mode() === "immersive";
   const desktop = createMediaQuery("(min-width: 768px)");
@@ -320,12 +321,12 @@ export function ApplicationChrome(props: MediaShellProps) {
 
   createEffect(() => props.activeItemId, (_, previous) => { if (previous !== undefined) setMenuOpen(false); });
   createEffect(desktop, (wide, previous) => { if (wide && previous === false) setMenuOpen(false); });
-  const primaryItems = (): readonly SidebarItem[] => scopedPrimaryNavigation(scope()).map(item => ({
+  const primaryItems = (): readonly SidebarItem[] => [...scopedPrimaryNavigation(scope()).map(item => ({
     ...item,
     href: item.id === "profile" && selected() ? profilePath(selected()!) : item.href,
     iconKind: item.id,
     avatar: item.id === "profile" ? { fallback: selected()?.displayName ?? "Profile", seed: selected()?.avatarSeed ?? selected()?.displayName, src: selected()?.avatarSrc } : undefined,
-  }));
+  })), notificationsNavigation];
   const profileLabel = () => selected() ? `Switch profile, currently ${selected()!.displayName}` : "Profile";
   /** Desktop only: the phone has footer tabs and the communities drawer. */
   function NavigationSidebar() {

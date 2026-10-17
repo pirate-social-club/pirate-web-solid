@@ -73,11 +73,14 @@ describe("Application navigation", () => {
       link.click();
       expect(navigate).toHaveBeenLastCalledWith(path);
     }
-    for (const path of ["/search", "/live", "/study", "/karaoke", "/settings", "/activity"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
+    for (const path of ["/search", "/live", "/study", "/karaoke", "/settings"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
+    const notifications = container.querySelector<HTMLAnchorElement>('a[href="/activity"]')!;
+    expect(notifications.textContent).toContain("Notifications"); notifications.click();
+    expect(navigate).toHaveBeenLastCalledWith("/activity");
     container.querySelector<HTMLButtonElement>('aside button[aria-label="Create community"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/communities/new");
     expect([...container.querySelectorAll<HTMLButtonElement>("aside button")].some(button => button.textContent === "Create")).toBe(false);
-    expect(container.textContent).not.toContain("Notifications");
+    expect(container.textContent).toContain("Notifications");
   });
 
   test("mobile has four destinations and Wallet opens the wallet route", () => {
