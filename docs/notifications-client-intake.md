@@ -1,10 +1,16 @@
 # Notifications generated-client intake
 
-This is contract-only Solid source intake. The frozen `0.121.0` package was
-verified by the parent. Final backend source commit/PR binding, backend full
-gates, migration/role review, controlled video cutover, serving installation and
-paired consumer/live acceptance remain pending. No acceptance is inferred from
-the source tests below.
+This document preserves the historical contract-only Solid intake and its
+dated successors. The 2026-10-18 section records the actual final 0.122.0 backend
+and current-main source binding. Fresh consumer gates/review and paired serving
+acceptance remain separate.
+
+## Historical 0.121.0 contract-only intake
+
+The frozen `0.121.0` package was verified by the parent. At this preparation
+stage, final backend source commit/PR binding, backend full gates, migration/role
+review, controlled video cutover, serving installation and paired consumer/live
+acceptance were pending. No acceptance was inferred from the source tests below.
 
 The portable artifact is `vendor/api-client/pirate-api-client-0.121.0-70c02f0a.tgz`,
 SHA256 `70c02f0a2fdc7913db52b82a627b1b0bf76e9c3d2eeb7a19770ac5f2f6d138f3`.
@@ -84,9 +90,12 @@ Embedded source/OpenAPI identity is
 `api-next-contracts@0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3`;
 embedded and installed generated client SHA256 is
 `a6431a6a9e7e71c7c0ec0a057c91d2e8069075f9a77986baf75d6923965cc221`.
-The parent's package verification passed. API107 source manifest
+The parent's package verification passed. At this preparation stage, API107
+source manifest
 `20ffbe00dc94615318dbb4d9983ebc079d08e24a20a5940d7d6f9743730dc5cc`
-is local and uncommitted; final commit/PR binding has not been invented here.
+was local and uncommitted; final commit/PR binding was not yet available.
+The actual final binding is recorded in the 2026-10-18 successor below; the
+original preparation/null-binding handoffs remain unchanged historical evidence.
 All 46 prior tarballs, including 0.120 and 0.121, remain exact. The maintained
 Bun install used the local tar with outbound syscalls denied for that child
 process and task-local caches. Every other dependency and lock entry is frozen.
@@ -116,10 +125,11 @@ contract transition against API main6cf: the repaired generator comparison
 reports 14 precise field changes across seven existing operations. Both
 `soundtrack.origin_author_persona_id` and
 `soundtrack.song_reference.song_author_persona_id` truthfully become null when
-current persona/account privacy requires redaction. The compatibility policy
-remains empty and must keep rejecting pending independent review of this
-consumer transition and its exact declared deprecation. No compatibility waiver
-or response rewrite is treated as a detector-only fix.
+current persona/account privacy requires redaction. At this preparation stage,
+the compatibility policy was empty and had to keep rejecting pending independent
+review of this consumer transition and its exact declared deprecation. This
+historical policy state does not describe the later final backend binding. No
+compatibility waiver or response rewrite is treated as a detector-only fix.
 
 Explicit owned video fixtures exercise the actual installed generated decoder
 for public/authenticated home feeds, post detail, community feed, profile
@@ -132,8 +142,66 @@ song attribution; feed projection preserves authorized song post/title and
 delivery facts without reconstructing an erased identity. These are local
 contract regressions, not real account, delivery, playback or browser proofs.
 
-Remaining holds include the P1 compatibility transition and exact deprecation
-review, final client/backend committed binding, required/CI/full backend and
-migration review, paired durable delivery and intended inline target acceptance,
-controlled cutover and serving. No runtime route/controller, clock fixture,
-Paper source, provider, credential, flag or financial behavior changed.
+At this preparation stage, remaining holds included the P1 compatibility
+transition and exact deprecation review, final client/backend committed binding,
+required/CI/full backend and migration review, paired durable delivery and
+intended inline target acceptance, controlled cutover and serving. No runtime
+route/controller, clock fixture, Paper source, provider, credential, flag or
+financial behavior changed.
+
+## 2026-10-18 — final backend/PR and current-main source binding
+
+The immutable `notifications-client0122-final-backend-pr-binding.json` supplement
+binds the same 0.122.0 archive to actual backend commit
+`e352a7e56fa3029f8ba51b2a13edfb547372ae56`, merged through
+[API PR623](https://github.com/pirate-social-club/api-next/pull/623).
+Its exact tested candidate is `231cccc11ae0b6d4248332f8d78c6c8038b29825`,
+tree `f8e3a5378b9602c76cbc1827fba26309680953d1`. The parent records independent
+committed review `cd0176d4`, accepted migrations 271–273 review and successful
+required hosted checks with all 14 rollup checks successful. The incident case
+was explicitly excluded for unchanged release behavior under `b64b1282`; it is
+not reported as a passing incident test. These are supplied final backend
+records, not refreshed consumer or serving results from this source writer.
+
+The exact portable archive remains
+`vendor/api-client/pirate-api-client-0.122.0-f8e20a02.tgz`, SHA256
+`f8e20a02368394ca0c41d29b0e4723ee3519057659c54c2e318002ea2e7f6c34`.
+The embedded and installed generated client remain SHA256
+`a6431a6a9e7e71c7c0ec0a057c91d2e8069075f9a77986baf75d6923965cc221`,
+with source/OpenAPI identity
+`api-next-contracts@0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3`.
+The parent already committed the actual backend/PR fields in
+`vendor/api-client-provenance.json`; those fields match the sealed supplement
+and need no further change. Package, lock, generated code, guard scopes and every
+historical archive remain unchanged by this metadata refresh.
+
+The parent preserved the accepted 55-file source at
+`534676ebef5a1388f64d05a8dec300ea8c107935` and normally merged accepted main
+`60371f47b2a5d4e435e18fd0f299963a0324ef5b` as
+`c71bcf2dd51d2a53a29aed4f94eb79be0b2565bc`, preserving both histories.
+The starting source binding for this bounded refresh is
+`1a001537361fb8ec87f4319ded2b91a00c8096cb`, with the parent-verified 1574-file
+census SHA256
+`05336ae2a2a95c271ddaf138825d22a5d61d2cc934c2db445354ac375e6d25c0`.
+At this admission, [Solid PR98](https://github.com/pirate-social-club/pirate-web-solid/pull/98)
+remains draft at the preserved `534676ebef5a1388f64d05a8dec300ea8c107935`;
+the refreshed source has not been published there. This source writer performs
+no merge, rebase, commit, index mutation or publication.
+
+The real 14 nullable-author field changes across seven existing operations,
+current-access redaction and navigation safeguards remain intact. The
+108-operation runtime-table digest remains
+`88168c4e8c90762a32de2a78e54ca41e4e07a53bb884337e70bcc70f86a4204d`;
+all prior schema/status/error and required provenance scopes remain enforced.
+No erased author identity is reconstructed, and video `route:null` gains no
+canonical or song-activity metadata.
+
+Fresh focused offline checks are recorded separately in the bounded source
+handback. Parent-owned full verification, Worker/Storybook builds, the same
+independent committed-source review and consumer CI/publication remain required.
+Final backend source binding and migration review do not establish staging DDL,
+holder/producer/LOGIN readiness, physical desktop/phone acceptance, paired durable
+delivery, actual inline target/access-loss behavior, alias cutover or serving.
+Runtime, Paper, Rewards, pilot, participant and SafeSTOP holds remain; no
+financial/mainnet, credential, cybersecurity, release or deployment authority
+is supplied by this metadata refresh.
