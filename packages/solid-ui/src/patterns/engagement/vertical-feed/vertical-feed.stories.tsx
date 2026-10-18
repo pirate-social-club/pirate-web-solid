@@ -4,6 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { MobileFooterNav } from "@/patterns/navigation/mobile-footer-nav/mobile-footer-nav";
+import { expectPhoneSheetClose } from "@/stories/lib/story-measure";
 import { brokenPost, fixturePosts, longCaptionPost } from "./fixtures";
 import { VerticalFeed, type VerticalFeedProps } from "./vertical-feed";
 
@@ -301,7 +302,8 @@ export const MobileMoreSheet: Story = {
     await userEvent.click(await waitFor(() => moreTrigger(canvasElement, "phone")));
     const page = within(canvasElement.ownerDocument.body);
     const sheet = await page.findByRole("dialog", { name: "More options" });
-    const rows = within(sheet).getAllByRole("button");
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")];
     await expect(rows.map((row) => row.textContent)).toEqual(["Mute", "Report"]);
+    await expectPhoneSheetClose(sheet, rows[0]!);
   },
 };

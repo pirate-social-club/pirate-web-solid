@@ -215,20 +215,22 @@ describe("global sign-in host", () => {
       expect(exchange.loginWithWallet).toHaveBeenCalledTimes(1);
       expect(document.body.textContent).toContain("Signing in…");
 
-      // Locked while signing in: no Close, and Escape leaves it open.
-      expect(button("Close")).toBeUndefined();
+      // Locked while signing in: Close stays visible but disabled, and neither
+      // it nor Escape closes the dialog.
+      expect(button("Close")?.disabled).toBe(true);
+      button("Close")?.click();
       pressEscape();
       await vi.advanceTimersByTimeAsync(SIGN_IN_LOCK_MS - 1);
       expect(document.querySelector("[role='dialog']")).not.toBeNull();
-      expect(button("Close")).toBeUndefined();
+      expect(button("Close")?.disabled).toBe(true);
       expect(outcome).toBeUndefined();
 
       // The lock expires; five minutes on, the stalled request still has a way out.
       await vi.advanceTimersByTimeAsync(1);
-      expect(button("Close")).toBeDefined();
+      expect(button("Close")?.disabled).toBe(false);
       await vi.advanceTimersByTimeAsync(5 * 60_000);
       expect(document.body.textContent).toContain("Signing in…");
-      expect(button("Close")).toBeDefined();
+      expect(button("Close")?.disabled).toBe(false);
       pressEscape();
       await vi.advanceTimersByTimeAsync(0);
       expect(document.querySelector("[role='dialog']")).toBeNull();
@@ -260,13 +262,13 @@ describe("global sign-in host", () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(document.body.textContent).not.toContain("Signing in…");
       expect(button("Connect wallet")).toBeDefined();
-      expect(button("Close")).toBeDefined();
+      expect(button("Close")?.disabled).toBe(false);
 
       // A second attempt locks again, then the user closes after the lock
       // expires. Its late success is discarded: no sign-in, no refresh.
       button("Connect wallet")?.click();
       await vi.advanceTimersByTimeAsync(0);
-      expect(button("Close")).toBeUndefined();
+      expect(button("Close")?.disabled).toBe(true);
       await vi.advanceTimersByTimeAsync(SIGN_IN_LOCK_MS);
       pressEscape();
       await vi.advanceTimersByTimeAsync(0);

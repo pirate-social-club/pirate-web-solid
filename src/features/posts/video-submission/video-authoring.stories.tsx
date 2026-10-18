@@ -361,7 +361,7 @@ function Harness(props: {
     const timer = setInterval(() => {
       const plan = container?.querySelector('[data-song-plan="ready"]');
       const continueButton = [...(container?.querySelectorAll<HTMLButtonElement>('[data-song-choice-screen] button') ?? [])]
-        .find(button => button.textContent?.trim() === "Continue to video" && !button.disabled);
+        .find(button => button.textContent?.trim() === "Next" && !button.disabled);
       if (plan && continueButton && container?.querySelector('[data-song-choice-screen]')?.getAttribute("aria-hidden") !== "true") {
         continueButton.click();
       }
@@ -378,7 +378,7 @@ function Harness(props: {
       }
       if (props.autoPublish && plan && container?.querySelector("[data-video-review-frame]") !== null) {
         const publish = [...(container?.querySelectorAll("button") ?? [])]
-          .find(button => button.textContent?.trim() === "Publish video");
+          .find(button => button.textContent?.trim() === "Post");
         if (publish && !publish.disabled) { clearInterval(timer); publish.click(); }
       }
     }, 100);
@@ -494,7 +494,7 @@ export const SongLoading: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole("dialog", { name: "Choose a song" });
     await canvas.findByRole("status", { name: "Loading song" });
-    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Next" })).toBeNull();
   },
 };
 
@@ -505,7 +505,7 @@ export const SongUnavailable: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole("dialog", { name: "Choose a song" });
     await canvas.findByText("That song isn’t available to play.");
-    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Next" })).toBeNull();
   },
 };
 
@@ -525,7 +525,7 @@ export const NoSongChosen: Story = {
     await canvas.findByRole("dialog", { name: "Choose a song" });
     await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
     expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
-    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Next" })).toBeNull();
   },
 };
 
@@ -535,7 +535,7 @@ export const SongForbidden: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("This song is closed to video posts.");
-    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Next" })).toBeNull();
     await canvas.findByRole("button", { name: "Choose another song" });
     expect(canvas.queryByRole("slider")).toBeNull();
   },
@@ -547,7 +547,7 @@ export const ExcerptSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole("dialog", { name: "Song" });
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue to video" })).toBeEnabled(), { timeout: 10_000 });
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled(), { timeout: 10_000 });
     expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
   },
 };
@@ -564,7 +564,7 @@ export const PreflightRefused: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("This song allows only shorter videos.");
     await canvas.findByRole("button", { name: "Choose another song" });
-    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Next" })).toBeNull();
   },
 };
 
@@ -630,7 +630,7 @@ export const Backgrounded: Story = {
     document.dispatchEvent(new Event("visibilitychange"));
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     await canvas.findByText("Recording interrupted", {}, { timeout: 30_000 });
-    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Post" })).toBeNull();
     expect(canvas.queryByRole("checkbox")).toBeNull();
   },
 };
@@ -641,7 +641,7 @@ export const ReviewPlayback: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("Review video", {}, { timeout: 20_000 });
-    await canvas.findByRole("button", { name: "Publish video" });
+    await canvas.findByRole("button", { name: "Post" });
     expect(canvas.queryByText(/choose a shorter one/)).toBeNull();
     const frame = canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect();
     expect(frame.width / frame.height).toBeCloseTo(9 / 16, 2);
@@ -894,7 +894,7 @@ export const ReviewPostingAs: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole("button", { name: "Publish video" }, { timeout: 30_000 });
+    await canvas.findByRole("button", { name: "Post" }, { timeout: 30_000 });
     expect(canvas.queryByText("Posting in Pirate Harbor")).toBeNull();
     expect(canvas.queryByText("Posting as")).toBeNull();
     expect(canvas.queryByRole("textbox")).toBeNull();
@@ -960,7 +960,7 @@ export const DesktopReview: Story = {
   render: () => <Harness cameraCapture={false} chooseFile={() => sampleVideoFile(12_000)} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole("button", { name: "Publish video" });
+    await canvas.findByRole("button", { name: "Post" });
     expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
     expect(canvas.queryByRole("checkbox")).toBeNull();
   },
@@ -994,7 +994,7 @@ export const UploadedVideoTooLong: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("That video is too long. Choose a shorter one.", {}, { timeout: 20_000 });
     await canvas.findByRole("button", { name: "Choose a video" });
-    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Post" })).toBeNull();
   },
 };
 
@@ -1005,6 +1005,6 @@ export const OrientationLost: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole("heading", { name: "Retake in one orientation" }, { timeout: 20_000 });
     await canvas.findByRole("button", { name: "Retake video" });
-    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Post" })).toBeNull();
   },
 };
