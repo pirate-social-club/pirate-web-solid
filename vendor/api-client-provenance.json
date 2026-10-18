@@ -139,7 +139,7 @@
     "get_meNotifications",
     "post_meNotificationsNotificationIdRead"
   ],
-  "validatedSourceCommit": null,
-  "pullRequest": null,
-  "intakeStatus": "Source-only successor intake; package verification passed locally. API107 source remains local/uncommitted; final source/PR binding, P1 compatibility transition and exact deprecation review, required/CI/migration and paired serving gates remain pending."
+  "validatedSourceCommit": "e352a7e56fa3029f8ba51b2a13edfb547372ae56",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/623",
+  "intakeStatus": "API PR623 merged on the exact independently reviewed/tested Notifications tree; complete migrations271-273 review accepted and required hosted checks passed. Immutable client0.122 artifact verified. Paired consumer current-main gates/review, holder/producer/LOGIN controls, deployment and real delivery/navigation/access-loss/alias/cutover/serving acceptance remain pending. Financial/mainnet/cybersecurity and unlifted holds persist."
 }
