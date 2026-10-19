@@ -530,7 +530,7 @@ describe("Spaces community address", () => {
     const node = document.createElement("div");
     document.body.appendChild(node);
     nodes.push(node);
-    const untouched = { start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
+    const untouched = { roots: unexpected, read: unexpected, resume: unexpected, start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
     render(() => <CommunityAddressSettings communityId="community-1" communityPath="/c/community-1"
       namespaceApi={createFakeNamespaceSettingsPort()} spacesApi={untouched} spacesRouteApi={api} />, node);
     await settle();
@@ -551,7 +551,7 @@ describe("Spaces community address", () => {
     const node = document.createElement("div");
     document.body.appendChild(node);
     nodes.push(node);
-    const untouched = { start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
+    const untouched = { roots: unexpected, read: unexpected, resume: unexpected, start: unexpected, poll: unexpected, assignment: unexpected, confirmAssignment: unexpected };
     render(() => <CommunityAddressSettings communityId={communityId()} communityPath="/c/community-1"
       namespaceApi={createFakeNamespaceSettingsPort()} spacesApi={untouched} spacesRouteApi={api} />, node);
     await settle();

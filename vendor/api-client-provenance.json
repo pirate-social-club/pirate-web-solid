@@ -137,7 +137,10 @@
     "get_commentsCommentIdLocation",
     "get_postsPostIdComments",
     "get_meNotifications",
-    "post_meNotificationsNotificationIdRead"
+    "post_meNotificationsNotificationIdRead",
+    "get_communitiesCommunityIdSpacesOwnershipRoots",
+    "get_communitiesCommunityIdSpacesOwnership",
+    "post_communitiesCommunityIdSpacesOwnershipResume"
   ],
   "validatedSourceCommit": "87c3afa6997eedb055c0a1f668ff8dc8bd25af5c",
   "pullRequest": "https://github.com/pirate-social-club/api-next/pull/626",
