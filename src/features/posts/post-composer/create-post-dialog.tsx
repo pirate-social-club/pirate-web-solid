@@ -675,7 +675,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       fallback={
       <form
         aria-label="Post a song"
-        class={props.presentation === "inline" ? "w-full min-w-0" : "fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"}
+        class={props.presentation === "inline" ? "w-full min-w-0" : "fixed inset-0 z-50 overflow-y-auto bg-background px-4 py-4 sm:px-6 sm:py-8"}
         data-create-post-form
         onSubmit={event => event.preventDefault()}
       >
