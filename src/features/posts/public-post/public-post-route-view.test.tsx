@@ -334,7 +334,7 @@ it("uses the standard song post card and lays its persisted comment thread under
   expect(await decodePendingEngagementAction(createComment.mock.calls[0]![0])).toMatchObject({ kind: "comment", personaId: "profile", postId: "post-1", body: "After studying" });
 });
 
-it("waits for the private vote and never treats a failed read as an unvoted account", async () => {
+it("keeps comment reading independent of a failed private vote and disables unconfirmed voting", async () => {
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("Expected content");
   const readViewerVote = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(-1);
@@ -344,7 +344,8 @@ it("waits for the private vote and never treats a failed read as an unvoted acco
   });
   expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(true);
   await vi.waitFor(() => expect(container.textContent).toContain("Your post actions could not be checked"));
-  expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(true);
+  expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(false);
+  expect(container.querySelector("button[aria-label='Upvote']")).toBeNull();
   [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry")!.click();
   await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")?.disabled).toBe(false));
   expect(readViewerVote).toHaveBeenCalledTimes(2);
@@ -440,13 +441,13 @@ it("draws replies one level in, without a Reply of their own, and names whom a r
   expect(container.querySelector("input[aria-label='Write a reply']")).not.toBeNull();
 });
 
-it("leaves video details without engagement or private session reads", async () => {
+it("preserves the public video reader while checking the session for inline comments", async () => {
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("Expected content");
   const resolveSession = vi.fn(async () => "anonymous" as const);
   const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
     post: { ...state.response.content.post, post_type: "video" } } } }, undefined, { resolveSession });
   await vi.waitFor(() => expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull());
-  expect(container.querySelector("button[aria-label='Upvote'], button[aria-label^='Comments'], button[aria-label='Post options']")).toBeNull();
-  expect(resolveSession).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledOnce());
+  expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull();
 });

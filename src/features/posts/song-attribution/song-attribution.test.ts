@@ -34,6 +34,23 @@ describe("reading the projected song attribution", () => {
     })).toBeNull();
   });
 
+  it("hides a redacted song author instead of recovering an earlier or origin identity", () => {
+    expect(readSongAttribution(songVideo)?.songAuthorPersonaId).toBe("persona-id");
+    const redacted = { ...songVideo, soundtrack: { ...songVideo.soundtrack,
+      origin_author_persona_id: "earlier-origin-persona",
+      song_reference: { ...songVideo.soundtrack.song_reference, song_author_persona_id: null },
+    } };
+    expect(readSongAttribution(redacted)).toBeNull();
+    expect(readSongAttribution({ ...redacted, author_persona: { persona_id: "video-persona" } })).toBeNull();
+    expect(songVideo.soundtrack.song_reference.song_author_persona_id).toBe("persona-id");
+  });
+
+  it("accepts an erased original-audio author as no song attribution without an identity fallback", () => {
+    const soundtrack = { kind: "original_audio", original_sound_id: "sound", origin_video_post_id: "video", origin_author_persona_id: null };
+    expect(readSongAttribution({ track: "video", soundtrack })).toBeNull();
+    expect(readSongAttribution({ track: "video", soundtrack: { ...soundtrack, song_author_persona_id: "earlier-song-persona" } })).toBeNull();
+  });
+
   it("fails closed on malformed or incomplete projections", () => {
     expect(readSongAttribution(null)).toBeNull();
     expect(readSongAttribution({ track: "song" })).toBeNull();
