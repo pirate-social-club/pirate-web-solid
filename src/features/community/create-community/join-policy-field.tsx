@@ -28,9 +28,8 @@ export interface JoinPolicyCopy {
 /**
  * The community join policy page: two mutually exclusive options, and the
  * country multi-select with its chips inline under the nationality option —
- * the legacy shape, not a separate trigger. The page itself renders only
- * when the authoring context offers the choice; while the gate is closed
- * creation has no join-policy page at all. No copy names a verification
+ * the legacy shape, not a separate trigger. With authoring closed, the page
+ * states the supported Palm policy without offering a different choice. No copy names a verification
  * provider.
  *
  * There is deliberately no frozen fallback for a saved nationality policy
@@ -48,6 +47,7 @@ export function JoinPolicyField(props: Readonly<{
   /** Shows the empty-selection error; set it after picker interaction or a blocked Continue. */
   showEmptyError?: boolean;
   disabled?: boolean;
+  hideHeading?: boolean;
   locale?: string;
   copy: JoinPolicyCopy;
 }>) {
@@ -64,7 +64,7 @@ export function JoinPolicyField(props: Readonly<{
 
   return (
     <section aria-labelledby={headingId} class="flex flex-col gap-2" data-community-join-policy>
-      <div class="mb-1" id={headingId}>
+      <div class={cn(props.hideHeading ? "sr-only" : "mb-1")} id={headingId}>
         <Type as="span" variant="body-strong">{props.copy.title}</Type>
       </div>
       <Show

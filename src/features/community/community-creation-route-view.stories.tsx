@@ -57,6 +57,15 @@ function avatarStoryApi(
   };
 }
 
+async function reachProfilePage(canvasElement: HTMLElement): Promise<void> {
+  const canvas = within(canvasElement);
+  await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+  await expect(await canvas.findByRole("heading", { name: "Join policy", level: 1 })).toBeVisible();
+  await expect(canvas.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+  await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+  await expect(await canvas.findByRole("heading", { name: "Your profile", level: 1 })).toBeVisible();
+}
+
 async function completeAvatarStory(canvasElement: HTMLElement, uploadFailure = false): Promise<void> {
   const canvas = within(canvasElement);
   await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
@@ -65,7 +74,9 @@ async function completeAvatarStory(canvasElement: HTMLElement, uploadFailure = f
     new File([new Uint8Array([1, 2, 3])], "community.png", { type: "image/png" }),
   );
   await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Avatar harbor");
-  await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+  await reachProfilePage(canvasElement);
+  await expect(uploadFailure ? failedAvatarUpload : successfulAvatarUpload).not.toHaveBeenCalled();
+  await expect(uploadFailure ? failedAvatarCreate : successfulAvatarCreate).not.toHaveBeenCalled();
   await userEvent.click(await canvas.findByRole("button", { name: "Create" }));
   await waitFor(() => expect(canvas.getByText(uploadFailure
     ? "Could not upload the community image. Your setup is still here. Try again or choose another image."
@@ -108,7 +119,7 @@ export const Ready: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
     await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Harbor room");
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await reachProfilePage(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Use an existing profile" }));
     await waitFor(() => expect(canvas.getByText("Creating as Harbor Keeper")).toBeInTheDocument());
   },
@@ -165,7 +176,7 @@ export const QuotaExceeded: Story = {
     await waitFor(() =>
       expect(canvas.getByText("You've reached the limit for new communities.")).toBeInTheDocument(),
     );
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
   },
 };
 

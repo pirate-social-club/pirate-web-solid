@@ -826,6 +826,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       >
         <CreateCommunityView
           draft={draft()}
+          avatarFile={communityAvatarFile()}
+          profileAvatarFile={personaAvatarFile()}
           onAvatarChange={file => changeAvatar("community", file)}
           onProfileAvatarChange={file => changeAvatar("persona", file)}
           onClose={() => navigate("/")}

@@ -6,12 +6,12 @@ import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-communi
 import { generatedAvatarPattern } from "./generated-avatar";
 import { MediaPicker } from "./media-picker";
 
-function GeneratedAvatar(props: { readonly seed: string }) {
+function GeneratedAvatar(props: { readonly seed: string; class?: string }) {
   const pattern = createMemo(() => generatedAvatarPattern(props.seed));
   return (
     <span
       aria-hidden="true"
-      class="grid size-16 shrink-0 grid-cols-5 overflow-hidden rounded-full"
+      class={cn("grid size-16 shrink-0 grid-cols-5 overflow-hidden rounded-full", props.class)}
       data-generated-avatar
       style={{ "background-color": pattern().background }}
     >
@@ -55,6 +55,7 @@ export function CommunityOwnerFields(props: {
   hideHeading?: boolean;
   /** Offers the profile image picker; see the view's avatarAuthoring. */
   avatarAuthoring?: boolean;
+  avatarFile?: Blob;
   /**
    * A saved intent freezes the owner choice. Locked renders one summary line
    * instead of form controls: a control that cannot be used is noise, and
@@ -81,32 +82,23 @@ export function CommunityOwnerFields(props: {
       <Show when={props.locked} fallback={
         <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
         <>
-          {/*
-            Spec 014 §3.1 as amended 2026-09-20: the profile avatar is
-            optional, generated locally by default (shown inside the picker
-            region), uploaded through the same MediaPicker shape. The name
-            field is titled "Name in this community" and arrives prefilled
-            with a locally generated suggestion.
-          */}
-          <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
-            <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
-            <TextFieldInput aria-describedby={`owner-name-help-${id}`} maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
-            <p class="text-sm text-muted-foreground" id={`owner-name-help-${id}`}>{props.copy.ownerPublicNameHelp}</p>
-          </TextField>
           <Show when={props.avatarAuthoring === true}>
-          {/*
-            The generated default shows in the region with no explanatory
-            copy; the pill is the only text beside it.
-          */}
           <MediaPicker
+            size={72}
+            file={props.avatarFile}
             chooseLabel={props.copy.mediaChooseFile}
-            fallback={<GeneratedAvatar seed={props.draft.profileAvatarSeed} />}
+            fallback={<GeneratedAvatar class="size-full" seed={props.draft.profileAvatarSeed} />}
             label={props.copy.ownerAvatarLabel}
             removeLabel={props.copy.mediaRemove}
             replaceLabel={props.copy.mediaReplace}
             onSelect={file => props.onProfileAvatarChange?.(file)}
           />
           </Show>
+          <TextField class="gap-2" required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
+            <TextFieldLabel class="text-sm leading-5">{props.copy.ownerPublicNameLabel}</TextFieldLabel>
+            <TextFieldInput aria-describedby={`owner-name-help-${id}`} maxlength={80} class="h-10 rounded-[var(--radius-lg)] bg-card" />
+            <p class="text-sm text-muted-foreground" id={`owner-name-help-${id}`}>{props.copy.ownerPublicNameHelp}</p>
+          </TextField>
           <div class="h-10">
             <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
           </div>
@@ -127,8 +119,10 @@ export function CommunityOwnerFields(props: {
           <Type as="p" variant="body">{props.copy.ownerCreatingAs.replace("{name}", profile().displayName ?? "")}</Type>
           <Show when={props.avatarAuthoring === true && profile().avatarRef === null}>
             <MediaPicker
+            size={72}
+            file={props.avatarFile}
               chooseLabel={props.copy.mediaChooseFile}
-              fallback={<GeneratedAvatar seed={props.draft.profileAvatarSeed} />}
+              fallback={<GeneratedAvatar class="size-full" seed={props.draft.profileAvatarSeed} />}
               label={props.copy.ownerAvatarLabel}
               removeLabel={props.copy.mediaRemove}
               replaceLabel={props.copy.mediaReplace}

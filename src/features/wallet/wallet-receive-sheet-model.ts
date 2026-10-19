@@ -25,18 +25,12 @@ export function formatFiatTotal(section: WalletHubChainSection): string {
   });
 }
 
+/** Receive starts on usable Base. Every other network needs an explicit choice. */
 export function getDefaultReceiveChainId(
   chainSections: WalletHubChainSection[],
-  defaultChainId?: WalletHubChainId,
+  walletAddress?: string | null,
 ): WalletHubChainId | undefined {
-  if (defaultChainId && chainSections.some((section) => section.chainId === defaultChainId)) {
-    return defaultChainId;
-  }
-  return chainSections.reduce<WalletHubChainSection | undefined>((bestSection, section) => {
-    if (!section.walletAddress) return bestSection;
-    if (!bestSection) return section;
-    return chainFiatTotal(bestSection) >= chainFiatTotal(section) ? bestSection : section;
-  }, undefined)?.chainId;
+  return chainSections.some(section => section.chainId === "base"
+    && section.availability === "ready"
+    && !!(section.walletAddress ?? walletAddress)) ? "base" : undefined;
 }
-
-
