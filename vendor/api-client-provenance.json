@@ -139,7 +139,7 @@
     "get_meNotifications",
     "post_meNotificationsNotificationIdRead"
   ],
-  "validatedSourceCommit": "e352a7e56fa3029f8ba51b2a13edfb547372ae56",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/623",
-  "intakeStatus": "API PR623 merged on the exact independently reviewed/tested Notifications tree; complete migrations271-273 review accepted and required hosted checks passed. Immutable client0.122 artifact verified. Paired consumer current-main gates/review, holder/producer/LOGIN controls, deployment and real delivery/navigation/access-loss/alias/cutover/serving acceptance remain pending. Financial/mainnet/cybersecurity and unlifted holds persist."
+  "validatedSourceCommit": "87c3afa6997eedb055c0a1f668ff8dc8bd25af5c",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/626",
+  "intakeStatus": "Immutable client0.123 artifact495647e1 is verified against API moderation repair87c3afa6, independently accepted for bounded source/artifact integration under manifest74491011. PR626 hosted checks, protected integration and live staging remain pending. The six nullable policy fields preserve genuine author-declared absence; historical moderated evidence stays strict. Production and financial/mainnet/cybersecurity holds remain."
 }
