@@ -9,7 +9,7 @@ import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 const meta = {
   title: "Parts/Wallet/ReceiveSheet",
   component: WalletReceiveSheet,
-  args: { chainSections: fiveChainSections, defaultChainId: "tempo", onOpenChange: () => undefined, open: true, walletAddress: sharedWalletAddress },
+  args: { chainSections: fiveChainSections, onOpenChange: () => undefined, open: true, walletAddress: sharedWalletAddress },
   parameters: { layout: "fullscreen" },
 } satisfies Meta<typeof WalletReceiveSheet>;
 
@@ -49,15 +49,30 @@ export const DefaultMobile: Story = {
   },
 };
 export const ChainSwitched: Story = {
-  args: { defaultChainId: "story" },
   render: (args) => <StoryRender {...args} />,
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     const dialog = await body.findByRole("dialog", { name: "Receive" }, { timeout: 5000 });
+    await expect(within(dialog).getByText("Base Sepolia address")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: /Story Aeneid/ }));
     await expect(within(dialog).getByText("Story Aeneid address")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: /Base Sepolia/ }));
     await expect(within(dialog).getByText("Base Sepolia address")).toBeInTheDocument();
   },
 };
-export const AllChainsSameAddress: Story = { args: { defaultChainId: "base" }, render: (args) => <StoryRender {...args} /> };
+export const AllChainsSameAddress: Story = { render: (args) => <StoryRender {...args} /> };
 export const EmptyNoWallet: Story = { args: { chainSections: fiveChainSections.map((section) => ({ ...section, walletAddress: null })), walletAddress: null }, render: (args) => <StoryRender {...args} /> };
+
+export const BaseUnavailable: Story = {
+  args: { chainSections: fiveChainSections.map(section => section.chainId === "base" ? { ...section, availability: "later" } : section) },
+  render: args => <StoryRender {...args} />,
+  play: async ({ canvasElement }) => {
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Receive" });
+    const canvas = within(dialog);
+    await expect(canvas.getByText("Choose a network to see its receive address.")).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Copy address" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Story Aeneid/ }));
+    await expect(canvas.getByText("Story Aeneid address")).toBeVisible();
+    await expect(canvas.getByText(sharedWalletAddress)).toBeVisible();
+  },
+};

@@ -249,6 +249,7 @@ export {
   IconHandPalm,
   IconHeart,
   IconHouse,
+  IconCamera,
   IconImage,
   IconImageSquare,
   IconInfo,

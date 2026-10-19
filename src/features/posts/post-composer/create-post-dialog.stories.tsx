@@ -484,7 +484,9 @@ export const SongStepRights: Story = {
     await continueSongStep(canvas);
     await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
-    await expect(await canvas.findByText("All earnings go to you")).toBeInTheDocument();
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await expect(canvas.getByText("100%")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add collaborator" })).toBeVisible();
   },
 };
 

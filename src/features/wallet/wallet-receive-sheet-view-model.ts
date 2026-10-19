@@ -1,5 +1,5 @@
 import {
-  chainFiatTotal,
+  getDefaultReceiveChainId,
   formatFiatTotal,
 } from "./wallet-receive-sheet-model";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
@@ -32,7 +32,7 @@ function resolveAddress(
 
 function isReceiveable(props: WalletReceiveSheetProps, chainId: WalletHubChainId): boolean {
   const section = props.chainSections.find((item) => item.chainId === chainId);
-  return section?.availability === "ready" && resolveAddress(props, chainId) != null;
+  return section?.availability === "ready" && !!resolveAddress(props, chainId);
 }
 
 export function resolveReceiveChainId(
@@ -40,13 +40,7 @@ export function resolveReceiveChainId(
   selectedChainId?: WalletHubChainId,
 ): WalletHubChainId | undefined {
   if (selectedChainId && isReceiveable(props, selectedChainId)) return selectedChainId;
-  if (props.defaultChainId && isReceiveable(props, props.defaultChainId)) return props.defaultChainId;
-  return props.chainSections
-    .filter((section) => isReceiveable(props, section.chainId))
-    .reduce<{ chainId: WalletHubChainId; total: number } | undefined>((best, section) => {
-      const total = chainFiatTotal(section);
-      return !best || total > best.total ? { chainId: section.chainId, total } : best;
-    }, undefined)?.chainId;
+  return getDefaultReceiveChainId(props.chainSections, props.walletAddress);
 }
 
 export function buildWalletReceiveSheetView(
@@ -64,7 +58,7 @@ export function buildWalletReceiveSheetView(
     selectedTitle: props.chainSections.find((section) => section.chainId === resolvedChainId)?.title,
     chains: props.chainSections.map((section) => {
       const later = section.availability === "later";
-      const missingAddress = !later && resolveAddress(props, section.chainId) == null;
+      const missingAddress = !later && !resolveAddress(props, section.chainId);
       return {
         chainId: section.chainId,
         title: section.title,

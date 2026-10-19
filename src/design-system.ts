@@ -109,6 +109,7 @@ export {
   IconGlobe,
   IconHandPalm,
   IconHeart,
+  IconCamera,
   IconImage,
   IconLink,
   IconLinkSimple,

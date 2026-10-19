@@ -8,10 +8,10 @@ import {
 } from "./wallet-receive-sheet-model";
 
 describe("wallet receive sheet model", () => {
-  test("chooses an explicit valid chain before the highest-value address-bearing chain", () => {
-    expect(getDefaultReceiveChainId(fiveChainSections)).toBe("tempo");
-    expect(getDefaultReceiveChainId(fiveChainSections, "story")).toBe("story");
-    expect(getDefaultReceiveChainId(fiveChainSections, "cosmos")).toBe("tempo");
+  test("defaults to usable Base regardless of fiat balances", () => {
+    expect(getDefaultReceiveChainId(fiveChainSections)).toBe("base");
+    expect(getDefaultReceiveChainId(fiveChainSections.filter(section => section.chainId !== "base"))).toBeUndefined();
+    expect(getDefaultReceiveChainId(fiveChainSections.map(section => section.chainId === "base" ? { ...section, availability: "later" } : section))).toBeUndefined();
   });
 
   test("ignores chains without addresses and formats their deterministic totals", () => {
@@ -21,7 +21,7 @@ describe("wallet receive sheet model", () => {
     expect(formatFiatTotal(sections[1]!)).toBe("$608.82");
   });
 
-  test("includes usdPrice-only tokens in chain totals and default-chain selection", () => {
+  test("includes usdPrice-only tokens in totals without using them for selection", () => {
     const sections = [
       {
         chainId: "ethereum" as const,
@@ -41,7 +41,7 @@ describe("wallet receive sheet model", () => {
 
     expect(chainFiatTotal(sections[0]!)).toBe(20);
     expect(formatFiatTotal(sections[0]!)).toBe("$20.00");
-    expect(getDefaultReceiveChainId(sections)).toBe("ethereum");
+    expect(getDefaultReceiveChainId(sections)).toBe("base");
   });
 });
 
