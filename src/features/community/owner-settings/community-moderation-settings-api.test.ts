@@ -62,6 +62,31 @@ describe("createCommunityModerationSettingsApi", () => {
     ]);
   });
 
+  test("loads an author-declared report with absent provider policy evidence through generated validation", async () => {
+    const detail = {
+      ...SECOND_MODERATION_CASE_DETAIL,
+      evidence: {
+        ...SECOND_MODERATION_CASE_DETAIL.evidence,
+        matched_categories: [], category_decisions: {}, effective_decision: "permit",
+        provider_scores: {}, applied_input_types: {},
+        policy_revision: null, policy_hash: null,
+        platform_policy_revision: null, platform_policy_hash: null,
+        community_policy_revision: null, community_policy_hash: null,
+      },
+    };
+    const api = createCommunityModerationSettingsApi({
+      origin: "https://web.test",
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        return response(request.url.includes("/moderation/cases/")
+          ? detail : { ...OPEN_MODERATION_CASES, items: [detail.case] });
+      },
+    });
+    const bundle = await api.getCases({ communityId: "community_midnight", view: "open" });
+    expect(bundle.details).toEqual([detail]);
+    expect(bundle.details[0]?.preview).toEqual(detail.preview);
+  });
+
   test("preserves action, policy, revision, idempotency and CSRF fences", async () => {
     const requests: Request[] = [];
     const api = createCommunityModerationSettingsApi({
