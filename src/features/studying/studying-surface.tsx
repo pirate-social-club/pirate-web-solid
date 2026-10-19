@@ -11,7 +11,6 @@ import {
   IconLock,
   IconMicrophone,
   IconStop,
-  IconWarningCircle,
   IconX,
   Spinner,
   Type,
@@ -67,7 +66,7 @@ function ActivityFooter(props: {
   return (
     <Show when={props.primaryLabel}>
       <footer class="sticky bottom-0 z-10 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
-        <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && (props.results ? "grid-cols-2" : "sm:grid-cols-2"))}>
+        <div class={cn("mx-auto grid w-full max-w-[640px] gap-3", props.secondaryLabel && (props.results ? "grid-cols-2" : "sm:grid-cols-2"))}>
           <Show when={props.results && props.secondaryLabel}>
             <Button class="h-13 w-full" leadingIcon={props.secondaryIcon} onClick={props.onSecondaryAction} size="lg" variant="secondary">
               {props.secondaryLabel}
@@ -145,64 +144,57 @@ function LockedState(props: { state: Extract<StudyingSurfaceState, { kind: "lock
   );
 }
 
+/**
+ * The one result box under a card's content (Paper, Flows/Studying/Session):
+ * a coloured border and tint, a check and Correct or a cross and Incorrect,
+ * and on a spoken miss what was heard.
+ */
+function StudyResultBox(props: { correct: boolean; heard?: string; label?: string }) {
+  return (
+    <div
+      class={cn(
+        "rounded-[var(--radius-xl)] border px-4 py-3.5",
+        props.correct ? "border-[#8fd19e] bg-[#1d2a22]" : "border-[#f0543f] bg-[#3a211d]",
+      )}
+      data-study-result={props.correct ? "correct" : "incorrect"}
+      role="status"
+    >
+      <div class="flex items-center gap-3">
+        <Show when={props.correct} fallback={<IconX aria-hidden="true" class="size-5 shrink-0 text-[#f0543f]" />}>
+          <IconCheck aria-hidden="true" class="size-5 shrink-0 text-[#8fd19e]" />
+        </Show>
+        <Type
+          as="p"
+          class={cn("text-base font-semibold leading-6", props.correct ? "text-[#8fd19e]" : "text-destructive-text")}
+          variant="body-strong"
+        >
+          {props.label ?? (props.correct ? "Correct" : "Incorrect")}
+        </Type>
+      </div>
+      <Show when={props.heard}>
+        {heard => (
+          <Type as="p" class="mt-2 text-foreground" data-heard-transcript dir="auto" variant="body">
+            You said: “{heard()}”
+          </Type>
+        )}
+      </Show>
+    </div>
+  );
+}
+
 function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "say_it_back" }> }) {
   return (
-    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
+    <div class="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
       <StudyPrompt instruction="Say it back:" prompt={props.state.exercise.prompt} />
 
-      {/* A miss reports the result with the transcript diff the grader kept. */}
+      {/* A miss reports Incorrect and what was heard; the owner dropped the
+          word diff and the "comes back later" line (Paper, 2026-10-12). */}
       <Show when={props.state.phase === "wrong"}>
-        <div
-          class={cn(
-            "rounded-[var(--radius-xl)] border border-[#f0543f] bg-[#3a211d] p-4",
-          )}
-        >
-          <div class="flex items-center gap-3">
-            <IconWarningCircle class="size-6 shrink-0 text-[#f0543f]" />
-            <div class="min-w-0">
-              <Type as="p" class="text-base font-semibold leading-6 text-destructive-text" variant="body-strong">
-                {props.state.revealReference ? "Incorrect" : "Incorrect — try again"}
-              </Type>
-            </div>
-          </div>
-          <Show when={props.state.heardTranscript}>
-            <Type as="p" class="mt-3 text-muted-foreground" data-heard-transcript variant="body">
-              We heard: “{props.state.heardTranscript}”
-            </Type>
-          </Show>
-          <Show when={props.state.diff && (props.state.diff.missing.length > 0 || props.state.diff.substituted.length > 0 || props.state.diff.extra.length > 0)}>
-            <div class="mt-3 flex flex-wrap items-center gap-1.5" data-transcript-diff>
-              <For each={props.state.diff?.missing ?? []}>
-                {(word) => (
-                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm text-destructive-text line-through" data-diff-missing>
-                    {word.token}
-                  </span>
-                )}
-              </For>
-              <For each={props.state.diff?.substituted ?? []}>
-                {(word) => (
-                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm" data-diff-substituted>
-                    <span class="text-foreground line-through">{word.expected.token}</span>
-                    <span class="mx-1 text-muted-foreground">→</span>
-                    <span class="text-destructive-text">{word.heard}</span>
-                  </span>
-                )}
-              </For>
-              <For each={props.state.diff?.extra ?? []}>
-                {(word) => (
-                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm text-muted-foreground" data-diff-extra>
-                    +{word}
-                  </span>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Show when={props.state.willReturn}>
-            <Type as="p" class="mt-3 text-muted-foreground" variant="caption">
-              This line comes back later in this lesson.
-            </Type>
-          </Show>
-        </div>
+        <StudyResultBox
+          correct={false}
+          heard={props.state.heardTranscript}
+          label={props.state.revealReference ? "Incorrect" : "Incorrect — try again"}
+        />
       </Show>
       <Show when={props.state.submitError}>
         <Type as="p" class="text-destructive-text" role="alert" variant="caption">
@@ -223,7 +215,7 @@ function MultipleChoiceState(props: {
   state: Extract<StudyingSurfaceState, { kind: "multiple_choice" }>;
 }) {
   return (
-    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
+    <div class="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
       <StudyPrompt
         instruction={props.state.exercise.question}
         prompt={props.state.exercise.prompt}
@@ -284,6 +276,12 @@ function MultipleChoiceState(props: {
           }}
         </For>
       </div>
+
+      {/* The same result box as Say it back (Paper): correct moves on by
+          itself; incorrect waits for Continue. */}
+      <Show when={props.state.result}>
+        {result => <StudyResultBox correct={result() === "correct"} />}
+      </Show>
 
       <Show when={props.state.submitError}>
         <Type as="p" class="text-destructive-text" role="alert" variant="caption">
@@ -481,7 +479,7 @@ function Body(props: {
 
 function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
   if (state.kind !== "say_it_back") return undefined;
-  if (state.phase === "checking") return <Spinner class="size-5" />;
+  if (state.phase === "checking" || state.phase === "acquiring") return <Spinner class="size-5" />;
   if (state.phase === "listening") return <IconStop class="size-5" />;
   if (state.phase === "idle" || (state.phase === "wrong" && !state.revealReference)) {
     return <IconMicrophone class="size-5" />;
@@ -491,6 +489,7 @@ function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
 
 export function StudyingSurface(props: StudyingSurfaceProps) {
   const complete = () => props.state.kind === "complete";
+  const recordingBlocked = () => props.state.kind === "say_it_back" && props.state.phase === "blocked";
   // Results: one Continue back to the song, with "Study again" as the quiet option.
   const primaryLabel = () => complete()
     ? props.completeActionLabel
@@ -502,21 +501,26 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
       : props.onExit ?? props.onStudyAgain
     : props.onPrimaryAction;
   const primaryIcon = () => complete() ? undefined : primaryActionIcon(props.state);
-  const secondaryLabel = () => complete() && props.onExit && props.onStudyAgain && !props.completeActionLabel ? "Study again" : undefined;
+  const secondaryLabel = () => props.onStudyAgain && (recordingBlocked() || (complete() && props.onExit && !props.completeActionLabel)) ? "Study again" : undefined;
 
   return (
     <section class={cn("flex h-dvh w-full flex-col overflow-y-auto bg-background text-foreground", props.class)}>
       {/* A finished lesson needs no exit arrow or progress bar; Continue leaves. */}
       <Show when={!complete()}>
-      <ActivityProgressHeader
-        exitLabel="Exit study"
-        onExit={props.onExit}
-        progressMax={Math.max(0, props.lessonProgress?.totalCount ?? 0)}
-        progressValue={Math.max(0, Math.min(props.lessonProgress?.totalCount ?? 0, props.lessonProgress?.resolvedCount ?? 0))}
-        progressTone="success"
-        rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
-        rewardPresentation="badge"
-      />
+        {/* Paper: on desktop the header sits in the card's 640 column. The
+            shared header stays full width for Karaoke; Study caps it here. */}
+        <div class="mx-auto w-full max-w-[640px]" data-study-header>
+        <ActivityProgressHeader
+          exitIcon="close"
+          exitLabel="Exit study"
+          onExit={props.onExit}
+          progressMax={Math.max(0, props.lessonProgress?.totalCount ?? 0)}
+          progressValue={Math.max(0, Math.min(props.lessonProgress?.totalCount ?? 0, props.lessonProgress?.resolvedCount ?? 0))}
+          progressTone="success"
+          rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
+          rewardPresentation="badge"
+        />
+        </div>
       </Show>
       <Body onOptionSelect={props.onOptionSelect} rewardSlot={props.rewardSlot} state={props.state} />
       <ActivityFooter

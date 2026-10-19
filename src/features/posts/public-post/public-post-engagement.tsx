@@ -12,6 +12,8 @@ import { PostEngagement, type PostEngagementPost } from "../post-engagement/post
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api";
 import type { CommentThreadReader } from "../post-engagement/comment-thread-api";
 import type { PendingEngagementStorage } from "../post-engagement/post-engagement-pending";
+import type { CommentNavigation, CommentNavigationReader } from "../../notifications/comment-navigation-api.ts";
+import { useTargetedPersona } from "../../notifications/targeted-persona-context.ts";
 
 export interface PublicPostEngagementDependencies {
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -19,6 +21,7 @@ export interface PublicPostEngagementDependencies {
   readonly transport?: PostEngagementTransport;
   readonly readComments?: CommentThreadReader;
   readonly pendingStorage?: PendingEngagementStorage;
+  readonly readTarget?: CommentNavigationReader;
 }
 
 /** Public content renders immediately; private controls wait for the viewer's own vote. */
@@ -29,8 +32,15 @@ export function PublicPostEngagement(props: {
   /** Compact lists use the pills to request sign-in without another button per card. */
   showSignInPrompt?: boolean;
   dependencies?: PublicPostEngagementDependencies;
+  /** `inline` is the post page: the thread under the post and a bottom comment bar. */
+  presentation?: "sheet" | "inline";
+  /** Inline only: a signed-in visitor who is not a member joins here to comment. */
+  joinHref?: string;
+  target?: CommentNavigation;
   children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
 }) {
+  const inline = () => props.presentation === "inline";
+  const targetedPersona = useTargetedPersona();
   const [session, setSession] = createSignal<AuthenticatedSession>();
   const [anonymous, setAnonymous] = createSignal(false);
   const [issue, setIssue] = createSignal(false);
@@ -55,25 +65,38 @@ export function PublicPostEngagement(props: {
       if (!active) return;
       if (resolved === "anonymous") { setAnonymous(true); return; }
       setSession(resolved);
-      setPersonaId(defaultOperationPersonaId(communityOperationPersonas(resolved.personas, props.communityId)));
+      const available = communityOperationPersonas(resolved.personas, props.communityId), selected = targetedPersona?.selected();
+      setPersonaId(selected && available.some(persona => persona.personaId === selected) ? selected : defaultOperationPersonaId(available));
       await readVote();
     }, () => { if (active) setIssue(true); });
   });
   return (
     <>
-      <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
+      <Show when={session()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
         <Show when={session()}>{viewer => (
-          <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
+          <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()?.value ?? null }} votesReady={vote() !== undefined} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
-            readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}>
+            readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}
+            presentation={props.presentation} joinHref={props.joinHref}
+            target={props.target} readTarget={props.dependencies?.readTarget}
+            // The comment box opens with who the viewer comments as; with
+            // several profiles here, tapping it opens the same picker.
+            composerIdentity={<OperationPersonaControl appearance="avatar" class="shrink-0" label="Commenting as" placeholder="Choose a profile to comment as" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={id => { setPersonaId(id); targetedPersona?.select(id); }} />}>
             {(controls, menuActions) => props.children(controls, menuActions)}
           </PostEngagement>
         )}</Show>
-        <Show when={personas().length > 1}>
+        <Show when={!inline() && personas().length > 1}>
           <OperationPersonaControl label="Commenting as" placeholder="Choose a profile" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={setPersonaId} />
         </Show>
       </Show>
-      <Show when={anonymous() && props.showSignInPrompt !== false}><Button onClick={requestGlobalSignIn} variant="secondary">Sign in to comment</Button></Show>
+      <Show when={anonymous() && props.showSignInPrompt !== false}>
+        <Show when={inline()} fallback={<Button onClick={requestGlobalSignIn} variant="secondary">Sign in to comment</Button>}>
+          {/* Reading comments needs an account, so a signed-out viewer sees only this bar. */}
+          <div class="border-t border-border-soft bg-background px-5 pb-4 pt-3 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-30 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))]" data-comment-bar>
+            <Button class="w-full" onClick={requestGlobalSignIn}>Sign in to comment</Button>
+          </div>
+        </Show>
+      </Show>
       <Show when={issue()}><p role="status">Your post actions could not be checked. <Button onClick={() => session() ? void readVote() : location.reload()} size="sm" variant="secondary">Retry</Button></p></Show>
     </>
   );

@@ -26,7 +26,8 @@ const meta = {
   tags: ["autodocs"],
   args: {
     title: "Edit profile",
-    description: "Make changes to your profile here. Click save when you're done.",
+    // Paper draws the Default dialog with a title and footer only.
+    description: "",
     hideCloseButton: false,
     footer: true,
   } satisfies DialogStoryArgs,
@@ -44,7 +45,9 @@ const meta = {
       <DialogContent hideCloseButton={args.hideCloseButton}>
         <DialogHeader>
           <DialogTitle>{args.title}</DialogTitle>
-          <DialogDescription>{args.description}</DialogDescription>
+          {args.description ? (
+            <DialogDescription>{args.description}</DialogDescription>
+          ) : null}
         </DialogHeader>
         {args.footer ? (
           <StoryDialogFooter
@@ -69,6 +72,15 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** The overlay behind an open dialog: Paper dims the page and leaves it sharp. */
+async function expectSharpScrim() {
+  const scrim = [...document.body.querySelectorAll<HTMLElement>("div")].find(element => element.className.includes("bg-black/55"));
+  if (scrim === undefined) throw new Error("Expected the overlay scrim");
+  const style = getComputedStyle(scrim);
+  await expect(style.backdropFilter === "" || style.backdropFilter === "none").toBe(true);
+  await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+}
+
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -80,7 +92,8 @@ export const Default: Story = {
     const dialog = await body.findByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleName("Edit profile");
-    await expect(dialog).toHaveAccessibleDescription(/Make changes/);
+    await expect(dialog).toHaveAccessibleDescription("");
+    await expectSharpScrim();
 
     await expect(body.getByRole("button", { name: "Close" })).toBeVisible();
     await expect(body.getByRole("button", { name: "Cancel" })).toBeVisible();
@@ -133,6 +146,15 @@ export const LongContent: Story = {
       </DialogContent>
     </Dialog>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Open release notes" }));
+    const dialog = await body.findByRole("dialog");
+    await expect(dialog).toHaveAccessibleName("Release notes");
+    await expect(dialog).toHaveAccessibleDescription(/scrollable content/);
+  },
 };
 
 export const Mobile: Story = {
@@ -166,5 +188,16 @@ export const RightToLeft: Story = {
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
     await userEvent.keyboard("{Escape}");
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+};
+
+/** Paper Radius & Elevation: dialogs use shadow-xl, 0 24px 80px at 18% black. */
+export const Elevation: Story = {
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Open dialog" }));
+    const dialog = await within(document.body).findByRole("dialog");
+    await waitFor(() => expect(getComputedStyle(dialog).boxShadow).toContain("0px 24px 80px"));
+    await expect(getComputedStyle(dialog).boxShadow).toContain("0.18");
+    await userEvent.keyboard("{Escape}");
   },
 };

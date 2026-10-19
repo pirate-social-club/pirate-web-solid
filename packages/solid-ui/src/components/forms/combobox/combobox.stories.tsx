@@ -27,15 +27,17 @@ const meta = {
   render: controlledRender(
     (args) => args.value ?? null,
     (value, setValue, args) => (
-      <Combobox
-        {...args}
-        aria-label="Sort order"
-        value={value()}
-        onChange={(next) => {
-          setValue(next);
-          args.onChange?.(next);
-        }}
-      />
+      <div class="w-80 max-w-full">
+        <Combobox
+          {...args}
+          aria-label="Sort order"
+          value={value()}
+          onChange={(next) => {
+            setValue(next);
+            args.onChange?.(next);
+          }}
+        />
+      </div>
     ),
   ),
   args: {
@@ -70,7 +72,41 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** Paper's resting state: an empty field showing its placeholder, closed. */
 export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox", { name: "Sort order" });
+    await expect(input).toHaveValue("");
+    await expect(input).toHaveAttribute("placeholder", "Type to filter");
+    await expect(input).toHaveAttribute("aria-expanded", "false");
+    await expect(input).not.toHaveFocus();
+  },
+};
+
+/** Paper's Open state: Top rated committed and the list showing beneath. */
+export const Open: Story = {
+  args: {
+    value: "top",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByRole("combobox", { name: "Sort order" });
+    await expect(input).toHaveValue("Top rated");
+
+    await userEvent.click(canvas.getByRole("button"));
+    const listbox = await within(document.body).findByRole("listbox");
+    await expect(listbox).toBeVisible();
+    await expect(within(listbox).getAllByRole("option")).toHaveLength(3);
+    await expect(
+      within(listbox).getByRole("option", { name: "Top rated" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(input).toHaveAttribute("aria-expanded", "true");
+  },
+};
+
+/** Picking an option commits its value; kept apart so Default rests on the board state. */
+export const Interaction: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByRole("combobox", { name: "Sort order" });
@@ -106,4 +142,21 @@ export const LongContent: Story = {
       <Combobox {...args} aria-label="Sort order" />
     </div>
   ),
+};
+
+/** Paper opens the option list 4px below the field, as on Select. */
+export const ListGap: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole("combobox", { name: "Sort order" }).parentElement;
+    if (!(field instanceof HTMLElement)) throw new Error("no combobox control");
+    await userEvent.click(canvas.getByRole("button"));
+    const listbox = await within(document.body).findByRole("listbox");
+    const positioner = listbox.closest("[data-popper-positioner]");
+    if (!(positioner instanceof HTMLElement)) throw new Error("no popper positioner");
+    await waitFor(() =>
+      expect(Math.round(positioner.getBoundingClientRect().top - field.getBoundingClientRect().bottom)).toBe(4),
+    );
+    await userEvent.keyboard("{Escape}");
+  },
 };

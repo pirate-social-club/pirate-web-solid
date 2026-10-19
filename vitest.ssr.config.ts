@@ -33,6 +33,8 @@ export default defineConfig({
     // worker per core saturates a shared workstation.
     maxWorkers: 4,
     include: [
+      "src/features/notifications/notifications-ssr.test.tsx",
+      "src/features/activity/activity-leaderboard-ssr.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking-ssr.test.tsx",
       "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx",
       "src/features/communities/community-page/community-page-ssr.test.tsx",

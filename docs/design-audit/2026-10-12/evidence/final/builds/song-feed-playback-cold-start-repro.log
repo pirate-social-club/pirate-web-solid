@@ -1,0 +1,24 @@
+== run 1 (no other dev server): build then check
+build=0
+$ node scripts/song-feed-playback-check.mjs
+{"viewport":1280,"controlsWidth":710,"playback":"passed","seeking":"passed","resume":"passed"}
+{"viewport":390,"controlsWidth":324,"playback":"passed","seeking":"passed","resume":"passed"}
+check exit=0 seconds=68
+== run 2 (no other dev server): build then check
+build=0
+$ node scripts/song-feed-playback-check.mjs
+{"viewport":1280,"controlsWidth":710,"playback":"passed","seeking":"passed","resume":"passed"}
+{"viewport":390,"controlsWidth":324,"playback":"passed","seeking":"passed","resume":"passed"}
+check exit=0 seconds=68
+== run 3 (warm dev server on 6006 running): build then check
+build=0
+$ node scripts/song-feed-playback-check.mjs
+{"viewport":1280,"controlsWidth":710,"playback":"passed","seeking":"passed","resume":"passed"}
+{"viewport":390,"controlsWidth":324,"playback":"passed","seeking":"passed","resume":"passed"}
+check exit=0 seconds=73
+== run 4 (warm dev server on 6006 running): build then check
+build=0
+$ node scripts/song-feed-playback-check.mjs
+{"viewport":1280,"controlsWidth":710,"playback":"passed","seeking":"passed","resume":"passed"}
+{"viewport":390,"controlsWidth":324,"playback":"passed","seeking":"passed","resume":"passed"}
+check exit=0 seconds=67

@@ -13,7 +13,7 @@ import {
   TextFieldLabel,
   Type,
 } from "../../../design-system";
-import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
+import { songPreparationComplete, type MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
 import { projectMediaSubmission, type SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
@@ -98,8 +98,8 @@ export interface CreatePostDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
-  /** A submitted song was handed to the submission owner for this community. */
-  readonly onSongSubmitted?: (communityId: string) => void;
+  /** The song was handed to the song store: its community and submission. */
+  readonly onSongSubmitted?: (communityId: string, submissionId: string) => void;
   /** The owner a submitted song is handed to when the host has no application
    * shell to supply one, as in an isolated page render. */
   readonly songStore?: SongSubmissionStore;
@@ -340,7 +340,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       // manual-review state is a known server response the author cannot act
       // on, so it must not trap them here.
       const view = mediaView();
-      if (mediaBusy() || view.status === "uploading" || view.status === "reconciling") {
+      if (mediaBusy() || mediaCoordinator?.hasPendingStemAttachment || view.status === "uploading" || view.status === "reconciling") {
         setError("This song submission still has an unresolved command. Resolve it before closing.");
         return false;
       }
@@ -351,8 +351,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
 
   /**
    * The server has accepted the song. Everything left is the server's work, so
-   * the steps end here: the application's song owner watches it from now on
-   * and the author sees it in the feed. Without that owner, as in an isolated
+   * the steps end here: the application's song owner watches it from now on,
+   * and the host shows its state (Paper ruling 14) or its card in the feed. Without that owner, as in an isolated
    * render, the song stays in this dialog as before.
    */
   function handOverSong(snapshot: MediaSubmissionSnapshot, personaId: string, community: string): boolean {
@@ -372,7 +372,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     });
     handedOver = true;
     props.onOpenChange(false);
-    props.onSongSubmitted?.(community);
+    props.onSongSubmitted?.(community, snapshot.submission_id);
     return true;
   }
 
@@ -439,7 +439,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       // With an owner to take it, a submitted song always goes to the feed,
       // published already or not, and the author is taken nowhere.
       if (!prepareOnly && !handOverSong(snapshot, personaId, community) && snapshot.status === "published") finishSongPublished();
-      return snapshot.audio_revision >= 1;
+      return songPreparationComplete(snapshot);
     } catch (submissionError) {
       const message = submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.";
       setError(message);
@@ -604,14 +604,15 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   // once audio is accepted and terms are issued only Review remains.
   const initialSongStep = (): 1 | 2 | 3 => {
     const snapshot = mediaSnapshot();
-    if (snapshot === null || snapshot.audio_revision < 1) return 1;
+    if (snapshot === null) return 1;
     if (songTermsIssued()) return 3;
+    if (!songPreparationComplete(snapshot)) return 1;
     return 2;
   };
 
   // After Continue on the Song step the audio is uploaded and the author is
   // still editing Rights and Review; that is not a state worth a status card.
-  const preparedDraft = () => Boolean(mediaSnapshot()?.audio_revision) && !songTermsIssued() && mediaView().status === "processing";
+  const preparedDraft = () => songPreparationComplete(mediaSnapshot()) && !songTermsIssued() && mediaView().status === "processing";
 
   /** How much of the audio has been sent, once the size is known. */
   const uploadFraction = (): number | undefined => {
@@ -740,7 +741,16 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 songFlowRuntime={mode() === "song" ? {
                   personaId: selectedActivePersonaId(),
                   prepare: () => submitSong(true),
-                  prepared: (mediaSnapshot()?.audio_revision ?? 0) >= 1,
+                  prepared: songPreparationComplete(mediaSnapshot()),
+                  audioPrepared: (mediaSnapshot()?.audio_revision ?? 0) >= 1,
+                  stems: {
+                    instrumental: mediaSnapshot()?.stems?.instrumental_audio?.status === "sealed",
+                    vocals: mediaSnapshot()?.stems?.vocal_audio?.status === "sealed",
+                  },
+                  pendingStems: {
+                    instrumental: mediaCoordinator?.isStemAttachmentPending("instrumental_audio") === true,
+                    vocals: mediaCoordinator?.isStemAttachmentPending("vocal_audio") === true,
+                  },
                   retained: mediaSnapshot() !== null,
                   locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
                 } : undefined}
@@ -751,7 +761,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 submit={{
                   get disabled() { return songSubmitDisabled(); },
                   get error() { return error() || null; },
-                  label: "Post song",
+                  label: "Post",
                   get loading() { return mode() === "song" ? mediaBusy() : false; },
                   onSubmit: submit,
                 }}

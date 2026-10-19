@@ -23,19 +23,21 @@ export interface DialogContentProps extends KDialogContentProps {
   class?: string;
   dir?: "ltr" | "rtl" | "auto";
   hideCloseButton?: boolean;
+  /** Keeps the close control visible but unusable while an operation holds the overlay open. */
+  closeButtonDisabled?: boolean;
 }
 
 function DialogContent(props: ParentProps<DialogContentProps>) {
   const className = createMemo(() => cn(dialogContentClass, props.class));
-  const rest = omit(props, "class", "hideCloseButton", "children");
+  const rest = omit(props, "class", "hideCloseButton", "closeButtonDisabled", "children");
 
   return (
     <KDialog.Portal>
       <KDialog.Overlay class={dialogOverlayClass} />
-      <KDialog.Content class={className()} {...rest}>
+      <KDialog.Content {...rest} class={className()}>
         {props.children}
         <Show when={!props.hideCloseButton}>
-          <DialogCloseButtonLayout part={KDialog.CloseButton} />
+          <DialogCloseButtonLayout disabled={props.closeButtonDisabled} part={KDialog.CloseButton} />
         </Show>
       </KDialog.Content>
     </KDialog.Portal>
@@ -50,7 +52,7 @@ function DialogTitle(props: ParentProps<Parameters<typeof KDialog.Title>[0]>) {
   const rest = omit(props, "class");
 
   return (
-    <KDialog.Title class={className()} {...rest}>
+    <KDialog.Title {...rest} class={className()}>
       {props.children}
     </KDialog.Title>
   );
@@ -63,7 +65,7 @@ function DialogDescription(
   const rest = omit(props, "class");
 
   return (
-    <KDialog.Description class={className()} {...rest}>
+    <KDialog.Description {...rest} class={className()}>
       {props.children}
     </KDialog.Description>
   );

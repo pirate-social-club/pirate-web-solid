@@ -1,10 +1,11 @@
 /** One destination map for desktop, the mobile drawer and the four mobile tabs. */
 export const navigationPaths = {
   home: "/", songs: "/songs",
-  wallet: "/wallet", profile: "/me",
+  wallet: "/wallet", profile: "/me", notifications: "/activity",
 } as const;
 
 const paths = new Map<string, string>(Object.entries(navigationPaths));
+export const notificationsNavigation = { id: "notifications", label: "Notifications", href: navigationPaths.notifications, iconKind: "notifications" } as const;
 
 export function navigationPath(id: string): string | undefined {
   return paths.get(id);

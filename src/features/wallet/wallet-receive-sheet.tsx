@@ -5,12 +5,11 @@ import {
   cn,
   IconCheck,
   IconCopy,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
   Type,
 } from "../../design-system";
 import { buildWalletReceiveSheetView, resolveReceiveChainId } from "./wallet-receive-sheet-view-model";
@@ -54,19 +53,19 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
     }
   };
 
+  // Paper (Screens/Wallet/Portfolio 202, 204): a bottom sheet on a phone and
+  // a 480px dialog on desktop, as Send and Claim open. The network list and
+  // the full address carry the meaning, so there is no description line.
   return (
-    <Sheet open={props.open} onOpenChange={props.onOpenChange}>
-      <SheetContent
-        side={props.forceMobile ? "bottom" : "right"}
-        class="flex max-h-[88dvh] min-h-0 flex-col overflow-y-auto"
+    <Modal forceMobile={props.forceMobile} open={props.open} onOpenChange={props.onOpenChange}>
+      <ModalContent
+        class="flex max-h-[88dvh] min-h-0 flex-col gap-4 overflow-y-auto md:w-[min(100%-2rem,480px)] md:max-w-[480px]"
         aria-label="Receive tokens"
+        mobileSide="bottom"
       >
-        <SheetHeader>
-          <SheetTitle>Receive</SheetTitle>
-          <SheetDescription>
-            Choose a chain and share your address to receive tokens.
-          </SheetDescription>
-        </SheetHeader>
+        <ModalHeader>
+          <ModalTitle>Receive</ModalTitle>
+        </ModalHeader>
 
         <ul class="flex flex-col gap-1" aria-label="Chains">
           <For each={view().chains}>
@@ -107,7 +106,7 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
         >
           <div class="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border-soft p-4">
             <Type variant="overline">{view().selectedTitle} address</Type>
-            <Type variant="body" class="break-all">{view().addressLabel}</Type>
+            <Type variant="body" class="break-all font-mono">{view().addressLabel}</Type>
             <Button
               variant="outline"
               size="sm"
@@ -120,13 +119,13 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
           </div>
         </Show>
 
-        <SheetFooter>
-          <Button variant="secondary" onClick={() => props.onOpenChange(false)}>Done</Button>
-        </SheetFooter>
+        <ModalFooter>
+          <Button class="w-full" size="lg" variant="secondary" onClick={() => props.onOpenChange(false)}>Done</Button>
+        </ModalFooter>
         <Show when={copied()}>
           <Type aria-live="polite" class="sr-only" variant="caption">Address copied</Type>
         </Show>
-      </SheetContent>
-    </Sheet>
+      </ModalContent>
+    </Modal>
   );
 }

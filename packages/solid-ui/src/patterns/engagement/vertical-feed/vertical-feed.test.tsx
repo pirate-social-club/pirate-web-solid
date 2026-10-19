@@ -72,6 +72,14 @@ const testPosts: MediaPostData[] = [
   },
 ];
 
+function phoneMoreButton(container: HTMLElement, postId: string): HTMLButtonElement {
+  const button = container.querySelector<HTMLButtonElement>(
+    `[data-media-post="${postId}"] [data-media-more="phone"] button`,
+  );
+  if (!button) throw new Error(`no phone More button for ${postId}`);
+  return button;
+}
+
 function pressArrow(key: "ArrowDown" | "ArrowUp") {
   const region = screen.getByRole("region", { name: "Media feed" });
   fireEvent.keyDown(region, { key });
@@ -93,7 +101,7 @@ describe("VerticalFeed", () => {
     expect(view.getAllByRole("button", { name: "Like video" })).toHaveLength(4);
   });
 
-  it("hides action buttons whose callbacks are absent, except mute", () => {
+  it("hides action buttons whose callbacks are absent; mute is not a rail action", () => {
     const container = render(() => (
       <VerticalFeed posts={testPosts} onLikeClick={vi.fn()} />
     ));
@@ -114,8 +122,9 @@ describe("VerticalFeed", () => {
     expect(
       view.queryByRole("button", { name: /^Open / }),
     ).not.toBeInTheDocument();
-    // Mute is local playback state and stays visible.
-    expect(view.getAllByRole("button", { name: "Mute video" })).toHaveLength(6);
+    // Mute moved from the rail into each post's More menu (phone + desktop).
+    expect(view.queryByRole("button", { name: /mute video/i })).not.toBeInTheDocument();
+    expect(view.getAllByRole("button", { name: "More options" })).toHaveLength(6);
     // Author and soundtrack lines degrade to non-interactive text.
     expect(view.getAllByText("@wavemaker").length).toBeGreaterThan(0);
     expect(view.getAllByText(/Neon Skyline/).length).toBeGreaterThan(0);
@@ -260,7 +269,7 @@ describe("VerticalFeed", () => {
     ).toBeInTheDocument();
   });
 
-  it("emits onMuteToggle with the post id and the new muted state", async () => {
+  it("emits onMuteToggle from the More sheet's Mute row with the post id", async () => {
     const user = userEvent.setup();
     const onMuteToggle = vi.fn();
     const container = render(() => (
@@ -268,20 +277,121 @@ describe("VerticalFeed", () => {
     ));
     flush();
 
-    await user.click(
-      within(container).getAllByRole("button", { name: "Mute video" })[0],
-    );
+    await user.click(phoneMoreButton(container, "post-1"));
+    flush();
+    const sheet = await screen.findByRole("dialog", { name: "More options" });
+    await user.click(within(sheet).getByRole("button", { name: "Mute" }));
+    flush();
+    expect(onMuteToggle).toHaveBeenCalledWith("post-1", true);
+    expect(container.querySelector("video")?.muted).toBe(true);
+  });
+
+  it("labels the More row Unmute under controlled mute and toggles it back", async () => {
+    const user = userEvent.setup();
+    const onMuteToggle = vi.fn();
+    const container = render(() => (
+      <VerticalFeed posts={testPosts} muted onMuteToggle={onMuteToggle} />
+    ));
+    flush();
+    expect(container.querySelector("video")?.muted).toBe(true);
+
+    await user.click(phoneMoreButton(container, "post-1"));
+    flush();
+    const sheet = await screen.findByRole("dialog", { name: "More options" });
+    const rows = [...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")];
+    expect(rows.map((row) => row.textContent)).toEqual(["Unmute"]);
+    // The sheet keeps its visible close beside the rows.
+    expect(within(sheet).getByRole("button", { name: "Close" })).toBeTruthy();
+    await user.click(rows[0]!);
+    flush();
+    expect(onMuteToggle).toHaveBeenCalledWith("post-1", false);
+  });
+
+  it("lists host More actions after Mute and runs the chosen one once", async () => {
+    const user = userEvent.setup();
+    const onReport = vi.fn();
+    const container = render(() => (
+      <VerticalFeed
+        posts={testPosts}
+        moreActions={(postId) =>
+          postId === "post-1" ? [{ id: "report", label: "Report", onSelect: onReport }] : undefined
+        }
+      />
+    ));
+    flush();
+
+    await user.click(phoneMoreButton(container, "post-1"));
+    flush();
+    const sheet = await screen.findByRole("dialog", { name: "More options" });
+    expect([...sheet.querySelectorAll<HTMLButtonElement>("[data-media-more-row]")].map((row) => row.textContent)).toEqual(["Mute", "Report"]);
+    await user.click(within(sheet).getByRole("button", { name: "Report" }));
+    flush();
+    await vi.waitFor(() => expect(onReport).toHaveBeenCalledTimes(1));
+  });
+
+  it("opens the desktop More menu with Mute and host rows as menu items", async () => {
+    const user = userEvent.setup();
+    const onMuteToggle = vi.fn();
+    const container = render(() => (
+      <VerticalFeed
+        posts={testPosts.slice(0, 1)}
+        onMuteToggle={onMuteToggle}
+        moreActions={() => [{ id: "report", label: "Report", onSelect: vi.fn() }]}
+      />
+    ));
+    flush();
+
+    const trigger = container.querySelector<HTMLButtonElement>('[data-media-more="desktop"] button');
+    if (!trigger) throw new Error("no desktop More trigger");
+    await user.click(trigger);
+    flush();
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Mute", "Report"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Mute" }));
+    flush();
     expect(onMuteToggle).toHaveBeenCalledWith("post-1", true);
   });
 
-  it("applies controlled mute state to the active media post", () => {
-    const container = render(() => <VerticalFeed posts={testPosts} muted />);
+  it("runs a desktop menu host action once after the menu closes", async () => {
+    const user = userEvent.setup();
+    const onReport = vi.fn();
+    const container = render(() => (
+      <VerticalFeed
+        posts={testPosts.slice(0, 1)}
+        moreActions={() => [{ id: "report", label: "Report", onSelect: onReport }]}
+      />
+    ));
     flush();
 
-    expect(
-      within(container).getAllByRole("button", { name: "Unmute video" })[0],
-    ).toBeInTheDocument();
-    expect(container.querySelector("video")?.muted).toBe(true);
+    const trigger = container.querySelector<HTMLButtonElement>('[data-media-more="desktop"] button');
+    if (!trigger) throw new Error("no desktop More trigger");
+    await user.click(trigger);
+    flush();
+    await user.click(await screen.findByRole("menuitem", { name: "Report" }));
+    flush();
+    await vi.waitFor(() => expect(onReport).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("keeps phone Mute reachable below the host header when the header owns the top right", async () => {
+    const user = userEvent.setup();
+    const onMuteToggle = vi.fn();
+    const container = render(() => (
+      <VerticalFeed posts={testPosts.slice(0, 1)} muted mobileMoreBelowHeader onMuteToggle={onMuteToggle} />
+    ));
+    flush();
+    const phone = container.querySelector<HTMLElement>('[data-media-more="phone"]');
+    if (!phone) throw new Error("no phone More");
+    expect(phone.style.top).toContain("4rem");
+    expect(container.querySelector('[data-media-more="desktop"] button')).not.toBeNull();
+
+    const trigger = phone.querySelector<HTMLButtonElement>("button");
+    if (!trigger) throw new Error("no phone More trigger");
+    await user.click(trigger);
+    flush();
+    await user.click(await screen.findByRole("button", { name: "Unmute" }));
+    flush();
+    expect(onMuteToggle).toHaveBeenCalledWith(testPosts[0]?.id, false);
   });
 
   it("reports an implicit unmute when play is pressed on controlled muted media", async () => {

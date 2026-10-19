@@ -141,7 +141,8 @@ export interface ComposerCopy {
 export const defaultComposerCopy: ComposerCopy = {
   actions: {
     back: "Back",
-    continue: "Continue",
+    // Ruling 2026-10-16: Next moves forward, Post publishes. The key stays.
+    continue: "Next",
     post: "Post",
     publish: "Publish",
   },
@@ -198,7 +199,7 @@ export const defaultComposerCopy: ComposerCopy = {
     noSongs: "No songs found.",
   },
   fields: {
-    addLyrics: "Add lyrics (optional)",
+    addLyrics: "Add lyrics",
     canvasVideo: "Canvas video (9:16)",
     coverArt: "Cover art",
     coverFrame: "Cover frame",

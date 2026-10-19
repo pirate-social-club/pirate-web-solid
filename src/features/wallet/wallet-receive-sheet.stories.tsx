@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { fiveChainSections, sharedWalletAddress } from "./wallet-flow-fixtures";
 import { WalletReceiveSheet } from "./wallet-receive-sheet";
@@ -21,8 +21,33 @@ function StoryRender(props: WalletReceiveSheetProps) {
   return <div class="min-h-screen bg-background p-6"><WalletReceiveSheet {...props} onOpenChange={setOpen} open={open()} /></div>;
 }
 
-export const DefaultDesktop: Story = { render: (args) => <StoryRender {...args} /> };
-export const DefaultMobile: Story = { args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } }, render: (args) => <StoryRender {...args} /> };
+/** Paper 204: on desktop Receive is a 480px dialog showing the full address. */
+export const DefaultDesktop: Story = {
+  render: (args) => <StoryRender {...args} />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const dialog = await body.findByRole("dialog", {}, { timeout: 5000 });
+    await waitFor(() => expect(Math.round(dialog.getBoundingClientRect().width)).toBe(480));
+    // The address is never cut in the middle.
+    await expect(within(dialog).getByText(sharedWalletAddress)).toBeVisible();
+    await expect(within(dialog).getByRole("button", { name: "Copy address" })).toBeVisible();
+    const done = within(dialog).getByRole("button", { name: "Done" });
+    await expect(Math.abs(done.getBoundingClientRect().width - (done.parentElement?.getBoundingClientRect().width ?? 0))).toBeLessThanOrEqual(1);
+  },
+};
+/** Paper 202: on a phone Receive is a bottom sheet with the same content. */
+export const DefaultMobile: Story = {
+  args: { forceMobile: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: (args) => <StoryRender {...args} />,
+  play: async ({ canvasElement }) => {
+    const view = canvasElement.ownerDocument.defaultView!;
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", {}, { timeout: 5000 });
+    // The sheet slides up from the bottom edge; measure once it has landed.
+    await waitFor(() => expect(Math.abs(dialog.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1), { timeout: 3000 });
+    await expect(within(dialog).getByText(sharedWalletAddress)).toBeVisible();
+  },
+};
 export const ChainSwitched: Story = {
   args: { defaultChainId: "story" },
   render: (args) => <StoryRender {...args} />,

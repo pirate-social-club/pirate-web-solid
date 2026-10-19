@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { createMemo, omit, type ParentProps } from "solid-js";
+import { createMemo, omit, onSettled, type ParentProps } from "solid-js";
 
 import { Type } from "@/components/data-display/type/type";
 import { cn } from "@/lib/cn";
@@ -40,7 +40,7 @@ export function Item(props: ParentProps<ItemProps>) {
   const rest = omit(props, "class", "variant", "size", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -65,14 +65,65 @@ export interface ItemMediaProps
   class?: string;
 }
 
+/** Marks an image this tile hid because it failed, so only those are shown again. */
+const FAILED_IMAGE = "data-item-media-failed";
+
+/** Hide a failed image so the tile's skeleton surface shows in its place. */
+function hideFailedImage(image: HTMLImageElement) {
+  image.hidden = true;
+  image.setAttribute(FAILED_IMAGE, "");
+}
+
+/** Show an image this tile hid once a source loads, such as a replacement. */
+function showRecoveredImage(image: HTMLImageElement) {
+  if (!image.hasAttribute(FAILED_IMAGE)) return;
+  image.removeAttribute(FAILED_IMAGE);
+  image.hidden = false;
+}
+
 export function ItemMedia(props: ParentProps<ItemMediaProps>) {
+  let mediaRef: HTMLDivElement | undefined;
   const className = createMemo(() =>
     cn(itemMediaVariants({ variant: props.variant }), props.class),
   );
-  const rest = omit(props, "class", "variant", "children");
+  const rest = omit(props, "class", "variant", "children", "ref");
+
+  // Paper draws a failed image tile as the plain skeleton square, not the
+  // browser's broken-image glyph and alt text. Image errors and loads do not
+  // bubble, so listen in the capture phase, and catch images that failed
+  // before mount. A hidden image still loads a new source, and shows again
+  // when one succeeds.
+  onSettled(() => {
+    const media = mediaRef;
+    if (!media || props.variant !== "image") return;
+    for (const image of media.querySelectorAll("img")) {
+      if (image.complete && image.naturalWidth === 0 && image.getAttribute("src")) {
+        hideFailedImage(image);
+      }
+    }
+    const onError = (event: Event) => {
+      if (event.target instanceof HTMLImageElement) hideFailedImage(event.target);
+    };
+    const onLoad = (event: Event) => {
+      if (event.target instanceof HTMLImageElement) showRecoveredImage(event.target);
+    };
+    media.addEventListener("error", onError, true);
+    media.addEventListener("load", onLoad, true);
+    return () => {
+      media.removeEventListener("error", onError, true);
+      media.removeEventListener("load", onLoad, true);
+    };
+  });
 
   return (
-    <div class={className()} {...rest}>
+    <div
+      {...rest}
+      class={className()}
+      ref={(el) => {
+        mediaRef = el;
+        (props.ref as ((el: HTMLDivElement) => void) | undefined)?.(el);
+      }}
+    >
       {props.children}
     </div>
   );
@@ -88,7 +139,7 @@ export function ItemGroup(props: ParentProps<ItemGroupProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -106,7 +157,7 @@ export function ItemContent(props: ParentProps<ItemContentProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -124,7 +175,7 @@ export function ItemTitle(props: ParentProps<ItemTitleProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <Type as="div" class={className()} variant="label" {...rest}>
+    <Type as="div" variant="label" {...rest} class={className()}>
       {props.children}
     </Type>
   );
@@ -142,7 +193,7 @@ export function ItemDescription(props: ParentProps<ItemDescriptionProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <Type as="p" class={className()} variant="caption" {...rest}>
+    <Type as="p" variant="caption" {...rest} class={className()}>
       {props.children}
     </Type>
   );
@@ -158,7 +209,7 @@ export function ItemActions(props: ParentProps<ItemActionsProps>) {
   const rest = omit(props, "class", "children");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );

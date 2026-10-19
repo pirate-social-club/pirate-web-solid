@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { buttonVariants } from "@/components/actions/button/button";
 import { StoryDialogFooter } from "@/stories/lib/dialog-footer";
@@ -69,6 +69,15 @@ function SheetTemplate(props: { side: "top" | "bottom" | "left" | "right" }) {
   );
 }
 
+/** The overlay behind an open dialog: Paper dims the page and leaves it sharp. */
+async function expectSharpScrim() {
+  const scrim = [...document.body.querySelectorAll<HTMLElement>("div")].find(element => element.className.includes("bg-black/55"));
+  if (scrim === undefined) throw new Error("Expected the overlay scrim");
+  const style = getComputedStyle(scrim);
+  await expect(style.backdropFilter === "" || style.backdropFilter === "none").toBe(true);
+  await expect(style.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+}
+
 export const Default: Story = {
   render: () => <SheetTemplate side="right" />,
   play: async ({ canvasElement }) => {
@@ -78,9 +87,31 @@ export const Default: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Open (right)" }));
     const dialog = await body.findByRole("dialog", { name: "Sheet Title" });
     await expect(dialog).toBeVisible();
+    await expectSharpScrim();
 
     await userEvent.keyboard("{Escape}");
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+};
+
+/** Paper: a side sheet packs header and body at the top and pins the footer to the bottom. */
+export const SideLayout: Story = {
+  render: () => <SheetTemplate side="right" />,
+  play: async ({ canvasElement }) => {
+    const body = within(document.body);
+    await userEvent.click(within(canvasElement).getByRole("button", { name: "Open (right)" }));
+    const dialog = await body.findByRole("dialog", { name: "Sheet Title" });
+    await waitFor(() => expect(dialog).toBeVisible());
+    const sheet = dialog.getBoundingClientRect();
+    const description = body.getByText("This is a sheet sliding in from the right.").getBoundingClientRect();
+    const content = body.getByText("Sheet body content goes here.").getBoundingClientRect();
+    const footer = body.getByRole("button", { name: "Continue" }).getBoundingClientRect();
+    // Body follows the description (one 16px gap plus its 16px top padding), not the middle of the panel.
+    await expect(content.top - description.bottom).toBeLessThan(48);
+    // Footer sits at the bottom edge, inside the 24px padding.
+    await expect(sheet.bottom - footer.bottom).toBeLessThanOrEqual(25);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("dialog")).not.toBeInTheDocument());
   },
 };
 

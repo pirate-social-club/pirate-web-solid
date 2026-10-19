@@ -3,6 +3,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   ORIGINAL_VIDEO_PENDING,
+  isVideoUploadAccepted,
   VideoCoordinator,
   type PendingVideo,
   type VideoStorage,
@@ -191,6 +192,62 @@ describe("video operation replay", () => {
     fixture.rejectNext("reserve", new Error("unused"));
     expect(await first.settleFinalize()).toBe(false);
     expect(await fixture.storage.load()).not.toBeNull();
+  });
+  test.each([
+    { ...initial, phase: "finalize" as const },
+    { ...initial, status: "abandoned" as const, reason_code: "author_abandoned_unresolved_provider" as const },
+  ])("a $status snapshot without an immutable video never proves upload acceptance", async snapshot => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    fixture.rejectNext("finalize", new Error("offline"));
+    await expect(first.submit()).rejects.toThrow("offline");
+    const retained = first.current?.pending;
+    const sent = fixture.commands.length;
+    fixture.setCurrent(snapshot);
+    expect(await first.settleFinalize()).toBe(false);
+    expect(await first.release()).toBe(false);
+    expect(first.current?.pending).toEqual(retained);
+    expect(fixture.commands).toHaveLength(sent);
+    expect(fixture.posts()).toBe(0);
+  });
+  test("a successful but unsealed finalize keeps the exact envelope across reload and explicit replay", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    const execute = fixture.transport.execute;
+    fixture.transport.execute = async command => {
+      if (command.kind !== "finalize") return execute(command);
+      fixture.commands.push(command);
+      const finalizing: VideoSnapshot = { ...initial, phase: "finalize", creation_revision: 2 };
+      fixture.setCurrent(finalizing);
+      return finalizing;
+    };
+    await first.submit();
+    const retained = first.current?.pending;
+    expect(retained?.command.kind).toBe("finalize");
+    expect(await first.release()).toBe(false);
+    const resumed = fixture.create(); await resumed.restore();
+    expect(resumed.current?.pending).toEqual(retained);
+    await resumed.submit();
+    expect(resumed.current?.pending).toEqual(retained);
+    expect(fixture.commands.filter(command => command.kind === "finalize")).toEqual([
+      retained?.command, retained?.command, retained?.command,
+    ]);
+    expect(fixture.commands.filter(command => command.kind === "reserve")).toHaveLength(1);
+    expect(fixture.commands.filter(command => command.kind === "start")).toHaveLength(1);
+    expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+    const sent = fixture.commands.length;
+    expect(await resumed.settleFinalize()).toBe(false);
+    expect(fixture.commands).toHaveLength(sent);
+    fixture.setCurrent({ ...initial, phase: "analysis", creation_revision: 3, video_revision: 1 });
+    expect(await resumed.settleFinalize()).toBe(true);
+    expect(await fixture.storage.load()).toBeNull();
+    expect(fixture.commands).toHaveLength(sent);
+  });
+  test("only a positive immutable revision in a post-seal state proves acceptance", () => {
+    expect(isVideoUploadAccepted(null)).toBe(false);
+    expect(isVideoUploadAccepted({ ...initial, phase: "finalize", video_revision: 1 })).toBe(false);
+    expect(isVideoUploadAccepted({ ...initial, phase: "analysis", video_revision: 0 })).toBe(false);
+    expect(isVideoUploadAccepted({ ...initial, phase: "analysis", video_revision: 1 })).toBe(true);
+    expect(isVideoUploadAccepted({ ...initial, phase: "publish", video_revision: 1 })).toBe(true);
+    expect(isVideoUploadAccepted({ ...initial, status: "manual_review", video_revision: 1, reason_codes: ["media_review_required"], review_ref: "review" })).toBe(true);
   });
   test("lost unresolved-abandonment response replays the exact cancel and remains terminal", async () => {
     const fixture = setup();

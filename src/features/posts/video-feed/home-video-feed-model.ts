@@ -22,7 +22,12 @@ export interface HomeVideoPost extends MediaPostData {
   readonly streamed?: true;
   /** The referenced song, for the soundtrack line's link. */
   readonly songPostId?: string;
+  /** The viewer is a member of the post's community (member-only actions). */
+  readonly viewerIsMember?: true;
 }
+
+const membership = (item: PublicFeedItem): { readonly viewerIsMember?: true } =>
+  item.viewerMembershipStatus === "member" ? { viewerIsMember: true } : {};
 
 function isRecord(value: unknown): value is MediaReferenceCandidate {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -129,6 +134,7 @@ export function toHomeVideoPost(item: PublicFeedItem): HomeVideoPost | null {
     isLiked: item.viewerVote === 1,
     destination: publisherDestination(item),
     communityDestination: destination,
+    ...membership(item),
   };
 }
 
@@ -158,6 +164,7 @@ export function toStreamedHomeVideoPost(
     isLiked: item.viewerVote === 1,
     destination: publisherDestination(item),
     communityDestination: communityDestination(item),
+    ...membership(item),
   };
 }
 

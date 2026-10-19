@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createSignal, onCleanup, onSettled } from "solid-js";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { KaraokeResultsSummary } from "./karaoke-results-model";
 
@@ -38,6 +38,14 @@ export const NotScorable: Story = {
           "A song with no scorable lines: lyrics render with no singing affordance. Signed-out visitors get the Start action instead.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    // Karaoke keeps the shared header as it was: the back caret, full width.
+    const exit = canvasElement.querySelector<HTMLElement>("[data-exit-icon]");
+    if (exit === null) throw new Error("Expected the activity header");
+    await expect(exit).toHaveAttribute("data-exit-icon", "back");
+    const header = exit.closest("header")!.getBoundingClientRect();
+    await expect(Math.round(header.width)).toBe(Math.round(canvasElement.ownerDocument.documentElement.clientWidth));
   },
 };
 
@@ -181,5 +189,27 @@ export const PlaybackRefused: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Start karaoke" }));
     await expect(await canvas.findByRole("button", { name: "Start backing track" })).toBeInTheDocument();
     await expect(canvas.getByRole("status")).toHaveTextContent("The backing track could not start");
+  },
+};
+
+/** The phone took the audio mid-take (a call, another app). One button resumes the same take. */
+export const PlaybackInterrupted: Story = {
+  args: {
+    artworkSrc: storyArtworkSrc,
+    title: "Paper Moon",
+    lines: storyStageLines,
+    initialTimeMs: 2550,
+    initialDurationMs: 4800,
+    singingStatus: "active",
+    playbackInterrupted: true,
+    onResumePlayback: fn(async () => false),
+    onStartSinging: () => {},
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Audio was interrupted. Tap to continue your take.")).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Start karaoke" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Tap to continue" }));
+    await expect(args.onResumePlayback).toHaveBeenCalledOnce();
   },
 };

@@ -104,7 +104,7 @@ async function selectAndPublish() {
   audio.dispatchEvent(new Event("loadedmetadata"));
   await vi.waitFor(() => expect(document.querySelector("[data-song-plan]")?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
   const continueButton = [...document.querySelectorAll<HTMLButtonElement>("[data-song-choice-screen] button")]
-    .find(button => button.textContent?.trim() === "Continue to video");
+    .find(button => button.textContent?.trim() === "Next");
   continueButton?.click();
   await vi.waitFor(() => expect(document.querySelector("div[inert]:not([data-song-choice-screen])")).toBeNull());
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
@@ -112,7 +112,7 @@ async function selectAndPublish() {
   input.dispatchEvent(new Event("change", { bubbles: true }));
   await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
   const publish = await vi.waitFor(() => {
-    const control = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Publish video");
+    const control = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Post");
     expect(control).toBeDefined();
     expect(control!.disabled).toBe(false);
     return control!;
@@ -210,7 +210,8 @@ function reopenedWithSubmittedUpload(options: {
   const execute = vi.fn(async (command: VideoCommand) => {
     if (options.failCancel && command.kind === "cancel") throw new Error("The connection dropped");
     if (command.kind === "cancel") held = { ...base, status: "abandoned", creation_revision: 2, reason_code: "author_cancelled_before_finalize" };
-    return command.kind === "cancel" ? held : { ...snapshot, phase: "analysis" as const };
+    if (command.kind === "finalize") held = sealedSnapshots.processing;
+    return held;
   });
   let uploads = 0;
   const fetchImpl = vi.fn<typeof fetch>();
@@ -335,7 +336,7 @@ describe("mounted song-first video flow", () => {
     /** The host’s eligible community profiles; the active profile is inherited. */
     readonly personaOptions?: readonly { readonly id: string; readonly label: string; readonly communityId?: string }[];
     readonly reserve?: "echo" | "different_excerpt";
-    readonly finalSnapshot?: "published" | "song_blocked";
+    readonly finalSnapshot?: "published" | "song_blocked" | "finalizing";
     readonly reader?: "ready" | "failed" | "pending";
     /** What the injected duration measurement answers for the chosen file. */
     readonly clipDurationMs?: number | null;
@@ -359,6 +360,7 @@ describe("mounted song-first video flow", () => {
     readonly loseFinalize?: "before_commit" | "after_commit";
     /** While set, reading the submission fails as a network error would. */
     readonly readFails?: { value: boolean };
+    readonly readFailsAfterFinalize?: boolean;
     readonly onPosted?: () => void;
   }) {
     vi.stubGlobal("crypto", webcrypto);
@@ -408,11 +410,13 @@ describe("mounted song-first video flow", () => {
     let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
     const commands: VideoCommand[] = [];
     let loseFinalize = options.loseFinalize;
+    let finalizeStarted = false;
     const transport: VideoTransport = { async read() {
-      if (options.readFails?.value) throw new Error("offline");
+      if (options.readFails?.value || (finalizeStarted && options.readFailsAfterFinalize)) throw new Error("offline");
       return snapshot;
     }, async execute(command) {
       commands.push(command);
+      if (command.kind === "finalize") finalizeStarted = true;
       if (command.kind === "finalize" && loseFinalize === "before_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       if (command.kind === "reserve") {
         const body = command.input.body;
@@ -428,9 +432,11 @@ describe("mounted song-first video flow", () => {
         // The real transport's check, so a differing echo fails exactly as it would.
         return (await import("./contracts")).verifySongReservation(body, echoed);
       }
-      if (command.kind === "finalize") snapshot = options.finalSnapshot === "song_blocked"
-        ? { ...common, creation_revision: 2, video_revision: 1, status: "blocked", reason_code: "song_reference_invalid", song_post_id: "song-post", song_reason_code: "derivative_video_blocked" }
-        : { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } };
+      if (command.kind === "finalize") snapshot = options.finalSnapshot === "finalizing"
+        ? { ...common, creation_revision: 2, status: "processing", phase: "finalize" }
+        : options.finalSnapshot === "song_blocked"
+          ? { ...common, creation_revision: 2, video_revision: 1, status: "blocked", reason_code: "song_reference_invalid", song_post_id: "song-post", song_reason_code: "derivative_video_blocked" }
+          : { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } };
       if (command.kind === "finalize" && loseFinalize === "after_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       return snapshot;
     } };
@@ -480,7 +486,7 @@ describe("mounted song-first video flow", () => {
   const soundtrackPanel = () => document.querySelector<HTMLElement>("[data-song-choice-screen]");
   async function continueToVideo() {
     if (soundtrackPanel()?.getAttribute("aria-hidden") === "true") return;
-    const control = button("Continue to video");
+    const control = button("Next");
     if (!control || control.disabled) return;
     control.click();
     await vi.waitFor(() => expect(soundtrackPanel()?.getAttribute("aria-hidden")).toBe("true"));
@@ -531,7 +537,7 @@ describe("mounted song-first video flow", () => {
     use.click();
   }
   async function publish(allowBlocked = false) {
-    const control = button("Publish video")!;
+    const control = button("Post")!;
     if (!allowBlocked) await vi.waitFor(() => expect(control.disabled).toBe(false));
     control.click();
   }
@@ -545,7 +551,7 @@ describe("mounted song-first video flow", () => {
     expect(startCapture).not.toHaveBeenCalled(); expect(openPreview).not.toHaveBeenCalled();
     expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
-    expect(button("Continue to video")).toBeUndefined();
+    expect(button("Next")).toBeUndefined();
     await pickSongByLink("/p/new-song-post"); await loadSongMetadata(); await awaitPlan("ready");
     await chooseFile(); await publish();
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
@@ -618,8 +624,8 @@ describe("mounted song-first video flow", () => {
     const fixture = songSetup({ preflight: "accepted", clipDurationMs: 16_000 });
     await loadSongMetadata(); await awaitPlan("ready"); await chooseFile();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Choose a video up to 15 seconds long."));
-    expect(button("Publish video")!.disabled).toBe(true);
-    button("Publish video")!.click();
+    expect(button("Post")!.disabled).toBe(true);
+    button("Post")!.click();
     expect(fixture.commands).toHaveLength(0);
   });
 
@@ -664,7 +670,7 @@ describe("mounted song-first video flow", () => {
     expect(chip.textContent).toContain("A song");
     chip.click();
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBeNull());
-    button("Continue to video")!.click();
+    button("Next")!.click();
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBe("true"));
   });
 
@@ -835,14 +841,14 @@ describe("mounted song-first video flow", () => {
       await startRecording();
       await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
       await stopRecording(); await vi.advanceTimersByTimeAsync(1_000); flush();
-      const publish = button("Publish video")!;
+      const publish = button("Post")!;
       expect(publish.disabled).toBe(false);
       if (stage === "stop") settleStop(oldTake);
       if (stage === "alignment") settleAlignment({ file: oldTake, aligned: false, requestedMs: 0, trimmedMs: 0 });
       if (stage === "inspection") settleInspection(oldTake);
       if (stage === "measurement" || stage === "measurement-total") settleMeasurement(1_000);
       await vi.advanceTimersByTimeAsync(1_000); flush();
-      expect(button("Publish video")!.disabled).toBe(false);
+      expect(button("Post")!.disabled).toBe(false);
       expect(document.body.textContent).not.toContain(VIDEO_PREPARATION_TIMEOUT_NOTICE);
       vi.useRealTimers(); publish.click();
       await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
@@ -921,7 +927,7 @@ describe("mounted song-first video flow", () => {
     songSetup({ preflight: "accepted", mobile: true, playbackCheck: check.audio });
     await loadSongMetadata();
     await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
-    button("Continue to video")!.click();
+    button("Next")!.click();
     await vi.waitFor(() => expect(soundtrackPanel()?.textContent).toContain("This song won’t play"));
     expect(soundtrackPanel()?.getAttribute("aria-hidden")).not.toBe("true");
     expect(startCapture).not.toHaveBeenCalled();
@@ -937,7 +943,7 @@ describe("mounted song-first video flow", () => {
     songSetup({ preflight: "accepted", mobile: true, playbackCheck: check.audio });
     await loadSongMetadata();
     await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
-    button("Continue to video")!.click();
+    button("Next")!.click();
     await vi.waitFor(() => expect(check.calls.play).toBe(1));
     button("Change")!.click();
     check.release();
@@ -1044,7 +1050,7 @@ describe("mounted song-first video flow", () => {
     // Publishing immediately, before the debounce can re-check, must not
     // submit the window the author just moved away from.
     await publish(true);
-    expect(button("Publish video")!.disabled).toBe(true);
+    expect(button("Post")!.disabled).toBe(true);
     expect(fixture.commands).toHaveLength(0);
     await awaitPlan("ready");
     await publish(true);
@@ -1084,10 +1090,10 @@ describe("mounted song-first video flow", () => {
     // Song choice is already open. Confirming while the excerpt is checked
     // keeps progress on the button and opens capture after acceptance.
     await vi.waitFor(() => expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull());
-    const confirm = [...document.querySelectorAll("button")].find(button => button.textContent === "Continue to video")!;
+    const confirm = [...document.querySelectorAll("button")].find(button => button.textContent === "Next")!;
     expect(confirm).toBeDefined();
     confirm.click();
-    await vi.waitFor(() => expect([...document.querySelectorAll("button")].some(button => button.textContent === "Continue to video" && button.getAttribute("aria-busy") === "true")).toBe(true));
+    await vi.waitFor(() => expect([...document.querySelectorAll("button")].some(button => button.textContent === "Next" && button.getAttribute("aria-busy") === "true")).toBe(true));
     expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull();
     fixture.pendingChecks[0]!();
     await awaitPlan("ready");
@@ -1227,7 +1233,7 @@ describe("mounted song-first video flow", () => {
     fixture.pendingChecks[0]!();
     await new Promise(resolve => setTimeout(resolve, 20));
     await publish(true);
-    expect(button("Publish video")!.disabled).toBe(true);
+    expect(button("Post")!.disabled).toBe(true);
     expect(fixture.commands).toHaveLength(0);
     fixture.pendingChecks[1]!();
     await awaitPlan("ready");
@@ -1430,15 +1436,50 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("hasn't finished uploading");
   });
 
-  test("an unconfirmed finalize goes Home and preserves its receipt without sending twice", async () => {
+  test.each([
+    { loseFinalize: "before_commit" as const },
+    { loseFinalize: "after_commit" as const, finalSnapshot: "finalizing" as const },
+    { loseFinalize: "after_commit" as const, readFailsAfterFinalize: true },
+    { finalSnapshot: "finalizing" as const },
+  ])("an unconfirmed finalize stays recoverable without Home or another automatic send: %o", async outcome => {
     let posted = 0;
-    const fixture = songSetup({ preflight: "accepted", loseFinalize: "before_commit", onPosted: () => { posted += 1; } });
+    const fixture = songSetup({ preflight: "accepted", ...outcome, onPosted: () => { posted += 1; } });
     await loadSongMetadata(); await awaitPlan("ready"); await chooseFile(); await publish();
-    await vi.waitFor(() => expect(posted).toBe(1));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("We couldn’t confirm this upload yet."));
+    await vi.waitFor(() => expect(button("Try upload again")?.disabled).toBe(false));
+    expect(posted).toBe(0);
     expect(fixture.current()?.pending?.command.kind).toBe("finalize");
     expect(fixture.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
-    expect(button("Try again")).toBeUndefined();
+    expect(button("Home")).toBeUndefined();
+    expect(document.body.textContent).not.toContain("Your video has uploaded.");
     expect(button("Cancel upload")).toBeUndefined();
+  });
+
+  test.each([false, true])("reload retains the exact pending finalize with no duplicate upload when reads fail=%s", async readFailsAfterFinalize => {
+    const fixture = songSetup({ preflight: "accepted", finalSnapshot: "finalizing" });
+    await loadSongMetadata(); await awaitPlan("ready"); await chooseFile(); await publish();
+    await vi.waitFor(() => expect(button("Try upload again")?.disabled).toBe(false));
+    const retained = fixture.current();
+    if (!retained) throw new Error("expected retained upload");
+    const envelope = retained.pending;
+    expect(envelope?.command.kind).toBe("finalize");
+    disposers.pop()!(); document.body.replaceChildren();
+    const posted = vi.fn();
+    const resumed = songSetup({ preflight: "accepted", finalSnapshot: "finalizing", earlierUpload: retained, readFailsAfterFinalize, onPosted: posted });
+    await vi.waitFor(() => expect(button("Try again")?.disabled).toBe(false));
+    expect(document.body.textContent).toContain("We couldn’t confirm this upload yet.");
+    expect(resumed.current()?.pending).toEqual(envelope);
+    expect(resumed.commands).toEqual([envelope?.command]);
+    expect(resumed.fetchImpl).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
+    expect(button("Home")).toBeUndefined();
+    button("Try again")!.click();
+    await vi.waitFor(() => expect(resumed.commands).toHaveLength(2));
+    await vi.waitFor(() => expect(button("Try again")?.disabled).toBe(false));
+    expect(resumed.commands).toEqual([envelope?.command, envelope?.command]);
+    expect(resumed.current()?.pending).toEqual(envelope);
+    expect(resumed.fetchImpl).not.toHaveBeenCalled();
+    expect(posted).not.toHaveBeenCalled();
   });
 
   test("the soundtrack controls are frozen while the take records", async () => {
@@ -1654,7 +1695,7 @@ describe("mounted song-first video flow", () => {
 
   describe("song sheet title and Continue", () => {
     const sheetTitle = () => soundtrackPanel()?.querySelector("h1")?.textContent;
-    const continueControl = () => button("Continue to video");
+    const continueControl = () => button("Next");
 
     test("with no song chosen the picker has no redundant hint or advance action", async () => {
       songSetup({ preflight: "accepted", initialSong: false });
@@ -2009,7 +2050,7 @@ describe("mounted song-first video flow", () => {
       await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
       expect(document.body.textContent).not.toContain("Recording is not supported here");
       expect(document.querySelector("[data-video-review-frame]")).toBeNull();
-      expect(button("Publish video")).toBeUndefined();
+      expect(button("Post")).toBeUndefined();
       expect(stopped).toBe(0);
       await vi.waitFor(() => expect(previews).toHaveLength(2));
       expect(fixture.commands).toHaveLength(0);

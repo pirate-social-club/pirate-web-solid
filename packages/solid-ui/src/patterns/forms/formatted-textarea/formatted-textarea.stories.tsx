@@ -2,9 +2,11 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createSignal } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
+import { boardWidth } from "@/stories/lib/story-measure";
 import { FormattedTextarea } from "./formatted-textarea";
 
 function Composer(props: {
+  containerClass?: string;
   focusOnMount?: boolean;
   placeholder?: string;
   value?: string;
@@ -14,7 +16,7 @@ function Composer(props: {
     <FormattedTextarea
       aria-label="Post content"
       class="min-h-28"
-      containerClass="w-[480px] max-w-full"
+      containerClass={props.containerClass ?? "w-[480px] max-w-full"}
       focusOnMount={props.focusOnMount}
       onChange={setValue}
       placeholder={props.placeholder}
@@ -74,7 +76,21 @@ export const Default: Story = {
   },
 };
 
+/** Paper's Empty state: no value, so the placeholder shows. */
 export const Empty: Story = {
+  render: () => <Composer placeholder="Write a reply..." />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const textarea = canvas.getByRole("textbox") as HTMLTextAreaElement;
+
+    await expect(textarea).toHaveAttribute("placeholder", "Write a reply...");
+    await expect(textarea).toHaveValue("");
+    await expect(textarea.matches(":placeholder-shown")).toBe(true);
+  },
+};
+
+/** Inserting a link into an empty composer; kept apart so Empty keeps its placeholder. */
+export const EmptyLinkInsertion: Story = {
   render: () => <Composer placeholder="Write a reply..." />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -91,8 +107,27 @@ export const Empty: Story = {
   },
 };
 
+/** A 390 phone leaves a 358px content column; the toolbar wraps inside it. */
+const phoneComposerClass = "w-[358px] max-w-[calc(100vw-2rem)]";
+
+/** Paper's phone composer: empty with its placeholder, no horizontal overflow. */
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <Composer containerClass={phoneComposerClass} placeholder="Write a reply..." />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const textarea = canvas.getByRole("textbox") as HTMLTextAreaElement;
+    await expect(textarea.matches(":placeholder-shown")).toBe(true);
+    const container = canvasElement.firstElementChild as HTMLElement;
+    await expect(Math.round(container.getBoundingClientRect().width)).toBe(boardWidth(358));
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  },
+};
+
+/** Formatting on a phone; kept apart so Mobile rests on the board state. */
+export const MobileInteraction: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <Composer containerClass={phoneComposerClass} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const textarea = canvas.getByRole("textbox") as HTMLTextAreaElement;
@@ -118,5 +153,15 @@ export const RightToLeft: Story = {
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
     await expect(textarea).toHaveAttribute("dir", "auto");
     await expect(canvas.getByRole("button", { name: "Bold" })).toBeVisible();
+  },
+};
+
+/** Paper insets the text 16px from the composer's edge, below the toolbar. */
+export const TextInset: Story = {
+  play: async ({ canvasElement }) => {
+    const textarea = within(canvasElement).getByRole("textbox");
+    const style = getComputedStyle(textarea);
+    await expect([style.paddingLeft, style.paddingRight]).toEqual(["16px", "16px"]);
+    await expect(style.paddingTop).toBe("12px");
   },
 };

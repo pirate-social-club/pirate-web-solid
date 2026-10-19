@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.116.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.116.0-0c109a5b.tgz",
-  "sha256": "0c109a5b51f8958b0c9bbd0d68eeff34f21583a085e13db99c133cd83d28b870",
-  "source": "api-next-contracts@b6db568cd779d5b5fa500d212d53e4c9c52278edcb2c3136950c3b56ca325179",
-  "openapiSha256": "b6db568cd779d5b5fa500d212d53e4c9c52278edcb2c3136950c3b56ca325179",
-  "clientSha256": "abb943fda3050a142d6d00e5c6cef593ee4841bcb9f03e5296323d3395a1bb30",
+  "version": "0.123.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.123.0-495647e1.tgz",
+  "sha256": "495647e1ecc4f2e5dea16e491c08c33fa45d5fbcdb3e70f327c1038f6dc685cd",
+  "source": "api-next-contracts@f5dd98cb728f20095f5b8c7c0abd2a1a97d4f75f6841002b32f14f41a0de9d2e",
+  "openapiSha256": "f5dd98cb728f20095f5b8c7c0abd2a1a97d4f75f6841002b32f14f41a0de9d2e",
+  "clientSha256": "dc3b74bb985cc0a5e13e5da8145b3f115da13217f836174a98ee02254600689a",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -129,8 +129,20 @@
     "post_authRegister",
     "post_postsPostIdKaraokePlaybackAccess",
     "post_postsPostIdSongPlaybackAccess",
+    "get_communitiesCommunityIdStudyV2SessionsSessionIdCompletion",
+    "get_communitiesCommunityIdKaraokeSessionsSessionIdAttemptsAttemptIdCompletion",
+    "get_communitiesCommunityIdPostsPostIdRewardsProgress",
+    "get_communitiesCommunityIdRewardsProgress",
+    "get_communitiesCommunityIdRewardsPresentationPersona",
+    "get_commentsCommentIdLocation",
+    "get_postsPostIdComments",
+    "get_meNotifications",
+    "post_meNotificationsNotificationIdRead",
     "get_communitiesCommunityIdSpacesOwnershipRoots",
     "get_communitiesCommunityIdSpacesOwnership",
     "post_communitiesCommunityIdSpacesOwnershipResume"
-  ]
+  ],
+  "validatedSourceCommit": "87c3afa6997eedb055c0a1f668ff8dc8bd25af5c",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/626",
+  "intakeStatus": "Immutable client0.123 artifact495647e1 is verified against API moderation repair87c3afa6, independently accepted for bounded source/artifact integration under manifest74491011. PR626 hosted checks, protected integration and live staging remain pending. The six nullable policy fields preserve genuine author-declared absence; historical moderated evidence stays strict. Production and financial/mainnet/cybersecurity holds remain."
 }

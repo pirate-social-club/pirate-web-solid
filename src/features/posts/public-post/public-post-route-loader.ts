@@ -1,6 +1,8 @@
 import { query } from "@solidjs/router";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 import { createSessionApiClient } from "../../../api/client.ts";
+import { captureSessionAuthority } from "../../../api/browser-session-events.ts";
+import { commentSelector, withCommentSelector } from "../../notifications/comment-selector.ts";
 import {
   loadPublicPostById,
   loadPublicPostBySlug,
@@ -14,10 +16,14 @@ import {
   type PublicPostPreflight,
 } from "./public-post-preflight.ts";
 
+function routeOwnership(value: string): string {
+  const url = new URL(value, "https://pirate.invalid");
+  const selector = commentSelector(url.search);
+  return selector.kind === "target" ? withCommentSelector(url.pathname, selector.id) : selector.kind === "invalid" ? url.pathname + url.search : url.pathname;
+}
 function currentPath(): string {
   const event = getRequestEvent();
-  if (event !== undefined) return new URL(event.request.url).pathname;
-  return typeof location === "undefined" ? "/" : location.pathname;
+  return routeOwnership(event !== undefined ? event.request.url : typeof location === "undefined" ? "/" : location.href);
 }
 
 function currentOrigin(): string | undefined {
@@ -76,8 +82,13 @@ export async function loadSlugRoute(
   activity: PublicPostActivity,
   locale: string,
   canonicalOrigin: string | undefined,
+  ownership = currentPath(),
+  _sessionGeneration = captureSessionAuthority(),
 ): Promise<PublicPostRouteState> {
-  const requestPath = currentPath();
+  const requestPath = ownership;
+  const selector = commentSelector(new URL(requestPath, "https://pirate.invalid").search);
+  if (selector.kind === "invalid") return { kind: "invalid", status: 400 };
+  if (selector.kind === "target") return activity === "detail" ? { kind: "target-entry", status: 200, requestPath, locale, canonicalOrigin } : { kind: "invalid", status: 400 };
   const preflight = settled(requestPath);
   if (preflight !== undefined) return preflight;
   const state = await loadPublicPostBySlug({
@@ -97,8 +108,13 @@ export async function loadLegacyRoute(
   activity: PublicPostActivity,
   locale: string,
   canonicalOrigin: string | undefined,
+  ownership = currentPath(),
+  _sessionGeneration = captureSessionAuthority(),
 ): Promise<PublicPostRouteState> {
-  const requestPath = currentPath();
+  const requestPath = ownership;
+  const selector = commentSelector(new URL(requestPath, "https://pirate.invalid").search);
+  if (selector.kind === "invalid") return { kind: "invalid", status: 400 };
+  if (selector.kind === "target") return activity === "detail" ? { kind: "target-entry", status: 200, requestPath, locale, canonicalOrigin } : { kind: "invalid", status: 400 };
   const preflight = settled(requestPath);
   if (preflight !== undefined) return preflight;
   const state = await loadPublicPostById({
@@ -116,19 +132,19 @@ export async function loadLegacyRoute(
 export const queryPublicPostSlugRoute = query(loadSlugRoute, "public-post-slug-route");
 export const queryPublicPostLegacyRoute = query(loadLegacyRoute, "public-post-legacy-route");
 
-export function preloadPublicPostSlugRoute(rawSlug: string, activity: PublicPostActivity) {
-  return queryPublicPostSlugRoute(rawSlug, activity, currentLocale(), currentCanonicalOrigin());
+export function preloadPublicPostSlugRoute(rawSlug: string, activity: PublicPostActivity, destination = currentPath()) {
+  return queryPublicPostSlugRoute(rawSlug, activity, currentLocale(), currentCanonicalOrigin(), routeOwnership(destination), captureSessionAuthority());
 }
 
-export function preloadPublicPostIdRoute(postId: string) {
-  return queryPublicPostLegacyRoute(postId, "detail", currentLocale(), currentCanonicalOrigin());
+export function preloadPublicPostIdRoute(postId: string, destination = currentPath()) {
+  return queryPublicPostLegacyRoute(postId, "detail", currentLocale(), currentCanonicalOrigin(), routeOwnership(destination), captureSessionAuthority());
 }
 
 export function preloadPublicPostLegacyRoute(
   postId: string,
   activity: Exclude<PublicPostActivity, "detail">,
 ) {
-  return queryPublicPostLegacyRoute(postId, activity, currentLocale(), currentCanonicalOrigin());
+  return queryPublicPostLegacyRoute(postId, activity, currentLocale(), currentCanonicalOrigin(), currentPath(), captureSessionAuthority());
 }
 
 /** Refresh the current authorized read after proof without navigating or starting an activity. */

@@ -16,15 +16,13 @@ const meta = {
     alt: { control: "text" },
     class: { control: "text" },
   },
+  // Paper's Default is the bare mark at the component's own 40px size.
   render: (args) => (
-    <div class="flex items-center gap-4 rounded-[var(--radius-xl)] border border-border-soft bg-card p-5">
-      <PirateBrandMark
-        alt={args.alt}
-        class="size-12"
-        decorative={args.decorative}
-      />
-      <span class="text-base font-semibold text-card-foreground">PIRATE</span>
-    </div>
+    <PirateBrandMark
+      alt={args.alt}
+      class={args.class}
+      decorative={args.decorative}
+    />
   ),
   parameters: {
     docs: {
@@ -46,7 +44,10 @@ export const Default: Story = {
 
     const mark = canvas.getByRole("presentation", { hidden: true });
     await expect(mark).toHaveAttribute("alt", "");
-    await expect(canvas.getByText("PIRATE")).toBeVisible();
+    // The bare mark: 40px square, no wordmark beside it.
+    await expect(mark.getBoundingClientRect().width).toBe(40);
+    await expect(mark.getBoundingClientRect().height).toBe(40);
+    await expect(canvas.queryByText("PIRATE")).toBeNull();
   },
 };
 
@@ -58,11 +59,11 @@ export const Variants: Story = {
         <span class="text-base text-muted-foreground">Decorative</span>
       </div>
       <div class="flex flex-col items-center gap-2 rounded-[var(--radius-xl)] border border-border-soft bg-card p-4">
-        <PirateBrandMark class="size-12" decorative={false} />
+        <PirateBrandMark decorative={false} />
         <span class="text-base text-muted-foreground">Named</span>
       </div>
       <div class="flex flex-col items-center gap-2 rounded-[var(--radius-xl)] border border-border-soft bg-card p-4">
-        <PirateBrandMark class="size-16" decorative={false} />
+        <PirateBrandMark class="size-14" decorative={false} />
         <span class="text-base text-muted-foreground">Large</span>
       </div>
     </StoryRow>
@@ -74,5 +75,8 @@ export const Variants: Story = {
     const named = canvas.getAllByRole("img", { name: "Pirate" });
     await expect(named).toHaveLength(2);
     for (const mark of named) await expect(mark).toHaveAttribute("alt", "Pirate");
+    // Paper sizes the three marks 32, 40 and 56.
+    const marks = Array.from(canvasElement.querySelectorAll("img"));
+    await expect(marks.map((mark) => mark.getBoundingClientRect().width)).toEqual([32, 40, 56]);
   },
 };

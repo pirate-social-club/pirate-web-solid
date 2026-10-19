@@ -14,6 +14,9 @@ export function videoAdmissionProblem(facts: {
   readonly hasAudio: boolean;
   readonly videoCodec: string | null;
   readonly audioCodec: string | null;
+  readonly width: number;
+  readonly height: number;
+  readonly averageFrameRate: number;
   readonly durationSeconds: number;
   readonly maxDurationSeconds: number;
 }): string | null {
@@ -22,6 +25,22 @@ export function videoAdmissionProblem(facts: {
     || facts.videoCodec !== "avc") return unsupported;
   if (!facts.hasAudio) return "That video has no sound. Choose one with audio.";
   if (facts.audioCodec !== "aac" || !Number.isFinite(facts.durationSeconds)) return unsupported;
+  if (!Number.isInteger(facts.width) || !Number.isInteger(facts.height) || facts.width < 1 || facts.height < 1) {
+    return "That video’s dimensions couldn’t be read. Choose another video.";
+  }
+  // Match api-next's video-ingest-policy-v1; the server still verifies the file.
+  if (Math.max(facts.width, facts.height) > 1_920) {
+    return "Choose a video no wider or taller than 1920 pixels.";
+  }
+  // The sealed probe uses avg_frame_rate rounded to whole millihertz, not a
+  // peak instantaneous rate or the camera's advertised capture rate.
+  const frameRateMillihertz = Math.round(facts.averageFrameRate * 1_000);
+  if (!Number.isSafeInteger(frameRateMillihertz) || frameRateMillihertz < 1) {
+    return "That video’s frame rate couldn’t be read. Choose another video.";
+  }
+  if (frameRateMillihertz > 60_000) {
+    return "Choose a video at 60 frames per second or lower.";
+  }
   if (facts.durationSeconds < 3) return "That video is shorter than 3 seconds. Record or choose a longer one.";
   if (facts.durationSeconds > facts.maxDurationSeconds) return "That video is too long. Choose a shorter one.";
   return null;

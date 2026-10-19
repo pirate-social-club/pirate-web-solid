@@ -55,9 +55,9 @@ export function PrefixInput(props: PrefixInputProps) {
         {props.prefix}
       </div>
       <input
-        class="h-full w-full rounded-none border-0 bg-transparent px-4 text-base outline-none placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0"
         dir="auto"
         {...rest}
+        class="h-full w-full rounded-none border-0 bg-transparent px-4 text-base outline-none placeholder:text-muted-foreground focus:ring-0 focus:ring-offset-0"
       />
     </div>
   );

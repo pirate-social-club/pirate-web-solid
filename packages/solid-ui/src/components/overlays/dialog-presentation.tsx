@@ -12,14 +12,15 @@ import { cn } from "@/lib/cn";
  * recipes and layout helpers live here once.
  */
 
+// Paper: the scrim dims the page and leaves it sharp; there is no blur.
 export const dialogOverlayClass =
-  "fixed inset-0 z-50 bg-black/55 backdrop-blur-sm";
+  "fixed inset-0 z-50 bg-black/55";
 
 export const dialogContentClass =
   "fixed inset-x-0 bottom-4 top-auto z-50 mx-auto grid max-h-[calc(100dvh-2rem)] w-[min(100%-2rem,32rem)] translate-y-0 gap-4 overflow-y-auto rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl sm:bottom-auto sm:top-[50%] sm:translate-y-[-50%]";
 
 const dialogCloseButtonClass =
-  "absolute end-4 top-4 inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "absolute end-4 top-4 inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground";
 
 export const dialogTitleClass = "text-lg font-semibold leading-none tracking-tight";
 
@@ -29,13 +30,19 @@ interface CloseButtonPartProps {
   "aria-label"?: string;
   class?: string;
   children?: JSX.Element;
+  disabled?: boolean;
 }
 
+/**
+ * The overlay's close control. A disabled close stays visible, so a touch
+ * viewer still sees the way out while an operation holds the overlay open.
+ */
 export function DialogCloseButtonLayout(props: {
   part: Component<CloseButtonPartProps>;
+  disabled?: boolean;
 }) {
   return (
-    <props.part aria-label="Close" class={dialogCloseButtonClass}>
+    <props.part aria-label="Close" class={dialogCloseButtonClass} disabled={props.disabled}>
       <IconX class="size-5" />
     </props.part>
   );
@@ -50,7 +57,7 @@ export function DialogHeaderLayout(
   const rest = omit(props, "class");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );
@@ -65,7 +72,7 @@ export function DialogFooterLayout(
   const rest = omit(props, "class");
 
   return (
-    <div class={className()} {...rest}>
+    <div {...rest} class={className()}>
       {props.children}
     </div>
   );

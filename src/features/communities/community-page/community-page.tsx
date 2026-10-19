@@ -31,13 +31,15 @@ import {
   communityRequestOrigin,
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
+import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { useComposingSurface } from "../../shell/composing-surface.tsx";
 import { isPublicSongMp3 } from "../../posts/post-composer/write-step.tsx";
 import type { TextSubmissionTransport } from "../../posts/post-composer/text-submission-transport.ts";
-import { PendingSongs } from "../../posts/song-submission/pending-songs.tsx";
+import { PendingSongs, pendingSongStatusSelector } from "../../posts/song-submission/pending-songs.tsx";
+import { PostedSong, selectPostedSong, type PostedSongKey } from "../../posts/song-submission/posted-song.tsx";
 import {
   createSongSubmissionStore,
   useSongSubmissionStore,
@@ -301,6 +303,8 @@ function SuccessState(props: {
     publicClient: props.handleSalesClient, accountId: engagement.accountIdentity, joined: engagement.joined, preferredPersonaId: selectedPersonaId, resolve: resolveSession, locale: namingLocale, ...props.nameClients });
   let nameReturnFocus: HTMLElement | undefined;
   let nameAfterLocalMenu = false;
+  /** The banner control that last opened the shell's profile menu. */
+  let bannerProfileFocus: HTMLElement | undefined;
   const showNaming = (returnFocus?: HTMLElement) => {
     nameReturnFocus = returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : undefined);
     void naming.show();
@@ -555,6 +559,56 @@ function SuccessState(props: {
     if (account === undefined) return [];
     return songStore.items().filter(item => item.communityId === communityId && item.accountId === account);
   });
+  // Paper ruling 14: right after posting, the author sees the song's state on
+  // this page instead of the feed. The last report is kept here, because a
+  // published song leaves the store once the feed carries it. Closing the
+  // state returns to the feed, whose pending card carries a song still in
+  // progress. The state belongs to the account that posted: it shows only
+  // while that account is the one posting here, and an identity change
+  // clears it, kept report included.
+  const [postedSongKey, setPostedSongKey] = createSignal<PostedSongKey | null>(null, { ownedWrite: true });
+  const [postedSongLast, setPostedSongLast] = createSignal<SongSubmissionItem | null>(null, { ownedWrite: true });
+  // The feed card whose Status button opened the state, if one did: closing
+  // returns focus there while that card is still shown, otherwise to Post.
+  let statusOrigin: string | null = null;
+  const postedSong = createMemo<SongSubmissionItem | null>(() =>
+    selectPostedSong(postedSongKey(), engagement.postingSession()?.userId, pendingSongs(), postedSongLast()));
+  createEffect(postedSong, (item) => { if (item !== null) setPostedSongLast(item); });
+  const clearPostedSong = () => {
+    statusOrigin = null;
+    setPostedSongKey(null);
+    setPostedSongLast(null);
+  };
+  createEffect(
+    () => engagement.postingSession()?.userId,
+    (account) => {
+      const key = untrack(postedSongKey);
+      if (key !== null && account !== key.accountId) clearPostedSong();
+    },
+  );
+  const closePostedSong = () => {
+    const origin = statusOrigin;
+    statusOrigin = null;
+    clearPostedSong();
+    queueMicrotask(() => {
+      const trigger = origin === null ? null : document.querySelector<HTMLElement>(pendingSongStatusSelector(origin));
+      (trigger ?? document.querySelector<HTMLElement>("[data-community-post-slot]"))?.focus();
+    });
+  };
+  /**
+   * A feed card's Status opens that song's state again. It selects only a
+   * song this account still has in the store for this community, so a
+   * dismissed song, or another account's or community's, cannot open; it
+   * starts no operation. The state lasts as the store does: until the page
+   * is reloaded.
+   */
+  const openSongStatus = (submissionId: string) => {
+    const accountId = engagement.postingSession()?.userId;
+    if (accountId === undefined || !pendingSongs().some(item => item.submissionId === submissionId)) return;
+    statusOrigin = submissionId;
+    setPostedSongKey({ accountId, submissionId });
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-posted-song-close]")?.focus());
+  };
   createEffect(
     () => pendingSongs().filter(item => item.view.status === "published").map(item => item.submissionId).join(","),
     (publishedIds) => {
@@ -705,13 +759,76 @@ function SuccessState(props: {
         unavailable,
         loading,
         onRetry: () => void engagement.retryPersonas(),
-        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: showNaming } } : {}),
+        // The page draws the profile control in its banner, so the shell
+        // does not draw its own corner control as well.
+        hostsProfileControl: true,
+        // A menu opened from the banner returns focus to the banner control.
+        ...(nameEntry === "new" || nameEntry === "pending" ? { nameAction: { label: nameEntry === "new" ? namingCopy().getNameEntry : namingCopy().checkStatus, run: (returnFocus?: HTMLElement) => showNaming(returnFocus ?? bannerProfileFocus) } } : {}),
       });
     },
   );
   onCleanup(() => {
     personaStore?.setTarget(undefined);
   });
+
+  const focusedElement = () => document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const namingEntryOpen = () => naming.entry() === "new" || naming.entry() === "pending";
+  /**
+   * The viewer's profile for this community, in the banner beside More. It
+   * opens what the corner control used to: the profile page with one
+   * profile, the switcher with several or when profiles need a retry. In the
+   * app the shell's switcher answers it; standalone, the page's own does.
+   */
+  const bannerProfileControl = () => (
+    <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
+      <Show when={personaStore} fallback={
+        <CommunityPersonaControl
+          placement="banner"
+          label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
+          opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
+          persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
+          onClick={() => {
+            const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
+            if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
+            else navigate(profilePath(persona));
+          }}
+          menuLabel={namingCopy().profileMenu}
+          onMenuClick={namingEntryOpen() ? () => {
+            nameReturnFocus = focusedElement(); setLocalSwitcherOpen(true);
+          } : undefined}
+        />
+      }>
+        {store => {
+          const persona = () => personaOptions().find(item => item.personaId === selectedPersonaId());
+          const switchable = () => personaOptions().length > 1;
+          const unavailable = () => engagement.personaRetryAvailable();
+          const label = () => {
+            const current = persona();
+            if (unavailable()) return "Retry profiles";
+            if (current === undefined) return "Choose a posting profile";
+            return switchable() ? `Switch posting profile, ${current.displayName}` : `Open posting profile, ${current.displayName}`;
+          };
+          return (
+            <CommunityPersonaControl
+              placement="banner"
+              label={label()}
+              opensPicker={switchable() || unavailable()}
+              persona={persona()}
+              onClick={() => {
+                bannerProfileFocus = focusedElement();
+                const current = persona();
+                if (switchable() || unavailable() || current === undefined) store().openSwitcher();
+                else navigate(profilePath(current));
+              }}
+              menuLabel={namingCopy().profileMenu}
+              menuDesktopOnly
+              onMenuClick={namingEntryOpen() ? () => { bannerProfileFocus = focusedElement(); store().openSwitcher(); } : undefined}
+            />
+          );
+        }}
+      </Show>
+    </Show>
+  );
 
   // The feed carries both vote sides; a caller that supplied only a net score
   // gets a split that preserves that net, which is all the control displays.
@@ -727,9 +844,10 @@ function SuccessState(props: {
     viewerVote,
   });
 
-  // Writing a post, in the main column. On a phone this is the whole screen:
-  // the chrome hides its bottom navigation while it is true.
-  const composing = () => (textOpen() || (composerOpen() && mediaEntry()?.kind === "song"))
+  // Writing a post, in the main column, and the posted song's state that
+  // follows it. On a phone this is the whole screen: the chrome hides its
+  // bottom navigation while it is true, and Back belongs to it.
+  const composing = () => (postedSong() !== null || textOpen() || (composerOpen() && mediaEntry()?.kind === "song"))
     && engagement.postingSession() !== undefined;
   const surface = useComposingSurface();
   createEffect(composing, (open) => {
@@ -777,7 +895,9 @@ function SuccessState(props: {
     const onPopState = () => {
       if (!composerHistoryEntry) return;
       composerHistoryEntry = false;
-      if (textOpen()) {
+      if (untrack(postedSong) !== null) {
+        closePostedSong();
+      } else if (textOpen()) {
         setTextOpen(false);
         queueMicrotask(() => document.querySelector<HTMLElement>("[data-community-post-slot]")?.focus());
       } else if (composerOpen()) {
@@ -802,6 +922,11 @@ function SuccessState(props: {
             songStore={songStore}
             mediaTransport={props.mediaSubmissionTransport}
             onPublished={href => { if (href !== undefined) navigate(href); }}
+            onSongSubmitted={(_community, submissionId) => {
+              const accountId = engagement.postingSession()?.userId;
+              statusOrigin = null;
+              if (accountId !== undefined) setPostedSongKey({ accountId, submissionId });
+            }}
             onOpenChange={(open) => {
               setComposerOpen(open);
               if (!open) setMediaEntry(undefined);
@@ -831,6 +956,7 @@ function SuccessState(props: {
       <Link rel="canonical" href={canonicalUrl()} />
       <div class="min-h-[calc(100dvh-4rem)] bg-background">
           <CommunityPageShell
+            activitySummary={() => <ActivityLeaderboard compact communityId={communityId} />}
             onBack={() => navigate("/communities")}
             canJoin
             community={community()}
@@ -853,6 +979,7 @@ function SuccessState(props: {
                 items={pendingSongs()}
                 onCheck={songStore.check}
                 onDismiss={songStore.dismiss}
+                onOpenStatus={openSongStatus}
                 onRetry={songStore.retry}
                 onBindOriginal={songStore.bindOriginal}
                 onRetryOriginal={songStore.retryOriginal}
@@ -865,7 +992,11 @@ function SuccessState(props: {
                 onSignIn={signInToFinishPosting}
               />
             </>)}
-            composer={(textOpen() || (composerOpen() && mediaEntry()?.kind === "song")) && engagement.postingSession() !== undefined ? () => (
+            // One slot function whose content switches inside it: the shell renders
+            // the slot once while it stays open, so handing a posted song from the
+            // steps to its state must happen within the same function.
+            composer={composing() ? () => (
+              <Show when={postedSong()} fallback={<>
               <Show when={textOpen()} fallback={mediaComposer(true)}>
               <TextPostPanel
                 draft={textDraft()}
@@ -880,6 +1011,19 @@ function SuccessState(props: {
                 onVideo={() => openMediaComposer({ kind: "video" })}
                 unavailable={selectedPersonaId() === undefined ? "Choose a profile for this community before posting." : undefined}
               />
+              </Show>
+              </>}>
+                {item => (
+                  <PostedSong
+                    item={item()}
+                    onBindOriginal={songStore.bindOriginal}
+                    onCheck={songStore.check}
+                    onClose={closePostedSong}
+                    onDismiss={id => { songStore.dismiss(id); closePostedSong(); }}
+                    onRetry={songStore.retry}
+                    onRetryOriginal={songStore.retryOriginal}
+                  />
+                )}
               </Show>
             ) : undefined}
             onVerifyAge={refreshAgeFeed}
@@ -927,6 +1071,8 @@ function SuccessState(props: {
             onFollowToggle={() => void engagement.followToggle()}
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
+            profileControl={bannerProfileControl()}
+            shareUrl={canonicalUrl()}
           />
           {/* Action outcomes go to the shared toast region, which owns its own
               lifetime, dismissal and announcement priority. A hand-rolled
@@ -937,22 +1083,6 @@ function SuccessState(props: {
           <Toaster class="bottom-[calc(env(safe-area-inset-bottom)+5rem)] md:bottom-4 md:end-20" />
           <Show when={naming.offering()}>{offering => <CommunityJoinName communityName={community().name} offering={offering()} state={naming.state()} joined={engagement.joined()} open={naming.open()} returnFocus={() => nameReturnFocus} onOpenChange={naming.setOpen} onLabelChange={naming.setLabel} onSubmit={() => void naming.submit()} onResume={() => void naming.resume()} />}</Show>
           <Show when={personaStore === undefined}>
-            <Show when={personaOptions().length > 0 || engagement.personaRetryAvailable()}>
-              <CommunityPersonaControl
-                label={engagement.personaRetryAvailable() ? "Retry profiles" : personaOptions().length > 1 ? "Switch posting profile" : "Open posting profile"}
-                opensPicker={personaOptions().length > 1 || engagement.personaRetryAvailable()}
-                persona={personaOptions().find(persona => persona.personaId === selectedPersonaId())}
-                onClick={() => {
-                  const persona = personaOptions().find(item => item.personaId === selectedPersonaId());
-                  if (personaOptions().length > 1 || engagement.personaRetryAvailable() || persona === undefined) setLocalSwitcherOpen(true);
-                  else navigate(profilePath(persona));
-                }}
-                menuLabel={namingCopy().profileMenu}
-                onMenuClick={naming.entry() === "new" || naming.entry() === "pending" ? () => {
-                  nameReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined; setLocalSwitcherOpen(true);
-                } : undefined}
-              />
-            </Show>
             <PersonaSwitcherSheet
               title={namingCopy().profileTitle}
               open={localSwitcherOpen()}

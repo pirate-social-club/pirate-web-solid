@@ -63,9 +63,11 @@ describe("identity-only headless client", () => {
     const tab = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
     const navigate = vi.fn(), container = document.createElement("div"); document.body.appendChild(container);
     let cleanup = () => {};
-    createRoot(dispose => { cleanup = dispose; render(() => <TelegramIdentityProbePage tab={tab} navigate={navigate}
-      getUrl={() => new URL(`${TELEGRAM_PROBE_ORIGIN}${TELEGRAM_PROBE_PATH}`)} createClient={makeClient} />, container); });
+    // Exercise the enabled flow before the fixed runtime expiry, using real timers.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-10T15:30:00Z"));
     try {
+      createRoot(dispose => { cleanup = dispose; render(() => <TelegramIdentityProbePage tab={tab} navigate={navigate}
+        getUrl={() => new URL(`${TELEGRAM_PROBE_ORIGIN}${TELEGRAM_PROBE_PATH}`)} createClient={makeClient} />, container); });
       await vi.waitFor(() => expect(container.querySelector("button")).not.toBeNull());
       container.querySelector<HTMLButtonElement>("button")?.click();
       await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("https://oauth.telegram.org/auth"));
@@ -75,6 +77,9 @@ describe("identity-only headless client", () => {
       window.dispatchEvent(restored);
       await vi.waitFor(() => expect(container.textContent).toContain("Previous login cancelled."));
       expect(values.size).toBe(0); expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
-    } finally { cleanup(); container.remove(); }
+    } finally {
+      try { cleanup(); container.remove(); }
+      finally { clock.mockRestore(); }
+    }
   });
 });

@@ -4,7 +4,11 @@
 import { createSignal, Show } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
+import type {
+  PostCommunitiesCommunityIdMediaUploadReservationsInput,
+  PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
+} from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
@@ -64,7 +68,32 @@ function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot
 
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
  * accepts lyrics and terms and settles on the requested outcome. */
+const STEM_RESERVATION: Extract<PostCommunitiesCommunityIdMediaUploadReservationsResponse, { readonly track: "song" }> = {
+  reservation_id: "stem-reservation",
+  track: "song",
+  slot: "vocal_audio",
+  status: "awaiting_upload",
+  upload: { method: "PUT", url: "https://upload.test/stem", required_headers: [{ name: "content-type", value: "audio/mpeg" }], expires_at: "2027-01-01T00:00:00Z" },
+};
+
 class StoryMediaTransport implements MediaSubmissionTransport {
+  readonly stemCalls: string[] = [];
+  async reserveStem(input: PostCommunitiesCommunityIdMediaUploadReservationsInput): Promise<PostCommunitiesCommunityIdMediaUploadReservationsResponse> {
+    if (input.body.track !== "song") throw new Error("stems are song audio");
+    const slot = input.body.slot;
+    this.stemCalls.push(`reserve:${slot}`);
+    return { ...STEM_RESERVATION, reservation_id: `stem-reservation-${slot}`, slot };
+  }
+  async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput): Promise<MediaSubmissionSnapshot> {
+    this.stemCalls.push(`attach:${input.body.slot}`);
+    const current = this.snapshot;
+    if (current === null) throw new Error("missing stem submission");
+    const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
+    stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
+    const next = { ...current, stems };
+    this.snapshot = next;
+    return next;
+  }
   async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
@@ -118,7 +147,7 @@ class StoryMediaTransport implements MediaSubmissionTransport {
   }
 }
 
-/** A song transport whose audio upload never completes, so Continue fails. */
+/** A song transport whose audio upload never completes, so Next fails. */
 class FailingUploadStoryTransport extends StoryMediaTransport {
   override async upload(): Promise<void> {
     throw new Error("The audio upload did not finish. Try again.");
@@ -128,8 +157,12 @@ class FailingUploadStoryTransport extends StoryMediaTransport {
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
-async function uploadStorySong(canvas: ReturnType<typeof within>): Promise<void> {
+async function uploadStorySong(canvas: ReturnType<typeof within>, withStems = true): Promise<void> {
   await userEvent.upload(await canvas.findByLabelText("Upload audio"), storyMp3());
+  if (withStems) {
+    await userEvent.upload(await canvas.findByLabelText("Upload instrumental"), storyMp3("instrumental.mp3"));
+    await userEvent.upload(await canvas.findByLabelText("Upload vocals"), storyMp3("vocals.mp3"));
+  }
   // Upload dispatch does not await metadata extraction. The field can exist
   // before its value settles, so presence alone is not a readiness assertion.
   await waitFor(async () => {
@@ -138,7 +171,7 @@ async function uploadStorySong(canvas: ReturnType<typeof within>): Promise<void>
 }
 
 async function continueSongStep(canvas: ReturnType<typeof within>): Promise<void> {
-  const button = await canvas.findByRole("button", { name: "Continue" });
+  const button = await canvas.findByRole("button", { name: "Next" });
   await waitFor(async () => { await expect(button).toBeEnabled(); });
   await userEvent.click(button);
 }
@@ -277,7 +310,7 @@ export const ContextualVideoMobile: Story = {
 
 /** The composer opens over a page whose mobile tab bar stays mounted, as on a
  * community page. The composer must cover that bar: on a Pixel the bar sat in
- * the same layer, rendered later, and took the tap meant for "Publish video". */
+ * the same layer, rendered later, and took the tap meant for the publish button. */
 export const ContextualSongOverMobileNavigation: Story = {
   name: "Contextual / Song / Over mobile navigation",
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -306,7 +339,7 @@ export const ContextualSongMultiplePersonas: Story = {
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Next" })).toBeInTheDocument();
     await waitFor(async () => {
       await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
     });
@@ -328,8 +361,75 @@ export const SongStepSongMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** The author adds the instrumental and vocals, which unlock Karaoke and
+ * Study; both upload after the song on Next. */
+export const SongStepStemsMobile: Story = {
+  name: "Song / Step 1 — Song / Instrumental and vocals / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas, false);
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
+    await userEvent.upload(await canvas.findByLabelText("Upload instrumental"), storyMp3("midnight-waves-instrumental.mp3"));
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
+    await userEvent.upload(await canvas.findByLabelText("Upload vocals"), storyMp3("midnight-waves-vocals.mp3"));
+    await expect(await canvas.findByText("midnight-waves-instrumental.mp3")).toBeInTheDocument();
+    await expect(await canvas.findByText("midnight-waves-vocals.mp3")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Remove vocals" })).toBeInTheDocument();
+    await waitFor(async () => { await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled(); });
+  },
+};
+
+class StemUploadRetryStoryTransport extends StoryMediaTransport {
+  private failed = false;
+  override async upload(reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse, audio: Blob): Promise<void> {
+    if (reservation.slot === "vocal_audio" && !this.failed) {
+      this.failed = true;
+      throw new Error("Vocals upload failed. Try again.");
+    }
+    return super.upload(reservation, audio);
+  }
+}
+
+export const SongStemUploadRetry: Story = {
+  name: "Song / Step 1 — Song / Retry vocals after primary sealing",
+  render: () => dialogHarness({ mediaTransport: new StemUploadRetryStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByRole("alert")).toHaveTextContent("Vocals upload failed");
+    await expect(canvas.getByRole("button", { name: "Remove instrumental" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Remove vocals" })).toBeEnabled();
+    await expect(canvas.queryByText("Your cut of remix sales")).not.toBeInTheDocument();
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+  },
+};
+
+class LostStemResponseStoryTransport extends StoryMediaTransport {
+  override async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput): Promise<MediaSubmissionSnapshot> {
+    const result = await super.attachStem(input);
+    if (input.body.slot === "vocal_audio") throw new Error("Attachment response lost");
+    return result;
+  }
+}
+
+export const SongStemAttachmentResponseLost: Story = {
+  name: "Song / Step 1 — Song / Reconcile lost attachment response",
+  render: () => dialogHarness({ mediaTransport: new LostStemResponseStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+    await expect(canvas.queryByRole("alert")).not.toBeInTheDocument();
+  },
+};
+
 /** Long lyrics on a phone: after scrolling to the bottom of the form, the
- * header with Continue stays on screen. */
+ * header with Next stays on screen. */
 export const SongStepLongLyricsMobile: Story = {
   name: "Song / Step 1 — Song / Long lyrics / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -338,9 +438,9 @@ export const SongStepLongLyricsMobile: Story = {
     const doc = canvasElement.ownerDocument;
     const canvas = within(doc.body);
     await uploadStorySong(canvas);
-    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    const lyrics = await canvas.findByLabelText("Lyrics");
     await waitFor(async () => {
-      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics (optional)");
+      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics");
       if (field.value === "") {
         field.value = Array.from({ length: 80 }, (_, line) => `Line ${line + 1} of a very long song`).join("\n");
         field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -369,7 +469,7 @@ export const SongLyricsOnSongStep: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
-    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    const lyrics = await canvas.findByLabelText("Lyrics");
     await userEvent.type(lyrics, "A line carried on the tide");
     await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },
@@ -409,7 +509,7 @@ export const SongStepReview: Story = {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    // Both steps name their action Continue. Confirm the new step before
+    // Both steps name their action Next. Confirm the new step before
     // looking up the next action, rather than clicking the old button twice.
     await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await continueSongStep(canvas);

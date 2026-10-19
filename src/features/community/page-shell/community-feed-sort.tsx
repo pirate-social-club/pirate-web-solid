@@ -17,7 +17,7 @@ import {
 } from "@pirate/web-solid-ui";
 
 const sorts = ["Best", "New", "Top"] as const;
-const triggerClass = "grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const triggerClass = "grid size-10 place-items-center rounded-full bg-background/75 text-foreground backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Menu on desktop, sheet on phones; both report the same controlled sort. */
 export function CommunityFeedSort(props: { value: string; onChange: (value: string) => void }) {

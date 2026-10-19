@@ -27,6 +27,7 @@ import type { CommunityViewerVoteClient } from "./community-viewer-vote-api.ts";
 import { ActivePersonaProvider } from "../../identity/active-persona-store.tsx";
 import { ApplicationChrome } from "../../shell/media-shell/media-shell.tsx";
 import { createHeldSongUploadTransport } from "./song-upload-story-fixtures";
+import { installCommunityActivityStoryFixture } from "./community-page-activity-story-fixtures.ts";
 
 const communityId = "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345";
 
@@ -198,6 +199,7 @@ const meta = {
   component: CommunityPage,
   args: { pathSegment: "night-shift" },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
+  beforeEach: () => installCommunityActivityStoryFixture(communityId, memberSession),
 } satisfies Meta<typeof CommunityPage>;
 
 export default meta;
@@ -211,6 +213,7 @@ async function openComposer(canvasElement: HTMLElement) {
 
 async function writeAndPost(canvasElement: HTMLElement, text: string) {
   const form = await openComposer(canvasElement);
+  await userEvent.type(form.getByRole("textbox", { name: "Title" }), "Weekly listening thread");
   await userEvent.type(form.getByRole("textbox", { name: "Post" }), text);
   await userEvent.click(form.getByRole("button", { name: "Post" }));
 }
@@ -237,14 +240,25 @@ export const ComposerReplacesTheFeed: Story = {
     await expect(canvas.queryByRole("dialog")).toBeNull();
     await expect(canvas.queryByText("Feed", { selector: "button" })).toBeNull();
     await expect(canvas.getByRole("complementary", { name: "Community information" })).toBeVisible();
+    // Paper rulings 10 and 11: close and "New post" at the top left, no
+    // Cancel, and Title is required with an asterisk.
+    const form = within(panel);
+    const close = form.getByRole("button", { name: "Close composer" });
+    const heading = form.getByRole("heading", { name: "New post" });
+    await expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(heading.getBoundingClientRect().left);
+    await expect(form.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await expect(form.getByText("*")).toBeVisible();
+    await expect(form.queryByText(/optional/iu)).toBeNull();
+    await userEvent.type(form.getByRole("textbox", { name: "Post" }), "No title yet");
+    await expect(form.getByRole("button", { name: "Post" })).toBeDisabled();
   },
 };
 
 /**
- * The phone presentation recorded in
- * tasks/records/solid-composer-mobile-flat-surface.md, asserted as intent and
- * not only as fit: writing is the whole screen, flat, under the 2026-09-24
- * action bar, with nothing pushing the fields down and no footer.
+ * The phone presentation of Paper rulings 10-12, asserted as intent and not
+ * only as fit: writing is the whole screen, flat, under a bar with close and
+ * "New post", with nothing pushing the fields down, and the labelled Post
+ * button full width in a footer.
  */
 async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: HTMLElement) {
   const doc = canvasElement.ownerDocument;
@@ -271,7 +285,7 @@ async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: H
     expect(within(canvasElement).queryByRole("heading", { name: "Create a post" })).toBeNull();
     // The first field is near the top of the screen.
     expect(firstField.getBoundingClientRect().top).toBeLessThanOrEqual(150);
-    // The actions are in the bar above the fields, not in a footer.
+    // The bar above the fields holds the way out and names the screen.
     expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(firstField.getBoundingClientRect().top);
     expect(within(bar).getByRole("button", { name: "Close composer" })).toBeVisible();
     expect(doc.documentElement.scrollWidth).toBeLessThanOrEqual(view.innerWidth);
@@ -279,20 +293,53 @@ async function expectFlatPhoneComposer(canvasElement: HTMLElement, firstField: H
   return bar;
 }
 
-/** Scrolled to the very bottom, the action bar is still on screen. */
-async function expectBarStaysOnScreen(canvasElement: HTMLElement, bar: HTMLElement) {
+/**
+ * Paper rulings 10-12 on the phone text form: the bar names the screen "New
+ * post" beside close, and the labelled Post button is full width in a footer
+ * at the bottom of the screen.
+ */
+async function expectTextPhoneChrome(canvasElement: HTMLElement, bar: HTMLElement) {
   const view = canvasElement.ownerDocument.defaultView!;
-  view.scrollTo({ top: canvasElement.ownerDocument.documentElement.scrollHeight });
+  const footer = canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!;
   await waitFor(() => {
-    expect(view.scrollY).toBeGreaterThan(0);
+    expect(within(bar).getByRole("heading", { name: "New post" })).toBeVisible();
+    expect(within(bar).queryByRole("button", { name: "Post" })).toBeNull();
+    const post = within(footer).getByRole("button", { name: "Post" });
+    expect(Math.abs(footer.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1);
+    expect(Math.round(post.getBoundingClientRect().width)).toBe(Math.round(footer.getBoundingClientRect().width) - 32);
+  });
+  return footer;
+}
+
+/**
+ * Scrolled to the end of a long text, the action bar is still on screen.
+ * Whether the page or the text field scrolls depends on the screen height: at
+ * 320x568 the post form fits and its field scrolls inside itself, on a shorter
+ * screen or a taller form the page scrolls. Either way something must scroll,
+ * and the bar must stay put.
+ */
+async function expectBarStaysOnScreen(canvasElement: HTMLElement, bar: HTMLElement, field: HTMLElement) {
+  const doc = canvasElement.ownerDocument;
+  const view = doc.defaultView!;
+  const pageScrolls = doc.documentElement.scrollHeight > view.innerHeight + 1;
+  if (pageScrolls) {
+    view.scrollTo({ top: doc.documentElement.scrollHeight });
+    await waitFor(() => expect(view.scrollY).toBeGreaterThan(0));
+  } else {
+    await expect(field.scrollHeight).toBeGreaterThan(field.clientHeight);
+    field.scrollTop = field.scrollHeight;
+    await waitFor(() => expect(field.scrollTop).toBeGreaterThan(0));
+  }
+  await waitFor(() => {
     const box = bar.getBoundingClientRect();
     expect(box.top).toBeGreaterThanOrEqual(-1);
     expect(box.bottom).toBeLessThanOrEqual(view.innerHeight);
   });
   view.scrollTo({ top: 0 });
+  field.scrollTop = 0;
 }
 
-/** A long post, so the page has to scroll. */
+/** A long post, so the page or the text field has to scroll. */
 const longPost = Array.from({ length: 40 }, (_, line) => `Line ${line + 1} of a long post.`).join("\n");
 
 /** Phone: a flat surface under the September action bar. */
@@ -306,18 +353,23 @@ export const FullWidthComposerOnMobile: Story = {
     const title = form.getByRole("textbox", { name: "Title" });
     const body = form.getByRole("textbox", { name: "Post" });
     const bar = await expectFlatPhoneComposer(canvasElement, title);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeDisabled();
+    const footer = await expectTextPhoneChrome(canvasElement, bar);
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
     // Song and Video are a plain row directly under the text field.
     const song = form.getByRole("button", { name: "Post a song" });
     const video = form.getByRole("button", { name: "Post a video" });
     await expect(song.getBoundingClientRect().top).toBeGreaterThanOrEqual(body.getBoundingClientRect().bottom);
     await expect(Math.abs(song.getBoundingClientRect().top - video.getBoundingClientRect().top)).toBeLessThanOrEqual(1);
-    // There is no second Post button below the fields.
+    // The footer's is the only Post button.
     await expect(form.getAllByRole("button", { name: "Post" })).toHaveLength(1);
     await userEvent.click(body);
     await userEvent.paste(longPost);
-    await expect(within(bar).getByRole("button", { name: "Post" })).toBeEnabled();
-    await expectBarStaysOnScreen(canvasElement, bar);
+    // A post needs its title as well as its text.
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeDisabled();
+    await userEvent.type(title, "Weekly listening thread");
+    await expect(within(footer).getByRole("button", { name: "Post" })).toBeEnabled();
+    await expectBarStaysOnScreen(canvasElement, bar, body);
+    await expectBarStaysOnScreen(canvasElement, footer, body);
     await expect(within(canvasElement).queryByText(existingPost.title)).toBeNull();
   },
 };
@@ -365,22 +417,91 @@ export const MobileComposerInsideTheAppShell: Story = {
     const form = await openComposer(canvasElement);
     const bar = await expectFlatPhoneComposer(canvasElement, form.getByRole("textbox", { name: "Title" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBe(0));
-    await userEvent.click(form.getByRole("textbox", { name: "Post" }));
+    await expectTextPhoneChrome(canvasElement, bar);
+    const body = form.getByRole("textbox", { name: "Post" });
+    await userEvent.click(body);
     await userEvent.paste(longPost);
-    await expectBarStaysOnScreen(canvasElement, bar);
+    await expectBarStaysOnScreen(canvasElement, bar, body);
     await userEvent.click(within(bar).getByRole("button", { name: "Close composer" }));
     await waitFor(() => expect(footer.getBoundingClientRect().height).toBeGreaterThan(0));
   },
 };
 
+/** Posts a song through the phone steps inside the real shell and returns the shell's bottom navigation. */
+async function postSongInsideTheShell(canvasElement: HTMLElement) {
+  const nav = await waitFor(() => {
+    const found = canvasElement.ownerDocument.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
+    expect(found).not.toBeNull();
+    expect(found!.getBoundingClientRect().height).toBeGreaterThan(0);
+    return found!;
+  });
+  const canvas = await openSongInMain(canvasElement);
+  const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+  for (const step of ["Royalties", "Review"]) {
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
+    await canvas.findByRole("heading", { name: step });
+  }
+  await userEvent.click(await waitFor(() => footer().getByRole("button", { name: "Post" })));
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  // The posted state is still part of composing: the shell keeps its bottom
+  // navigation hidden and the composer keeps its history entry for Back.
+  await waitFor(() => expect(nav.getBoundingClientRect().height).toBe(0));
+  await expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).toBe(true);
+  return { canvas, nav, posted };
+}
+
+const songInTheShell = (args: CommunityPageProps) => (
+  <ActivePersonaProvider>
+    <ApplicationChrome currentPath="/c/night-shift" hideMobileHeader mobileActiveItem="none" mode="standard" signedIn>
+      <SongPostingPreview {...args} />
+    </ApplicationChrome>
+  </ActivePersonaProvider>
+);
+
+/** Phone, real shell: Back on the posted song's state returns to the feed and the bottom navigation. */
+export const MobilePostedSongBackInsideTheAppShell: Story = {
+  name: "Mobile posted song: Back inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav } = await postSongInsideTheShell(canvasElement);
+    canvasElement.ownerDocument.defaultView!.history.back();
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+  },
+};
+
+/** Phone, real shell: Close does the same and gives back the history entry it held. */
+export const MobilePostedSongCloseInsideTheAppShell: Story = {
+  name: "Mobile posted song: Close inside the app shell",
+  args: pageArgs(standInServer()),
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: songInTheShell,
+  play: async ({ canvasElement }) => {
+    const { canvas, nav, posted } = await postSongInsideTheShell(canvasElement);
+    await userEvent.click(within(posted).getByRole("button", { name: "Close song status" }));
+    await waitFor(() => expect(canvasElement.querySelector("[data-posted-song]")).toBeNull());
+    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
+    await waitFor(() => expect(nav.getBoundingClientRect().height).toBeGreaterThan(0));
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView!.history.state?.pirateComposer).not.toBe(true));
+  },
+};
+
 export const CancelKeepsTheDraft: Story = {
-  name: "Cancel returns to the feed and keeps the draft",
+  name: "Close returns to the feed and keeps the draft",
   args: pageArgs(standInServer()),
   play: async ({ canvasElement }) => {
     const form = await openComposer(canvasElement);
     await userEvent.type(form.getByRole("textbox", { name: "Title" }), "A draft title");
     await userEvent.type(form.getByRole("textbox", { name: "Post" }), "A draft to return to");
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(await within(canvasElement).findByText(existingPost.title)).toBeVisible();
     await expect(within(canvasElement).queryByRole("form", { name: "Create a post" })).toBeNull();
     const reopened = await openComposer(canvasElement);
@@ -389,14 +510,21 @@ export const CancelKeepsTheDraft: Story = {
   },
 };
 
-async function openSongInMain(canvasElement: HTMLElement) {
+async function selectSongStems(canvas: ReturnType<typeof within>) {
+  for (const stem of ["instrumental", "vocals"] as const) {
+    await userEvent.upload(await canvas.findByLabelText(`Upload ${stem}`),
+      new File([new Uint8Array(100)], `${stem}.mp3`, { type: "audio/mpeg" }));
+  }
+}
+
+async function openSongInMain(canvasElement: HTMLElement, withStems = true) {
   await openComposer(canvasElement);
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"),
     new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
-  // Desktop names the step with a heading; a phone leaves the bar's centre
-  // empty and names nothing, as decided on 2026-09-24.
+  // The composer header names the step on desktop and phone (Paper ruling 11).
   const form = await canvas.findByRole("form", { name: "Post a song" });
+  if (withStems) await selectSongStems(canvas);
   const main = canvas.getByRole("main", { name: "Create a post" });
   await waitFor(() => {
     expect(form.closest("main")).toBe(main);
@@ -409,6 +537,53 @@ async function openSongInMain(canvasElement: HTMLElement) {
   await expect(canvas.queryByRole("dialog")).toBeNull();
   await expect(canvas.queryByText("18+ only")).toBeNull();
   return canvas;
+}
+
+/**
+ * Paper rulings 11 and 12 on the phone song steps: the bar has close or back
+ * beside the step's centred name and no forward control; the labelled
+ * forward button is full width in a footer at the bottom of the screen.
+ */
+async function expectSongPhoneChrome(canvasElement: HTMLElement, step: string, forward: string) {
+  const view = canvasElement.ownerDocument.defaultView!;
+  const bar = within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
+  const footer = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-composer-footer]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await waitFor(() => {
+    expect(bar.getByRole("heading", { name: step })).toBeVisible();
+    expect(bar.queryByRole("button", { name: forward })).toBeNull();
+    const button = within(footer).getByRole("button", { name: forward });
+    expect(Math.abs(footer.getBoundingClientRect().bottom - view.innerHeight)).toBeLessThanOrEqual(1);
+    expect(Math.round(button.getBoundingClientRect().width)).toBe(Math.round(footer.getBoundingClientRect().width) - 32);
+  });
+  // There is no separate Back button: the bar's arrow is the only way back.
+  await expect(within(footer).queryByRole("button", { name: "Back" })).toBeNull();
+  return footer;
+}
+
+/**
+ * Paper ruling 14: after Post the author stays on the page and sees the
+ * song's one centred state, not the feed. Closing it returns to the feed,
+ * where the pending card carries a song that is still in progress.
+ */
+async function expectPostedSongThenFeed(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  const posted = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  await expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull();
+  await expect(canvas.queryByRole("main", { name: "Community feed" })).toBeNull();
+  await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(0);
+  await expect(within(posted).getByRole("heading", { name: /Processing your song|Published/u })).toBeVisible();
+  const stillProcessing = posted.getAttribute("data-posted-song-status") !== "published";
+  await userEvent.click(within(posted).getByRole("button", { name: "Close song status" }));
+  await waitFor(() => expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible());
+  if (stillProcessing) await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
 }
 
 export const SongComposerInMain: Story = {
@@ -424,60 +599,69 @@ export const SongComposerInMainOnMobile: Story = {
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
-    const canvas = await openSongInMain(canvasElement);
+    // Measure the initial surface before hidden file inputs move focus/scroll.
+    const canvas = await openSongInMain(canvasElement, false);
     const audio = canvas.getByRole("button", { name: "Remove audio" });
     const bar = await expectFlatPhoneComposer(canvasElement, audio);
-    // Forward is the bar's right-hand control; there is no footer.
-    await expect(within(bar).getByRole("button", { name: "Continue" })).toBeVisible();
-    await expect(canvas.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
-    await userEvent.click(canvas.getByRole("textbox", { name: /Lyrics/u }));
+    const footer = await expectSongPhoneChrome(canvasElement, "Song", "Next");
+    await expect(canvas.getAllByRole("button", { name: "Next" })).toHaveLength(1);
+    const lyrics = canvas.getByRole("textbox", { name: /Lyrics/u });
+    await userEvent.click(lyrics);
     await userEvent.paste(longPost);
-    await expectBarStaysOnScreen(canvasElement, bar);
+    await expectBarStaysOnScreen(canvasElement, bar, lyrics);
+    await expectBarStaysOnScreen(canvasElement, footer, lyrics);
   },
 };
 
 export const SongStepsReturnToFeed: Story = {
-  name: "Song, Royalties and Review stay in the form, then return to feed",
+  name: "Song, Royalties and Review stay in the form, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = await openSongInMain(canvasElement);
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await canvas.findByRole("heading", { name: "Royalties" });
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    const royalties = await canvas.findByRole("heading", { name: "Royalties" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    // Paper ruling 11: the way back is the arrow beside the step's name; there
+    // is no Cancel and no separate Back button.
+    const back = canvas.getByRole("button", { name: "Back" });
+    await expect(back.closest("header")).toBe(royalties.closest("header"));
+    await expect(back.getBoundingClientRect().right).toBeLessThanOrEqual(royalties.getBoundingClientRect().left);
+    await expect(canvas.getAllByRole("button", { name: "Back" })).toHaveLength(1);
+    await expect(canvas.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
     await canvas.findByRole("heading", { name: "Review" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
-    await userEvent.click(canvas.getByRole("button", { name: "Post song" }));
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await userEvent.click(canvas.getByRole("button", { name: "Post" }));
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 
 export const SongStepsReturnToFeedOnMobile: Story = {
-  name: "Mobile song steps move through the bar, then return to feed",
+  name: "Mobile song steps move through the footer, then the posted state",
   args: pageArgs(standInServer()),
   render: args => <SongPostingPreview {...args} />,
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = await openSongInMain(canvasElement);
     const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
-    // Royalties: back on the left, forward on the right.
+    const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+    await expectSongPhoneChrome(canvasElement, "Song", "Next");
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
+    // Royalties: back on the left beside the step's name, forward below.
     await waitFor(() => expect(bar().getByRole("button", { name: "Back" })).toBeVisible());
+    await expectSongPhoneChrome(canvasElement, "Royalties", "Next");
     await expect(canvas.getByText(/earnings/iu)).toBeVisible();
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
-    // Review: the right-hand control publishes.
-    const publish = await waitFor(() => bar().getByRole("button", { name: "Post song" }));
-    await expect(canvas.getAllByRole("button", { name: "Post song" })).toHaveLength(1);
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
+    // Review: the footer's button publishes.
+    await expectSongPhoneChrome(canvasElement, "Review", "Post");
+    const publish = await waitFor(() => footer().getByRole("button", { name: "Post" }));
+    await expect(canvas.getAllByRole("button", { name: "Post" })).toHaveLength(1);
     await userEvent.click(publish);
-    await waitFor(() => expect(canvas.queryByRole("form", { name: "Post a song" })).toBeNull());
-    await expect(canvas.getByRole("main", { name: "Community feed" })).toBeVisible();
-    await expect(canvasElement.querySelectorAll("[data-pending-song]")).toHaveLength(1);
+    await expectPostedSongThenFeed(canvasElement);
   },
 };
 
@@ -495,10 +679,10 @@ export const MobileBackRespectsTheSongGuard: Story = {
   play: async ({ canvasElement }) => {
     const view = canvasElement.ownerDocument.defaultView!;
     const canvas = await openSongInMain(canvasElement);
-    const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
-    await waitFor(() => expect(bar().getByRole("button", { name: "Continue" })).toBeEnabled());
+    const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
     // Continue starts the upload, which the stand-in server holds open.
-    await userEvent.click(bar().getByRole("button", { name: "Continue" }));
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
     await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).not.toBeNull());
     view.history.back();
     await waitFor(() => expect(canvas.getByText(/unresolved command/iu)).toBeVisible());
@@ -536,13 +720,13 @@ export const LostAcknowledgement: Story = {
   name: "Lost acknowledgement, then confirmed",
   args: pageArgs(lostAcknowledgementServer),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     const before = lostAcknowledgementServer.publishedCount();
     await writeAndPost(canvasElement, "Did this arrive?");
     await waitFor(() => expect(pending(canvasElement)).not.toBeNull());
     // Nothing asks the author to check, and nothing calls it failed.
-    await expect(canvas.queryByText(/check again/iu)).toBeNull();
-    await expect(canvas.queryByRole("alert")).toBeNull();
+    const item = within(pending(canvasElement)!);
+    await expect(item.queryByText(/check again/iu)).toBeNull();
+    await expect(item.queryByRole("alert")).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     // The replay confirmed the first post instead of making a second one.
     await expect(lostAcknowledgementServer.publishedCount() - before).toBe(1);
@@ -601,7 +785,7 @@ export const PublishedButAnswerLost: Story = {
     await expect(within(item).queryByRole("button", { name: /discard|dismiss|edit|remove|cancel/iu })).toBeNull();
     // Opening and closing the composer does not stop or remove it.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "delayed");
     // When an answer finally arrives it is the first post, once.
     answersLost = false;
@@ -639,7 +823,7 @@ export const DismissedWhileSending: Story = {
     await waitFor(() => expect(pending(canvasElement)).toHaveAttribute("data-pending-text-post-status", "sending"));
     // Open the composer again and dismiss it while the first post is in flight.
     const form = await openComposer(canvasElement);
-    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(form.getByRole("button", { name: "Close composer" }));
     await expect(canvas.queryByRole("form", { name: "Create a post" })).toBeNull();
     await waitFor(() => expect(pending(canvasElement)).toBeNull(), { timeout: 6_000 });
     await expect(canvas.getAllByText("Sent, then I looked away")).toHaveLength(1);
@@ -820,6 +1004,12 @@ function SongFrame(props: {
   readonly rerun?: readonly MediaSubmissionSnapshot[];
   readonly originalRequired?: boolean;
   readonly originalUnanswered?: boolean;
+  /** Run again never settles, so the rerun stays busy. */
+  readonly heldRetry?: boolean;
+  /** Adopt the song for another account or community than the page's. */
+  readonly adoptAs?: { readonly accountId?: string; readonly communityId?: string };
+  /** Adopt nothing: a fresh store, as after a reload. */
+  readonly empty?: boolean;
 }) {
   const answers = [...untrack(() => props.answers)];
   const rerun = [...untrack(() => props.rerun ?? [])];
@@ -828,10 +1018,10 @@ function SongFrame(props: {
   const store = createSongSubmissionStore({ observeIntervalMs: 700 });
   const [session] = createSignal<ApplicationSessionState>(memberSession);
   const [onCommunity, setOnCommunity] = createSignal(true);
-  store.adopt({
+  if (!props.empty) store.adopt({
     submissionId: "song-1",
-    accountId: memberSession.userId,
-    communityId,
+    accountId: props.adoptAs?.accountId ?? memberSession.userId,
+    communityId: props.adoptAs?.communityId ?? communityId,
     title: "Midnight Waves",
     authorHandle: "Harbor",
     view: { status: "processing", submissionId: "song-1", phase: "finalize" },
@@ -854,6 +1044,7 @@ function SongFrame(props: {
         return current;
       },
       retry: async () => {
+        if (props.heldRetry) return new Promise<MediaSubmissionSnapshot>(() => {});
         const next = rerun.shift() ?? songProcessing("analysis");
         answers.splice(0, answers.length, ...rerun.splice(0), songPublished);
         return next;
@@ -904,7 +1095,8 @@ export const SongUploadProgress: Story = {
     await userEvent.upload(canvas.getByLabelText("Choose a song file"),
       new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
     await canvas.findByRole("heading", { name: "Song" });
-    const next = canvas.getByRole("button", { name: "Continue" });
+    await selectSongStems(canvas);
+    const next = canvas.getByRole("button", { name: "Next" });
     await waitFor(() => expect(next).toBeEnabled());
     await userEvent.click(next);
     const progress = await canvas.findByRole("progressbar", { name: "Audio upload" });
@@ -923,7 +1115,8 @@ async function beginHeldUpload(canvasElement: HTMLElement) {
   await openComposer(canvasElement);
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"), new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
-  const next = await canvas.findByRole("button", { name: "Continue" });
+  await selectSongStems(canvas);
+  const next = await canvas.findByRole("button", { name: "Next" });
   await waitFor(() => expect(next).toBeEnabled());
   await userEvent.click(next);
   await canvas.findByRole("progressbar", { name: "Audio upload" });
@@ -1056,7 +1249,8 @@ export const SongWaitingForReview: Story = {
     await expect(item.queryByRole("progressbar")).toBeNull();
     await expect(item.queryByText(SONG_PROCESSING_TEXT)).toBeNull();
     await expect(item.queryByRole("alert")).toBeNull();
-    await expect(item.queryByRole("button")).toBeNull();
+    // Its only control is Status, which opens the wait; nothing dismisses it.
+    await expect(item.getAllByRole("button").map(button => button.textContent)).toEqual(["Status"]);
   },
 };
 
@@ -1103,5 +1297,240 @@ export const SongStatusUnanswered: Story = {
     await expect(item.queryByRole("alert")).toBeNull();
     await expect(pendingSong(canvasElement)!.textContent ?? "").not.toMatch(/failed|couldn.t|stopped/iu);
     await expect(item.getByRole("button", { name: "Check now" })).toBeVisible();
+  },
+};
+
+const desktop = {
+  globals: { viewport: { value: "desktopReview", isRotated: false } },
+  parameters: { viewport: { options: { desktopReview: { name: "Desktop", styles: { width: "1280px", height: "900px" }, type: "desktop" } } } },
+} as const;
+
+const failedRetryable = songAnswer({ status: "processing_failed", reason_code: "analysis_failed", retryable: true });
+const failedFinal = songAnswer({ status: "processing_failed", reason_code: "analysis_failed", retryable: false });
+const reviewRequired = songAnswer({ status: "manual_review", reason_code: "review_required", review_ref: "review-1" });
+const reviewUnavailable = songAnswer({ status: "manual_review", reason_code: "moderation_unavailable", review_ref: "review-1" });
+const originalRequired = songAnswer({ status: "action_required", action: { kind: "reference_required", reference_request_ref: "reference-1", expires_at: "2099-01-01T00:00:00Z" } });
+
+const statusButton = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLButtonElement>("[data-pending-song-open-status='song-1']");
+const postedSong = (canvasElement: HTMLElement) => canvasElement.querySelector<HTMLElement>("[data-posted-song]");
+
+/** Waits for the feed card to reach `status`, then checks how it and its Status button are named. */
+async function expectNamedCard(canvasElement: HTMLElement, status: string, description: string) {
+  await waitFor(() => expect(pendingSong(canvasElement)).toHaveAttribute("data-pending-song-status", status), { timeout: 8_000 });
+  const card = pendingSong(canvasElement)!;
+  await expect(card).toHaveAccessibleName("Midnight Waves");
+  await expect(card).toHaveAccessibleDescription(description);
+  const open = within(card).getByRole("button", { name: "Status for Midnight Waves" });
+  await expect(open).toHaveTextContent("Status");
+  await expect(open).toHaveAccessibleDescription(description);
+  // Status is a sibling of the card's other controls, never around them.
+  await expect(open.querySelector("a, button, input, textarea, select")).toBeNull();
+  return open;
+}
+
+/** Opens the status from the feed card: the close takes focus, and no operation starts. */
+async function openStatus(canvasElement: HTMLElement, heading: string) {
+  const open = statusButton(canvasElement)!;
+  await userEvent.click(open);
+  const posted = await waitFor(() => { const element = postedSong(canvasElement); expect(element).not.toBeNull(); return element!; });
+  await expect(await within(posted).findByRole("heading", { name: heading })).toBeVisible();
+  const close = within(posted).getByRole("button", { name: "Close song status" });
+  await waitFor(() => expect(close).toHaveFocus());
+  return { posted, close };
+}
+
+/** Desktop: Status opens the processing card in the real 736px main column; closing returns to Status. */
+export const SongStatusFromTheFeed: Story = {
+  ...desktop,
+  name: "Song status: open from the feed, then close",
+  render: () => <SongFrame answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.ownerDocument.defaultView!.innerWidth).toBe(1280));
+    await expectNamedCard(canvasElement, "processing", SONG_PROCESSING_TEXT);
+    const { posted, close } = await openStatus(canvasElement, "Processing your song");
+    // The approved card fills the main column beside the 320px About rail.
+    const column = posted.closest("main")!;
+    await expect(Math.round(column.getBoundingClientRect().width)).toBe(736);
+    const card = posted.firstElementChild!;
+    await expect(Math.round(card.getBoundingClientRect().width)).toBe(736);
+    await expect(card.getBoundingClientRect().height).toBeGreaterThanOrEqual(448);
+    await expect(getComputedStyle(card).paddingTop).toBe("24px");
+    // The banner and community header stay above it.
+    await expect(canvasElement.querySelector("[aria-label='Community overview']")).not.toBeNull();
+    // The drawing's annotation about reloading ships in no state.
+    await expect(canvasElement.textContent ?? "").not.toMatch(/Reloading or stopping watching/u);
+    await userEvent.click(close);
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    await waitFor(() => expect(statusButton(canvasElement)).toHaveFocus());
+  },
+};
+
+/** Waiting for review, in both of the server's wordings. */
+export const SongStatusWaitingForReview: Story = {
+  ...desktop,
+  name: "Song status: waiting for review",
+  render: () => <SongFrame answers={[reviewRequired]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "manual_review", "This song is waiting for a moderator's review before it can be published.");
+    const { posted } = await openStatus(canvasElement, "Waiting for review");
+    await expect(within(posted).getByText("A moderator will check this song.")).toBeVisible();
+    await expect(within(posted).getAllByRole("button").map(button => button.getAttribute("aria-label") ?? button.textContent)).toEqual(["Close song status"]);
+  },
+};
+
+export const SongStatusChecksUnavailable: Story = {
+  ...desktop,
+  name: "Song status: waiting for review, checks unavailable",
+  render: () => <SongFrame answers={[reviewUnavailable]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "manual_review", "This song is waiting for review because automatic checks aren't available right now.");
+    const { posted } = await openStatus(canvasElement, "Waiting for review");
+    await expect(within(posted).getByText("Automatic checks aren't available right now, so a moderator will check this song.")).toBeVisible();
+  },
+};
+
+/** A retryable failure: Try again runs it once and stays busy in both places while it runs. */
+export const SongStatusRetryBusy: Story = {
+  ...desktop,
+  name: "Song status: retryable failure, busy rerun",
+  render: () => <SongFrame answers={[failedRetryable]} heldRetry />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing_failed", "Processing stopped before this song was published.");
+    const { posted, close } = await openStatus(canvasElement, "Couldn't process this song");
+    const again = within(posted).getByRole("button", { name: "Try again" });
+    await expect(again).toBeEnabled();
+    await userEvent.click(again);
+    // The action is redrawn as the rerun starts; read it again each time.
+    await waitFor(() => expect(within(posted).getByRole("button", { name: "Try again" })).toBeDisabled());
+    await userEvent.click(close);
+    await waitFor(() => expect(within(pendingSong(canvasElement)!).getByRole("button", { name: "Try processing again" })).toBeDisabled());
+  },
+};
+
+/** A final failure offers no retry; Dismiss removes the card, and nothing can reopen it. */
+export const SongStatusFinalFailureDismissed: Story = {
+  ...desktop,
+  name: "Song status: final failure, dismissed",
+  render: () => <SongFrame answers={[failedFinal]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing_failed", "This song couldn't be processed and wasn't published.");
+    const card = within(pendingSong(canvasElement)!);
+    await expect(card.queryByRole("button", { name: "Try processing again" })).toBeNull();
+    const { posted, close } = await openStatus(canvasElement, "Couldn't process this song");
+    await expect(within(posted).queryByRole("button", { name: "Try again" })).toBeNull();
+    await userEvent.click(close);
+    await userEvent.click(within(pendingSong(canvasElement)!).getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull());
+    await expect(statusButton(canvasElement)).toBeNull();
+    await expect(postedSong(canvasElement)).toBeNull();
+  },
+};
+
+/** Slow reads: the processing state offers Check now, and the feed keeps Stop watching here. */
+export const SongStatusSlowChecks: Story = {
+  ...desktop,
+  name: "Song status: slow checks",
+  render: () => <SongFrame answers={["unanswered"]} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(pendingSong(canvasElement)?.textContent ?? "").toContain("taking longer than usual"), { timeout: 20_000 });
+    const card = within(pendingSong(canvasElement)!);
+    await expect(card.getByRole("button", { name: "Stop watching here" })).toBeVisible();
+    const { posted } = await openStatus(canvasElement, "Processing your song");
+    await expect(within(posted).getByRole("button", { name: "Check now" })).toBeVisible();
+  },
+};
+
+/**
+ * Naming the original song is not one of the drawn states: the status shows
+ * the feed card's own controls, without a second Status inside it.
+ */
+export const SongStatusOriginalRequired: Story = {
+  ...desktop,
+  name: "Song status: original song required",
+  render: () => <SongFrame originalRequired answers={[originalRequired]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "action_required", "The original song this one is based on has to be named before it can be published.");
+    const { posted } = await openStatus(canvasElement, "Song");
+    await expect(within(posted).getByRole("textbox", { name: "Original song link" })).toBeVisible();
+    await expect(within(posted).queryByRole("button", { name: /^Status for/u })).toBeNull();
+  },
+};
+
+/**
+ * The song publishes while its status is open: the status says Published and
+ * links to the post; the feed then carries the post and the card goes, so
+ * closing falls back to Post.
+ */
+export const SongStatusPublishedWhileOpen: Story = {
+  ...desktop,
+  name: "Song status: published while open",
+  render: () => <SongFrame answers={[songProcessing("analysis"), songProcessing("analysis"), songProcessing("decision"), songPublished]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "processing", SONG_PROCESSING_TEXT);
+    const { posted, close } = await openStatus(canvasElement, "Processing your song");
+    await expect(await within(posted).findByRole("heading", { name: "Published" }, { timeout: 8_000 })).toBeVisible();
+    const view = within(posted).getByRole("link", { name: "View song" });
+    await expect(view).toHaveAttribute("href", "/posts/midnight-waves");
+    await expect(view).toHaveAttribute("rel", "external");
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull(), { timeout: 8_000 });
+    await userEvent.click(close);
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    // The card that opened it is gone: focus falls back to Post, and nothing recreates the card.
+    await waitFor(() => expect(canvasElement.ownerDocument.activeElement).toBe(canvasElement.querySelector("[data-community-post-slot]")));
+    await expect(pendingSong(canvasElement)).toBeNull();
+    await expect(canvasElement.querySelectorAll("[data-community-post='song-post-1']")).toHaveLength(1);
+  },
+};
+
+/** No card and no Status for a song this page's viewer does not own here, or after a reload. */
+async function expectNoSongEntry(canvasElement: HTMLElement) {
+  await within(canvasElement).findByText("What is the best live arrangement?");
+  await expect(pendingSong(canvasElement)).toBeNull();
+  await expect(canvasElement.querySelector("[data-pending-song-open-status]")).toBeNull();
+  await expect(postedSong(canvasElement)).toBeNull();
+}
+
+/** Another account's song in the same store. */
+export const SongStatusNotForAnotherAccount: Story = {
+  ...desktop,
+  name: "Song status: not for another account",
+  render: () => <SongFrame adoptAs={{ accountId: "account-2" }} answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/** This account's song in another community. */
+export const SongStatusNotForAnotherCommunity: Story = {
+  ...desktop,
+  name: "Song status: not for another community",
+  render: () => <SongFrame adoptAs={{ communityId: "community_other" }} answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/** A fresh store, as after a reload: the status entry is session-only. */
+export const SongStatusAbsentAfterReload: Story = {
+  ...desktop,
+  name: "Song status: absent from a fresh store",
+  render: () => <SongFrame empty answers={[songProcessing("analysis")]} />,
+  play: async ({ canvasElement }) => expectNoSongEntry(canvasElement),
+};
+
+/**
+ * A blocked song is not a drawn state, so its status shows the feed card's
+ * own controls. Dismissing there closes the status and removes the card;
+ * nothing is left to reopen it.
+ */
+export const SongStatusDismissedFromTheStatus: Story = {
+  ...desktop,
+  name: "Song status: dismissed from the status",
+  render: () => <SongFrame answers={[songAnswer({ status: "blocked", reason_code: "policy_violation" })]} />,
+  play: async ({ canvasElement }) => {
+    await expectNamedCard(canvasElement, "blocked", "This song was blocked by policy and wasn't published.");
+    const { posted } = await openStatus(canvasElement, "Song");
+    await userEvent.click(within(posted).getByRole("button", { name: "Dismiss" }));
+    await waitFor(() => expect(postedSong(canvasElement)).toBeNull());
+    await waitFor(() => expect(pendingSong(canvasElement)).toBeNull());
+    await expect(statusButton(canvasElement)).toBeNull();
+    await waitFor(() => expect(canvasElement.ownerDocument.activeElement).toBe(canvasElement.querySelector("[data-community-post-slot]")));
   },
 };

@@ -4,7 +4,7 @@ import { PublicPostRouteView } from "../../../features/posts/public-post/public-
 import { preloadPublicPostSlugRoute } from "../../../features/posts/public-post/public-post-route-loader.ts";
 
 export const route = defineFileRoute("/posts/:slug", {
-  preload: ({ params }) => preloadPublicPostSlugRoute(params.slug, "detail"),
+  preload: ({ params, location }) => preloadPublicPostSlugRoute(params.slug, "detail", location.pathname + location.search),
 });
 
 export default function PublicPostDetailRoute(props: RouteProps<typeof route>) {

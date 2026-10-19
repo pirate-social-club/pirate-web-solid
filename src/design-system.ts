@@ -5,10 +5,6 @@ export {
   type ActionFooterShellProps,
 } from "@pirate/web-solid-ui";
 export {
-  StatusCard,
-  type StatusCardProps,
-} from "@pirate/web-solid-ui";
-export {
   Button,
   buttonVariants,
   type ButtonProps,
@@ -83,8 +79,6 @@ export {
   Chip,
   Combobox,
   FormSectionHeading,
-  ListRow,
-  MediaUploadField,
   OptionCard,
   OptionCardGroup,
   Modal,
@@ -151,6 +145,7 @@ export {
   IconChatCircle,
   IconChatCircleDots,
   IconCheckCircle,
+  IconClock,
   IconCrown,
   IconDotsThree,
   IconEye,

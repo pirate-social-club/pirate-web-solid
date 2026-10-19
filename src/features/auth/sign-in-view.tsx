@@ -196,7 +196,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
 
       <Show when={alert().length > 0}>
         <div aria-live="assertive" class="mt-5" role="alert">
-          <FormNote tone="destructive">{alert()}</FormNote>
+          <FormNote class="text-sm" tone="destructive">{alert()}</FormNote>
         </div>
       </Show>
     </div>

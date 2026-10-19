@@ -11,6 +11,7 @@
  */
 
 import type { OAuthProvider } from "../../api/privy-session.ts";
+import { commentSelector, withCommentSelector } from "../notifications/comment-selector.ts";
 
 export const SIGN_IN_RETURN_PARAM = "return_to";
 
@@ -37,6 +38,9 @@ export function safeReturnPath(candidate: string | null, origin: string): string
   }
   if (resolved.origin !== new URL(origin).origin) return undefined;
   if (resolved.pathname === "/auth" || resolved.pathname.startsWith("/auth/")) return undefined;
+  const selector = commentSelector(resolved.search);
+  if (selector.kind === "invalid") return undefined;
+  if (selector.kind === "target") return withCommentSelector(resolved.pathname, selector.id);
   return `${resolved.pathname}${resolved.search}`;
 }
 

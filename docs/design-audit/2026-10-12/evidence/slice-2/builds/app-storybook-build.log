@@ -1,0 +1,889 @@
+
+T  Building storybook v10.6.0
+|
+o  Cleaning outputDir:
+|  ../../..<scratchpad>/s2final-static
+|
+o  Loading presets
+|
+o  Building manager..
+|
+•  Building open services..
+|
+•  Building preview..
+|  Vite vite v8.3.1 building client environment for production...
+transforming...
+✓ 4065 modules transformed.
+rendering chunks...
+computing gzip size...
+|  Vite
+|  ../../..<scratchpad>/s2final-static/assets/poster-3-CZoA022h.jpg
+|  4.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/cosmos-Bs9ebOVp.png
+|  4.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-capture-processor-Di3k79aW.js
+|  5.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/poster-2-CmYipMLZ.jpg
+|  5.17 kB
+|  ../../..<scratchpad>/s2final-static/assets/thread.worker-DxxHzh46.js
+|  6.44 kB
+|  ../../..<scratchpad>/s2final-static/assets/main.worker-DK_TDfuX.js
+|  10.37 kB
+|  ../../..<scratchpad>/s2final-static/assets/clip-1-CAImlZFY.mp4
+|  12.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/poster-1-CZOgKDDx.jpg
+|  14.96 kB
+|  ../../..<scratchpad>/s2final-static/iframe.html
+|  20.26 kB │ gzip:     5.61 kB
+|  ../../..<scratchpad>/s2final-static/assets/logo_ghost_sm-D1_cTyok.png
+|  26.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-practice-surface-BjEBwSIp.css
+|  2.75 kB │ gzip:     0.89 kB
+|  ../../..<scratchpad>/s2final-static/assets/iframe-D_2ktN5F.css
+|  118.47 kB │ gzip:    18.80 kB
+|  ../../..<scratchpad>/s2final-static/assets/iframe-CSN6NA5V.js
+|  0.04 kB │ gzip:     0.06 kB
+|  ../../..<scratchpad>/s2final-static/assets/design-system-C0aQG4Xw.js
+|  0.13 kB │ gzip:     0.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/BLTiiqMx--j9zf8yi.js
+|  0.14 kB │ gzip:     0.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/DocsRenderer-JROSPFPF-TK9685X7.js
+|  0.16 kB │ gzip:     0.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/sha256-riVqY8n9.js
+|  0.16 kB │ gzip:     0.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatUnits-OXIWtgOs.js
+|  0.19 kB │ gzip:     0.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/browser-CfJvH2ji.js
+|  0.21 kB │ gzip:     0.18 kB
+|  ../../..<scratchpad>/s2final-static/assets/controlled-BY6FhymL.js
+|  0.21 kB │ gzip:     0.17 kB
+|  ../../..<scratchpad>/s2final-static/assets/5-BHfdGI-sHISRdqJ.js
+|  0.23 kB │ gzip:     0.18 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatter-L2YTDE3Q-B92QF9-M.js
+|  0.24 kB │ gzip:     0.21 kB
+|  ../../..<scratchpad>/s2final-static/assets/poster-1-CaZTY9jL.js
+|  0.28 kB │ gzip:     0.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/chunk-QQBDHPVZ-B98qboss.js
+|  0.32 kB │ gzip:     0.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/sha256-SxEQCYxR.js
+|  0.32 kB │ gzip:     0.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/D6_aBB9R-CK_9Q66d.js
+|  0.33 kB │ gzip:     0.25 kB
+|  ../../..<scratchpad>/s2final-static/assets/fixtures-BOlx5eWW.js
+|  0.33 kB │ gzip:     0.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/combineProps-kUs2a-Km.js
+|  0.35 kB │ gzip:     0.26 kB
+|  ../../..<scratchpad>/s2final-static/assets/sidebar.shared-5qSLtYR3.js
+|  0.37 kB │ gzip:     0.27 kB
+|  ../../..<scratchpad>/s2final-static/assets/polymorphic-CuphOSHI.js
+|  0.41 kB │ gzip:     0.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/CF70_KE4-D1DiGB8U.js
+|  0.41 kB │ gzip:     0.25 kB
+|  ../../..<scratchpad>/s2final-static/assets/persona-switcher-fixtures-Cq6z76ck.js
+|  0.41 kB │ gzip:     0.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/DV_ixT98-Dgukw85G.js
+|  0.42 kB │ gzip:     0.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/dist-Dwc-qj0a.js
+|  0.56 kB │ gzip:     0.38 kB
+|  ../../..<scratchpad>/s2final-static/assets/react-qN2cStNd.js
+|  0.58 kB │ gzip:     0.34 kB
+|  ../../..<scratchpad>/s2final-static/assets/delivery-state-gzBonMUy.js
+|  0.60 kB │ gzip:     0.26 kB
+|  ../../..<scratchpad>/s2final-static/assets/eventListener-CA5WRkBS.js
+|  0.61 kB │ gzip:     0.36 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-query-CtOvZg2w.js
+|  0.63 kB │ gzip:     0.37 kB
+|  ../../..<scratchpad>/s2final-static/assets/BBjsoOtd-C2SjDisM.js
+|  0.63 kB │ gzip:     0.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/QhqEt4aD-CBwPRmgz.js
+|  0.66 kB │ gzip:     0.40 kB
+|  ../../..<scratchpad>/s2final-static/assets/chunk-UAWMPV5J-Dphb9Vmf.js
+|  0.74 kB │ gzip:     0.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-profile-label-Ff_oVZ6d.js
+|  0.74 kB │ gzip:     0.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/global-sign-in-host-dfxjMW8v.js
+|  0.75 kB │ gzip:     0.44 kB
+|  ../../..<scratchpad>/s2final-static/assets/Value-C8OyM0Io.js
+|  0.75 kB │ gzip:     0.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/composing-surface-Bbwc96nf.js
+|  0.77 kB │ gzip:     0.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/verification-config-xapTVGp8.js
+|  0.88 kB │ gzip:     0.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/document-verification-host-Dm0xkgmj.js
+|  0.89 kB │ gzip:     0.51 kB
+|  ../../..<scratchpad>/s2final-static/assets/application-session-DEOv3bR7.js
+|  0.90 kB │ gzip:     0.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-route-client-CuW8Hj4D.js
+|  0.93 kB │ gzip:     0.53 kB
+|  ../../..<scratchpad>/s2final-static/assets/separator-Dp8nhfDv.js
+|  0.93 kB │ gzip:     0.51 kB
+|  ../../..<scratchpad>/s2final-static/assets/label-D03MLuSS.js
+|  0.99 kB │ gzip:     0.56 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-persona-choice-PQ1hULi_.js
+|  1.00 kB │ gzip:     0.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/slice-DMJ8Rhmg.js
+|  1.02 kB │ gzip:     0.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-viewer-vote-api-FRIQazWy.js
+|  1.02 kB │ gzip:     0.60 kB
+|  ../../..<scratchpad>/s2final-static/assets/ui-locale-core-Byrx4FfZ.js
+|  1.02 kB │ gzip:     0.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/dist-cxB4U_1q.js
+|  1.03 kB │ gzip:     0.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/story-layout-DLkYVETG.js
+|  1.06 kB │ gzip:     0.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/owner-settings-sign-in-card-IwSorNDS.js
+|  1.06 kB │ gzip:     0.61 kB
+|  ../../..<scratchpad>/s2final-static/assets/storybook-smoke.stories-DDtTOF4h.js
+|  1.06 kB │ gzip:     0.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/DUp9FXTP-De66k0MA.js
+|  1.08 kB │ gzip:     0.54 kB
+|  ../../..<scratchpad>/s2final-static/assets/dialog-CwYhq3Sf.js
+|  1.08 kB │ gzip:     0.51 kB
+|  ../../..<scratchpad>/s2final-static/assets/dist-Cehkdw3E.js
+|  1.10 kB │ gzip:     0.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-telegram-fixtures-DfF5Xh7D.js
+|  1.10 kB │ gzip:     0.55 kB
+|  ../../..<scratchpad>/s2final-static/assets/dist-CAwYEi8V.js
+|  1.20 kB │ gzip:     0.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/rolldown-runtime-C0FnF6B9.js
+|  1.29 kB │ gzip:     0.71 kB
+|  ../../..<scratchpad>/s2final-static/assets/alert-dialog-Co-4-71N.js
+|  1.33 kB │ gzip:     0.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/preload-helper-COs_YyNi.js
+|  1.33 kB │ gzip:     0.75 kB
+|  ../../..<scratchpad>/s2final-static/assets/comment-pill-KcwmKlci.js
+|  1.35 kB │ gzip:     0.72 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-settings-api-CEkgFIsq.js
+|  1.37 kB │ gzip:     0.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/pill-button-D72Mvy-T.js
+|  1.38 kB │ gzip:     0.73 kB
+|  ../../..<scratchpad>/s2final-static/assets/skeleton-D-Vi0ziY.js
+|  1.46 kB │ gzip:     0.81 kB
+|  ../../..<scratchpad>/s2final-static/assets/chains-C6RHu7W-.js
+|  1.47 kB │ gzip:     0.64 kB
+|  ../../..<scratchpad>/s2final-static/assets/app-sidebar.stories-BAamgHQR.js
+|  1.47 kB │ gzip:     0.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatAbiItem-CiYDG5Hk.js
+|  1.49 kB │ gzip:     0.74 kB
+|  ../../..<scratchpad>/s2final-static/assets/DvspU6cJ-ChOHhHG7.js
+|  1.50 kB │ gzip:     0.77 kB
+|  ../../..<scratchpad>/s2final-static/assets/dialog-footer-D6esKeIw.js
+|  1.51 kB │ gzip:     0.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/document-requirement-_pC0uUeO.js
+|  1.52 kB │ gzip:     0.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/song-excerpt-BNyA4jzg.js
+|  1.53 kB │ gzip:     0.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/activity-persona-preparation-BAWzcqxz.js
+|  1.53 kB │ gzip:     0.79 kB
+|  ../../..<scratchpad>/s2final-static/assets/card-B6RDn8zW.js
+|  1.57 kB │ gzip:     0.56 kB
+|  ../../..<scratchpad>/s2final-static/assets/application-personas-CKwus9Og.js
+|  1.59 kB │ gzip:     0.82 kB
+|  ../../..<scratchpad>/s2final-static/assets/song-attribution-Cl7JQHn4.js
+|  1.69 kB │ gzip:     0.79 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-control-button-BWOC1CqJ.js
+|  1.73 kB │ gzip:     0.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/chip-BEOxYjbW.js
+|  1.79 kB │ gzip:     0.85 kB
+|  ../../..<scratchpad>/s2final-static/assets/story-fixtures-media-CdpE83Nn.js
+|  1.83 kB │ gzip:     1.05 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-save-footer-UWVDLEyt.js
+|  1.83 kB │ gzip:     0.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/reward-pill-CT29v1u_.js
+|  1.86 kB │ gzip:     1.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/auto-resize-textarea.stories-Cgj3bf36.js
+|  1.87 kB │ gzip:     0.90 kB
+|  ../../..<scratchpad>/s2final-static/assets/account-community-memberships-CR2bxOWT.js
+|  1.88 kB │ gzip:     0.85 kB
+|  ../../..<scratchpad>/s2final-static/assets/icon-button-Bs7v1LJX.js
+|  1.89 kB │ gzip:     0.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/isAddress-C0JORA9G.js
+|  1.89 kB │ gzip:     0.98 kB
+|  ../../..<scratchpad>/s2final-static/assets/OK7882aq-CebxzjfD.js
+|  1.89 kB │ gzip:     0.98 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-banner-C1oR-cjq.js
+|  1.92 kB │ gzip:     0.89 kB
+|  ../../..<scratchpad>/s2final-static/assets/label.stories-By63SwU5.js
+|  1.99 kB │ gzip:     0.89 kB
+|  ../../..<scratchpad>/s2final-static/assets/Motion-mzWVLTDY.js
+|  2.02 kB │ gzip:     0.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/radio-indicator.stories-DbE4-yRl.js
+|  2.03 kB │ gzip:     0.82 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-leaderboard.stories-Ra5dlA9i.js
+|  2.06 kB │ gzip:     0.71 kB
+|  ../../..<scratchpad>/s2final-static/assets/comment-pill.stories-Cr-QL3dJ.js
+|  2.09 kB │ gzip:     0.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/flat-tabs-Bb5XADGD.js
+|  2.15 kB │ gzip:     0.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/sign-in-modal-iJDj9IlW.js
+|  2.15 kB │ gzip:     1.00 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-song-playback.stories-135wZdiS.js
+|  2.17 kB │ gzip:     0.80 kB
+|  ../../..<scratchpad>/s2final-static/assets/illustrated-state-BTpSfqfY.js
+|  2.19 kB │ gzip:     1.01 kB
+|  ../../..<scratchpad>/s2final-static/assets/badged-circle-BHbaAuXF.js
+|  2.22 kB │ gzip:     0.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/BlSoAAAV-CDmvShML.js
+|  2.22 kB │ gzip:     0.96 kB
+|  ../../..<scratchpad>/s2final-static/assets/nationality-country-codes-DHryaMxM.js
+|  2.23 kB │ gzip:     1.43 kB
+|  ../../..<scratchpad>/s2final-static/assets/sheet-CV9pcv4S.js
+|  2.24 kB │ gzip:     0.94 kB
+|  ../../..<scratchpad>/s2final-static/assets/profile-page-review-fixtures-Dl6Vn3_j.js
+|  2.25 kB │ gzip:     1.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-avatar-Cm83MJtr.js
+|  2.28 kB │ gzip:     1.04 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-thread-feed-api-DDdJ_htN.js
+|  2.29 kB │ gzip:     1.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/confirm-dialog-N_RvtgTK.js
+|  2.30 kB │ gzip:     0.81 kB
+|  ../../..<scratchpad>/s2final-static/assets/playback-access-DDdlhL_x.js
+|  2.31 kB │ gzip:     1.18 kB
+|  ../../..<scratchpad>/s2final-static/assets/waveform-BRw9jw8P.js
+|  2.32 kB │ gzip:     1.09 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-profile-page.model-4yzHfisl.js
+|  2.32 kB │ gzip:     1.03 kB
+|  ../../..<scratchpad>/s2final-static/assets/studying-story-fixtures-DltTk_Pw.js
+|  2.34 kB │ gzip:     1.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/privy-wallet-authorization-p4SSFlcW.js
+|  2.44 kB │ gzip:     1.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/stack-page-shell-CQEt-88L.js
+|  2.49 kB │ gzip:     1.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/application-chrome-model-NHIgg8MS.js
+|  2.50 kB │ gzip:     0.70 kB
+|  ../../..<scratchpad>/s2final-static/assets/stacked-section-nav-DJClT9L9.js
+|  2.51 kB │ gzip:     1.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/dist-DOIUpXAA.js
+|  2.53 kB │ gzip:     1.31 kB
+|  ../../..<scratchpad>/s2final-static/assets/study-v2-api-C5glGvby.js
+|  2.54 kB │ gzip:     1.01 kB
+|  ../../..<scratchpad>/s2final-static/assets/copy-field.stories-CL3Cm4Lz.js
+|  2.54 kB │ gzip:     1.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-policy.stories-Q2dzjfNe.js
+|  2.56 kB │ gzip:     0.95 kB
+|  ../../..<scratchpad>/s2final-static/assets/status-card-DC6Tnks_.js
+|  2.58 kB │ gzip:     1.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/activity-progress-header.stories-ReBgFDI6.js
+|  2.60 kB │ gzip:     1.00 kB
+|  ../../..<scratchpad>/s2final-static/assets/Cai1J0En-B5IucJHU.js
+|  2.61 kB │ gzip:     0.92 kB
+|  ../../..<scratchpad>/s2final-static/assets/checkbox-card-Bwj6xDDW.js
+|  2.68 kB │ gzip:     1.17 kB
+|  ../../..<scratchpad>/s2final-static/assets/query-Qw1pm2H2.js
+|  2.69 kB │ gzip:     1.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/own-profile-settings.stories-DCOAZ5EN.js
+|  2.79 kB │ gzip:     0.92 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-footer-shell-DEXe4J0y.js
+|  2.83 kB │ gzip:     1.25 kB
+|  ../../..<scratchpad>/s2final-static/assets/stack-page-shell.stories-C9sQNYQR.js
+|  2.85 kB │ gzip:     0.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/input-otp.stories-DZTj2EcV.js
+|  2.89 kB │ gzip:     1.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/tooltip.stories-BucOX9c5.js
+|  2.96 kB │ gzip:     1.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/editable-number-input.stories-BiYmI4Ff.js
+|  2.98 kB │ gzip:     1.14 kB
+|  ../../..<scratchpad>/s2final-static/assets/sha3-HOl_Thfj.js
+|  2.98 kB │ gzip:     1.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/spaces-owner-proof-panel.stories-Rp1IiDeV.js
+|  2.99 kB │ gzip:     1.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/events-CMbK2KFl.js
+|  3.00 kB │ gzip:     1.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/layout-shell-DyGDZqfw.js
+|  3.02 kB │ gzip:     1.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/spinner.stories-pFQndD9c.js
+|  3.02 kB │ gzip:     1.09 kB
+|  ../../..<scratchpad>/s2final-static/assets/app-shell-chrome.stories-CdXYq3Kg.js
+|  3.02 kB │ gzip:     1.04 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-story-fixtures-CZq3EhIW.js
+|  3.11 kB │ gzip:     1.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/sign-in-panel.stories-CaFvkkKG.js
+|  3.16 kB │ gzip:     1.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/persona-switcher-sheet.stories--mTU3nTL.js
+|  3.17 kB │ gzip:     1.22 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-page.model-DcZf1z9M.js
+|  3.18 kB │ gzip:     1.38 kB
+|  ../../..<scratchpad>/s2final-static/assets/ccip-Do2Qj1gW.js
+|  3.21 kB │ gzip:     1.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/reward-sponsor-terms-tqgSEsB3.js
+|  3.22 kB │ gzip:     1.53 kB
+|  ../../..<scratchpad>/s2final-static/assets/activity-results-BoqAyqTg.js
+|  3.25 kB │ gzip:     1.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/form-reset-listener-D-i-eT0o.js
+|  3.27 kB │ gzip:     1.39 kB
+|  ../../..<scratchpad>/s2final-static/assets/form-layout.stories-Djf0VukA.js
+|  3.29 kB │ gzip:     1.21 kB
+|  ../../..<scratchpad>/s2final-static/assets/prefix-input.stories-B93T2LoN.js
+|  3.32 kB │ gzip:     1.21 kB
+|  ../../..<scratchpad>/s2final-static/assets/button-CkaG68fJ.js
+|  3.34 kB │ gzip:     1.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/status-card.stories-BobGKIwS.js
+|  3.35 kB │ gzip:     1.03 kB
+|  ../../..<scratchpad>/s2final-static/assets/input-otp-cfTtmJm9.js
+|  3.38 kB │ gzip:     1.61 kB
+|  ../../..<scratchpad>/s2final-static/assets/Spacing-D4jHk8aS.js
+|  3.39 kB │ gzip:     1.06 kB
+|  ../../..<scratchpad>/s2final-static/assets/skeleton.stories-uqU3lAYD.js
+|  3.40 kB │ gzip:     1.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/_u64-BBkY9chU.js
+|  3.40 kB │ gzip:     1.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/activity-progress-header-DiWVmwwP.js
+|  3.42 kB │ gzip:     1.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/separator.stories-DJGWaC4o.js
+|  3.42 kB │ gzip:     1.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/session-DrQO_UTT.js
+|  3.42 kB │ gzip:     1.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/waveform.stories-DkCId-BY.js
+|  3.44 kB │ gzip:     1.26 kB
+|  ../../..<scratchpad>/s2final-static/assets/age-access-prompt-EHDY9cFE.js
+|  3.49 kB │ gzip:     1.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/pill-button.stories-YKYQJuWp.js
+|  3.55 kB │ gzip:     1.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/card.stories-B7B7whdW.js
+|  3.58 kB │ gzip:     1.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/form-layout-CsH0VsJk.js
+|  3.59 kB │ gzip:     1.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/badged-circle.stories-CoPTlEfZ.js
+|  3.59 kB │ gzip:     1.26 kB
+|  ../../..<scratchpad>/s2final-static/assets/account-page.stories-aifcFqc-.js
+|  3.60 kB │ gzip:     1.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-leaderboard-Du2xreDt.js
+|  3.68 kB │ gzip:     1.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/avatar-DuAOIEgb.js
+|  3.68 kB │ gzip:     1.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-feed-fixtures-C06C6eb6.js
+|  3.68 kB │ gzip:     1.34 kB
+|  ../../..<scratchpad>/s2final-static/assets/spaces-claim-status.stories-Cs20wsuo.js
+|  3.72 kB │ gzip:     1.31 kB
+|  ../../..<scratchpad>/s2final-static/assets/item-CW2DNkeQ.js
+|  3.77 kB │ gzip:     1.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/chunk-242VQQM5-C6c9tiBp.js
+|  3.77 kB │ gzip:     1.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-settings-fixtures-Dn0yHDKV.js
+|  3.78 kB │ gzip:     1.31 kB
+|  ../../..<scratchpad>/s2final-static/assets/layout-shell.stories-B7pIDwYD.js
+|  3.80 kB │ gzip:     1.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/type.stories-DeUvWEfx.js
+|  3.86 kB │ gzip:     1.30 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-visuals.stories-FtvfoX5_.js
+|  3.89 kB │ gzip:     1.38 kB
+|  ../../..<scratchpad>/s2final-static/assets/checkbox.stories-DqrgABIb.js
+|  3.92 kB │ gzip:     1.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/song-player-api-ChKctdgF.js
+|  4.00 kB │ gzip:     1.49 kB
+|  ../../..<scratchpad>/s2final-static/assets/utils-DTBFJkfN.js
+|  4.01 kB │ gzip:     1.64 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-avatar.stories-CSEoBSQl.js
+|  4.06 kB │ gzip:     1.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/mobile-page-header.stories-BWLsqaEz.js
+|  4.11 kB │ gzip:     1.35 kB
+|  ../../..<scratchpad>/s2final-static/assets/spaces-route-attachment-panel.stories-D4u4dfrH.js
+|  4.14 kB │ gzip:     1.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/stacked-section-nav.stories-DzlhXm1E.js
+|  4.15 kB │ gzip:     1.48 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-menu-DRlE93lF.js
+|  4.21 kB │ gzip:     1.37 kB
+|  ../../..<scratchpad>/s2final-static/assets/sign-in-session-BnogHbp_.js
+|  4.23 kB │ gzip:     1.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/reward-pill.stories-CQmcG6UD.js
+|  4.25 kB │ gzip:     1.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/feed-side-panel-s9HGP_yi.js
+|  4.28 kB │ gzip:     1.61 kB
+|  ../../..<scratchpad>/s2final-static/assets/vote-pill.stories-Cyg7suww.js
+|  4.29 kB │ gzip:     1.39 kB
+|  ../../..<scratchpad>/s2final-static/assets/text-submission-contract-DkgbaN_O.js
+|  4.31 kB │ gzip:     1.71 kB
+|  ../../..<scratchpad>/s2final-static/assets/your-communities-page.stories-DRyvIFZU.js
+|  4.32 kB │ gzip:     1.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/avatar.stories-C_jXs3-w.js
+|  4.38 kB │ gzip:     1.31 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatted-text-1i3PUZm2.js
+|  4.39 kB │ gzip:     1.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-upload-field.stories-BRbt-IrF.js
+|  4.39 kB │ gzip:     1.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/i18n-DNxQMjlz.js
+|  4.40 kB │ gzip:     1.81 kB
+|  ../../..<scratchpad>/s2final-static/assets/Typography-CIMT4a0M.js
+|  4.44 kB │ gzip:     1.17 kB
+|  ../../..<scratchpad>/s2final-static/assets/lyric-transform-tv_PiSfW.js
+|  4.48 kB │ gzip:     1.79 kB
+|  ../../..<scratchpad>/s2final-static/assets/textarea.stories-DyACPIqr.js
+|  4.48 kB │ gzip:     1.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/list-row.stories-CJJ1h5vc.js
+|  4.48 kB │ gzip:     1.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/avatar-badge-BFvdZld4.js
+|  4.50 kB │ gzip:     1.67 kB
+|  ../../..<scratchpad>/s2final-static/assets/input.stories-O9CT-qUL.js
+|  4.55 kB │ gzip:     1.38 kB
+|  ../../..<scratchpad>/s2final-static/assets/combobox.stories-yZsBzgXk.js
+|  4.56 kB │ gzip:     1.60 kB
+|  ../../..<scratchpad>/s2final-static/assets/vote-pill-BbbLz3JF.js
+|  4.58 kB │ gzip:     1.61 kB
+|  ../../..<scratchpad>/s2final-static/assets/select.stories-OtY2etbS.js
+|  4.62 kB │ gzip:     1.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-queue.stories-BMxpH6r3.js
+|  4.64 kB │ gzip:     1.44 kB
+|  ../../..<scratchpad>/s2final-static/assets/sheet.stories-C54dQCqr.js
+|  4.64 kB │ gzip:     1.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/mobile-footer-nav.stories-D9a4qeRX.js
+|  4.64 kB │ gzip:     1.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/handle-storefront.model-DCeQSnGD.js
+|  4.71 kB │ gzip:     1.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/persona-switcher-sheet-C1-BFA3C.js
+|  4.72 kB │ gzip:     1.78 kB
+|  ../../..<scratchpad>/s2final-static/assets/mobile-page-header-Ceom-hZD.js
+|  4.73 kB │ gzip:     1.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/confirm-dialog.stories-DJzOfJmb.js
+|  4.78 kB │ gzip:     1.36 kB
+|  ../../..<scratchpad>/s2final-static/assets/RadiusElevation-C9h_e1VH.js
+|  4.84 kB │ gzip:     1.15 kB
+|  ../../..<scratchpad>/s2final-static/assets/chunk-DRQKCCAG-B4QOr3f7.js
+|  4.92 kB │ gzip:     2.10 kB
+|  ../../..<scratchpad>/s2final-static/assets/text-field.stories-BemzDgmr.js
+|  4.99 kB │ gzip:     1.34 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-post-engagement-Dd2O6wQu.js
+|  5.00 kB │ gzip:     1.97 kB
+|  ../../..<scratchpad>/s2final-static/assets/spinner-DNd4yaJ7.js
+|  5.00 kB │ gzip:     1.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/illustrated-state.stories-BJYRqt37.js
+|  5.01 kB │ gzip:     1.49 kB
+|  ../../..<scratchpad>/s2final-static/assets/feed-side-panel.stories-BLWYeXQU.js
+|  5.02 kB │ gzip:     1.67 kB
+|  ../../..<scratchpad>/s2final-static/assets/content-overflow-menu-Dl73cMim.js
+|  5.05 kB │ gzip:     1.75 kB
+|  ../../..<scratchpad>/s2final-static/assets/option-card.stories-DDGJc_DH.js
+|  5.20 kB │ gzip:     1.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/type-CfXuq9uy.js
+|  5.26 kB │ gzip:     1.58 kB
+|  ../../..<scratchpad>/s2final-static/assets/multi-combobox.stories-BrwvhSjZ.js
+|  5.47 kB │ gzip:     1.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-footer-shell.stories-BElAWkD9.js
+|  5.47 kB │ gzip:     1.60 kB
+|  ../../..<scratchpad>/s2final-static/assets/switch.stories-CVSFngLc.js
+|  5.51 kB │ gzip:     1.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/checkbox-card.stories-pVYnYwKx.js
+|  5.51 kB │ gzip:     1.55 kB
+|  ../../..<scratchpad>/s2final-static/assets/option-card-ovCfFETm.js
+|  5.51 kB │ gzip:     1.85 kB
+|  ../../..<scratchpad>/s2final-static/assets/operation-persona-control.stories-KzMyJ4QR.js
+|  5.51 kB │ gzip:     1.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/responsive-option-select.stories-Dnx2FSLA.js
+|  5.52 kB │ gzip:     1.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-save-footer.stories-BUs3VZCz.js
+|  5.55 kB │ gzip:     1.67 kB
+|  ../../..<scratchpad>/s2final-static/assets/pirate-brand-mark.stories-Ckck0fvc.js
+|  5.56 kB │ gzip:     1.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-banner.stories-B786f1xy.js
+|  5.57 kB │ gzip:     1.48 kB
+|  ../../..<scratchpad>/s2final-static/assets/Bpz3OGAn-D4BwszPk.js
+|  5.71 kB │ gzip:     2.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/icon-button.stories-DWucXwcs.js
+|  5.75 kB │ gzip:     1.54 kB
+|  ../../..<scratchpad>/s2final-static/assets/chip.stories-k9e-pflh.js
+|  5.78 kB │ gzip:     1.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/scrubber.stories-Cgpa_UUy.js
+|  5.83 kB │ gzip:     1.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/navigation-model-ldn-Oi6-.js
+|  5.84 kB │ gzip:     2.35 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-receive-sheet.stories-BTZS5_B1.js
+|  5.94 kB │ gzip:     1.75 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-upload-field-VjNODZRN.js
+|  5.94 kB │ gzip:     2.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/flat-tabs.stories-BQmV91_3.js
+|  5.95 kB │ gzip:     1.74 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-control-button.stories-BP5a8WTH.js
+|  6.00 kB │ gzip:     1.42 kB
+|  ../../..<scratchpad>/s2final-static/assets/mobile-footer-nav-CBzAwF8F.js
+|  6.00 kB │ gzip:     1.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/dropdown-menu.stories-CfAp1Opb.js
+|  6.01 kB │ gzip:     1.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/multi-combobox-BLnMLbJ3.js
+|  6.03 kB │ gzip:     2.05 kB
+|  ../../..<scratchpad>/s2final-static/assets/song.stories-BNXnj7ux.js
+|  6.08 kB │ gzip:     2.28 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-profile-page.stories-xd_I3TRr.js
+|  6.11 kB │ gzip:     1.54 kB
+|  ../../..<scratchpad>/s2final-static/assets/preventScroll-BaRezkoV.js
+|  6.11 kB │ gzip:     2.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/responsive-option-select-ru6M-_s0.js
+|  6.20 kB │ gzip:     2.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/alert-dialog.stories-0w7Dy86j.js
+|  6.27 kB │ gzip:     1.73 kB
+|  ../../..<scratchpad>/s2final-static/assets/operation-persona-control-CjrM_MnL.js
+|  6.28 kB │ gzip:     2.55 kB
+|  ../../..<scratchpad>/s2final-static/assets/radio-group-CB6dFdcc.js
+|  6.41 kB │ gzip:     1.81 kB
+|  ../../..<scratchpad>/s2final-static/assets/radio-group.stories-bKQvxHi4.js
+|  6.50 kB │ gzip:     1.75 kB
+|  ../../..<scratchpad>/s2final-static/assets/tooltip-BNkO4zZr.js
+|  6.53 kB │ gzip:     2.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatted-textarea.stories-D6Wo7lri.js
+|  6.54 kB │ gzip:     1.79 kB
+|  ../../..<scratchpad>/s2final-static/assets/profile-page.stories-HVC2m0k8.js
+|  6.56 kB │ gzip:     2.06 kB
+|  ../../..<scratchpad>/s2final-static/assets/radio-indicator-nK5HEPgR.js
+|  6.67 kB │ gzip:     1.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/textarea-b65enuBU.js
+|  6.70 kB │ gzip:     1.67 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-management-shell.stories-BEkSu9pp.js
+|  6.72 kB │ gzip:     2.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/sidebar.stories-C666V9qa.js
+|  6.74 kB │ gzip:     2.32 kB
+|  ../../..<scratchpad>/s2final-static/assets/dialog-presentation--XFhHv5w.js
+|  6.83 kB │ gzip:     2.72 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-assistant-settings.stories-DaCLOs_s.js
+|  6.85 kB │ gzip:     1.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-join-name-D0m4PPoe.js
+|  6.94 kB │ gzip:     2.66 kB
+|  ../../..<scratchpad>/s2final-static/assets/button.stories-CBXWS_kY.js
+|  6.97 kB │ gzip:     1.77 kB
+|  ../../..<scratchpad>/s2final-static/assets/toBytes-C626Y6lc.js
+|  7.08 kB │ gzip:     2.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/auto-resize-textarea-DFNwsYzy.js
+|  7.08 kB │ gzip:     1.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/post-engagement.stories-Dchl6_jP.js
+|  7.08 kB │ gzip:     2.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/input-DLbN_Ho_.js
+|  7.08 kB │ gzip:     1.78 kB
+|  ../../..<scratchpad>/s2final-static/assets/editable-number-input-CNjZOY-f.js
+|  7.12 kB │ gzip:     1.78 kB
+|  ../../..<scratchpad>/s2final-static/assets/account-page-D3h3F7TO.js
+|  7.16 kB │ gzip:     2.84 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-receive-sheet-VvjF81oB.js
+|  7.34 kB │ gzip:     2.97 kB
+|  ../../..<scratchpad>/s2final-static/assets/action-menu.stories-DfLQRD6d.js
+|  7.39 kB │ gzip:     1.99 kB
+|  ../../..<scratchpad>/s2final-static/assets/RyRdwdaj-0gcZE6HE.js
+|  7.41 kB │ gzip:     3.04 kB
+|  ../../..<scratchpad>/s2final-static/assets/prefix-input-BuekrHWQ.js
+|  7.48 kB │ gzip:     2.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/capture-Bw2lSwm1.js
+|  7.50 kB │ gzip:     3.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/react-C21x__mS.js
+|  7.53 kB │ gzip:     2.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/toast.stories-J8yPd7Nb.js
+|  7.56 kB │ gzip:     2.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/copy-field-DC5WQ5Ib.js
+|  7.62 kB │ gzip:     2.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/fields-Ceciz0dS.js
+|  7.66 kB │ gzip:     2.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/tabs.stories-CazNStuC.js
+|  7.66 kB │ gzip:     1.76 kB
+|  ../../..<scratchpad>/s2final-static/assets/pirate-brand-mark-TRx-knFf.js
+|  7.66 kB │ gzip:     2.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-telegram-settings.stories-DNercYRN.js
+|  7.73 kB │ gzip:     1.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatted-text.stories-BQ1ELTYw.js
+|  7.76 kB │ gzip:     2.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/comment-card-YpgWkizg.js
+|  7.86 kB │ gzip:     2.58 kB
+|  ../../..<scratchpad>/s2final-static/assets/handle-storefront.flow-D1rW8spy.js
+|  7.92 kB │ gzip:     2.56 kB
+|  ../../..<scratchpad>/s2final-static/assets/accordion-B3ogeOC0.js
+|  7.93 kB │ gzip:     2.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/sha2-DyrmXUYW.js
+|  8.15 kB │ gzip:     4.12 kB
+|  ../../..<scratchpad>/s2final-static/assets/modal.stories-Cf4HGw8t.js
+|  8.31 kB │ gzip:     2.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/modal-Em7YOCeF.js
+|  8.31 kB │ gzip:     1.70 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-shell-story-fixtures-Rb5LyDO_.js
+|  8.45 kB │ gzip:     2.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/routing-BOLftqO9.js
+|  8.46 kB │ gzip:     3.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/create-community.stories-vSBa09S2.js
+|  8.56 kB │ gzip:     2.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/jSgZ_i04-CyD6D8OQ.js
+|  8.70 kB │ gzip:     3.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/boost-song-sheet.stories-DTc23f8C.js
+|  8.86 kB │ gzip:     2.47 kB
+|  ../../..<scratchpad>/s2final-static/assets/list-row-CzDp1afA.js
+|  8.91 kB │ gzip:     2.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/app-header.stories-BXSEutTG.js
+|  9.03 kB │ gzip:     2.39 kB
+|  ../../..<scratchpad>/s2final-static/assets/profile-layout-DPgfD7PY.js
+|  9.06 kB │ gzip:     3.49 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-profile-page-BgVZFObe.js
+|  9.15 kB │ gzip:     3.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/text-field-B0hebLoq.js
+|  9.15 kB │ gzip:     2.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/item.stories-COpyTkIy.js
+|  9.30 kB │ gzip:     2.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/Color-DTzUYDAL.js
+|  9.31 kB │ gzip:     2.34 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-names-settings.stories-BY9sZC6T.js
+|  9.33 kB │ gzip:     1.82 kB
+|  ../../..<scratchpad>/s2final-static/assets/Icons-DsED8Bk7.js
+|  9.41 kB │ gzip:     1.91 kB
+|  ../../..<scratchpad>/s2final-static/assets/sign-in-view-Bjrj10Tx.js
+|  9.41 kB │ gzip:     3.20 kB
+|  ../../..<scratchpad>/s2final-static/assets/your-communities-page-D5U8EuSJ.js
+|  9.76 kB │ gzip:     2.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-winnings.stories-DtLyM5Kg.js
+|  9.85 kB │ gzip:     3.51 kB
+|  ../../..<scratchpad>/s2final-static/assets/avatar-badge.stories-SJCp5AyX.js
+|  9.98 kB │ gzip:     2.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/formatted-textarea-Jop8YITt.js
+|  10.24 kB │ gzip:     2.99 kB
+|  ../../..<scratchpad>/s2final-static/assets/reward-sponsor-dialog.stories-BB0dlQ34.js
+|  10.58 kB │ gzip:     3.75 kB
+|  ../../..<scratchpad>/s2final-static/assets/spaces-owner-proof-panel-YBui-i6P.js
+|  10.69 kB │ gzip:     3.89 kB
+|  ../../..<scratchpad>/s2final-static/assets/video-delivery.stories-BzuZU2qP.js
+|  10.77 kB │ gzip:     1.80 kB
+|  ../../..<scratchpad>/s2final-static/assets/app-shell-chrome-Bm59qYIT.js
+|  10.83 kB │ gzip:     2.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/tabs-BL4N9iah.js
+|  10.94 kB │ gzip:     3.82 kB
+|  ../../..<scratchpad>/s2final-static/assets/video-player-BECRipBC.js
+|  10.99 kB │ gzip:     4.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/switch-rTDqekwf.js
+|  11.06 kB │ gzip:     3.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/dialog.stories-DGObet6u.js
+|  11.67 kB │ gzip:     2.53 kB
+|  ../../..<scratchpad>/s2final-static/assets/serverForms-Bnk_3N3g.js
+|  11.67 kB │ gzip:     4.63 kB
+|  ../../..<scratchpad>/s2final-static/assets/spaces-route-attachment-panel-DD_jzfyg.js
+|  11.71 kB │ gzip:     4.21 kB
+|  ../../..<scratchpad>/s2final-static/assets/shared-engagement.stories-BHk72BM7.js
+|  11.71 kB │ gzip:     2.99 kB
+|  ../../..<scratchpad>/s2final-static/assets/checkbox-DxTEEY_2.js
+|  11.74 kB │ gzip:     3.58 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-telegram-settings-panel-CNhx6Gd2.js
+|  11.78 kB │ gzip:     3.56 kB
+|  ../../..<scratchpad>/s2final-static/assets/app-header-DPQQabg9.js
+|  11.83 kB │ gzip:     3.32 kB
+|  ../../..<scratchpad>/s2final-static/assets/privy-session-aLaMIzad.js
+|  12.01 kB │ gzip:     4.26 kB
+|  ../../..<scratchpad>/s2final-static/assets/esm-DjyYwuHC.js
+|  12.21 kB │ gzip:     6.40 kB
+|  ../../..<scratchpad>/s2final-static/assets/toast-C6DMGaVz.js
+|  12.23 kB │ gzip:     4.67 kB
+|  ../../..<scratchpad>/s2final-static/assets/persona-public-profile.stories-DmTRRdOR.js
+|  12.30 kB │ gzip:     3.25 kB
+|  ../../..<scratchpad>/s2final-static/assets/megapot-participant.stories-0jv18PhE.js
+|  12.59 kB │ gzip:     3.09 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-assistant-settings-panel-B2Ybp3rT.js
+|  12.72 kB │ gzip:     3.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/studying-surface.stories-Bgl588Ag.js
+|  12.76 kB │ gzip:     2.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/defineChain-Bv7Jlz1L.js
+|  12.86 kB │ gzip:     4.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-join-name.integration.stories-0UOR3CNF.js
+|  12.87 kB │ gzip:     3.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-route-view.stories-CXzwg-ap.js
+|  12.93 kB │ gzip:     4.77 kB
+|  ../../..<scratchpad>/s2final-static/assets/megapot-participant-BrHgXgT0.js
+|  13.01 kB │ gzip:     4.73 kB
+|  ../../..<scratchpad>/s2final-static/assets/legal-document.stories-_pAj_skQ.js
+|  13.45 kB │ gzip:     5.12 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-management-shell-6MDR03iL.js
+|  13.50 kB │ gzip:     4.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-practice-surface.stories-DHlMs-uA.js
+|  13.82 kB │ gzip:     3.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/chain-BD0DyJ9g.js
+|  14.78 kB │ gzip:     4.27 kB
+|  ../../..<scratchpad>/s2final-static/assets/studying-route-view-BgdyeIgb.js
+|  14.79 kB │ gzip:     4.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/sidebar-DuUGY2h8.js
+|  15.14 kB │ gzip:     3.97 kB
+|  ../../..<scratchpad>/s2final-static/assets/scrubber-DhmFEQtV.js
+|  15.18 kB │ gzip:     5.32 kB
+|  ../../..<scratchpad>/s2final-static/assets/boost-song-sheet-BLBVwLNx.js
+|  15.42 kB │ gzip:     4.64 kB
+|  ../../..<scratchpad>/s2final-static/assets/CgkAj-2j-BIKJAKVd.js
+|  16.06 kB │ gzip:     5.29 kB
+|  ../../..<scratchpad>/s2final-static/assets/sign-in-modal.stories-nxW4JEKq.js
+|  17.19 kB │ gzip:     3.30 kB
+|  ../../..<scratchpad>/s2final-static/assets/src-VS9Ju9C4.js
+|  17.20 kB │ gzip:     5.17 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-moderation-settings-panel-BxEhH2kK.js
+|  17.32 kB │ gzip:     4.56 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-practice-surface-Cr_HfwCH.js
+|  17.32 kB │ gzip:     5.69 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-visuals-C8txmkou.js
+|  17.37 kB │ gzip:    11.41 kB
+|  ../../..<scratchpad>/s2final-static/assets/your-songs-page.stories-a-tMTfKU.js
+|  17.40 kB │ gzip:     4.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/your-communities-route.stories-BvvRyGCQ.js
+|  17.49 kB │ gzip:     5.08 kB
+|  ../../..<scratchpad>/s2final-static/assets/study-v2-route-view.stories-Cs7LNtN7.js
+|  17.81 kB │ gzip:     3.78 kB
+|  ../../..<scratchpad>/s2final-static/assets/studying-route-view.stories-781iNBQ2.js
+|  18.40 kB │ gzip:     3.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/accordion.stories-DlqUiwQj.js
+|  18.64 kB │ gzip:     3.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/song-excerpt-composer.stories-DtEBEgVZ.js
+|  18.99 kB │ gzip:     4.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/select-D1fOiKYM.js
+|  19.05 kB │ gzip:     6.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/studying-surface-Dowox0ie.js
+|  19.22 kB │ gzip:     5.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/abis-DZRmnJGH.js
+|  19.46 kB │ gzip:     5.65 kB
+|  ../../..<scratchpad>/s2final-static/assets/decode-D54kauaH.js
+|  20.40 kB │ gzip:     6.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/study-v2-route-view-BP0GzhyJ.js
+|  21.15 kB │ gzip:     7.35 kB
+|  ../../..<scratchpad>/s2final-static/assets/pending-engagement-flow-AXRBKHqF.js
+|  21.31 kB │ gzip:     6.07 kB
+|  ../../..<scratchpad>/s2final-static/assets/chunk-W22LQPXL-Du3hQhBb.js
+|  23.08 kB │ gzip:     7.77 kB
+|  ../../..<scratchpad>/s2final-static/assets/secp256k1-BvO3iGw5.js
+|  23.32 kB │ gzip:     9.33 kB
+|  ../../..<scratchpad>/s2final-static/assets/BzGqGM_d-lSE-AMM0.js
+|  23.36 kB │ gzip:     9.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/browser-NM0WNCww.js
+|  23.47 kB │ gzip:     8.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/combobox-CMNHk3lI.js
+|  23.50 kB │ gzip:     7.81 kB
+|  ../../..<scratchpad>/s2final-static/assets/dropdown-menu-BuTjClAX.js
+|  23.54 kB │ gzip:     7.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/BlockOverrides-CX2A6sI0.js
+|  26.28 kB │ gzip:     7.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-join-name.stories-DfhTLBl_.js
+|  26.29 kB │ gzip:     5.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-names-settings-fixtures-CrJhxdCZ.js
+|  26.33 kB │ gzip:     6.94 kB
+|  ../../..<scratchpad>/s2final-static/assets/cn-BtQXJhCJ.js
+|  27.48 kB │ gzip:     8.89 kB
+|  ../../..<scratchpad>/s2final-static/vite-inject-mocker-entry.js
+|  27.84 kB │ gzip:     9.66 kB
+|  ../../..<scratchpad>/s2final-static/assets/matchers-JIUQ3HVY-DvR2XErZ.js
+|  28.79 kB │ gzip:     9.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/wallet-portfolio.stories-_hv-k4uj.js
+|  29.71 kB │ gzip:     8.43 kB
+|  ../../..<scratchpad>/s2final-static/assets/post-engagement-yFU7yEaA.js
+|  30.03 kB │ gzip:     9.10 kB
+|  ../../..<scratchpad>/s2final-static/assets/Color-6AOWCN3U-CumPddOd.js
+|  30.41 kB │ gzip:    11.49 kB
+|  ../../..<scratchpad>/s2final-static/assets/SignatureErc6492-Jvfr2BbI.js
+|  30.87 kB │ gzip:     9.11 kB
+|  ../../..<scratchpad>/s2final-static/assets/create-community-F0ux_RpT.js
+|  30.92 kB │ gzip:     8.30 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-shell.stories-B5-Ui7nn.js
+|  31.01 kB │ gzip:     4.68 kB
+|  ../../..<scratchpad>/s2final-static/assets/create-post-dialog.stories-D49rcO08.js
+|  31.59 kB │ gzip:     7.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/vertical-feed.stories-CEjunFa2.js
+|  31.70 kB │ gzip:     9.49 kB
+|  ../../..<scratchpad>/s2final-static/assets/WithTooltip-CDUNV5IS-3Kq1Ym89.js
+|  32.67 kB │ gzip:    11.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-page.stories-BuzTXqzv.js
+|  34.74 kB │ gzip:     6.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/song-excerpt-composer-BdwDmoYT.js
+|  37.31 kB │ gzip:    11.74 kB
+|  ../../..<scratchpad>/s2final-static/assets/page-shell.stories-BGv6ySVj.js
+|  37.36 kB │ gzip:     7.39 kB
+|  ../../..<scratchpad>/s2final-static/assets/vertical-feed-Y6hTVPUj.js
+|  37.37 kB │ gzip:     9.52 kB
+|  ../../..<scratchpad>/s2final-static/assets/page-shell-5wm7qo8u.js
+|  38.17 kB │ gzip:    11.16 kB
+|  ../../..<scratchpad>/s2final-static/assets/locales-Dxa5-yrE.js
+|  38.24 kB │ gzip:    12.95 kB
+|  ../../..<scratchpad>/s2final-static/assets/media-shell-BWqb5KxU.js
+|  38.60 kB │ gzip:     9.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/handle-storefront.stories-CREQZYi5.js
+|  38.66 kB │ gzip:    11.05 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-creation-route-view.stories-DLe-pXGb.js
+|  39.20 kB │ gzip:    10.83 kB
+|  ../../..<scratchpad>/s2final-static/assets/localBatchGatewayRequest-016FgB8z.js
+|  43.66 kB │ gzip:    13.92 kB
+|  ../../..<scratchpad>/s2final-static/assets/pako.esm-DaBwlSJy.js
+|  47.81 kB │ gzip:    15.46 kB
+|  ../../..<scratchpad>/s2final-static/assets/video-authoring.stories-B0zKNB2S.js
+|  49.44 kB │ gzip:    10.13 kB
+|  ../../..<scratchpad>/s2final-static/assets/create-post-dialog-B_HgSmTO.js
+|  53.73 kB │ gzip:    15.59 kB
+|  ../../..<scratchpad>/s2final-static/assets/theming-zXeusiY9.js
+|  55.36 kB │ gzip:    21.32 kB
+|  ../../..<scratchpad>/s2final-static/assets/public-post.stories-CNs3XT-k.js
+|  57.21 kB │ gzip:    13.54 kB
+|  ../../..<scratchpad>/s2final-static/assets/reward-sponsor-dialog-_vpLdZWv.js
+|  58.87 kB │ gzip:    16.70 kB
+|  ../../..<scratchpad>/s2final-static/assets/home-video-feed.stories-DeLPtzID.js
+|  59.75 kB │ gzip:    13.96 kB
+|  ../../..<scratchpad>/s2final-static/assets/karaoke-route-view-CdFvEDF7.js
+|  67.57 kB │ gzip:    20.37 kB
+|  ../../..<scratchpad>/s2final-static/assets/icons-DgwUXo6P.js
+|  69.22 kB │ gzip:    10.62 kB
+|  ../../..<scratchpad>/s2final-static/assets/syntaxhighlighter-4REYKNEV-BJeUI8j-.js
+|  75.84 kB │ gzip:    27.23 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-page-BmoRk82_.js
+|  80.66 kB │ gzip:    24.42 kB
+|  ../../..<scratchpad>/s2final-static/assets/community-page-posting.stories-Cujz5Svr.js
+|  85.28 kB │ gzip:    16.24 kB
+|  ../../..<scratchpad>/s2final-static/assets/ccip-7tyY_hAk.js
+|  89.35 kB │ gzip:    25.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/browser-BKPk6BGR.js
+|  92.63 kB │ gzip:    22.88 kB
+|  ../../..<scratchpad>/s2final-static/assets/web-BvJXq2Cn.js
+|  98.40 kB │ gzip:    33.40 kB
+|  ../../..<scratchpad>/s2final-static/assets/_esm-BSgifacN.js
+|  103.83 kB │ gzip:    32.10 kB
+|  ../../..<scratchpad>/s2final-static/assets/owner-settings-route-view.stories-BRbpp0Vx.js
+|  109.11 kB │ gzip:    24.86 kB
+|  ../../..<scratchpad>/s2final-static/assets/post-composer-1vBo2yAF.js
+|  139.61 kB │ gzip:    36.92 kB
+|  ../../..<scratchpad>/s2final-static/assets/video-composer-runtime-0WBaOz5k.js
+|  151.49 kB │ gzip:    44.02 kB
+|  ../../..<scratchpad>/s2final-static/assets/blocks-tlXLAnrM.js
+|  451.23 kB │ gzip:   145.79 kB
+|  ../../..<scratchpad>/s2final-static/assets/components-0cpodaw3.js
+|  479.73 kB │ gzip:   151.37 kB
+|  ../../..<scratchpad>/s2final-static/assets/capture-failure-DpbhN5LH.js
+|  517.34 kB │ gzip:   131.51 kB
+|  ../../..<scratchpad>/s2final-static/assets/esm-BsAAuD1U.js
+|  549.76 kB │ gzip:   163.45 kB
+|  ../../..<scratchpad>/s2final-static/assets/hls-Bi1U6_Yr.js
+|  575.30 kB │ gzip:   179.94 kB
+|  ../../..<scratchpad>/s2final-static/assets/axe-D5RM7SIq.js
+|  586.90 kB │ gzip:   160.19 kB
+|  ../../..<scratchpad>/s2final-static/assets/esm-BYn01IOo.js
+|  592.30 kB │ gzip:   145.50 kB
+|  ../../..<scratchpad>/s2final-static/assets/client-zxzhmDgS.js
+|  960.41 kB │ gzip:    66.42 kB
+|  ../../..<scratchpad>/s2final-static/assets/iframe-BHxXBN-w.js
+|  1,070.39 kB │ gzip:   302.64 kB
+|  ../../..<scratchpad>/s2final-static/assets/barretenberg-gAfVJaAs.js
+|  3,641.99 kB │ gzip: 2,734.71 kB
+|  ../../..<scratchpad>/s2final-static/assets/barretenberg-threads-DmkE6DjO.js
+|  3,669.36 kB │ gzip: 2,755.95 kB
+
+|
+!  Vite [plugin builtin:vite-reporter]
+|  (!) Some chunks are larger than 500 kB after minification. Consider:
+|  - Using dynamic import() to code-split the application
+|  - Use build.rolldownOptions.output.codeSplitting to improve chunking:
+|  ]8;;https://rolldown.rs/reference/OutputOptions.codeSplittinghttps://rolldown.rs/reference/OutputOptions.codeSplitting]8;;
+|  - Adjust chunk size limit for this warning via
+|  build.chunkSizeWarningLimit.
+|  Vite ✓ built in 1m 16s
+|
+!  Vite [33m[PLUGIN_TIMINGS] [0mJavaScript callbacks ran for 72.6s of this 75.9s
+|  build (96%).
+|  The slowest callbacks, timed inside each callback (the wait before a
+|  callback starts is excluded, the time it awaits is included):
+|  - plugin storybook:solid-component-meta transform (83%, 63.0s, 4065
+|  calls)
+|  - plugin vite:worker load (53%, 40.0s, 1 call)
+|  - plugin @tailwindcss/vite:generate:build transform (13%, 9.8s, 3
+|  calls)
+|  These rows add up to more than the total. Callbacks can overlap, so
+|  the same time counts for more than one row.
+|  3 callbacks are listed without a time. Their calls overlapped, so the
+|  time inside one call includes work from other calls. To find their
+|  cost, profile the build with `node --cpu-prof`:
+|  - plugin plugin-csf transform (4065 calls)
+|  - plugin vite:asset load (12 calls)
+|  - plugin vite:worker-import-meta-url transform (2 calls)
+|  See ]8;;https://rolldown.rs/reference/InputOptions.checks#bundlertimingshttps://rolldown.rs/reference/InputOptions.checks#bundlertimings]8;;
+|  for more details.
+
+|
+o  Output directory:
+|  <scratchpad>/s2final-static
+|
+—  Storybook build completed successfully
+
+build ok

@@ -66,13 +66,20 @@ export const Variants: Story = {
         <IconCheck class="size-5" />
       </IconButton>
       <IconButton {...args} aria-label="Destructive" variant="destructive">
-        <IconX class="size-5" />
+        <IconCheck class="size-5" />
       </IconButton>
       <IconButton {...args} aria-label="Active" variant="secondary" active>
         <IconCheck class="size-5" />
       </IconButton>
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    const buttons = within(canvasElement).getAllByRole("button");
+    await expect(buttons).toHaveLength(6);
+    // Paper draws every variant swatch, Destructive included, with the check glyph.
+    const glyphs = buttons.map((button) => button.querySelector("svg")?.innerHTML);
+    await expect(new Set(glyphs).size).toBe(1);
+  },
 };
 
 export const Loading: Story = {
@@ -90,5 +97,21 @@ export const Loading: Story = {
 
     await waitFor(() => expect(button).toBeDisabled());
     await expect(button).toHaveAttribute("aria-busy");
+  },
+};
+
+/**
+ * A caller's class reaches the button in a production build. Class sits after
+ * the spread so the wrapper's resolved classes are what render.
+ */
+export const CallerClass: Story = {
+  render: (args) => (
+    <IconButton {...args} class="size-14">
+      <IconX class="size-5" />
+    </IconButton>
+  ),
+  play: async ({ canvasElement }) => {
+    const box = within(canvasElement).getByRole("button", { name: "Close dialog" }).getBoundingClientRect();
+    await expect([box.width, box.height]).toEqual([56, 56]);
   },
 };

@@ -81,6 +81,8 @@ export interface ModalContentProps {
   dir?: "ltr" | "rtl" | "auto";
   hideCloseButton?: boolean;
   hideCloseButtonOnMobile?: boolean;
+  /** Keeps the close control visible but unusable while an operation holds the modal open. */
+  closeButtonDisabled?: boolean;
   mobileSide?: "top" | "bottom" | "left" | "right";
   onOpenAutoFocus?: (event: Event) => void;
   onCloseAutoFocus?: (event: Event) => void;
@@ -95,7 +97,7 @@ export function ModalContent(props: ParentProps<ModalContentProps>) {
     <Show
       when={isMobile()}
       fallback={
-        <DialogContent aria-label={props["aria-label"]} dir={props.dir} class={props.class} hideCloseButton={shouldHideCloseButton()} onOpenAutoFocus={props.onOpenAutoFocus} onCloseAutoFocus={props.onCloseAutoFocus}>
+        <DialogContent aria-label={props["aria-label"]} dir={props.dir} class={props.class} closeButtonDisabled={props.closeButtonDisabled} hideCloseButton={shouldHideCloseButton()} onOpenAutoFocus={props.onOpenAutoFocus} onCloseAutoFocus={props.onCloseAutoFocus}>
           {props.children}
         </DialogContent>
       }
@@ -104,6 +106,7 @@ export function ModalContent(props: ParentProps<ModalContentProps>) {
         aria-label={props["aria-label"]}
         dir={props.dir}
         class={props.class}
+        closeButtonDisabled={props.closeButtonDisabled}
         hideCloseButton={shouldHideCloseButton()}
         onOpenAutoFocus={props.onOpenAutoFocus}
         onCloseAutoFocus={props.onCloseAutoFocus}
@@ -166,8 +169,10 @@ export function ModalTitle(props: ParentProps<ModalTypographyProps>) {
 
 export function ModalDescription(props: ParentProps<ModalTypographyProps>) {
   const isMobile = createModalIsMobile();
+  // Paper Modal: the one line of description is muted on both presentations.
   const className = () =>
     cn(
+      "text-muted-foreground",
       props.variant || props.leading
         ? typeVariants({
             leading: props.leading,

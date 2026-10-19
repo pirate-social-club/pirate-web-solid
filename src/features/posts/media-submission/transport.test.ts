@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ApiClientError } from "@pirate/api-client";
 
 import { createPersistedMediaCommand } from "./pending";
+import { buildAttachSongStemInput, buildReserveSongAudioInput } from "./contracts";
 import {
   AmbiguousMediaSubmissionError,
   createSameOriginMediaSubmissionTransport,
@@ -22,6 +23,38 @@ const uploadReservation = {
 } as const;
 
 describe("same-origin media submission transport", () => {
+  test("reserves and attaches stems using current session, CSRF and cancellation through the existing endpoint", async () => {
+    const requests: { url: string; credentials?: RequestCredentials; csrf: string | null; signal?: AbortSignal | null; body: unknown }[] = [];
+    let csrf = "csrf-reserve";
+    const controller = new AbortController();
+    const transport = createSameOriginMediaSubmissionTransport({ origin: "https://solid.example", csrfToken: () => csrf,
+      fetchImpl: async (input, init) => {
+        const url = input.toString();
+        requests.push({ url, credentials: init?.credentials, csrf: new Headers(init?.headers).get("x-csrf-token"),
+          signal: init?.signal, body: JSON.parse(String(init?.body)) });
+        const value = url.endsWith("/stems")
+          ? { submission_id: "submission-1", author_persona: { object: "persona", persona_id: "persona-1", display_name: null, avatar_ref: null, primary_public_handle: null },
+              href: "/media-post-submissions/submission-1", track: "song", creation_revision: 1, audio_revision: 1,
+              lyrics_state: { current: { status: "not_bound" } }, stems: { instrumental_audio: null,
+                vocal_audio: { status: "sealed", content_type: "audio/mpeg", size_bytes: 3 } },
+              updated_at: "2026-10-14T00:00:00Z", status: "processing", phase: "analysis" }
+          : { ...uploadReservation, slot: "vocal_audio" };
+        return new Response(JSON.stringify(value), { status: url.endsWith("/stems") ? 200 : 201, headers: { "content-type": "application/json" } });
+      } });
+    await transport.reserveStem(buildReserveSongAudioInput({ communityId: "community-1", personaId: "persona-1",
+      idempotencyKey: "reserve-stem", file: new File(["mp3"], "vocal.mp3", { type: "audio/mpeg" }), slot: "vocal_audio" }), controller.signal);
+    csrf = "csrf-attach";
+    const result = await transport.attachStem(buildAttachSongStemInput({ submissionId: "submission-1", personaId: "persona-1",
+      idempotencyKey: "attach-stem", expectedCreationRevision: 1, slot: "vocal_audio", reservationId: "reservation-1" }), controller.signal);
+    expect(requests.map(request => [request.url, request.credentials, request.csrf, request.signal === controller.signal])).toEqual([
+      ["https://solid.example/api/communities/community-1/media-upload-reservations", "same-origin", "csrf-reserve", true],
+      ["https://solid.example/api/media-post-submissions/submission-1/stems", "same-origin", "csrf-attach", true],
+    ]);
+    expect(requests[1]?.body).toEqual({ persona_id: "persona-1", idempotency_key: "attach-stem", expected_creation_revision: 1,
+      slot: "vocal_audio", reservation_id: "reservation-1" });
+    expect(result.stems?.vocal_audio?.status).toBe("sealed");
+  });
+
   test("discovers and reads server submissions using session credentials without a CSRF cookie", async () => {
     const seen: { url: string; credentials?: RequestCredentials; csrf: string | null }[] = [];
     const transport = createSameOriginMediaSubmissionTransport({ origin: "https://solid.example", csrfToken: () => undefined,
