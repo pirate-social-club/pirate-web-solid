@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.122.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.122.0-f8e20a02.tgz",
-  "sha256": "f8e20a02368394ca0c41d29b0e4723ee3519057659c54c2e318002ea2e7f6c34",
-  "source": "api-next-contracts@0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3",
-  "openapiSha256": "0cfc6b10f84ff0445fc7952e49672d5f381a737d8c5ef608ccbca8a74b7563c3",
-  "clientSha256": "a6431a6a9e7e71c7c0ec0a057c91d2e8069075f9a77986baf75d6923965cc221",
+  "version": "0.123.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.123.0-495647e1.tgz",
+  "sha256": "495647e1ecc4f2e5dea16e491c08c33fa45d5fbcdb3e70f327c1038f6dc685cd",
+  "source": "api-next-contracts@f5dd98cb728f20095f5b8c7c0abd2a1a97d4f75f6841002b32f14f41a0de9d2e",
+  "openapiSha256": "f5dd98cb728f20095f5b8c7c0abd2a1a97d4f75f6841002b32f14f41a0de9d2e",
+  "clientSha256": "dc3b74bb985cc0a5e13e5da8145b3f115da13217f836174a98ee02254600689a",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -139,7 +139,7 @@
     "get_meNotifications",
     "post_meNotificationsNotificationIdRead"
   ],
-  "validatedSourceCommit": "e352a7e56fa3029f8ba51b2a13edfb547372ae56",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/623",
-  "intakeStatus": "API PR623 merged on the exact independently reviewed/tested Notifications tree; complete migrations271-273 review accepted and required hosted checks passed. Immutable client0.122 artifact verified. Paired consumer current-main gates/review, holder/producer/LOGIN controls, deployment and real delivery/navigation/access-loss/alias/cutover/serving acceptance remain pending. Financial/mainnet/cybersecurity and unlifted holds persist."
+  "validatedSourceCommit": "87c3afa6997eedb055c0a1f668ff8dc8bd25af5c",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/626",
+  "intakeStatus": "Immutable client0.123 artifact495647e1 is verified against API moderation repair87c3afa6, independently accepted for bounded source/artifact integration under manifest74491011. PR626 hosted checks, protected integration and live staging remain pending. The six nullable policy fields preserve genuine author-declared absence; historical moderated evidence stays strict. Production and financial/mainnet/cybersecurity holds remain."
 }
