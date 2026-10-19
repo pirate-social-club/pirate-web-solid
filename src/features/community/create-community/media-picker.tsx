@@ -1,92 +1,68 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { Show, createSignal, createUniqueId, onCleanup } from "solid-js";
+import { Show, createMemo, onCleanup } from "solid-js";
+import { Button, IconButton, IconCamera, cn } from "../../../design-system";
 
-import { Button, cn } from "../../../design-system";
-
-/**
- * The legacy MediaPicker shape: a labelled field whose control is a dashed
- * region with a leading image, a prompt or the chosen file's name, a help
- * line, and a Choose file / Replace pill beside a Remove button once a file
- * is set. The chosen file is kept locally for its name and object-URL
- * preview; `fallback` supplies the image shown before anything is chosen
- * (the generated profile default, or initials for the community).
- */
+/** File ownership stays with the flow, so page navigation preserves the preview. */
 export function MediaPicker(props: {
-  /** Visible field label. */
+  file?: Blob;
+  size?: 72 | 96;
+  disabled?: boolean;
   label: string;
-  /** Shown in the region before a file is chosen, e.g. the generated default. */
   fallback?: JSX.Element;
-  /** Prompt line in the region before a file is chosen; omitted when empty. */
-  prompt?: string;
-  /** Help line under the prompt while nothing is chosen; omitted when empty. */
-  help?: string;
   chooseLabel: string;
   replaceLabel: string;
   removeLabel: string;
   accept?: string;
   onSelect: (file: File | null) => void;
 }) {
-  const inputId = `media-picker-${createUniqueId()}`;
-  const [chosen, setChosen] = createSignal<{ name: string; url: string } | null>(null);
-  onCleanup(() => {
-    const current = chosen();
-    if (current) URL.revokeObjectURL(current.url);
+  let input: HTMLInputElement | undefined;
+  const chosen = createMemo(() => {
+    const file = props.file;
+    if (!file) return null;
+    const url = URL.createObjectURL(file);
+    onCleanup(() => URL.revokeObjectURL(url));
+    return url;
   });
 
   return (
-    <div class="flex flex-col gap-2">
-      <span class="text-base font-medium leading-tight text-foreground">{props.label}</span>
-      <input
-        accept={props.accept ?? "image/*"}
-        class="sr-only"
-        id={inputId}
-        onChange={(event) => {
-          const file = event.currentTarget.files?.[0] ?? null;
-          const previous = chosen();
-          if (previous) URL.revokeObjectURL(previous.url);
-          setChosen(file ? { name: file.name, url: URL.createObjectURL(file) } : null);
-          props.onSelect(file);
-          event.currentTarget.value = "";
-        }}
-        type="file"
-      />
-      <div class="flex min-h-24 items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
-          <div class="flex min-w-0 items-center gap-4">
-            <Show when={chosen()} fallback={props.fallback}>
-              {(file) => <img alt="" class="size-10 shrink-0 rounded-[var(--radius-lg)] object-cover" src={file().url} />}
-            </Show>
-            <Show when={props.prompt || props.help}>
-              <div class="min-w-0 space-y-1">
-                <Show when={props.prompt}>
-                  <p class="truncate text-base font-medium text-foreground">
-                    {chosen()?.name ?? props.prompt}
-                  </p>
-                </Show>
-                <Show when={!chosen() && props.help}>
-                  <p class="text-base text-muted-foreground">{props.help}</p>
-                </Show>
-              </div>
-            </Show>
-          </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <Show when={chosen()}>
-              <Button onClick={() => {
-                const previous = chosen();
-                if (previous) URL.revokeObjectURL(previous.url);
-                setChosen(null);
-                props.onSelect(null);
-              }} size="sm" type="button" variant="ghost">
-                {props.removeLabel}
-              </Button>
-            </Show>
-            <label class="cursor-pointer" for={inputId}>
-              <span class={cn("inline-flex h-10 cursor-pointer items-center rounded-full bg-muted px-4 text-base font-semibold text-foreground")}>
-                {chosen() ? props.replaceLabel : props.chooseLabel}
-              </span>
-            </label>
+    <div class="flex flex-col items-start gap-2">
+      <Show when={!props.disabled}>
+        <input
+          ref={input}
+          aria-label={props.label}
+          accept={props.accept ?? "image/*"}
+          class="hidden"
+          onChange={event => {
+            props.onSelect(event.currentTarget.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+          type="file"
+        />
+      </Show>
+      <div class={cn("relative", props.size === 72 ? "size-19" : "size-24")}>
+        <div
+          class={cn("flex items-center justify-center overflow-hidden rounded-full border border-border-soft bg-card", props.size === 72 ? "size-18 border-0" : "size-24")}
+          aria-label={props.label}
+          role="img"
+        >
+          <Show when={chosen()} fallback={props.fallback}>
+            {url => <img alt="" class="size-full object-cover" src={url()} />}
+          </Show>
         </div>
+        <Show when={!props.disabled}>
+          <IconButton
+            aria-label={chosen() ? props.replaceLabel : props.chooseLabel}
+            class="absolute bottom-0 right-0 size-8 border-2 border-background bg-secondary"
+            onClick={() => input?.click()}
+            type="button"
+            variant="ghost"
+          ><IconCamera class="size-4" /></IconButton>
+        </Show>
       </div>
+      <Show when={chosen() && !props.disabled}>
+        <Button size="sm" type="button" variant="ghost" onClick={() => props.onSelect(null)}>{props.removeLabel}</Button>
+      </Show>
     </div>
   );
 }

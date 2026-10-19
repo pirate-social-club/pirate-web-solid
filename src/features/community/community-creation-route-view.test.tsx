@@ -24,7 +24,7 @@ function createIntent(overrides: Parameters<typeof createIntentView>[0] = {}) {
 function nameField(container: HTMLElement): HTMLInputElement {
   const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Name");
   const field = label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
-  expect(field).toBeDefined();
+  expect(field).not.toBeNull();
   return field!;
 }
 
@@ -39,7 +39,7 @@ function fillPublicName(container: HTMLElement) {
 
 function continueButton(container: HTMLElement): HTMLButtonElement {
   return [...container.querySelectorAll<HTMLButtonElement>("button")]
-    .find(button => button.textContent?.trim() === "Continue")!;
+    .find(button => button.textContent?.trim() === "Next")!;
 }
 
 function backButton(container: HTMLElement): HTMLButtonElement {
@@ -57,7 +57,7 @@ function generatedAvatarMarkup(container: HTMLElement): string | undefined {
 
 /**
  * Walks the three pages forward to the profile page's Create. Safe from any
- * page: on the profile page no Continue button exists, so it returns at once.
+ * page: on the profile page no Next button exists, so it returns at once.
  */
 async function reachCreate(container: HTMLElement): Promise<HTMLButtonElement> {
   for (let page = 0; page < 2; page += 1) {
@@ -73,25 +73,23 @@ async function reachCreate(container: HTMLElement): Promise<HTMLButtonElement> {
       || finalSubmit(container) !== null,
     ).toBe(true));
   }
-  await vi.waitFor(() => expect(finalSubmit(container)).not.toBeNull());
-  return finalSubmit(container)!;
+  await vi.waitFor(() => expect(container.querySelector("[data-community-create-submit]")).not.toBeNull());
+  return container.querySelector<HTMLButtonElement>("[data-community-create-submit]")!;
 }
 
 /** Walks the creation to the profile page, where the final submit lives. */
 async function reachProfilePage(container: HTMLElement): Promise<void> {
-  await vi.waitFor(() => expect(continueButton(container)).toBeDefined());
-  const next = continueButton(container);
-  if (next) {
-    await vi.waitFor(() => expect(next.disabled).toBe(false));
-    next.click();
-  }
-  await vi.waitFor(() => expect(finalSubmit(container)).not.toBeNull());
+  await reachCreate(container);
 }
 
-/** Steps the flow back to its first page. */
+/** Steps the flow back to Details. */
 async function retreatToFirstPage(container: HTMLElement): Promise<void> {
-  backButton(container).click();
-  await vi.waitFor(() => expect(nameField(container)).toBeDefined());
+  for (let page = 0; page < 2 && container.querySelector("h1")?.textContent !== "Create community"; page++) {
+    const title = container.querySelector("h1")?.textContent;
+    backButton(container).click();
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).not.toBe(title));
+  }
+  await vi.waitFor(() => expect(nameField(container)).not.toBeNull());
 }
 
 // jsdom lacks the DOM APIs Kobalte's listbox and pointer interactions need;
@@ -881,11 +879,11 @@ describe("Community creation production route", () => {
     fillPublicName(container);
     const button = continueButton(container);
     await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent).toContain("Continue");
+    expect(button.textContent).toContain("Next");
     const retryProfiles = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Try again")!;
     retryProfiles.click();
     await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent?.trim()).toBe("Continue");
+    expect(button.textContent?.trim()).toBe("Next");
     expect(attempts).toBe(2);
     expect(name.value).toBe("Retained community");
     await reachProfilePage(container);
@@ -1035,11 +1033,11 @@ describe("Community creation production route", () => {
     const name = nameField(container);
     name.value = "Media-free community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    // The Palm fact lives in the details preview; there is no join-policy
-    // page while the gate is closed.
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    continueButton(container).click();
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Join policy"));
     expect(container.textContent).toContain("Anyone who completes a palm scan.");
     expect(container.textContent).not.toContain("Nationality");
-    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     continueButton(container).click();
     await vi.waitFor(() => expect(container.textContent).toContain("Your profile"));
     expect(container.textContent).not.toContain("coming soon");
@@ -1799,7 +1797,7 @@ describe("saved creation revision recovery", () => {
     // The reload keeps the profile page; step back to the details page,
     // which now carries the remote name.
     await vi.waitFor(() => expect(backButton(container)).toBeDefined());
-    backButton(container).click();
+    await retreatToFirstPage(container);
     const reloaded: HTMLInputElement = await vi.waitFor(() => {
       const fresh = nameField(container);
       expect(fresh.value).toBe("Remote community");
@@ -1831,6 +1829,33 @@ describe("saved creation revision recovery", () => {
     expect(commitIntent).not.toHaveBeenCalled();
   });
 });
+test("three pages retain Details and submit only from Your profile", async () => {
+  const submit = vi.fn();
+  const [draft, setDraft] = createSignal(withDraftName(createEmptyDraft({ kind: "create_new" }), "Signal Room"));
+  const [avatar, setAvatar] = createSignal<File | undefined>();
+  const container = render(() => <CreateCommunityView avatarAuthoring avatarFile={avatar()} draft={draft()}
+    onAvatarChange={file => setAvatar(file ?? undefined)} onDraftChange={patch => setDraft(current => ({ ...current, ...patch }))} onSubmit={submit} />);
+  const file = new File(["avatar"], "community.png", { type: "image/png" });
+  const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", { configurable: true, value: [file] });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await vi.waitFor(() => expect(container.querySelector('img[src^="blob:"]')).not.toBeNull());
+  continueButton(container).click();
+  await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Join policy"));
+  expect(container.querySelector("[data-community-create-submit]")).toBeNull();
+  expect(submit).not.toHaveBeenCalled();
+  backButton(container).click();
+  await vi.waitFor(() => expect(nameField(container).value).toBe("Signal Room"));
+  expect(container.querySelector('img[src^="blob:"]')).not.toBeNull();
+  await reachProfilePage(container);
+  expect(container.querySelector("h1")?.textContent).toBe("Your profile");
+  expect(backButton(container).getAttribute("aria-label")).toBe("Back to join policy");
+  expect(submit).not.toHaveBeenCalled();
+  fillPublicName(container);
+  finalSubmit(container)!.click();
+  await vi.waitFor(() => expect(submit).toHaveBeenCalledOnce());
+});
+
 describe("Create community join policy page", () => {
   function renderPage(allowNationality: boolean, initial?: CreateCommunityDraft) {
     const [draft, setDraft] = createSignal(initial ?? withDraftName(createEmptyDraft({ kind: "create_new" }), "Signal Room"));
@@ -1845,7 +1870,7 @@ describe("Create community join policy page", () => {
   }
 
   const openPolicyPage = async (container: HTMLElement) => {
-    // The join-policy section renders on the details page.
+    continueButton(container).click();
     await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
   };
 

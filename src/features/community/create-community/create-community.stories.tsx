@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CreateCommunityView } from "./create-community";
@@ -28,6 +28,8 @@ function Screen(props: {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
     props.draft ?? createEmptyDraft(personaId),
   );
+  const [avatar, setAvatar] = createSignal<File | undefined>();
+  const [profileAvatar, setProfileAvatar] = createSignal<File | undefined>();
   return (
     <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
@@ -37,6 +39,10 @@ function Screen(props: {
         ownerDisabled={props.ownerDisabled}
         personas={props.personas}
         draft={draft()}
+        avatarFile={avatar()}
+        profileAvatarFile={profileAvatar()}
+        onAvatarChange={file => setAvatar(file ?? undefined)}
+        onProfileAvatarChange={file => setProfileAvatar(file ?? undefined)}
         onDraftChange={(patch) => setDraft(current => ({ ...current, ...patch }))}
         onSubmit={() => undefined}
       />
@@ -55,24 +61,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Details: Story = {
-  parameters: { docs: { description: { story: "Staging candidate: the community avatar picker, name, and join policy. Live route authoring remains disabled until provider-backed acceptance." } } },
+  parameters: { docs: { description: { story: "Staging candidate: the circular community avatar and name. Live route authoring remains disabled until provider-backed acceptance." } } },
   render: () => <Screen avatarAuthoring />,
 };
 
 export const DetailsNationality: Story = {
-  name: "Details with nationality gate",
+  name: "Join policy with nationality gate",
   parameters: { docs: { description: { story: "The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips. Live route authoring remains disabled until provider-backed acceptance." } } },
-  render: () => <Screen avatarAuthoring nationalityAuthoring />,
+  render: () => <Screen step={2} avatarAuthoring nationalityAuthoring draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };
 
 export const Profile: Story = {
-  parameters: { docs: { description: { story: "Step two: your name in this community and the profile image picker with the deterministic generated default." } } },
-  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  parameters: { docs: { description: { story: "Step three: your name in this community and the profile image picker with the deterministic generated default." } } },
+  render: () => <Screen avatarAuthoring step={3} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };
 
 export const GeneratedDefault: Story = {
   name: "Generated default persists",
-  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  render: () => <Screen avatarAuthoring step={3} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
   play: async ({ canvasElement }) => {
     const avatar = canvasElement.querySelector<HTMLElement>("[data-generated-avatar]");
     expect(avatar).not.toBeNull();
@@ -86,7 +92,7 @@ export const ExistingAvatarPreserved: Story = {
   render: () => <Screen
     avatarAuthoring
     ownerDisabled
-    step={2}
+    step={3}
     draft={{ ...createEmptyDraft({ kind: "existing", personaId: "persona-existing" }), profileAvatarSeed: "ignored-seed" }}
     personas={[{ personaId: "persona-existing", displayName: "Existing profile", avatarRef: "avatar-existing", primaryPublicHandle: null, communityBinding: null }]}
   />,
@@ -96,7 +102,7 @@ export const ExistingProfileWithoutAvatar: Story = {
   name: "Existing profile without avatar",
   render: () => <Screen
     avatarAuthoring
-    step={2}
+    step={3}
     draft={{ ...createEmptyDraft({ kind: "existing", personaId: "persona-empty" }), profileAvatarSeed: "existing-empty-seed" }}
     personas={[{ personaId: "persona-empty", displayName: "Empty profile", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]}
   />,
@@ -105,5 +111,23 @@ export const ExistingProfileWithoutAvatar: Story = {
 export const MobileAvatar: Story = {
   name: "Mobile avatar authoring",
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  render: () => <Screen avatarAuthoring step={3} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+};
+
+export const JoinPolicy: Story = { render: () => <Screen step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} /> };
+
+export const ThreePageJourney: Story = {
+  render: () => <Screen avatarAuthoring />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Signal Room");
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await expect(await canvas.findByRole("heading", { name: "Join policy" })).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Create" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await expect(await canvas.findByRole("heading", { name: "Your profile", level: 1 })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Back to join policy" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Back to community details" }));
+    await expect(await canvas.findByRole("textbox", { name: "Name" })).toHaveValue("Signal Room");
+  },
 };

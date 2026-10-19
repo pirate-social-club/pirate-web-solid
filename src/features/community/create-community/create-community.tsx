@@ -11,7 +11,6 @@ import {
   Button,
   IconButton,
   IconArrowLeft,
-  IconImageSquare,
   IconX,
   TextField,
   TextFieldErrorMessage,
@@ -33,6 +32,8 @@ export interface CreateCommunityProps {
   draft: CreateCommunityDraft;
   /** Server-supplied name error, e.g. a rejected commit. */
   nameError?: string | null;
+  avatarFile?: Blob;
+  profileAvatarFile?: Blob;
   onAvatarChange?: (file: File | null) => void;
   onProfileAvatarChange?: (file: File | null) => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
@@ -43,8 +44,7 @@ export interface CreateCommunityProps {
   /** Page the flow opens on; production always starts at one. */
   initialStep?: 1 | 2 | 3;
   /**
-   * Offers the document-nationality join policy inside the details page's
-   * join-policy section. The route keeps it off until package B
+   * Offers the document-nationality join policy on the Join policy page. The route keeps it off until package B
    * (api-community-document-only-join-policy) ships the compiler side.
    */
   nationalityAuthoring?: boolean;
@@ -87,15 +87,12 @@ export function CreateCommunityView(props: CreateCommunityProps) {
     && validation().personaError === null && validation().publicNameError === null
     && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
-  // Two pages (Spec 006 as amended 2026-09-20): details — avatar, name,
-  // description, join policy — then profile. No page writes an intent; the
-  // route view only persists on the final submit, which lives on the profile
-  // page.
-  // SAFETY: the flow has exactly two pages, so the clamped seed is 1 or 2.
-  const [step, setStep] = createSignal<1 | 2 | 3>(Math.min(props.initialStep ?? 1, 2) as 1 | 2 | 3);
-  const isProfilePage = () => step() === 2;
-  const stepOneReady = () => nationalityValid() && validation().nameError === null
+  // Navigation stays local. Only the final profile page submits an intent.
+  const [step, setStep] = createSignal<1 | 2 | 3>(props.initialStep ?? 1);
+  const isProfilePage = () => step() === 3;
+  const detailsReady = () => validation().nameError === null
     && !props.submitting && !props.accountChecking && !props.submitDisabled;
+  const nextReady = () => detailsReady() && (step() === 1 || nationalityValid());
   const [policyTouched, setPolicyTouched] = createSignal(false);
   const [policyAttempted, setPolicyAttempted] = createSignal(false);
   const joinPolicyKind = (): JoinPolicyKind => (nationality() === undefined ? "palm" : "nationality");
@@ -133,8 +130,8 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   createEffect(() => props.nameError, (nameError) => { if (nameError) setStep(1); });
 
   // Each page titles itself in the header, like the post flow's review step.
-  const stepTitle = () => isProfilePage() ? copy().ownerHeading : copy().title;
-  const backLabel = () => copy().backToDetails;
+  const stepTitle = () => isProfilePage() ? copy().ownerHeading : step() === 2 ? copy().joinPolicyTitle : copy().title;
+  const backLabel = () => isProfilePage() ? copy().backToPolicy : copy().backToDetails;
 
   return (
     <form
@@ -144,16 +141,17 @@ export function CreateCommunityView(props: CreateCommunityProps) {
       onSubmit={(event) => {
         event.preventDefault();
         if (!isProfilePage()) {
-          if (continueFromPolicy() && stepOneReady()) setStep(2);
+          if (step() === 1 && detailsReady()) setStep(2);
+          else if (step() === 2 && continueFromPolicy() && detailsReady()) setStep(3);
           return;
         }
         if (canSubmit()) props.onSubmit?.();
       }}
     >
       <ActionFooterShell
-        bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
+        bodyClass="mx-auto flex w-full max-w-[544px] flex-col gap-5 px-5 py-5"
         footer={
-          <div class="mx-auto w-full max-w-2xl">
+          <div class="mx-auto w-full max-w-[544px]">
             {/* The failure area renders only when there is something to say;
                 a fixed empty slot padded the footer for nothing. */}
             <Show when={props.failureMessage || props.onRetry}>
@@ -165,7 +163,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             <Show
               when={!isProfilePage()}
               fallback={
-                <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
+                <Button data-community-create-submit class="h-11 w-full text-sm font-medium" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
                   {props.submitLabel ?? copy().submit}
                 </Button>
               }
@@ -173,8 +171,8 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               {/* A submit-typed Continue keeps Enter meaningful on every
                   page; the form's onSubmit routes by page. */}
               <Button
-                class="h-11 w-full"
-                disabled={!stepOneReady()}
+                class="h-11 w-full text-sm font-medium"
+                disabled={!nextReady()}
                 type="submit"
               >
                 {copy().continue}
@@ -185,18 +183,19 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         footerClass="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3"
         header={
           <header class="border-b border-border-soft">
-            <div class="mx-auto flex w-full max-w-2xl items-center gap-3 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <div class="mx-auto flex w-full max-w-[544px] min-h-14 items-center gap-3 px-5 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <Show
                 when={step() > 1}
                 fallback={
-                  <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
+                  <IconButton class="size-10" aria-label={copy().close} onClick={props.onClose} variant="ghost">
                     <IconX class="size-5" />
                   </IconButton>
                 }
               >
                 <IconButton
+                  class="size-10"
                   aria-label={backLabel()}
-                  onClick={() => /* SAFETY: only page two has a back arrow. */ setStep((step() - 1) as 1 | 2 | 3)}
+                  onClick={() => /* SAFETY: only later pages have a back arrow. */ setStep((step() - 1) as 1 | 2 | 3)}
                   variant="ghost"
                 >
                   <IconArrowLeft class="size-5" />
@@ -204,7 +203,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               </Show>
               <Type as="h1" variant="body-strong" class="flex-1 text-center">{stepTitle()}</Type>
               <Show when={step() > 1} fallback={<span aria-hidden="true" class="size-10" />}>
-                <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
+                <IconButton class="size-10" aria-label={copy().close} onClick={props.onClose} variant="ghost">
                   <IconX class="size-5" />
                 </IconButton>
               </Show>
@@ -213,27 +212,21 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         }
       >
         <fieldset disabled={props.fieldsDisabled || props.submitting} class="contents">
-        <Show when={!isProfilePage()}>
-        {/* Spec 006 as amended 2026-09-20: the details page carries the
-            community avatar, name, description and the join policy as one
-            section. A cover banner is outside creation, and there is no
-            preview card. */}
+        <Show when={step() === 1}>
         <div class="flex flex-col gap-5">
-          <Show when={props.avatarAuthoring === true}>
           <MediaPicker
+            disabled={props.avatarAuthoring !== true}
+            file={props.avatarFile}
             chooseLabel={copy().mediaChooseFile}
-            fallback={<IconImageSquare class="size-12 shrink-0 text-muted-foreground" />}
-            help={copy().avatarHelp}
             label={copy().avatarLabel}
-            prompt={copy().mediaPrompt}
             removeLabel={copy().mediaRemove}
             replaceLabel={copy().mediaReplace}
             onSelect={file => props.onAvatarChange?.(file)}
           />
-          </Show>
 
           <div onFocusOut={() => setNameTouched(true)}>
             <TextField
+              class="gap-2"
               onChange={(value) => {
                 setNameTouched(true);
                 props.onDraftChange?.({ name: value });
@@ -242,17 +235,22 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               validationState={nameValidationState()}
               value={props.draft.name}
             >
-              <TextFieldLabel>{copy().nameLabel}</TextFieldLabel>
+              <TextFieldLabel class="text-sm leading-5">{copy().nameLabel}</TextFieldLabel>
               <TextFieldInput
-                class="rounded-[var(--radius-lg)] bg-card"
+                class="h-10 rounded-[var(--radius-lg)] bg-card"
                 placeholder={copy().namePlaceholder}
               />
               <TextFieldErrorMessage>{visibleNameError()}</TextFieldErrorMessage>
             </TextField>
           </div>
 
+        </div>
+        </Show>
+
+        <Show when={step() === 2}>
           <JoinPolicyField
             allowNationality={props.nationalityAuthoring === true}
+            hideHeading
             copy={{
               title: copy().joinPolicyTitle,
               palmTitle: copy().joinPolicyPalmTitle,
@@ -270,12 +268,12 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             policy={joinPolicyKind()}
             showEmptyError={policyAttempted() || policyTouched()}
           />
-        </div>
         </Show>
 
         <Show when={isProfilePage()}>
         <CommunityOwnerFields
           avatarAuthoring={props.avatarAuthoring === true}
+          avatarFile={props.profileAvatarFile}
           copy={copy()}
           draft={props.draft}
           hideHeading

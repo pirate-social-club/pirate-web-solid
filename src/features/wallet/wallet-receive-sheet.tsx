@@ -21,16 +21,20 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
   const [selectedChainId, setSelectedChainId] = createSignal<WalletHubChainId | undefined>(resolveReceiveChainId(props));
   const [copied, setCopied] = createSignal(false);
 
+  let wasOpen = false;
+  let lastWalletAddress = props.walletAddress;
   createEffect(
     () => ({
       chainSections: props.chainSections,
-      defaultChainId: props.defaultChainId,
       open: props.open,
       walletAddress: props.walletAddress,
     }),
     (next) => {
+      const reset = !wasOpen || next.walletAddress !== lastWalletAddress;
+      wasOpen = next.open;
+      lastWalletAddress = next.walletAddress;
       if (!next.open) return;
-      setSelectedChainId(resolveReceiveChainId({ ...props, ...next }));
+      setSelectedChainId(resolveReceiveChainId(props, reset ? undefined : selectedChainId()));
       setCopied(false);
     },
   );
@@ -101,7 +105,7 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
         <Show
           when={view().address}
           fallback={
-            <Type variant="caption">No address is available for the supported chains yet.</Type>
+            <Type variant="caption">{view().chains.some(chain => !chain.disabled) ? "Choose a network to see its receive address." : "No address is available for the supported chains yet."}</Type>
           }
         >
           <div class="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border-soft p-4">

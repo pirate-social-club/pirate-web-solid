@@ -5,7 +5,6 @@ import {
   Avatar,
   Button,
   FormNote,
-  IconPlus,
   IconTrash,
   Input,
   Modal,
@@ -332,10 +331,9 @@ export function EarningsSplit(props: {
   const addButton = () => (
     <Button
       disabled={props.disabled}
-      leadingIcon={<IconPlus class="size-4" />}
       onClick={() => setPickerOpen(true)}
-      size="sm"
-      variant="ghost"
+      class="h-11 w-full"
+      variant="outline"
     >
       {props.copy.rights.addCollaborator}
     </Button>
@@ -343,27 +341,13 @@ export function EarningsSplit(props: {
 
   return (
     <section class="space-y-3">
-      {/* Alone, the author gets everything: one line and a way to add someone. */}
-      <Show when={collaborators().length > 0} fallback={
-        <div class="flex items-center justify-between gap-3">
-          <Type as="p" class="min-w-0 flex-1" variant="body-strong">{props.copy.rights.allYours}</Type>
-          <Button
-            aria-label={props.copy.rights.addCollaborator}
-            class="shrink-0"
-            disabled={props.disabled}
-            leadingIcon={<IconPlus class="size-4" />}
-            onClick={() => setPickerOpen(true)}
-            size="sm"
-            variant="ghost"
-          >
-            {props.copy.rights.addProfile}
-          </Button>
-        </div>
-      }>
       <Type as="h3" variant="body-strong">{props.copy.rights.earningsTitle}</Type>
-      <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
+      <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft bg-background">
         <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3">
-          <Type as="span" variant="body-strong">{props.copy.review.you}</Type>
+          <div class="flex min-w-0 items-center gap-3">
+            <Avatar class="size-8 shrink-0 border-0 bg-secondary text-xs font-semibold" fallback={authorLabel(profileFor(props.authorPersonaId), props.copy.review.you)} size="sm" src={profileFor(props.authorPersonaId)?.avatarSrc ?? undefined} />
+            <Type as="span" variant="body">{props.copy.review.you}</Type>
+          </div>
           <Type as="span" class="text-end text-base tabular-nums" variant="body-strong">
             {basisPointsToPercentText(creatorBps())}%
           </Type>
@@ -406,7 +390,6 @@ export function EarningsSplit(props: {
         <FormNote tone="warning">{shareError()}</FormNote>
       </Show>
       {addButton()}
-      </Show>
       <CollaboratorPicker
         candidates={pickerCandidates()}
         copy={props.copy}
