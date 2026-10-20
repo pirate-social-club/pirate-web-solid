@@ -74,7 +74,7 @@
     "typecheck:typescript": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p e2e/tsconfig.json && tsc --noEmit -p packages/solid-ui/tsconfig.json"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.124.0-1884cf66.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.125.0-d47b6d6f.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@selfxyz/sdk-common": "1.0.0",

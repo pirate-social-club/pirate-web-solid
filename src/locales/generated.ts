@@ -218,6 +218,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "signInTitle": "سجّل الدخول لاختيار شخصية",
         "successDescription": "أصبح {identifier} تابعًا لـ {persona}.",
         "successTitle": "تم الحصول على الاسم",
+        "temporarilyUnavailable": "غير متاح مؤقتًا",
         "title": "الأسماء في {name} · بايرت ويب",
         "unavailable": "تعذر إكمال المطالبة. لم تُفرض أي رسوم."
       },
@@ -518,6 +519,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "signInTitle": "Sign in to choose a persona",
         "successDescription": "{identifier} now belongs to {persona}.",
         "successTitle": "Name claimed",
+        "temporarilyUnavailable": "Temporarily unavailable",
         "title": "Names in {name}",
         "unavailable": "The claim could not be completed. Nothing was charged."
       },
@@ -818,6 +820,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "signInTitle": "登录以选择身份",
         "successDescription": "{identifier} 现在归 {persona} 所有。",
         "successTitle": "名称已领取",
+        "temporarilyUnavailable": "暂时不可用",
         "title": "{name} 的名称",
         "unavailable": "无法完成领取。未产生任何费用。"
       },

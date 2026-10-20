@@ -41,6 +41,7 @@ export default defineConfig({
       "src/features/communities/community-page/community-page-ssr.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status-ssr.test.tsx",
       "src/features/communities/handle-storefront/spaces-member-requests-ssr.test.tsx",
+      "src/features/communities/handle-storefront/spaces-offering-availability-ssr.test.tsx",
       "src/features/communities/handle-storefront/handle-storefront-preflight.test.ts",
       "src/features/activity/activity-progress-header.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.model.test.ts",

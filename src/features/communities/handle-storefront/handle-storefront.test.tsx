@@ -46,6 +46,7 @@ const offering = {
 } as const satisfies SupportedHandleOffering;
 
 const spacesOffering = { ...offering, offering_hash: "a".repeat(64), family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+      current_availability: { kind: "available" },
   label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
     availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
   fulfillment: { kind: "spaces_native_v1" },
@@ -267,6 +268,32 @@ describe("community handle storefront", () => {
     expect(container.textContent).toContain("Claim a name in @yahoo");
     expect(container.textContent).toContain("Bitcoin Taproot wallet");
   });
+  test.each([undefined, null, {}, { kind: "temporarily_unavailable" }, { kind: "unknown" }, { kind: "available", extra: true }])(
+    "keeps an unavailable choice and recovery link but refuses a forged fresh claim (%j)", async availability => {
+      const client = sessionClient();
+      // SAFETY: negative wire fixtures test the rendered and handler guards independently of generated types.
+      const unavailable = { ...spacesOffering, current_availability: availability } as SupportedHandleOffering;
+      const container = render(() => <HandleStorefront pathSegment="charizard" initialLabel="alice"
+        data={publicState([unavailable])} sessionClient={client} readCsrf={() => "csrf-token"} />);
+      await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>("input[type='radio']")).not.toBeNull());
+      expect(container.textContent).toContain("Claim a name in @yahoo");
+      expect(container.textContent).toContain("Temporarily unavailable");
+      expect(container.querySelector('a[href="/spaces-name-requests"]')).not.toBeNull();
+      container.querySelector<HTMLInputElement>("input[type='radio']")?.click();
+      await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>("input[type='checkbox']")?.disabled).toBe(false));
+      container.querySelector<HTMLInputElement>("input[type='checkbox']")?.click();
+      const button = await vi.waitFor(() => {
+        const value = [...container.querySelectorAll("button")].find(item => item.textContent?.includes("Claim alice@yahoo"));
+        if (value === undefined) throw new Error("claim button missing");
+        return value;
+      });
+      expect(button.disabled).toBe(true); button.disabled = false; button.click();
+      expect(client.post_handlePersonaLinkConfirmations).not.toHaveBeenCalled();
+      expect(client.post_handleQuotes).not.toHaveBeenCalled(); expect(client.post_handleReservations).not.toHaveBeenCalled();
+      expect(client.post_handleClaims).not.toHaveBeenCalled(); expect(localStorage.length).toBe(0);
+      expect(container.querySelector("[data-spaces-wallet-setup]")).toBeNull();
+    });
+
   test("offers wallet setup only after a Spaces quote requires a recipient", async () => {
     const client = sessionClient();
     const originalConfirmation = client.post_handlePersonaLinkConfirmations;
