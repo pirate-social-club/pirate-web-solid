@@ -430,6 +430,7 @@ it.each(["text", "video"] as const)("%s draws oldest-first replies one level in,
     published_resource: { kind: "comment", comment_id: "new-reply", href: "/comments/new-reply" },
   }));
   const state = communityTextState("member", 2);
+  if (state.kind !== "content") throw new Error("Expected content fixture");
   const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
     post: { ...state.response.content.post, post_type: postType } } } }, undefined, {
     resolveSession: async () => member, readViewerVote: async () => null, readComments,
@@ -458,6 +459,7 @@ it.each(["text", "video"] as const)("%s draws oldest-first replies one level in,
 
 it.each(["text", "song", "video"] as const)("%s places a new local root correctly while pending and after publication", async postType => {
   const state = communityTextState("member", 1);
+  if (state.kind !== "content") throw new Error("Expected content fixture");
   const response: Awaited<ReturnType<PostEngagementTransport["createComment"]>> = {
     submission_id: "new-root-submission", href: "/comments/new-root", surface: "comment", status: "published",
     result: { decision: "allow", reason_code: null }, review_ref: null,
