@@ -10,10 +10,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsrs --noEmit",
     "ci": "bun run typecheck && bun run test",
     "storybook": "storybook dev -p ${STORYBOOK_PORT:-6007} --disable-telemetry",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "typecheck:typescript": "tsc --noEmit"
   },
   "dependencies": {
     "@kobalte/core": "file:../../vendor/kobalte-core-2.0.0-alpha.0-a892187065cf7e0d07e91db02310bd28a5619236-patched.tgz",
