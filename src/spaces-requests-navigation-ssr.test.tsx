@@ -23,6 +23,7 @@ test.each([undefined, "false", "TRUE", "true"])("SSR carries the strict presenta
     const stream = await render(request, { SPACES_NAME_REQUESTS_ENABLED: configured }, {
       Application: () => <main data-navigation-enabled={String(currentSpacesRequestsNavigationEnabled())} />,
     });
+    if (stream instanceof Response) return stream;
     return createSSRResponse(stream, event);
   });
   const html = await response.text();
