@@ -12,6 +12,7 @@ export default function Document(props: {
   clientEntry?: string;
   canonicalAssetOrigin?: string;
   communityCreationAvatarAuthoring?: boolean;
+  spacesNameRequests?: boolean;
   publicAppCanonicalOrigin?: string;
   hydrate?: boolean;
 }) {
@@ -41,6 +42,7 @@ export default function Document(props: {
       lang={resolveLocaleLanguageTag(locale)}
       dir={resolveLocaleDirection(locale)}
       data-public-app-canonical-origin={props.publicAppCanonicalOrigin}
+      data-spaces-name-requests={props.spacesNameRequests === true ? "enabled" : "disabled"}
       data-community-creation-avatar-authoring={
         props.communityCreationAvatarAuthoring === true ? "enabled" : "disabled"
       }

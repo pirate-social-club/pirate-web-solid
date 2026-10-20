@@ -7,7 +7,7 @@ import { ApplicationPersonasContext, createApplicationPersonas } from "./applica
 import { PersonaSwitcherSheet } from "../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { switcherPersonas } from "../identity/persona-switcher-sheet/persona-switcher-fixtures.ts";
 
-function AccountStory(props: { anonymous?: boolean; profile?: boolean }) {
+function AccountStory(props: { anonymous?: boolean; profile?: boolean; spacesEnabled?: boolean }) {
   const [destination, setDestination] = createSignal("");
   const [account] = createSignal<ApplicationSessionState>(props.anonymous ? "anonymous" : { status: "authenticated", userId: "story-account" });
   const profiles = createApplicationPersonas(account, async () => ({
@@ -17,7 +17,7 @@ function AccountStory(props: { anonymous?: boolean; profile?: boolean }) {
     })),
   }));
   return <ApplicationSessionProvider state={account}><ApplicationPersonasContext value={profiles}>
-    <AccountPage profile={props.profile} navigate={setDestination} deleteRecordings={async () => ({ object: "learner_audio_deletion", deleted_count: 3, remaining_count: 0, last_deleted_at: null })} />
+    <AccountPage profile={props.profile} navigate={setDestination} spacesRequests={{ enabled: props.spacesEnabled === true, client: { get_usersMeSpacesHandleRequests: async () => ({ object: "spaces_member_request_readback_v1", coverage: "retained_committed_actions_with_stored_scope", scope_incomplete_actions: "omitted_when_scope_unprovable", unlocated_request_outcome: "unknown", new_submission_admission: "not_established_by_readback", items: [], next_cursor: null }) } }} deleteRecordings={async () => ({ object: "learner_audio_deletion", deleted_count: 3, remaining_count: 0, last_deleted_at: null })} />
     <output aria-label="Navigation destination">{destination()}</output>
     <PersonaSwitcherSheet open={profiles.pickerOpen()} onOpenChange={profiles.setPickerOpen} onSelect={profiles.select} personas={profiles.personas()} selectedPersonaId={profiles.selected()?.personaId ?? ""} />
   </ApplicationPersonasContext></ApplicationSessionProvider>;
@@ -31,11 +31,18 @@ export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotate
 export const SignedOut: Story = { render: () => <AccountStory anonymous /> };
 
 export const SpacesRequestNavigation: Story = {
-  render: () => <AccountStory />,
+  render: () => <AccountStory spacesEnabled />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Spaces name requests" }));
     expect(canvas.getByLabelText("Navigation destination")).toHaveTextContent("/spaces-name-requests");
+  },
+};
+
+export const SpacesUnavailableWithoutRequests: Story = {
+  render: () => <AccountStory />,
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).queryByRole("button", { name: "Spaces name requests" })).not.toBeInTheDocument();
   },
 };
 

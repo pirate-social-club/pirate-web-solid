@@ -44,6 +44,7 @@ export async function render(
     readonly API_NEXT_ORIGIN?: string;
     readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
     readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;
+    readonly SPACES_NAME_REQUESTS_ENABLED?: string;
     readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
     readonly CANONICAL_ASSET_ORIGIN?: string;
     readonly DISABLE_HYDRATION?: boolean;
@@ -89,8 +90,10 @@ export async function render(
     // render context and is read only as that same optional string.
     const locals = event.locals as typeof event.locals & {
       apiNextOrigin?: string;
+      spacesRequestsNavigationEnabled?: boolean;
     };
     locals.apiNextOrigin = context?.API_NEXT_ORIGIN;
+    locals.spacesRequestsNavigationEnabled = context?.SPACES_NAME_REQUESTS_ENABLED === "true";
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
@@ -202,6 +205,7 @@ export async function render(
           context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true"
         }
         publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}
+        spacesNameRequests={context?.SPACES_NAME_REQUESTS_ENABLED === "true"}
         hydrate={context?.DISABLE_HYDRATION !== true}
       >
         <Application />
