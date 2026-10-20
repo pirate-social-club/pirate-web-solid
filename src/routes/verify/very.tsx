@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup } from "solid-js";
+import { Show, createSignal, onCleanup, onSettled } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { createRewardClaimData } from "../../api/reward-claim";
 import { safeReturnPath } from "../../features/auth/sign-in-return";
@@ -7,13 +7,7 @@ import { toCommunityPersonaChoiceWire } from "../../features/identity/community-
 import { createCommunityProfileAttempt } from "../../features/identity/community-profile-attempt.ts";
 import { rememberJoinedNameContinuation } from "../../features/identity/community-join-continuation.ts";
 
-import {
-  Button,
-  TextField,
-  TextFieldDescription,
-  TextFieldInput,
-  TextFieldLabel,
-} from "../../design-system";
+import { Button, Type } from "../../design-system";
 import {
   VERY_WEB_POLL_INTERVAL_MS,
   VeryWebClientError,
@@ -60,22 +54,24 @@ const loadVeryWidgetModule: VeryWidgetLoader = async () => {
   return await veryWidgetModulePromise;
 };
 
+const INCOMPLETE_LINK_MESSAGE = "This link is incomplete. Go back and try again.";
+
 function safeMessage(error: unknown): string {
   if (error instanceof VeryWebClientError) {
     switch (error.code) {
-      case "csrf_required": return "Sign in again before starting verification.";
-      case "ceremony_expired": return "This ceremony expired. Start a fresh one.";
-      case "ceremony_cancelled": return "The ceremony was cancelled. Start a fresh one.";
-      case "join_not_ready": return "That community is not currently ready for a Very verification.";
-      case "profiles_unavailable": return "Your community profiles could not be loaded. Joining has not been attempted. Retry to load your profiles and continue.";
-      case "join_failed": return "Palm verification succeeded, but joining the community failed. Retry the join.";
-      case "provider_unavailable": return "Very is still processing the palm scan.";
-      case "provider_rejected": return "Very rejected the verification. You can retry.";
-      case "invalid_presentation": return "The server returned an invalid Very ceremony.";
-      default: return "Very verification is unavailable right now.";
+      case "csrf_required": return "Sign in again, then try again.";
+      case "ceremony_expired": return "That scan expired. Try again.";
+      case "ceremony_cancelled": return "Scan cancelled. Try again.";
+      case "join_not_ready": return "This community can't be joined right now.";
+      case "profiles_unavailable": return "Your profiles didn't load. Try again.";
+      case "join_failed": return "Your palm scan worked, but joining didn't. Try again.";
+      case "provider_unavailable": return "Very is still checking your scan.";
+      case "provider_rejected": return "Very didn't accept the scan. Try again.";
+      case "invalid_presentation": return "Very couldn't start. Try again.";
+      default: return "Palm scan isn't available right now.";
     }
   }
-  return "Very verification failed safely. Please retry.";
+  return "Something went wrong. Try again.";
 }
 
 function routeUrl(): URL | undefined {
@@ -84,8 +80,8 @@ function routeUrl(): URL | undefined {
   return typeof window === "undefined" ? undefined : new URL(window.location.href);
 }
 
-function initialCommunityId(): string {
-  const params = routeUrl()?.searchParams;
+function initialCommunityId(url: URL | undefined): string {
+  const params = url?.searchParams;
   if (!params) return "";
   return params.get("community_id") ?? params.get("communityId") ?? "";
 }
@@ -96,8 +92,8 @@ function positiveInteger(value: string | null): number | undefined {
   return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
-function initialCreationTarget(): VeryCreationTarget | "invalid" | undefined {
-  const params = routeUrl()?.searchParams;
+function initialCreationTarget(url: URL | undefined): VeryCreationTarget | "invalid" | undefined {
+  const params = url?.searchParams;
   if (!params) return undefined;
   const creationKeys = [
     "intent_id",
@@ -139,12 +135,11 @@ function initialCreationTarget(): VeryCreationTarget | "invalid" | undefined {
 }
 
 /** Spec 015 §5.2a: a reward winner verifies to claim held winnings. */
-function initialRewardClaim(): boolean {
-  return routeUrl()?.searchParams.get("purpose") === "reward_claim";
+function initialRewardClaim(url: URL | undefined): boolean {
+  return url?.searchParams.get("purpose") === "reward_claim";
 }
 
-function initialReturnTo(): string {
-  const url = routeUrl();
+function initialReturnTo(url: URL | undefined): string {
   if (!url) return "/";
   return safeReturnPath(url.searchParams.get("return_to"), url.origin) ?? "/";
 }
@@ -162,24 +157,47 @@ export type VeryVerificationRouteProps = Readonly<{
   joinCommunity?: typeof joinVeryCommunity;
   prepareProfile?: ReturnType<typeof createCommunityProfileAttempt>;
   issueRewardClaimIntent?: () => Promise<string>;
+  /** The route URL; defaults to the request or window location. */
+  url?: URL;
+  /** Phone presentation; defaults to the user agent. */
+  mobile?: boolean;
+  /** Leaves the page; defaults to a full navigation. */
+  navigate?: (path: string) => void;
+  /** Opens the Very app link; defaults to assigning the location. */
+  openApp?: (uri: string) => void;
 }>;
 export default function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   const prepareProfile = props.prepareProfile ?? createCommunityProfileAttempt();
   let profileRequest: AbortController | undefined;
-  const [communityId, setCommunityId] = createSignal(initialCommunityId());
-  const parsedCreationTarget = initialCreationTarget();
+  const url = props.url ?? routeUrl();
+  const communityId = initialCommunityId(url);
+  const parsedCreationTarget = initialCreationTarget(url);
   const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
   const invalidCreationTarget = parsedCreationTarget === "invalid";
-  const rewardClaim = !invalidCreationTarget && creationTarget === undefined && initialRewardClaim();
-  const returnTo = initialReturnTo();
-  const [phase, setPhase] = createSignal<Phase>(invalidCreationTarget ? "error" : "idle");
-  const [message, setMessage] = createSignal(
-    invalidCreationTarget ? "This Community creation verification link is invalid. Return to the creation page and retry." : "",
-  );
-  const [qr, setQr] = createSignal("");
+  const rewardClaim = !invalidCreationTarget && creationTarget === undefined && initialRewardClaim(url);
+  const returnTo = initialReturnTo(url);
+  const mobile = () => props.mobile ?? mobileRuntime();
+  const navigate = (path: string) => {
+    if (props.navigate) props.navigate(path);
+    else window.location.assign(path);
+  };
+  const openApp = (uri: string) => {
+    if (props.openApp) props.openApp(uri);
+    else window.location.href = uri;
+  };
+
+  const operationTarget = () =>
+    creationTarget?.ceremonyIntentId ?? (rewardClaim ? "reward_claim" : communityId.trim());
+  // Every caller passes its target, so a link without one cannot be repaired
+  // here; it says so instead of asking for an identifier.
+  const linkBroken = invalidCreationTarget || operationTarget() === "";
+  const title = creationTarget !== undefined
+    ? "Create your community"
+    : rewardClaim ? "Claim your winnings" : "Join this community";
+
+  const [phase, setPhase] = createSignal<Phase>(linkBroken ? "error" : "starting");
+  const [message, setMessage] = createSignal(linkBroken ? INCOMPLETE_LINK_MESSAGE : "");
   const [presentation, setPresentation] = createSignal<VeryWebPresentation>();
-  const [completion, setCompletion] = createSignal<VeryWebCompletion>();
-  const [joinedCommunityId, setJoinedCommunityId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   let ceremony: VeryWebCeremony | undefined;
   let widget: VeryWidget | undefined;
@@ -189,11 +207,14 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
   let operationEpoch = 0;
   let pollingEpoch: number | undefined;
 
-  const operationTarget = () =>
-    creationTarget?.ceremonyIntentId ?? (rewardClaim ? "reward_claim" : communityId().trim());
-
   function operationIsCurrent(epoch: number, target: string): boolean {
     return active && operationEpoch === epoch && operationTarget() === target;
+  }
+
+  function finish(next: "joined" | "verified") {
+    setMessage("");
+    setPhase(next);
+    navigate(returnTo);
   }
 
   async function joinResolvedCommunity(targetCommunityId: string, epoch: number) {
@@ -216,21 +237,17 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     const current = await (props.resolveSession ?? resolveSession)();
     if (current === "anonymous" || current.userId !== session.userId || !operationIsCurrent(epoch, targetCommunityId)) throw new VeryWebClientError("join_failed");
-    const joined = await (props.joinCommunity ?? joinVeryCommunity)({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire({ kind: "existing", personaId: profile.personaId }) });
+    await (props.joinCommunity ?? joinVeryCommunity)({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire({ kind: "existing", personaId: profile.personaId }) });
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     (props.refreshSession ?? refreshSession)();
-    setJoinedCommunityId(joined.communityId);
-    setMessage("");
-    setPhase("joined");
     try { rememberJoinedNameContinuation(session.userId, targetCommunityId); } catch { /* Membership is committed even if the return hint cannot be retained. */ }
+    finish("joined");
   }
 
-  async function finishVerification(result: VeryWebCompletion, target: string, epoch: number) {
+  async function finishVerification(_result: VeryWebCompletion, target: string, epoch: number) {
     if (!operationIsCurrent(epoch, target)) return;
-    setCompletion(result);
     if (creationTarget !== undefined || rewardClaim) {
-      setMessage("");
-      setPhase("verified");
+      finish("verified");
       return;
     }
     await joinResolvedCommunity(target, epoch);
@@ -331,7 +348,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
         observer.disconnect();
         widgetObserver = undefined;
         instance.destroy?.();
-        setMessage("Very verification was dismissed. Start a fresh ceremony.");
+        setMessage("Scan cancelled. Try again.");
         setPhase("error");
         setBusy(false);
       });
@@ -342,8 +359,8 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
   async function startVery() {
     const value = operationTarget();
-    if (value === "") {
-      setMessage("Enter the gated community ID.");
+    if (linkBroken) {
+      setMessage(INCOMPLETE_LINK_MESSAGE);
       setPhase("error");
       return;
     }
@@ -354,9 +371,6 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     cleanupWidget();
     setBusy(true);
     setMessage("");
-    setQr("");
-    setCompletion(undefined);
-    setJoinedCommunityId("");
     setPresentation(undefined);
     setPhase("starting");
     try {
@@ -378,8 +392,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
         }
         if (!operationIsCurrent(epoch, value)) return;
         if (action.kind === "joined") {
-          setJoinedCommunityId(value);
-          setPhase("joined");
+          finish("joined");
           return;
         }
         if (action.kind === "join") {
@@ -400,14 +413,11 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
       }
       if (created.presentation === undefined) throw new VeryWebClientError("invalid_presentation");
       setPresentation(created.presentation);
-      if (mobileRuntime()) {
-        const { default: QRCode } = await import("qrcode");
-        setQr(await QRCode.toDataURL(created.presentation.mobileUri, {
-          errorCorrectionLevel: "M",
-          margin: 2,
-          width: 320,
-        }));
+      if (mobile()) {
+        // The owner's ruling: the phone goes straight to the Very app. A
+        // browser may refuse an app link without a tap, so "Open Very" stays.
         setPhase("ready");
+        openOnPhone(created.presentation);
       } else {
         await openDesktopWidget(created, created.presentation, value, epoch);
       }
@@ -455,11 +465,12 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     }
   }
 
-  function openOnPhone() {
-    const current = presentation();
-    if (current === undefined || typeof window === "undefined") return;
+  // Takes the presentation directly: a signal written in the same tick still
+  // reads its previous value in Solid 2.
+  function openOnPhone(current: VeryWebPresentation | undefined = presentation()) {
+    if (current === undefined) return;
     void pollUntilComplete();
-    window.location.href = current.mobileUri;
+    openApp(current.mobileUri);
   }
 
   function reset() {
@@ -468,117 +479,70 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     ceremony?.cancel();
     ceremony = undefined;
     cleanupWidget();
-    setQr("");
     setPresentation(undefined);
-    setCompletion(undefined);
-    setJoinedCommunityId("");
     setMessage("");
     setBusy(false);
     setPhase("idle");
   }
 
+  // The owner's ruling: the page starts the scan itself. A manual start is
+  // only the retry after a failed, dismissed or cancelled attempt.
+  // Start after the settle callback returns: Solid 2 rejects signal writes
+  // made synchronously inside effect callbacks.
+  onSettled(() => {
+    if (phase() === "starting") void Promise.resolve().then(startVery);
+  });
+
+  const scanning = () => (phase() === "ready" || phase() === "polling") && presentation() !== undefined;
+  const cancellable = () => phase() === "waiting" || phase() === "joining" || scanning();
+  const settled = () => phase() === "idle" || phase() === "error";
+
   return (
     <main data-route-path="/verify/very" class="mx-auto flex min-h-screen max-w-xl flex-col gap-6 p-6">
-      <h1 class="text-2xl font-semibold">Very palm verification</h1>
-      <p>Scan the QR code with the Very app on desktop, or open it directly on your phone.</p>
+      <header class="space-y-2">
+        <Type as="h1" variant="h1">{title}</Type>
+        <Type as="p" variant="caption">Palm scan with the Very app.</Type>
+      </header>
 
-      <Show when={phase() === "idle" || phase() === "error"}>
-        <Show when={!invalidCreationTarget}>
-          <Show when={rewardClaim}>
-            <p>Verify with a palm scan to claim your winnings. Very may label this scan as a community check.</p>
-          </Show>
-          <Show when={creationTarget === undefined && !rewardClaim}>
-            <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
-              <TextFieldLabel>Gated community ID</TextFieldLabel>
-              <TextFieldInput autocomplete="off" />
-              <TextFieldDescription>
-                Use the community ID from the gated-community join link. The server
-                resolves the one-time verification intent for you.
-              </TextFieldDescription>
-            </TextField>
-          </Show>
-          <Button type="button" disabled={busy()} onClick={() => void startVery()}>
-            {busy() ? "Starting…" : "Start palm verification"}
-          </Button>
-        </Show>
+      <Show when={phase() === "starting" || phase() === "joining" || phase() === "waiting"}>
+        <Type as="p" role="status" variant="body">
+          {phase() === "joining" ? "Joining…" : phase() === "waiting" ? "Finishing your last scan…" : "Starting…"}
+        </Type>
       </Show>
 
-      <Show when={phase() === "starting"}>
-        <p role="status">
-          {creationTarget !== undefined || rewardClaim ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
-        </p>
+      <Show when={scanning()}>
+        <Type as="p" role="status" variant="body">
+          {mobile() ? "Waiting for Very. Come back here when you're done." : "Scan your palm in the Very window."}
+        </Type>
       </Show>
 
-      <Show when={phase() === "waiting"}>
-        <section class="flex flex-col gap-3">
-          <p role="status">A prior Very ceremony is still pending. Waiting for it to complete or expire…</p>
-          <Button type="button" onClick={reset}>Cancel</Button>
-        </section>
-      </Show>
-
-      <Show when={phase() === "ready" && presentation() !== undefined}>
-        <section aria-label="Very ceremony" class="flex flex-col gap-4">
-          <p role="status">
-            {mobileRuntime()
-              ? "Open the Very app on this phone to complete the palm scan."
-              : "The Very verification widget is open. Complete the palm scan in the widget."}
-          </p>
-          <Show when={mobileRuntime() && qr()}>
-            {(source) => <img src={source()} alt="Very palm verification QR code" width="320" height="320" />}
-          </Show>
-          <div class="flex flex-wrap gap-3">
-            <Show when={mobileRuntime()}>
-              <Button type="button" onClick={openOnPhone}>Open Very app</Button>
-              <Button type="button" onClick={() => void pollUntilComplete()}>
-                I scanned the QR code
-              </Button>
-            </Show>
-            <Button type="button" onClick={reset}>Cancel</Button>
-          </div>
-        </section>
-      </Show>
-
-      <Show when={phase() === "polling"}>
-        <p role="status">Waiting for the server to receive the palm-scan result…</p>
-      </Show>
-
-      <Show when={phase() === "joining"}>
-        <section class="flex flex-col gap-3">
-          <p role="status">The server accepted the palm-scan evidence. Joining the community…</p>
-          <Button type="button" onClick={reset}>Cancel</Button>
-        </section>
-      </Show>
-
-      <Show when={phase() === "joined" && joinedCommunityId().length > 0}>
-        <section aria-label="Community joined" role="status" class="flex flex-col gap-3">
-          <h2 class="text-xl font-semibold">Community joined</h2>
-          <p>Your Very proof was accepted and your membership is active.</p>
-          <p class="break-all text-sm">Community: {joinedCommunityId()}</p>
-          <Show when={completion() !== undefined}>
-            <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
-          </Show>
-          <Button type="button" onClick={reset}>Start another ceremony</Button>
-        </section>
-      </Show>
-
-      <Show when={phase() === "verified"}>
-        <section aria-label="Verification complete" role="status" class="flex flex-col gap-3">
-          <h2 class="text-xl font-semibold">Verification complete</h2>
-          <p>
-            {rewardClaim
-              ? "Your palm scan was accepted. Continue to claim your winnings."
-              : "Your Very proof was accepted. Continue to finish the pending action."}
-          </p>
-          <Show when={completion() !== undefined && !rewardClaim}>
-            <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
-          </Show>
-          <Button type="button" onClick={() => window.location.assign(returnTo)}>Continue</Button>
-        </section>
+      <Show when={phase() === "joined" || phase() === "verified"}>
+        <Type as="p" role="status" variant="body">{phase() === "joined" ? "You joined." : "Palm scan done."}</Type>
       </Show>
 
       <Show when={message().length > 0}>
-        <p role="alert">{message()}</p>
+        <Type as="p" role="alert" variant="body">{message()}</Type>
       </Show>
+
+      <div class="flex flex-wrap gap-3">
+        <Show when={scanning() && mobile()}>
+          <Button type="button" onClick={() => openOnPhone()}>Open Very</Button>
+        </Show>
+        <Show when={settled() && !linkBroken}>
+          <Button type="button" disabled={busy()} onClick={() => void startVery()}>
+            {phase() === "error" ? "Try again" : "Scan your palm"}
+          </Button>
+        </Show>
+        <Show when={phase() === "joined" || phase() === "verified"}>
+          <Button type="button" onClick={() => navigate(returnTo)}>Continue</Button>
+        </Show>
+        <Show when={cancellable()}>
+          <Button type="button" variant="secondary" onClick={reset}>Cancel</Button>
+        </Show>
+        <Show when={settled()}>
+          <Button type="button" variant="secondary" onClick={() => navigate(returnTo)}>Back</Button>
+        </Show>
+      </div>
     </main>
   );
 }

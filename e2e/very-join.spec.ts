@@ -18,16 +18,16 @@ test.describe("Very join scan boundary", { tag: "@staging-mutating" }, () => {
     });
     page.on("pageerror", error => browserErrors.push(`pageerror: ${error.message}`));
 
-    await page.goto(`/verify/very?community_id=${encodeURIComponent(communityId!)}`);
-    await expect(page.getByRole("textbox", { name: "Gated community ID" })).toHaveValue(communityId!);
-
+    // The page starts the scan itself: listen before navigating.
     const started = page.waitForResponse(response =>
       response.request().method() === "POST" && new URL(response.url()).pathname === "/api/verification/sessions"
     );
     const bridge = page.waitForResponse(response =>
       response.request().method() === "POST" && response.url() === "https://bridge.very.org/api/v1/sessions"
     );
-    await page.getByRole("button", { name: "Start palm verification" }).click();
+    await page.goto(`/verify/very?community_id=${encodeURIComponent(communityId!)}`);
+    await expect(page.getByRole("heading", { name: "Join this community" })).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveCount(0);
 
     expect((await started).status()).toBe(201);
     expect((await bridge).ok()).toBe(true);
@@ -42,6 +42,6 @@ test.describe("Very join scan boundary", { tag: "@staging-mutating" }, () => {
       description: "A physical Very palm scan is required after the desktop QR boundary",
     });
     await page.locator(".very-close").click();
-    await expect(page.getByRole("alert")).toContainText("Very verification was dismissed");
+    await expect(page.getByRole("alert")).toContainText("Scan cancelled");
   });
 });

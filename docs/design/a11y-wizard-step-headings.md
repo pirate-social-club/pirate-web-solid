@@ -11,10 +11,11 @@ source as an `h2` inside the step content — Song, Lyrics, Rights, Review.
 Subsection headings nest under that step heading; the rights allocation
 `h3` was the surface's only heading before this, with no parent.
 
-Phased single-surface flows do not need per-phase headings. Very keeps a
-persistent `h1` and adds `h2`s only for distinct terminal phases
-("Community joined", "Verification complete"); ZKPassport keeps its `h1`
-while the phases are sequential prompts into the same surface. A future
+Phased single-surface flows do not need per-phase headings. Very keeps one
+persistent `h1` naming the action, and its phases, including the finished
+ones, are status lines, because the page returns to where the person came
+from on its own; ZKPassport keeps its `h1` while the phases are sequential
+prompts into the same surface. A future
 wizard adopts the composer rule: persistent surface heading, navigation
 indicator, and one heading per step named from the step's own copy.
 

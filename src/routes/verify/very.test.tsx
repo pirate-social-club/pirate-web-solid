@@ -70,6 +70,25 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
+function button(container: HTMLElement, name: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === name);
+}
+
+function presentation(proofSessionId: string): veryApi.VeryWebPresentation {
+  return {
+    proofSessionId,
+    expiresAt: "2099-08-20T12:05:00.000Z",
+    appId: "very-app-staging",
+    apiUrl: "https://bridge.very.org/api/v1",
+    context: "Veros - Palm Verification Timestamp",
+    typeId: "3",
+    query: JSON.stringify({ externalNullifier: "Pirate - Community Join" }),
+    verifyUrl: "https://verify.very.org/api/v1/verify",
+    mobileUri: `veros://verify?sessionId=${proofSessionId}&key=YWJj&action=verify`,
+    pollUrl: `/verification/sessions/${proofSessionId}/complete`,
+  };
+}
+
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   vi.restoreAllMocks();
@@ -93,16 +112,22 @@ describe("Very verification route", () => {
     expect(widgetSource).toContain("createErrorElement(state.errorText, () => this.refresh())");
   });
 
-  it("renders a guarded start screen for a gated community", () => {
-    const container = render(() => <VeryVerificationRoute />);
+  it("says a link without its community is incomplete and asks for nothing", () => {
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
+    const container = render(() => <VeryVerificationRoute navigate={vi.fn()} />);
+
     expect(container.querySelector("[data-route-path='/verify/very']")).not.toBeNull();
-    expect(container.textContent).toContain("Very palm verification");
-    expect(container.textContent).toContain("Gated community ID");
-    expect(container.textContent).toContain("server resolves the one-time verification intent");
-    expect(container.textContent).toContain("Start palm verification");
+    expect(container.textContent).toContain("Join this community");
+    expect(container.textContent).toContain("Palm scan with the Very app.");
+    expect(container.textContent).toContain("This link is incomplete");
+    expect(container.querySelector("input")).toBeNull();
+    expect(button(container, "Try again")).toBeUndefined();
+    expect(button(container, "Back")).toBeDefined();
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+    expect(createCeremony).not.toHaveBeenCalled();
   });
 
-  it("uses a reserved creation intent directly and returns without joining", async () => {
+  it("uses a reserved creation intent directly and returns without joining or a second tap", async () => {
     window.history.replaceState(
       null,
       "",
@@ -120,12 +145,11 @@ describe("Very verification route", () => {
       presentation: undefined,
       proofSessionId: "proof-session-1",
     });
+    const navigate = vi.fn();
 
-    const container = render(() => <VeryVerificationRoute />);
-    expect(container.textContent).not.toContain("Gated community ID");
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const container = render(() => <VeryVerificationRoute navigate={navigate} />);
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/communities/new?intent_id=creation-1"));
     expect(createCeremony).toHaveBeenCalledWith({
       creation: {
         creationIntentId: "creation-1",
@@ -138,10 +162,11 @@ describe("Very verification route", () => {
     });
     expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Continue");
+    expect(container.textContent).toContain("Palm scan done.");
+    expect(container.textContent).not.toContain("Proof session");
   });
 
-  it("starts a reward-claim ceremony from an issued intent and returns to the claim", async () => {
+  it("starts a reward-claim scan from an issued intent and returns to the claim", async () => {
     window.history.replaceState(
       null,
       "",
@@ -156,18 +181,16 @@ describe("Very verification route", () => {
       presentation: undefined,
       proofSessionId: "proof-session-2",
     });
+    const navigate = vi.fn();
 
-    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={issueRewardClaimIntent} />);
-    expect(container.textContent).not.toContain("Gated community ID");
-    expect(container.textContent).toContain("claim your winnings");
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={issueRewardClaimIntent} navigate={navigate} />);
+    expect(container.textContent).toContain("Claim your winnings");
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/wallet?claim=credit-1"));
     expect(issueRewardClaimIntent).toHaveBeenCalledTimes(1);
     expect(createCeremony).toHaveBeenCalledWith({ intentId: "reward-claim_1" });
     expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Continue to claim your winnings");
   });
 
   it("never returns a reward claim to another origin", async () => {
@@ -180,33 +203,30 @@ describe("Very verification route", () => {
       presentation: undefined,
       proofSessionId: "proof-session-3",
     });
-    const assign = vi.fn();
-    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
-    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={async () => "reward-claim_2"} />);
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
-    expect(container.textContent).not.toContain("Proof session");
-    [...container.querySelectorAll("button")].find((button) => button.textContent === "Continue")!
-      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(assign).toHaveBeenCalledWith("/");
+    const navigate = vi.fn();
+    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={async () => "reward-claim_2"} navigate={navigate} />);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/"));
+    button(container, "Continue")!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/");
+    expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining("evil"));
   });
 
   it("rejects an incomplete or legacy creation target without resolving a join", () => {
     window.history.replaceState(null, "", "/verify/very?intent_id=creation-ceremony-1");
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
 
-    const container = render(() => <VeryVerificationRoute />);
+    const container = render(() => <VeryVerificationRoute navigate={vi.fn()} />);
 
-    expect(container.textContent).toContain("creation verification link is invalid");
-    expect(container.textContent).not.toContain("Gated community ID");
-    expect(container.textContent).not.toContain("Start palm verification");
+    expect(container.textContent).toContain("This link is incomplete");
+    expect(button(container, "Try again")).toBeUndefined();
+    expect(container.querySelector("input")).toBeNull();
     expect(createCeremony).not.toHaveBeenCalled();
     expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
   });
 
-  it("keeps the widget alive for provider retry and settles duplicate success once", async () => {
-    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+  it("opens the desktop widget at once, keeps it alive for provider retry and settles duplicate success once", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1&return_to=%2Fc%2Fharbor");
     const completeWithWidget = vi.fn(async () => ({
       proofSessionId: "proof-session-1",
       status: "completed" as const,
@@ -215,18 +235,7 @@ describe("Very verification route", () => {
     const cancel = vi.fn();
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       proofSessionId: "proof-session-1",
-      presentation: {
-        proofSessionId: "proof-session-1",
-        expiresAt: "2099-08-20T12:05:00.000Z",
-        appId: "very-app-staging",
-        apiUrl: "https://bridge.very.org/api/v1",
-        context: "Veros - Palm Verification Timestamp",
-        typeId: "3",
-        query: JSON.stringify({ externalNullifier: "Pirate - Community Join" }),
-        verifyUrl: "https://verify.very.org/api/v1/verify",
-        mobileUri: "veros://verify?sessionId=bridge-session-1&key=YWJj&action=verify",
-        pollUrl: "/verification/sessions/proof-session-1/complete",
-      },
+      presentation: presentation("proof-session-1"),
       initialCompletion: undefined,
       completeWithWidget,
       pollBridge: vi.fn(),
@@ -247,13 +256,14 @@ describe("Very verification route", () => {
         },
       };
     });
+    const navigate = vi.fn();
 
     const container = render(() => (
-      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} />
+      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} mobile={false} navigate={navigate} />
     ));
-    await vi.waitFor(() => expect(container.querySelector("button")?.textContent).toContain("Start"));
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // No start control: the page opens the widget itself.
     await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(1));
+    expect(widgetHarness.open).toHaveBeenCalledTimes(1);
 
     expect(widgetHarness.create).toHaveBeenCalledWith(expect.objectContaining({
       appId: "very-app-staging",
@@ -264,9 +274,10 @@ describe("Very verification route", () => {
       theme: "dark",
     }));
     expect(container.querySelector("img")).toBeNull();
+    expect(button(container, "Open Very")).toBeUndefined();
 
     widgetConfig?.onError?.("we couldn't find a match");
-    await vi.waitFor(() => expect(container.textContent).toContain("widget is open"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Scan your palm in the Very window."));
     expect(createCeremony).toHaveBeenCalledTimes(1);
     expect(completeWithWidget).not.toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
@@ -275,7 +286,9 @@ describe("Very verification route", () => {
 
     widgetConfig?.onSuccess("opaque-provider-payload-ref");
     widgetConfig?.onSuccess("duplicate-provider-payload-ref");
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/harbor"));
+    expect(container.textContent).toContain("You joined.");
+    expect(container.textContent).not.toContain("community-gated-1");
     expect(completeWithWidget).toHaveBeenCalledTimes(1);
     expect(completeWithWidget).toHaveBeenCalledWith("opaque-provider-payload-ref");
     expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "persona-a" } });
@@ -283,15 +296,51 @@ describe("Very verification route", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 
+  it("on a phone opens the Very app at once and keeps one Open Very button", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    const pollBridge = vi.fn(() => new Promise<never>(() => {}));
+    vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+      proofSessionId: "proof-session-phone",
+      presentation: presentation("proof-session-phone"),
+      initialCompletion: undefined,
+      completeWithWidget: vi.fn(),
+      pollBridge,
+      cancel: vi.fn(),
+    });
+    const openApp = vi.fn();
+
+    const container = render(() => (
+      <VeryVerificationRoute
+        loadWidget={async () => ({ createVeryWidget: widgetHarness.create })}
+        mobile
+        navigate={vi.fn()}
+        openApp={openApp}
+      />
+    ));
+
+    await vi.waitFor(() => expect(openApp).toHaveBeenCalledWith("veros://verify?sessionId=proof-session-phone&key=YWJj&action=verify"));
+    expect(pollBridge).toHaveBeenCalledTimes(1);
+    expect(widgetHarness.create).not.toHaveBeenCalled();
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toContain("Waiting for Very. Come back here when you're done.");
+    expect(button(container, "Cancel")).toBeDefined();
+
+    // A browser that refused the automatic link still has the tap.
+    button(container, "Open Very")!.click();
+    expect(openApp).toHaveBeenCalledTimes(2);
+    expect(pollBridge).toHaveBeenCalledTimes(1);
+  });
+
   it("joins immediately when an earlier proof already makes the community joinable", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
+    const navigate = vi.fn();
 
-    const container = render(() => <VeryVerificationRoute />);
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const container = render(() => <VeryVerificationRoute navigate={navigate} />);
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    await vi.waitFor(() => expect(container.textContent).toContain("You joined."));
+    expect(navigate).toHaveBeenCalledWith("/");
     expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "persona-a" } });
     expect(createCeremony).not.toHaveBeenCalled();
   });
@@ -300,13 +349,12 @@ describe("Very verification route", () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     vi.mocked(sessionApi.resolveSession).mockResolvedValueOnce({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true });
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
-    const container = render(() => <VeryVerificationRoute />);
-    container.querySelector<HTMLButtonElement>("button")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Your community profiles could not be loaded"));
+    const container = render(() => <VeryVerificationRoute navigate={vi.fn()} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Your profiles didn't load. Try again."));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
-    container.querySelector<HTMLButtonElement>("button")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    button(container, "Try again")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("You joined."));
     expect(veryApi.joinVeryCommunity).toHaveBeenCalledOnce();
   });
 
@@ -316,17 +364,16 @@ describe("Very verification route", () => {
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
     let finish: ((profile: sessionApi.ActivePersonaPublicProjection) => void) | undefined;
     const prepareProfile = vi.fn(() => new Promise<sessionApi.ActivePersonaPublicProjection>(resolve => { finish = resolve; }));
-    const container = render(() => <VeryVerificationRoute prepareProfile={prepareProfile} />);
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const container = render(() => <VeryVerificationRoute navigate={vi.fn()} prepareProfile={prepareProfile} />);
     await vi.waitFor(() => expect(prepareProfile).toHaveBeenCalledOnce());
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
     finish!({ personaId: "prepared-active", displayName: null, primaryPublicHandle: null, avatarRef: null, communityBinding: { communityId: "community-gated-1", bindingSource: "activity_participation" } });
     await vi.waitFor(() => expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "prepared-active" } }));
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    await vi.waitFor(() => expect(container.textContent).toContain("You joined."));
   });
 
-  it("waits on a server-reported pending ceremony without issuing another intent", async () => {
+  it("waits on a server-reported pending scan without issuing another intent", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     let resolveNextAction = (_action: veryApi.VeryCommunityAction) => {};
     const nextAction = new Promise<veryApi.VeryCommunityAction>((resolve) => {
@@ -337,13 +384,12 @@ describe("Very verification route", () => {
       .mockReturnValueOnce(nextAction);
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
 
-    const container = render(() => <VeryVerificationRoute />);
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(container.textContent).toContain("prior Very ceremony is still pending"));
+    const container = render(() => <VeryVerificationRoute navigate={vi.fn()} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Finishing your last scan…"));
     expect(createCeremony).not.toHaveBeenCalled();
 
     resolveNextAction({ kind: "join" });
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    await vi.waitFor(() => expect(container.textContent).toContain("You joined."));
     expect(veryApi.resolveVeryCommunityAction).toHaveBeenCalledTimes(2);
     expect(createCeremony).not.toHaveBeenCalled();
   });
@@ -355,17 +401,16 @@ describe("Very verification route", () => {
     vi.mocked(veryApi.joinVeryCommunity).mockReturnValue(new Promise((resolve) => {
       resolveJoin = resolve;
     }));
+    const navigate = vi.fn();
 
-    const container = render(() => <VeryVerificationRoute />);
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(container.textContent).toContain("Joining the community"));
-    const cancel = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Cancel");
-    cancel?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const container = render(() => <VeryVerificationRoute navigate={navigate} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Joining…"));
+    button(container, "Cancel")!.click();
     resolveJoin({ communityId: "community-gated-1", status: "joined" });
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Start palm verification"));
-    expect(container.textContent).not.toContain("Community joined");
+    await vi.waitFor(() => expect(button(container, "Scan your palm")).toBeDefined());
+    expect(container.textContent).not.toContain("You joined.");
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("does not let an old completion clean up a newer widget", async () => {
@@ -373,18 +418,6 @@ describe("Very verification route", () => {
     let resolveOldCompletion = (_completion: veryApi.VeryWebCompletion) => {};
     const oldCompletion = new Promise<veryApi.VeryWebCompletion>((resolve) => {
       resolveOldCompletion = resolve;
-    });
-    const presentation = (proofSessionId: string): veryApi.VeryWebPresentation => ({
-      proofSessionId,
-      expiresAt: "2099-08-20T12:05:00.000Z",
-      appId: "very-app-staging",
-      apiUrl: "https://bridge.very.org/api/v1",
-      context: "Veros - Palm Verification Timestamp",
-      typeId: "3",
-      query: JSON.stringify({ externalNullifier: "Pirate - Community Join" }),
-      verifyUrl: "https://verify.very.org/api/v1/verify",
-      mobileUri: `veros://verify?sessionId=${proofSessionId}&key=YWJj&action=verify`,
-      pollUrl: `/verification/sessions/${proofSessionId}/complete`,
     });
     vi.spyOn(veryApi, "createVeryWebCeremony")
       .mockResolvedValueOnce({
@@ -419,18 +452,15 @@ describe("Very verification route", () => {
     });
 
     const container = render(() => (
-      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} />
+      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} mobile={false} navigate={vi.fn()} />
     ));
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(1));
     const oldWidgetConfig = widgetConfig;
     oldWidgetConfig?.onSuccess("old-provider-payload");
 
-    const cancel = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent === "Cancel");
-    cancel?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(container.textContent).toContain("Start palm verification"));
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    button(container, "Cancel")!.click();
+    await vi.waitFor(() => expect(button(container, "Scan your palm")).toBeDefined());
+    button(container, "Scan your palm")!.click();
     await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(2));
     expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
 
@@ -446,18 +476,7 @@ describe("Very verification route", () => {
     const cancel = vi.fn();
     vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       proofSessionId: "proof-session-1",
-      presentation: {
-        proofSessionId: "proof-session-1",
-        expiresAt: "2099-08-20T12:05:00.000Z",
-        appId: "very-app-staging",
-        apiUrl: "https://bridge.very.org/api/v1",
-        context: "Veros - Palm Verification Timestamp",
-        typeId: "3",
-        query: "{\"externalNullifier\":\"Pirate - Community Join\"}",
-        verifyUrl: "https://verify.very.org/api/v1/verify",
-        mobileUri: "veros://verify?sessionId=bridge-session-1&key=YWJj&action=verify",
-        pollUrl: "/verification/sessions/proof-session-1/complete",
-      },
+      presentation: presentation("proof-session-1"),
       initialCompletion: undefined,
       completeWithWidget,
       pollBridge: vi.fn(),
@@ -476,35 +495,24 @@ describe("Very verification route", () => {
     });
 
     const container = render(() => (
-      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} />
+      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} mobile={false} navigate={vi.fn()} />
     ));
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await vi.waitFor(() => expect(document.querySelector(".very-dialog-overlay")).not.toBeNull());
     document.querySelector(".very-dialog-overlay")?.remove();
-    await vi.waitFor(() => expect(container.textContent).toContain("dismissed"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Scan cancelled. Try again."));
 
+    expect(button(container, "Try again")).toBeDefined();
     expect(completeWithWidget).not.toHaveBeenCalled();
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
   });
 
-  it("cancels the ceremony and destroys the widget when the route unmounts", async () => {
+  it("cancels the scan and destroys the widget when the route unmounts", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     const cancel = vi.fn();
     vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       proofSessionId: "proof-session-1",
-      presentation: {
-        proofSessionId: "proof-session-1",
-        expiresAt: "2099-08-20T12:05:00.000Z",
-        appId: "very-app-staging",
-        apiUrl: "https://bridge.very.org/api/v1",
-        context: "Veros - Palm Verification Timestamp",
-        typeId: "3",
-        query: "{\"externalNullifier\":\"Pirate - Community Join\"}",
-        verifyUrl: "https://verify.very.org/api/v1/verify",
-        mobileUri: "veros://verify?sessionId=bridge-session-1&key=YWJj&action=verify",
-        pollUrl: "/verification/sessions/proof-session-1/complete",
-      },
+      presentation: presentation("proof-session-1"),
       initialCompletion: undefined,
       completeWithWidget: vi.fn(),
       pollBridge: vi.fn(),
@@ -522,10 +530,9 @@ describe("Very verification route", () => {
       },
     }));
 
-    const container = render(() => (
-      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} />
+    render(() => (
+      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} mobile={false} navigate={vi.fn()} />
     ));
-    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(1));
 
     const dispose = disposers.pop();
