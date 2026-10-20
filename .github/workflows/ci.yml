@@ -32,6 +32,8 @@ jobs:
       # The cache stores browsers, not Linux system dependencies.
       - name: Install Chromium for browser probes
         run: bunx playwright install --with-deps chromium
+      - name: Check official TypeScript compatibility
+        run: bun run typecheck:typescript
       - run: bun run verify
       - name: Build staging Worker artifact
         run: bun run build
