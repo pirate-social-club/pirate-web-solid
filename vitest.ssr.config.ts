@@ -34,6 +34,7 @@ export default defineConfig({
     maxWorkers: 4,
     include: [
       "src/features/notifications/notifications-ssr.test.tsx",
+      "src/spaces-requests-navigation-ssr.test.tsx",
       "src/features/activity/activity-leaderboard-ssr.test.tsx",
       "src/features/identity/telegram-linking/telegram-linking-ssr.test.tsx",
       "src/features/identity/telegram-identity-probe/telegram-identity-probe-ssr.test.tsx",

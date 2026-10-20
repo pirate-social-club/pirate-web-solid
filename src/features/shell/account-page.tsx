@@ -7,8 +7,9 @@ import { requestGlobalSignIn } from "../auth/global-sign-in-host.tsx";
 import { useApplicationPersonas } from "./application-personas.tsx";
 import { useApplicationSession } from "./application-session.tsx";
 import { RecordingsSettings, type DeleteRecordings } from "./recordings-settings.tsx";
+import { SpacesRequestsNavigation, type SpacesRequestsNavigationProps } from "./spaces-requests-navigation.tsx";
 
-export function AccountPage(props: { navigate: (href: string) => void; profile?: boolean; deleteRecordings?: DeleteRecordings }) {
+export function AccountPage(props: { navigate: (href: string) => void; profile?: boolean; deleteRecordings?: DeleteRecordings; spacesRequests?: Pick<SpacesRequestsNavigationProps, "enabled" | "client"> }) {
   const account = useApplicationSession();
   const personas = useApplicationPersonas();
   const [pending, setPending] = createSignal(false);
@@ -42,7 +43,7 @@ export function AccountPage(props: { navigate: (href: string) => void; profile?:
           <Button onClick={() => personas?.setPickerOpen(true)}>Switch profile</Button>
           <Show when={personas?.selected()}><Button variant="outline" onClick={() => props.navigate(`/p/${encodeURIComponent(personas!.selected()!.personaId)}`)}>View profile</Button></Show>
           <Button variant="outline" onClick={() => props.navigate("/wallet")}>Wallet</Button>
-          <Button variant="outline" onClick={() => props.navigate("/spaces-name-requests")}>Spaces name requests</Button>
+          <SpacesRequestsNavigation navigate={props.navigate} {...props.spacesRequests} />
           <Button variant="outline" onClick={() => props.navigate("/telegram/link/account")}>Telegram connections</Button>
         </div>
         <Button class="self-start" variant="ghost" onClick={() => void signOut()} disabled={pending()}>{pending() ? "Signing out…" : "Sign out"}</Button>
