@@ -138,14 +138,14 @@ export function activityPreparationMessage(error: unknown): string {
       return "Sign in to set up activity entry.";
     }
     if (error.status === 404) {
-      return "That identity is not available for this community. Refresh and choose again.";
+      return "That profile isn't available for this community. Refresh and choose again.";
     }
     if (error.status === 409) {
-      return "That identity is already bound to another community. Refresh and try another persona.";
+      return "That profile belongs to another community. Refresh and choose another.";
     }
     if (error.status === 429) {
       return "Too many attempts. Wait a moment, then try again.";
     }
   }
-  return "We couldn't prepare your activity identity. Retry before starting.";
+  return "We couldn't set up your profile. Try again.";
 }

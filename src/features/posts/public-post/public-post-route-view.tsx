@@ -37,7 +37,7 @@ function displayTitle(response: PublicPostContentResponse): string {
   const firstBodyLine = content.post.body?.split(/\r?\n/u).find(line => line.trim() !== "")?.trim();
   return content.translation_state === "ready" && content.translated_title?.trim()
     ? content.translated_title.trim()
-    : content.post.title?.trim() || content.post.song_title?.trim() || firstBodyLine?.slice(0, 120) || "Post on Pirate";
+    : content.post.title?.trim() || content.post.song_title?.trim() || firstBodyLine?.slice(0, 120) || "Post";
 }
 
 function displayBody(response: PublicPostContentResponse): string | null {

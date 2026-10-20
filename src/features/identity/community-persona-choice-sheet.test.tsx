@@ -36,11 +36,11 @@ describe("community persona choice dialog", () => {
   test("operation-only selection cannot offer creation", async () => {
     mount(true, false);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Community persona"));
-    expect(document.body.textContent).not.toContain("Create a new persona");
+    expect(document.body.textContent).not.toContain("Create a new profile");
   });
 
   test("membership selection retains the explicit create-new alternative", async () => {
     mount(true, true);
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Create a new persona"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Create a new profile"));
   });
 });

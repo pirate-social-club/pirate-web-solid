@@ -1,7 +1,7 @@
 import { render, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { ApiClientError } from "@pirate/api-client";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { StudyingRouteView } from "./studying-route-view.tsx";
 import type { StudyingClient, StudyingLessonPayload, StudyingRecorder } from "./studying-route-model.ts";
 
@@ -49,7 +49,6 @@ function rejection(reason: "study_provider_outcome_unknown" | "study_provider_re
       details },
   });
 }
-beforeEach(() => { localStorage.setItem("study:microphone-disclosure:v1", "1"); });
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();

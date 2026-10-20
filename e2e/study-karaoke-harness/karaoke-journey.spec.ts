@@ -73,20 +73,10 @@ async function startScoredTake(page: import("playwright/test").Page): Promise<st
 
   const start = page.getByRole("button", { name: "Start karaoke", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
-  const disclosure = page.locator("[data-karaoke-mic-disclosure]");
-  const acceptDisclosureIfOpen = async (): Promise<void> => {
-    const open = await disclosure
-      .waitFor({ state: "visible", timeout: 2_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (open) await page.locator("[data-karaoke-mic-disclosure-accept]").click();
-  };
-  // The route loads community personas asynchronously and the first-use
-  // disclosure opens before the session is created; retry the start until the
-  // session request actually begins.
+  // The route loads community profiles asynchronously; retry the start until
+  // the session request actually begins.
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (await start.isVisible().catch(() => false)) await start.click();
-    await acceptDisclosureIfOpen();
     const response = await Promise.race([
       sessionResponse.then((value) => value),
       page.waitForTimeout(1_500).then(() => null),

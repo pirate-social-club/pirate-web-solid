@@ -589,7 +589,7 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your profiles"));
     expect(resolveSession).toHaveBeenCalled();
 
     const postHere = container.querySelector<HTMLButtonElement>("[data-community-post-slot]")!;
@@ -606,7 +606,7 @@ describe("CommunityPage", () => {
       completeFailedRetry();
     }
     await vi.waitFor(() => expect(postHere.disabled).toBe(false));
-    expect(container.textContent).toContain("couldn't load your active personas");
+    expect(container.textContent).toContain("couldn't load your profiles");
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     const readsBeforeRetry = resolveSession.mock.calls.length;
@@ -646,7 +646,7 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your profiles"));
     expect(resolveSession).toHaveBeenCalled();
 
     expect(contextualComposerOpen()).toBe(false);

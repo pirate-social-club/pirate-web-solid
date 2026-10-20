@@ -270,7 +270,7 @@ describe("Study v2 production route", () => {
       choice: { kind: "create_new" },
       communityId: "community-1",
     })));
-    await vi.waitFor(() => expect(container.textContent).toContain("wallet confirmed"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Confirm this profile's wallet to start Study."));
     expect(createSession).not.toHaveBeenCalled();
   });
 
@@ -563,7 +563,7 @@ describe("Study v2 production route", () => {
     expect(submitAudio).not.toHaveBeenCalled();
   });
 
-  test("shows the required first-use microphone disclosure before the first capture", async () => {
+  test("starts the first capture at once, with no recording notice in the flow", async () => {
     localStorage.clear();
     const recorderStart = vi.fn(async () => {});
     const recorder = { start: recorderStart, stop: vi.fn(), cancel: vi.fn() };
@@ -582,55 +582,9 @@ describe("Study v2 production route", () => {
 
     const record = await enterLesson(container, createSession);
     record?.click();
-    await vi.waitFor(() =>
-      expect(container.querySelector("[data-study-mic-disclosure]")).toBeTruthy(),
-    );
-    expect(container.textContent).toContain("ElevenLabs");
-    expect(container.textContent).toContain("24 months");
-    expect(recorderStart).not.toHaveBeenCalled();
-
-    const cancel = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.trim() === "Cancel");
-    cancel?.click();
-    await vi.waitFor(() =>
-      expect(container.querySelector("[data-study-mic-disclosure]")).toBeNull(),
-    );
-    expect(recorderStart).not.toHaveBeenCalled();
-
-    const recordAgain = [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.trim() === "Record");
-    recordAgain?.click();
-    await vi.waitFor(() =>
-      expect(container.querySelector("[data-study-mic-disclosure]")).toBeTruthy(),
-    );
-    const accept = container.querySelector<HTMLElement>("[data-study-mic-disclosure-accept]");
-    expect(accept).toBeTruthy();
-    accept?.click();
     await vi.waitFor(() => expect(recorderStart).toHaveBeenCalledOnce());
-    expect(localStorage.getItem("study:microphone-disclosure:v1")).toBe("1");
-  });
-
-  test("starts capture without the disclosure once it is acknowledged", async () => {
-    localStorage.setItem("study:microphone-disclosure:v1", "1");
-    const recorderStart = vi.fn(async () => {});
-    const recorder = { start: recorderStart, stop: vi.fn(), cancel: vi.fn() };
-    const session = routeSession();
-    const createSession = vi.fn(async () => session);
-    const api = studyApi(createSession, async () => session);
-    const container = render(() => (
-      <StudyV2RouteView
-        api={api}
-        postId="post-1"
-        recorder={recorder}
-        resolveSession={async () => learnerSession}
-        startCoordinator={testCoordinator(api)}
-      />
-    ));
-
-    const record = await enterLesson(container, createSession);
-    record?.click();
-    await vi.waitFor(() => expect(recorderStart).toHaveBeenCalledOnce());
-    expect(container.querySelector("[data-study-mic-disclosure]")).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.textContent).not.toContain("Before you record");
   });
 
   test("resumes an anonymous route once when sign-in refreshes the session", async () => {

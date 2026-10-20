@@ -59,11 +59,6 @@ export const RecordingOutcomeUnknown: Story = {
   },
 };
 
-/** The disclosure acknowledgment persists per browser; consent stories reset it. */
-const resetMicDisclosure = (canvasElement: HTMLElement): void => {
-  canvasElement.ownerDocument.defaultView?.localStorage.removeItem("study:microphone-disclosure:v1");
-};
-
 export const LessonFlow: Story = {
   render: () => (
     <StudyingRouteView
@@ -99,18 +94,14 @@ export const MissedAttempts: Story = {
     docs: {
       description: {
         story:
-          "Every attempt misses: each graded spoken presentation is spent server-side, so the miss reveals the transcript feedback and Continue moves to the server's next card; the missed line returns later in the lesson. The first capture is gated by the Spec 019 retention disclosure.",
+          "Every attempt misses: each graded spoken presentation is spent server-side, so the miss reveals the transcript feedback and Continue moves to the server's next card; the missed line returns later in the lesson.",
       },
     },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
 
-    // Spec 019 first-use disclosure gates the first capture; accept it.
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await expect(await canvas.findByRole("dialog", { name: "Recording disclosure" })).toBeInTheDocument();
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
 
     // The miss is final for this appearance: feedback, then Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
@@ -147,64 +138,7 @@ export const AuthRequired: Story = {
   ),
 };
 
-/** The Spec 019 retention disclosure before the first capture. */
-export const ConsentOpen: Story = {
-  render: () => (
-    <StudyingRouteView
-      client={createStoryLessonClient()}
-      onExit={noop}
-      postId={storyPostId}
-      recorder={createStoryRecorder()}
-      scheduleAdvance={immediateAdvance}
-    />
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Recording is gated by the personal microphone disclosure; nothing is captured before it is accepted.",
-      },
-    },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await expect(await canvas.findByRole("dialog", { name: "Recording disclosure" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Continue to record" })).toBeInTheDocument();
-  },
-};
-
-/** Cancelling the disclosure leaves the lesson idle and captures nothing. */
-export const ConsentCancelled: Story = {
-  render: () => (
-    <StudyingRouteView
-      client={createStoryLessonClient()}
-      onExit={noop}
-      postId={storyPostId}
-      recorder={createStoryRecorder()}
-      scheduleAdvance={immediateAdvance}
-    />
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Cancel closes the disclosure without starting the recorder; Record stays available for a later attempt.",
-      },
-    },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
-    await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await expect(await canvas.findByRole("dialog", { name: "Recording disclosure" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(canvas.queryByRole("dialog", { name: "Recording disclosure" })).toBeNull());
-    await expect(canvas.getByRole("button", { name: "Record" })).toBeEnabled();
-    await expect(canvas.queryByRole("button", { name: "Stop" })).toBeNull();
-  },
-};
-
-/** Capture is running: Stop is the only action until the take ends. */
+/** Record starts capture at once, with no recording notice in the flow; Stop is the only action until the take ends. */
 export const Recording: Story = {
   render: () => (
     <StudyingRouteView
@@ -217,10 +151,9 @@ export const Recording: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await expect(await canvas.findByRole("button", { name: "Stop" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("dialog")).toBeNull();
   },
 };
 
@@ -237,9 +170,7 @@ export const Grading: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Stop" })).toBeNull());
     await expect(canvas.getByRole("button", { name: /Checking/ })).toBeDisabled();
@@ -267,9 +198,7 @@ export const Completion: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     // A correct choice moves on by itself (Paper): no Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "I don't know why you left so early" }));
@@ -314,9 +243,7 @@ export const QualificationNotAchieved: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    resetMicDisclosure(canvasElement);
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     // A correct choice moves on by itself (Paper): no Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "I don't know why you left so early" }));

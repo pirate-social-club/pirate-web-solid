@@ -425,7 +425,7 @@ export function createCommunityEngagementController(
         const candidates = communityJoinCandidates(session.personas, options.communityId);
         const selectedId = choice?.kind === "existing" ? choice.personaId : undefined;
         if (selectedId !== undefined && !candidates.some(candidate => candidate.personaId === selectedId)) {
-          setError("Choose a persona bound to this community or an unbound persona.");
+          setError("Choose a profile for this community.");
           setJoinPersonaOpen(true);
           return;
         }
@@ -459,7 +459,7 @@ export function createCommunityEngagementController(
       }
     } catch (error) {
       if (actionOwns(generation)) setError(error instanceof ApiClientError && error.status === 409
-        ? "That persona is already active in another community. Choose a different persona or create a new one."
+        ? "That profile belongs to another community. Choose another or create a new one."
         : "We couldn't confirm the membership action. Retry Join to check your membership and continue.");
     } finally {
       if (actionOwns(generation)) {
@@ -554,7 +554,7 @@ export function createCommunityEngagementController(
     message,
     // Action outcomes take precedence without changing profile availability.
     error: () => error() || (!message() && profilesUnavailable()
-      ? "We couldn't load your active personas. Retry profiles before commenting, posting or joining."
+      ? "We couldn't load your profiles. Try again."
       : ""),
     postingSession,
     accountIdentity,

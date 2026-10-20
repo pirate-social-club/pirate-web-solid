@@ -325,10 +325,6 @@ test.describe("local Study journey", () => {
     });
     await startStudyLesson(page);
     await page.getByRole("button", { name: "Record", exact: true }).click();
-    const disclosure = page.locator("[data-study-mic-disclosure]");
-    if (await disclosure.isVisible().catch(() => false)) {
-      await page.locator("[data-study-mic-disclosure-accept]").click();
-    }
     await expect(page.getByText(/permission denied|not available in this browser/iu)).toBeVisible();
     expect(attemptSummary(account.accountId)[0]?.attempts).toBe(0);
   });

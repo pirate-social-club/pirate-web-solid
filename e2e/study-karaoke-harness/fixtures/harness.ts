@@ -254,10 +254,6 @@ export async function answerStudyCardThroughUi(
   const recordButton = page.getByRole("button", { name: "Record", exact: true });
   await expect(recordButton).toBeEnabled();
   await recordButton.click();
-  const disclosure = page.locator("[data-study-mic-disclosure]");
-  if (await disclosure.isVisible().catch(() => false)) {
-    await page.locator("[data-study-mic-disclosure-accept]").click();
-  }
   const stopButton = page.getByRole("button", { name: "Stop", exact: true });
   await expect(stopButton).toBeVisible();
   await armStudyTranscript(manifest, {

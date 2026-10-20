@@ -109,9 +109,9 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
           </For>
           <Show when={props.allowCreateNew !== false && !props.createNewUnavailable}><OptionCard
             description={props.createNewDescription
-              ?? "Mint a fresh persona bound to this community in the same step."}
+              ?? "Create a new profile for this community."}
             icon={<IconPlus class="size-8" />}
-            title={props.createNewLabel ?? "Create a new persona"}
+            title={props.createNewLabel ?? "Create a new profile"}
             value={CREATE_NEW_PERSONA_VALUE}
           /></Show>
         </OptionCardGroup>
@@ -169,7 +169,7 @@ export function CommunityPersonaChoiceControl(props: CommunityPersonaChoiceContr
     props.choice === undefined
       ? props.placeholder ?? ""
       : props.choice.kind === "create_new"
-        ? props.createNewLabel ?? "New persona"
+        ? props.createNewLabel ?? "New profile"
         : chosen()?.displayName ?? "";
 
   return (

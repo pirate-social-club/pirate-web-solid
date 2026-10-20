@@ -2,7 +2,7 @@ import type { ActivePersonaPublicProjection } from "../../api/session";
 import type { OperationPersona } from "./operation-persona-control/operation-persona-control";
 
 export const PERSONA_CREATION_UNAVAILABLE =
-  "New community personas are coming soon. Choose an existing eligible persona; without one, you cannot join or create a community yet.";
+  "New profiles are coming soon. Choose one of your profiles; without one, you can't join or create a community yet.";
 
 /**
  * The closed persona choice every terminal community membership or

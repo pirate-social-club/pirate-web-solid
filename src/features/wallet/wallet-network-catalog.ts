@@ -3,6 +3,23 @@ import type { Address, Chain } from "viem";
 import type { WalletHubChainId, WalletHubChainSection } from "./wallet-hub.types";
 
 export type WalletNetworkMode = "mainnet" | "testnet";
+
+export interface WalletNetworkHost {
+  readonly defaultMode: WalletNetworkMode;
+  readonly switchable: boolean;
+}
+
+/**
+ * Testnet exists only on staging and local development hosts, where it is
+ * offered beside mainnet. Production has no network switch and stays on
+ * mainnet, so testnet Send cannot be reached there.
+ */
+export function walletNetworkHost(hostname: string): WalletNetworkHost {
+  const staging = hostname.endsWith("-staging.pirate.sc");
+  const local = hostname === "localhost" || hostname === "127.0.0.1";
+  return { defaultMode: staging ? "testnet" : "mainnet", switchable: staging || local };
+}
+
 export interface WalletAssetDefinition {
   id: string;
   symbol: string;
