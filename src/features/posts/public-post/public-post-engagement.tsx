@@ -34,6 +34,7 @@ export function PublicPostEngagement(props: {
   dependencies?: PublicPostEngagementDependencies;
   /** `inline` is the post page: the thread under the post and a bottom comment bar. */
   presentation?: "sheet" | "inline";
+  newestFirstRoots?: boolean;
   /** Inline only: a signed-in visitor who is not a member joins here to comment. */
   joinHref?: string;
   target?: CommentNavigation;
@@ -77,7 +78,7 @@ export function PublicPostEngagement(props: {
           <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()?.value ?? null }} votesReady={vote() !== undefined} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
             readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}
-            presentation={props.presentation} joinHref={props.joinHref}
+            presentation={props.presentation} newestFirstRoots={props.newestFirstRoots} joinHref={props.joinHref}
             target={props.target} readTarget={props.dependencies?.readTarget}
             // The comment box opens with who the viewer comments as; with
             // several profiles here, tapping it opens the same picker.

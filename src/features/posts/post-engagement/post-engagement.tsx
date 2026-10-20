@@ -103,6 +103,8 @@ export interface PostEngagementProps {
    * on wider screens.
    */
   readonly presentation?: "sheet" | "inline";
+  /** Video post pages place new local roots before the server's existing roots. */
+  readonly newestFirstRoots?: boolean;
   /** Inline only: who the viewer comments as, drawn at the start of the box. */
   readonly composerIdentity?: JSX.Element;
   /**
@@ -129,6 +131,13 @@ type ReportTarget =
 
 /** The comment pill's shape, so Reply reads as the same family of control. */
 const replyPillClass = "inline-flex h-11 w-fit cursor-pointer items-center gap-2 rounded-full border border-border-soft bg-background px-4 text-base font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function reconcileVideoRoot(items: readonly CommentThreadItem[], root: CommentThreadItem, pendingId: string): readonly CommentThreadItem[] {
+  const remaining = items.filter(item => item.id !== pendingId);
+  // A loaded projection retains its current moderation, replies and position.
+  // Replaying a creation receipt must not replace that fresher readback.
+  return remaining.some(item => item.id === root.id) ? remaining : [root, ...remaining];
+}
 
 export function PostEngagement(props: PostEngagementProps) {
   const targetedContext = useTargetedPersona();
@@ -373,18 +382,24 @@ export function PostEngagement(props: PostEngagementProps) {
     const retained = await decodePendingEngagementAction(record.envelope);
     const retainedBody = retained.kind === "comment" || retained.kind === "reply" ? retained.body : body;
     const pending = submittingComment(retainedBody, depth, parentId, retained.idempotencyKey);
-    setComments(items => [...items.filter(item => item.id !== pending.id), pending]);
+    const newestRoot = props.newestFirstRoots === true && parentId === null;
+    setComments(items => {
+      const remaining = items.filter(item => item.id !== pending.id);
+      return newestRoot ? [pending, ...remaining] : [...remaining, pending];
+    });
     try {
       const response = retained.kind === "reply"
         ? await transport.createReply(record.envelope)
         : await transport.createComment(record.envelope);
       const settled = settledComment(pending, response);
+      const rootAlreadyLoaded = newestRoot && comments().some(item => item.id === settled.id);
       setComments(items => {
+        if (newestRoot) return reconcileVideoRoot(items, settled, pending.id);
         let next = items.map(item => item.id === pending.id ? settled : item);
         if (settled.state === "published" && parentId) next = [...adjustReplyCount(next, parentId, 1)];
         return next;
       });
-      if (settled.state === "published") setCommentCount(value => value + 1);
+      if (settled.state === "published" && !rootAlreadyLoaded) setCommentCount(value => value + 1);
       setDraft("");
       setComposeTarget({ kind: "comment" });
       await resolveRecord(record);
@@ -592,16 +607,20 @@ export function PostEngagement(props: PostEngagementProps) {
             ? await transport.createReply(record.envelope)
             : await transport.createComment(record.envelope);
           const settled = settledComment(pending, response);
+          const newestRoot = props.newestFirstRoots === true && action.kind === "comment";
+          const rootAlreadyLoaded = newestRoot && comments().some(item => item.id === settled.id);
           if (action.kind === "comment" || parent !== undefined) {
             setComments(items => {
-              let next = [...items.filter(item => item.id !== pending.id), settled];
+              let next = newestRoot
+                ? reconcileVideoRoot(items, settled, pending.id)
+                : [...items.filter(item => item.id !== pending.id), settled];
               if (settled.state === "published" && parent !== undefined) {
                 next = [...adjustReplyCount(next, parent.id, 1)];
               }
               return next;
             });
           }
-          if (settled.state === "published") setCommentCount(value => value + 1);
+          if (settled.state === "published" && !rootAlreadyLoaded) setCommentCount(value => value + 1);
           break;
         }
         case "post_report": {

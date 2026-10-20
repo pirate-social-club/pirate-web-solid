@@ -175,7 +175,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
         <Show when={body()}>{value => <p class="mt-5 whitespace-pre-wrap break-words leading-6">{value()}</p>}</Show>
         </Show>
         <Show when={postType() === "video"}>
-          <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community} joinHref={joinHref()} post={engagementPost()} presentation="inline" target={props.target}>
+          <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community} joinHref={joinHref()} post={engagementPost()} presentation="inline" newestFirstRoots target={props.target}>
             {() => <>
           <div class="mt-6"><Show when={!props.target || videoState().playback !== "ready" || videoRequested()} fallback={<Button onClick={() => setVideoRequested(true)} variant="secondary">Play video</Button>}>
             <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={videoState()} />
