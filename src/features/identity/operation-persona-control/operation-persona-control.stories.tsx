@@ -49,7 +49,7 @@ export const Disabled: Story = {
 /** An unknown selected id stays unresolved until a persona is chosen. */
 export const UnknownSelection: Story = {
   name: "Unknown selected id",
-  args: { selectedPersonaId: "p_missing", placeholder: "Choose a persona" },
+  args: { selectedPersonaId: "p_missing", placeholder: "Choose a profile" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Posting as Choose a persona" })).toBeEnabled();

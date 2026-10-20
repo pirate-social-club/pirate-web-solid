@@ -127,11 +127,11 @@ describe("activity persona preparation", () => {
   });
 
   it("maps typed preparation failures to honest recovery copy", () => {
-    expect(activityPreparationMessage(conflict(409))).toContain("already bound");
-    expect(activityPreparationMessage(conflict(404))).toContain("not available");
+    expect(activityPreparationMessage(conflict(409))).toContain("belongs to another community");
+    expect(activityPreparationMessage(conflict(404))).toContain("isn't available");
     expect(activityPreparationMessage(new ActivityPersonaPreparationLocalError("csrf_required", "x"))).toContain(
       "Sign in",
     );
-    expect(activityPreparationMessage(new Error("network"))).toContain("Retry");
+    expect(activityPreparationMessage(new Error("network"))).toContain("Try again");
   });
 });

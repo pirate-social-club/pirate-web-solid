@@ -169,7 +169,7 @@ export function PendingSongs(props: PendingSongsProps): JSX.Element {
               <form aria-label="Name the original song" class="grid gap-2" onSubmit={event => { event.preventDefault(); props.onBindOriginal?.(item().submissionId, originalLink()); }}>
                 <label class="grid gap-1 text-sm">
                   Original song link
-                  <input class="rounded-lg border border-input bg-background px-3 py-2" value={item().bindingOriginal || item().originalUnconfirmed ? item().originalLink ?? originalLink() : originalLink()} onInput={event => setOriginalLink(event.currentTarget.value)} disabled={item().bindingOriginal || item().originalUnconfirmed} inputmode="url" required placeholder="Paste the song's Pirate link" />
+                  <input class="rounded-lg border border-input bg-background px-3 py-2" value={item().bindingOriginal || item().originalUnconfirmed ? item().originalLink ?? originalLink() : originalLink()} onInput={event => setOriginalLink(event.currentTarget.value)} disabled={item().bindingOriginal || item().originalUnconfirmed} inputmode="url" required placeholder="Paste the song's link" />
                 </label>
                 <Type variant="caption">The server will check that this song can use that original.</Type>
                 <Button disabled={item().bindingOriginal || item().originalUnconfirmed || originalLink().trim() === ""} loading={item().bindingOriginal} type="submit" size="sm">Use this original song</Button>

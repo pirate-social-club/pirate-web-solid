@@ -270,7 +270,7 @@ describe("Study v2 production route", () => {
       choice: { kind: "create_new" },
       communityId: "community-1",
     })));
-    await vi.waitFor(() => expect(container.textContent).toContain("wallet confirmed"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Confirm this profile's wallet to start Study."));
     expect(createSession).not.toHaveBeenCalled();
   });
 

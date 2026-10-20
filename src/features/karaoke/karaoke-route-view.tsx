@@ -185,7 +185,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         return;
       }
       setWalletConfirmationRequired(true);
-      setPersonaMessage("This singing identity needs its wallet confirmed before a scored take. Confirming asks for the wallet email code again and returns you to this take.");
+      setPersonaMessage("Confirm this profile's wallet to sing for a score. We'll email you a code.");
     } catch (error) {
       if (active) setPersonaMessage(activityPreparationMessage(error));
     } finally {
@@ -260,7 +260,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         onStartSinging={communityId && scorableLines().length > 0 ? (songMs) => {
           if (sessionFailed()) return;
           if (session() === undefined) {
-            setPersonaMessage("Your community personas are still loading. Try again shortly.");
+            setPersonaMessage("Your profiles are still loading. Try again shortly.");
             return;
           }
           if (session() === "anonymous") { setAuthError(true); return; }
@@ -322,8 +322,8 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined}
         open={choiceOpen()} onOpenChange={setChoiceOpen}
         note={eligible().length > 0
-          ? "Choose the persona that presents this take in this community. Your private learning history stays with your account."
-          : "Singing does not require membership. Bind an existing persona to this community, or create a new identity that can sing once its wallet is confirmed."}
+          ? "Choose the profile you sing as here. Your history stays with your account."
+          : "You don't need to join to sing. Choose one of your profiles, or create a new one. A new profile can sing once its wallet is confirmed."}
         onChoose={choice => {
           if (choice.kind === "existing" && eligible().some(persona => persona.personaId === choice.personaId)) {
             setPersonaId(choice.personaId);

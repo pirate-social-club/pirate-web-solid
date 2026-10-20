@@ -30,7 +30,7 @@ async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: 
       ...integration,
     });
   });
-  await vi.waitFor(() => expect(controller.postingSession() !== undefined || controller.error().includes("active personas")).toBe(true));
+  await vi.waitFor(() => expect(controller.postingSession() !== undefined || controller.error().includes("load your profiles")).toBe(true));
   await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
   return { api, controller };
 }
@@ -91,7 +91,7 @@ describe("terminal community persona choice", () => {
     const { controller, api } = await setup({}, [], async () => ({ status: "authenticated", userId: "account-a",
       personas: unavailable ? [] : [unboundPersona], personasUnavailable: unavailable ? true as const : undefined }));
     await controller.joinCommunity();
-    expect(controller.error()).toContain("couldn't load your active personas");
+    expect(controller.error()).toContain("couldn't load your profiles");
     expect(controller.postingSession()).toBeUndefined();
     expect(controller.joinPersonaStep()).toBe(false);
     expect(api.join).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("terminal community persona choice", () => {
     const { controller } = await setup({}, [], () => holdRetry
       ? new Promise(resolve => { finishRetry = resolve; })
       : Promise.resolve({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
-    expect(controller.error()).toContain("active personas");
+    expect(controller.error()).toContain("load your profiles");
     await controller.followToggle();
     expect(controller.message()).toBe("Following this Community.");
     expect(controller.error()).toBe("");
@@ -219,7 +219,7 @@ describe("terminal community persona choice", () => {
     await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
     expect(controller.joined()).toBe(false);
     expect(controller.following()).toBe(false);
-    expect(controller.error()).toContain("already active in another community");
+    expect(controller.error()).toContain("belongs to another community");
   });
 
   test("several eligible personas open selection without sending a join", async () => {

@@ -285,7 +285,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     }
     if (!communityOperationPersonas(configuration.session.personas, configuration.communityId)
       .some(persona => persona.personaId === personaId())) {
-      setMessage("Choose the persona this session presents in this community.");
+      setMessage("Choose your profile for this community.");
       return;
     }
     const selectedBand: StudyLearnerBand | null = band === "" ? null : band;
@@ -318,7 +318,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
           ? undefined
           : { kind: "existing" as const, personaId: preparePersonaId() };
     if (choice === undefined) {
-      setMessage("Choose the persona this community will present.");
+      setMessage("Choose your profile for this community.");
       return;
     }
     setPreparing(true);
@@ -340,7 +340,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         return;
       }
       setWalletConfirmationRequired(true);
-      setMessage("This identity needs its wallet confirmed before Study. Confirming asks for the wallet email code again and continues Study automatically afterwards.");
+      setMessage("Confirm this profile's wallet to start Study. We'll email you a code.");
     } catch (error) {
       if (!active) return;
       setMessage(activityPreparationMessage(error));
@@ -457,16 +457,15 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                         <header class="space-y-2">
                           <Type as="h1" variant="h1">Set up Study</Type>
                           <Type as="p" class="text-muted-foreground" variant="body">
-                            Study does not require membership. Choose an existing persona to bind to this
-                            community, or create a new activity identity. A newly created identity can start
-                            only after its wallet is confirmed.
+                            You don't need to join to study. Choose one of your profiles, or create a new
+                            one. A new profile can start once its wallet is confirmed.
                           </Type>
                         </header>
                         <Show when={candidates().length > 0}>
                           <OperationPersonaControl
                             label="Continue as"
                             personas={toOperationPersonas(candidates())}
-                            placeholder="Choose a persona"
+                            placeholder="Choose a profile"
                             selectedPersonaId={preparePersonaId()}
                             onSelect={(id) => {
                               setPreparePersonaId(id);
@@ -475,8 +474,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                           />
                         </Show>
                         <p class="text-sm text-muted-foreground" data-persona-consequence-note>
-                          Binding an existing persona to this community is one-time. Progress, streaks and
-                          review history stay with your account either way.
+                          The profile you choose stays with this community. Your progress stays with
+                          your account.
                         </p>
                         <Show when={message()}>{(error) => <FormNote tone="destructive">{error()}</FormNote>}</Show>
                         <Show when={walletConfirmationRequired()}>
@@ -520,13 +519,13 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                   <OperationPersonaControl
                     label="Studying as"
                     personas={personas()}
-                    placeholder="Choose a persona"
+                    placeholder="Choose a profile"
                     selectedPersonaId={personaId()}
                     onSelect={setPersonaId}
                   />
                   <p class="text-sm text-muted-foreground" data-persona-consequence-note>
-                    Study progress, streaks, and review history stay with your account. This
-                    persona is only how your session appears publicly in this community.
+                    Your progress stays with your account. This profile is how you appear in this
+                    community.
                   </p>
                   <label class="flex flex-col gap-2">
                     <Type as="span" variant="label">Helper language</Type>

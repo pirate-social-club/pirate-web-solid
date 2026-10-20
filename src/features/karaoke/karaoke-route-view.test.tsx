@@ -214,7 +214,7 @@ describe("Karaoke community persona selection", () => {
     await start(host);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Singing as"));
     expect(createSession).not.toHaveBeenCalled();
-    expect(document.body.textContent).not.toContain("Create a new persona");
+    expect(document.body.textContent).not.toContain("Create a new profile");
     const option = document.querySelector<HTMLInputElement>('input[value="second"]');
     expect(option).not.toBeNull();
     option!.click();
