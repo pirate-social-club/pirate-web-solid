@@ -1,4 +1,4 @@
-import { createRoot } from "solid-js";
+import { flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, test, vi } from "vitest";
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
@@ -46,8 +46,8 @@ function fixture(options: { reserveFails?: boolean; submitFails?: boolean; chang
 
 function mount(dependencies: WalletSponsoredSendDependencies, onConfirmed = vi.fn(), onClose = vi.fn()) {
   const element = document.createElement("div"); document.body.appendChild(element);
-  let unmount = () => {};
-  createRoot(dispose => { unmount = dispose; disposers.push(dispose); render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={onClose} onConfirmed={onConfirmed} />, element); });
+  const unmount = render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={onClose} onConfirmed={onConfirmed} />, element);
+  disposers.push(unmount);
   return unmount;
 }
 const text = () => document.body.textContent ?? "";
@@ -121,7 +121,13 @@ test("only a server-confirmed matching send notifies the parent, once per send",
   button("Refresh status").click();
   await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
   await vi.waitFor(() => expect(button("Refresh status").disabled).toBe(false));
-  button("Refresh status").click();
+  let finishRefresh: (record: WalletSponsoredSendRecord) => void = () => { throw new Error("refresh did not start"); };
+  vi.mocked(f.data.read).mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; }));
+  button("Refresh status").click(); flush();
+  expect(button("Refresh status").disabled).toBe(true);
+  button("Close").click();
+  expect(onClose).not.toHaveBeenCalled();
+  finishRefresh(current);
   await vi.waitFor(() => expect(button("Refresh status").disabled).toBe(false));
   button("Close").click();
   expect(onClose).toHaveBeenCalledOnce(); expect(onConfirmed).toHaveBeenCalledOnce();
