@@ -1,4 +1,4 @@
-import type { PostPersonasPersonaIdWalletsSpacesTaprootStatusResponse } from "@pirate/api-client";
+import { ApiClientError, type PostPersonasPersonaIdWalletsSpacesTaprootStatusResponse } from "@pirate/api-client";
 import { createSessionSpacesTaprootClient, handleSalesMutationOptions, type SessionSpacesTaprootApiClient } from "./handle-sales-client.ts";
 import { defaultPrivyFactory, MemoryOnlyStorage, type PrivyAuthClient, type PrivyFactory } from "./privy-session.ts";
 import { fetchVerificationConfig } from "./verification-config.ts";
@@ -40,26 +40,40 @@ export async function createSpacesTaprootWalletSession(options: {
     if (accessToken === null || accessToken === "") throw new Error("wallet_reauthentication_required");
     return { type: "privy_access_token" as const, privy_access_token: accessToken };
   };
-  const status = async (personaId: string, csrf: string): Promise<WalletStatus> =>
-    api.post_personasPersonaIdWalletsSpacesTaprootStatus(
-      { path: { personaId }, body: { proof: await proof() } },
+  const mainnet = (network: string) => { if (network !== "mainnet") throw new Error("wallet_network_unsupported"); };
+  const status = async (personaId: string, csrf: string): Promise<WalletStatus> => {
+    const authorization = await proof();
+    alive();
+    const result = await api.post_personasPersonaIdWalletsSpacesTaprootStatus(
+      { path: { personaId }, body: { proof: authorization } },
       handleSalesMutationOptions(csrf),
     );
+    alive();
+    mainnet(result.network);
+    return result;
+  };
   const finishCandidate = async (
     personaId: string, csrf: string, candidate: Extract<WalletStatus, { kind: "candidate" }>,
   ): Promise<WalletResult> => {
+    alive();
+    mainnet(candidate.network);
     if (client.signEmbeddedTaprootHash === undefined) throw new Error("wallet_signing_unavailable");
     const signatureHex = await client.signEmbeddedTaprootHash(
       candidate.provider_wallet_id, candidate.challenge_digest_hex,
     );
+    alive();
+    const authorization = await proof();
+    alive();
     await api.post_personasPersonaIdWalletsSpacesTaprootConfirm(
       { path: { personaId }, body: {
-        proof: await proof(), assignment_id: candidate.assignment_id,
+        proof: authorization, assignment_id: candidate.assignment_id,
         provider_wallet_id: candidate.provider_wallet_id, signature_hex: signatureHex,
       } },
       handleSalesMutationOptions(csrf),
     );
+    alive();
     const confirmed = await status(personaId, csrf);
+    alive();
     if (confirmed.kind !== "active" || confirmed.assignment_id !== candidate.assignment_id ||
       confirmed.provider_wallet_id !== candidate.provider_wallet_id) throw new Error("wallet_confirmation_uncertain");
     return confirmed;
@@ -81,17 +95,35 @@ export async function createSpacesTaprootWalletSession(options: {
     async setup(personaId, csrf) {
       alive();
       if (creating) throw new Error("wallet_creation_in_progress");
+      let existing: WalletStatus | undefined;
+      try { existing = await status(personaId, csrf); }
+      catch (error) {
+        alive();
+        // An absent assignment permits asking the server to prepare it; only
+        // the server's one-create grant can permit the provider add below.
+        if (!(error instanceof ApiClientError && error.status === 404)) throw error;
+      }
+      alive();
+      if (existing?.kind === "candidate") return finishCandidate(personaId, csrf, existing);
+      if (existing !== undefined && existing.kind !== "prepared") return existing;
+      const authorization = await proof();
+      alive();
       const prepared = await api.post_personasPersonaIdWalletsSpacesTaprootPrepare(
-        { path: { personaId }, body: { proof: await proof(), idempotency_key: crypto.randomUUID() } },
+        { path: { personaId }, body: { proof: authorization, idempotency_key: crypto.randomUUID() } },
         handleSalesMutationOptions(csrf),
       );
+      alive();
+      mainnet(prepared.network);
       if (prepared.may_create) {
+        if (creating) throw new Error("wallet_creation_in_progress");
         if (client.addEmbeddedTaprootWallet === undefined) throw new Error("wallet_creation_unavailable");
         // The provider's add call is not idempotent. An error is uncertain; never retry it here.
         creating = true;
         await client.addEmbeddedTaprootWallet();
+        alive();
       }
       const result = await status(personaId, csrf);
+      alive();
       if (result.assignment_id !== prepared.assignment_id) throw new Error("wallet_assignment_changed");
       return result.kind === "candidate" ? finishCandidate(personaId, csrf, result) : result;
     },

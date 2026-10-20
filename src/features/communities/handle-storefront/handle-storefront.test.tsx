@@ -2,9 +2,10 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { ApiClientError, type GetHandleClaimsClaimIdResponse } from "@pirate/api-client";
+import { ApiClientError } from "@pirate/api-client";
 
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
+import { ApplicationSessionProvider } from "../../shell/application-session.tsx";
 import HandleStorefront, { canonicalNamesUrl } from "./handle-storefront.tsx";
 import type {
   HandleStorefrontPublicSuccess,
@@ -44,7 +45,7 @@ const offering = {
   created_at: "2026-08-26T12:00:00.000Z",
 } as const satisfies SupportedHandleOffering;
 
-const spacesOffering = { ...offering, family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+const spacesOffering = { ...offering, offering_hash: "a".repeat(64), family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
   label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
     availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
   fulfillment: { kind: "spaces_native_v1" },
@@ -201,7 +202,7 @@ function render(ui: () => JSX.Element): HTMLElement {
   let dispose = () => {};
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(ui, container);
+    solidRender(() => <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-test" })}>{ui()}</ApplicationSessionProvider>, container);
   });
   disposers.push(() => { dispose(); container.remove(); });
   return container;
@@ -254,6 +255,7 @@ function confirmationKey(client: SessionHandleSalesApiClient, ordinal: number): 
 
 afterEach(() => {
   sessionStorage.removeItem(`spaces-claim:${communityId}`);
+  localStorage.clear();
   for (const dispose of disposers.splice(0)) dispose();
   document.head.replaceChildren();
   document.body.replaceChildren();
@@ -290,23 +292,14 @@ describe("community handle storefront", () => {
     expect(client.post_handleReservations).not.toHaveBeenCalled();
     expect(client.post_handleClaims).not.toHaveBeenCalled();
   });
-  test("restores only an authenticated Spaces pending claim after reload", async () => {
+  test("keeps recovery outside current offerings and never treats the old unscoped locator as account authority", async () => {
     sessionStorage.setItem(`spaces-claim:${communityId}`, "claim-1");
     const client = sessionClient();
-    const original = client.get_handleClaimsClaimId;
-    client.get_handleClaimsClaimId = vi.fn(async (): Promise<GetHandleClaimsClaimIdResponse> => {
-      const prior = await original({ path: { claimId: "claim-1" } });
-      return { ...prior, fulfillment: { kind: "spaces_native_v1" },
-        recipient: { kind: "persona_taproot_v1", network: "mainnet", script_pubkey_hex: "5120" + "a".repeat(64) },
-        handle: { family: "spaces", namespace_root: "yahoo", handle_label: "alice" },
-        display_identifier: "alice@yahoo", state: "issuance_pending", delayed: false, grant: null };
-    });
-    const container = render(() => <HandleStorefront pathSegment="charizard"
-      data={publicState([spacesOffering])} sessionClient={client} />);
-    await vi.waitFor(() => expect(container.querySelector('[data-handle-claim-state="pending"]')).not.toBeNull());
-    expect(container.textContent).toContain("Registration pending");
-    expect(container.textContent).toContain("Only you can see this requested name");
-    sessionStorage.removeItem(`spaces-claim:${communityId}`);
+    const container = render(() => <HandleStorefront pathSegment="charizard" data={publicState([])} sessionClient={client} />);
+    expect(container.querySelector('a[href="/spaces-name-requests"]')).not.toBeNull();
+    expect(client.get_handleClaimsClaimId).not.toHaveBeenCalled();
+    expect(client.get_personas).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(`spaces-claim:${communityId}`)).toBe("claim-1");
   });
   test("requires an explicit persona and public-link confirmation before the real free claim", async () => {
     const client = sessionClient();
