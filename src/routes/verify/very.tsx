@@ -166,7 +166,9 @@ export type VeryVerificationRouteProps = Readonly<{
   /** Opens the Very app link; defaults to assigning the location. */
   openApp?: (uri: string) => void;
 }>;
-export default function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
+// A named function with a separate default export: Storybook's transform
+// rejects `export default function` with JSX under the pinned Solid plugin.
+export function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   const prepareProfile = props.prepareProfile ?? createCommunityProfileAttempt();
   let profileRequest: AbortController | undefined;
   const url = props.url ?? routeUrl();
@@ -546,3 +548,5 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
     </main>
   );
 }
+
+export default VeryVerificationRoute;

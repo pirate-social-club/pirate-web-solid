@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 import { VeryWebClientError, type VeryWebCeremony, type VeryWebPresentation } from "../../api/very.ts";
-import VeryVerificationRoute, { type VeryVerificationRouteProps } from "./very.tsx";
+import { VeryVerificationRoute, type VeryVerificationRouteProps } from "./very.tsx";
 
 const joinUrl = new URL("https://pirate.example/verify/very?community_id=community-harbor&return_to=%2Fc%2Fharbor");
 const noop = () => {};
