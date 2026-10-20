@@ -29,11 +29,12 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
   const sections = () => props.chainSections ?? walletAssetSections(selected()?.address ?? null, props.networkMode ?? "mainnet");
   return <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex gap-2" role="group" aria-label="Wallet networks">
-        <Button size="sm" disabled={!props.onNetworkModeChange} variant={(props.networkMode ?? "mainnet") === "mainnet" ? "secondary" : "ghost"} aria-pressed={(props.networkMode ?? "mainnet") === "mainnet" ? "true" : "false"} onClick={() => props.onNetworkModeChange?.("mainnet")}>Mainnet</Button>
-        <Button size="sm" disabled={!props.onNetworkModeChange} variant={props.networkMode === "testnet" ? "secondary" : "ghost"} aria-pressed={props.networkMode === "testnet" ? "true" : "false"} onClick={() => props.onNetworkModeChange?.("testnet")}>Testnet</Button>
-      </div>
-      <Show when={props.onRefresh}><Button size="sm" variant="outline" disabled={props.balancesLoading || !selected()?.address} onClick={props.onRefresh}>{props.balancesLoading ? "Refreshing…" : "Refresh balances"}</Button></Show>
+      {/* Only hosts that have Testnet pass a handler; production shows no switch. */}
+      <Show when={props.onNetworkModeChange}>{change => <div class="flex gap-2" role="group" aria-label="Wallet networks">
+        <Button size="sm" variant={(props.networkMode ?? "mainnet") === "mainnet" ? "secondary" : "ghost"} aria-pressed={(props.networkMode ?? "mainnet") === "mainnet" ? "true" : "false"} onClick={() => change()("mainnet")}>Mainnet</Button>
+        <Button size="sm" variant={props.networkMode === "testnet" ? "secondary" : "ghost"} aria-pressed={props.networkMode === "testnet" ? "true" : "false"} onClick={() => change()("testnet")}>Testnet</Button>
+      </div>}</Show>
+      <Show when={props.onRefresh}><Button class="ms-auto" size="sm" variant="outline" disabled={props.balancesLoading || !selected()?.address} onClick={props.onRefresh}>{props.balancesLoading ? "Refreshing…" : "Refresh balances"}</Button></Show>
     </div>
     <Show when={props.networkMode === "testnet"}><Type>Testnet tokens have no monetary value.</Type></Show>
     <Show when={selected()} fallback={<Type>Choose a profile to view its wallet.</Type>}>
