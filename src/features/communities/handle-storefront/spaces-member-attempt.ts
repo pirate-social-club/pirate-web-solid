@@ -1,7 +1,7 @@
 import type { PostHandleQuotesResponse, PostHandleReservationsResponse } from "@pirate/api-client";
 import { handleSalesMutationOptions, type SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { createHandleStorefrontAttemptKeys, type HandleStorefrontAttemptKeys, type HandleStorefrontProgressUpdate, type HandleStorefrontResult } from "./handle-storefront.flow.ts";
-import type { SupportedHandleOffering } from "./handle-storefront.model.ts";
+import { isSpacesOfferingAvailable, type SupportedHandleOffering } from "./handle-storefront.model.ts";
 
 type SpacesOffering = Extract<SupportedHandleOffering, { family: "spaces" }>;
 type Quote = Extract<Extract<PostHandleQuotesResponse, { kind: "quoted" }>["quote"], { recipient: unknown }>;
@@ -129,6 +129,7 @@ export async function runSpacesMemberAttempt(input: {
     if (record === null) {
       const offering = input.offering;
       assert(input.attemptKey === undefined && offering !== undefined && input.personaId !== undefined && input.desiredLabel !== undefined);
+      if (!isSpacesOfferingAvailable(offering)) return { kind: "unknown" };
       record = { version: 1, accountId: input.accountId, communityId: input.communityId,
         personaId: input.personaId, desiredLabel: input.desiredLabel, phase: "confirmation",
         keys: createHandleStorefrontAttemptKeys(input.randomUuid), original: {

@@ -8,11 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.122.0 fixes escaped standalone definition lookup. Its response,
-// success and error table bytes are identical to 0.121.0. This digest changes
-// solely to cover profile activity as well; every prior operation is retained.
-// See docs/notifications-client-intake.md for exact successor comparison evidence.
-const expectedDigest = "88168c4e8c90762a32de2a78e54ca41e4e07a53bb884337e70bcc70f86a4204d";
+// Client 0.125.0 adds required current_availability to public Spaces offerings.
+// Of 324 protected rows, only that discovery response changes from 0.124.0.
+// All 108 operations, HNS branches, success statuses and errors are retained.
+// See docs/spaces-discovery-client-intake.md for the exact schema comparison.
+const expectedDigest = "8009db1545daf87e83664e8f0faeaf4fa198ee387fb7166590a88cea5f7c5003";
 
 const operations = [
   "get_meNotifications",

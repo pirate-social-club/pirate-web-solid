@@ -7,6 +7,7 @@ const hash = "a".repeat(64);
 const at = "2026-10-20T00:00:00.000Z";
 // SAFETY: This runner reads only the immutable acquisition fields provided here.
 const offering = { family: "spaces", offering_id: "offering-original", offering_revision: 2, offering_hash: hash,
+  current_availability: { kind: "available" },
   sale_namespace_activation_id: "activation-original", sale_namespace_activation_generation: 3,
   namespace_root: "first-root" } as Extract<SupportedHandleOffering, { family: "spaces" }>;
 function fixture() {
@@ -46,6 +47,28 @@ function fixture() {
 afterEach(() => localStorage.clear());
 
 describe("retained Spaces command owner", () => {
+  test.each([undefined, null, {}, "available", { kind: "temporarily_unavailable" }, { kind: "unknown" },
+    { kind: "available", extra: true }, { kind: ["available"] }])("new malformed/unavailable discovery %j creates no command or storage record", async availability => {
+    const state = fixture(), randomUuid = vi.fn(() => "must-not-be-used"), setItem = vi.fn();
+    // SAFETY: deliberately malformed wire data must fail before any new identity or effect.
+    const candidate = { ...offering, current_availability: availability } as typeof offering;
+    expect(await runSpacesMemberAttempt({ ...state.input, offering: candidate,
+      storage: { getItem: () => null, setItem }, randomUuid })).toEqual({ kind: "unknown" });
+    expect(randomUuid).not.toHaveBeenCalled(); expect(setItem).not.toHaveBeenCalled();
+    for (const method of Object.values(state.client)) expect(method).not.toHaveBeenCalled();
+  });
+
+  test("unavailable discovery cannot replace a retained original command or recipient", async () => {
+    const state = fixture(); state.client.post_handleQuotes.mockRejectedValueOnce(new Error("outcome uncertain"));
+    expect(await runSpacesMemberAttempt(state.input)).toEqual({ kind: "unknown" });
+    const original = state.client.post_handleQuotes.mock.calls[0]?.[0], randomUuid = vi.fn(() => "must-not-be-used");
+    const result = await runSpacesMemberAttempt({ ...state.input, personaId: "different-profile", desiredLabel: "different-name",
+      offering: { ...offering, current_availability: { kind: "temporarily_unavailable" } }, randomUuid });
+    expect(result.kind).toBe("pending"); expect(state.client.post_handleQuotes.mock.calls[1]?.[0]).toEqual(original);
+    expect(randomUuid).not.toHaveBeenCalled();
+    expect(readSpacesMemberAttempt(localStorage, state.key, state.input.accountId, state.input.communityId)?.personaId).toBe("persona-original");
+  });
+
   test.each(["post_handlePersonaLinkConfirmations", "post_handleQuotes", "post_handleReservations", "post_handleClaims"] as const)("lost %s response replays exactly that command after reload", async method => {
     const state = fixture();
     state.client[method].mockRejectedValueOnce(new Error("response lost after possible commit"));

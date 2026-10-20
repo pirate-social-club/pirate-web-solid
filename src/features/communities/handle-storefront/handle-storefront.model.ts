@@ -104,6 +104,15 @@ export function isSupportedHandleOffering(
     && supportedTerms;
 }
 
+/** Discovery is advisory; malformed availability never admits a new Spaces attempt. */
+export function isSpacesOfferingAvailable(offering: SupportedHandleOffering | undefined): boolean {
+  if (offering?.family !== "spaces") return false;
+  const availability: unknown = offering.current_availability;
+  return typeof availability === "object" && availability !== null
+    && !Array.isArray(availability) && Object.keys(availability).length === 1
+    && "kind" in availability && availability.kind === "available";
+}
+
 export function offeringAppliesToLabel(
   offering: SupportedHandleOffering,
   label: string,

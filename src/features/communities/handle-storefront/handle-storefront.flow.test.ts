@@ -170,6 +170,7 @@ function input(apiClient: SessionHandleSalesApiClient) {
 describe("free handle storefront flow", () => {
   test("stops a Spaces claim before reservation when the persona lacks a Taproot recipient", async () => {
     const spaces = { ...offering, family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+      current_availability: { kind: "available" },
       label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
         availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
       fulfillment: { kind: "spaces_native_v1" },

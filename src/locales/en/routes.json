@@ -94,7 +94,8 @@
     "linkRequired": "Confirm the public persona link and try again.",
     "offeringChanged": "The community's active offer changed. Reload and review it before trying again.",
     "retryFresh": "That attempt can no longer be replayed. Try again.",
-    "rateLimited": "Too many attempts. Wait a moment and try again."
+    "rateLimited": "Too many attempts. Wait a moment and try again.",
+    "temporarilyUnavailable": "Temporarily unavailable"
   },
   "settings": {
     "booking": {
