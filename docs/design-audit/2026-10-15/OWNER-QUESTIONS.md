@@ -1,5 +1,26 @@
 # Paper design decisions
 
+## Current Notifications guidance, 2026-10-20
+
+Notifications has shipped with a functional private inbox at `/activity`, reached
+from the desktop sidebar and mobile drawer. The header bell remains hidden, and
+the four mobile tabs are unchanged. Mark read is explicit; opening a notification
+target does not implicitly mark it read. The accepted comment and reply scope is
+recorded in [PR 98](https://github.com/pirate-social-club/pirate-web-solid/pull/98).
+It does not establish Dance qualification-result notifications.
+
+The dated October 16 snapshot below retains its original source observations,
+including the unavailable inbox placeholder and pending reply targeting. Those
+statements describe that snapshot, not the current release. The October 17
+Management and spoken Study decisions recorded at the end remain adopted.
+
+Video discussions use one reply level, with Reply on top-level comments only.
+The October 20 launch direction requires newest-first root comments and
+oldest-first replies on the video post page, retaining View replies, pagination
+and notification targeting. A Home comments sheet is outside this slice.
+Ordering repairs and the remaining desktop and Pixel acceptance are still open;
+the existing one-level controls do not establish acceptance of those cases.
+
 ## Adopted rulings, 2026-10-16
 
 The workspace_owner adopted the rulings below on 2026-10-16. They answer questions 2 to 9 of the original list, which is kept unchanged under [Original questions](#original-questions-2026-10-15). Question 1 was resolved earlier the same day, and that change has shipped.

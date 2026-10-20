@@ -4,8 +4,11 @@
 and the four mobile tabs: Home, Your songs, Wallet and Profile. It composes the
 existing `AppSidebar`, `MobilePersonaFooter`, `PersonaSwitcherSheet` and
 responsive `Modal`. Route loading stays inside the chrome. The sidebar shows
-the selected profile instead of account diagnostics. Notifications are not
-advertised.
+the selected profile instead of account diagnostics. Notifications has its own
+`/activity` destination, reached from the desktop sidebar and mobile drawer. The
+header bell remains hidden, and Notifications does not replace one of the four
+mobile tabs. The private inbox supports explicit Mark read; opening a target
+does not implicitly acknowledge it.
 
 The profile control opens a bottom sheet below the desktop breakpoint and a
 centered dialog on desktop. Selection is an account-private, in-memory
@@ -17,9 +20,9 @@ switch profile, view the selected public profile, open Wallet, and sign out. It
 does not expose editable preferences yet. Navigation from the picker waits for
 its modal layer to close before mounting the destination route.
 
-The sidebar and mobile drawer reach Home, Your songs, Wallet, Your communities
-and Settings. A labelled plus button creates a community within the Communities
-section. Search, Live and legal links are omitted from navigation. The private
+The sidebar and mobile drawer reach Home, Your songs, Wallet, Notifications,
+Your communities and Settings. A labelled plus button in the Communities section
+creates a community. Search, Live and legal links are omitted from navigation. The private
 Wallet lists active persona wallet assignments from api-next. The selected
 persona drives the Wallet Hub token rows and receive sheet. Mainnet and testnet
 views each show Ethereum, DATA Network and Base; ETH and native USDC are listed
