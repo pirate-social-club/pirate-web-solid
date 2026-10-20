@@ -108,3 +108,16 @@ GitHub Actions verifies and packages source with Worker dry runs. Production
 deployment remains separately gated by the manual guarded workflows; source
 acceptance permits no deployment, SQL application, secret mutation, feature
 activation or funded operations. Production remains paused.
+
+## Type checking
+
+`bun run typecheck` uses tsrs for fast local feedback. tsrs is pinned to
+`0.18.0-ts7.1.0-dev.20260929`; update it deliberately after comparing diagnostics
+with the official compiler. Use `bun run typecheck:all` to include the app, E2E and
+Solid UI projects. `verify` and `check:e2e` also use tsrs.
+
+CI additionally requires `bun run typecheck:typescript`, which uses the retained
+official TypeScript dependency across the same projects. The TypeScript package
+also remains available to tools that import its compiler API. Both compilers
+consume the same configuration and strictness settings; tsrs is currently an
+experimental compiler and does not replace the official editor setup.
