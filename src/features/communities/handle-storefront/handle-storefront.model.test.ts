@@ -179,7 +179,7 @@ describe("community handle storefront model", () => {
   test("temporarily unavailable discovery preserves two roots and opaque pagination", async () => {
     const broadScope = broad.label_scope;
     if (broadScope.kind !== "label_rule_v2") throw new Error("broad fixture must use a label rule");
-    const first = { ...broad, family: "spaces", status: "active", current_availability: { kind: "temporarily_unavailable" },
+    const first = { ...broad, family: "spaces", status: "active", allocation: { kind: "first_come_v1" }, current_availability: { kind: "temporarily_unavailable" },
       qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
         policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
       label_scope: { ...broadScope, label_grammar_id: "spaces_subspace_label_v1" },

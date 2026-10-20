@@ -25,12 +25,12 @@ function fixture(initial: SpacesWalletSetupScope | undefined = scope) {
     setup: vi.fn<SpacesTaprootWalletSession["setup"]>(async () => active), dispose: vi.fn(),
   };
   const createSession = vi.fn(async () => session), message = vi.fn(), ready = vi.fn(), busy = vi.fn();
-  const container = document.createElement("div"); document.body.append(container);
+  const container = document.createElement("div"); document.body.appendChild(container);
   let changeScope: (value: SpacesWalletSetupScope | undefined) => void = () => { throw new Error("scope not initialized"); };
   let dispose = () => {};
   createRoot(stop => {
     dispose = stop;
-    const [value, setValue] = createSignal(initial, { ownedWrite: true });
+    const [value, setValue] = createSignal<SpacesWalletSetupScope | undefined>(initial, { ownedWrite: true });
     changeScope = next => { setValue(next); flush(); };
     render(() => <SpacesWalletSetup scope={value} readCsrf={() => "csrf-test"} createSession={createSession}
       onMessage={message} onReady={ready} onBusyChange={busy} />, container);
