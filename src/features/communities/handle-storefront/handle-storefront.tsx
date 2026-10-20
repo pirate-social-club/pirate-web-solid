@@ -1,3 +1,5 @@
+import { useApplicationSession, useApplicationSessionPending } from "../../shell/application-session.tsx";
+import { runSpacesMemberAttempt } from "./spaces-member-attempt.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
 import { createSpacesTaprootWalletSession, type SpacesTaprootWalletSession } from "../../../api/spaces-taproot-wallet-session.ts";
 import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
@@ -307,7 +309,7 @@ function BuyerPanel(props: {
       <CardContent class="p-6"><p role="alert">{copy.unavailable}</p></CardContent>
     </Card>;
   }
-  const [session, setSession] = createSignal<PersonaSessionState>({ kind: "loading" });
+  const [session, setSession] = createSignal<PersonaSessionState>({ kind: "loading" }, { ownedWrite: true });
   const namespaceChoices = projectSaleNamespaceChoices(state.offerings);
   const [selectedActivationId, setSelectedActivationId] = createSignal<string | null>(
     initialSaleNamespaceActivationId(state.offerings, requestedOfferingId),
@@ -315,39 +317,55 @@ function BuyerPanel(props: {
   const [preferredOfferingId, setPreferredOfferingId] = createSignal<string | null>(
     requestedOfferingId ?? null,
   );
-  const [selectedPersonaId, setSelectedPersonaId] = createSignal<string | null>(null);
+  const [selectedPersonaId, setSelectedPersonaId] = createSignal<string | null>(null, { ownedWrite: true });
   const [label, setLabel] = createSignal(initialHandleLabel(
     state.offerings,
     initialLabelValue,
     requestedOfferingId,
   ));
-  const [linkConfirmed, setLinkConfirmed] = createSignal(false);
-  const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" });
+  const [linkConfirmed, setLinkConfirmed] = createSignal(false, { ownedWrite: true });
+  const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" }, { ownedWrite: true });
   const [authOpen, setAuthOpen] = createSignal(false);
-  const [walletEmail, setWalletEmail] = createSignal("");
-  const [walletCode, setWalletCode] = createSignal("");
-  const [walletStep, setWalletStep] = createSignal<"idle" | "sending" | "code" | "working">("idle");
-  const [walletNeeded, setWalletNeeded] = createSignal(false);
+  const [walletEmail, setWalletEmail] = createSignal("", { ownedWrite: true });
+  const [walletCode, setWalletCode] = createSignal("", { ownedWrite: true });
+  const [walletStep, setWalletStep] = createSignal<"idle" | "sending" | "code" | "working">("idle", { ownedWrite: true });
+  const [walletNeeded, setWalletNeeded] = createSignal(false, { ownedWrite: true });
   let walletSession: SpacesTaprootWalletSession | undefined;
+  let walletPersonaId: string | undefined;
   const [hnsServed, setHnsServed] = createSignal(false);
-  const savedClaimKey = `spaces-claim:${state.community.communityId}`;
+  const account = useApplicationSession();
+  const accountPending = useApplicationSessionPending();
+  const accountId = () => { const value = account(); return !accountPending() && typeof value === "object" ? value.userId : undefined; };
+  const needsAccount = state.offerings.some(offering => offering.family === "spaces");
+  let disposed = false;
   let sessionGeneration = 0;
   let activeAttempt: AbortController | undefined;
-  let attemptSignature: string | undefined;
-  let attemptKeys: HandleStorefrontAttemptKeys | undefined;
-  onCleanup(() => walletSession?.dispose());
+  let hnsAttemptSignature: string | undefined;
+  let hnsAttemptKeys: HandleStorefrontAttemptKeys | undefined;
+  onCleanup(() => { disposed = true; walletSession?.dispose(); });
+
+  const walletScope = () => {
+    const generation = sessionGeneration, id = accountId();
+    return () => id !== undefined && !disposed && sessionGeneration === generation && accountId() === id;
+  };
 
   const beginWalletSetup = async () => {
     const email = walletEmail().trim();
     if (email === "" || walletStep() === "working") return;
+    const current = walletScope();
+    if (!current()) return;
     setWalletStep("sending");
     try {
       walletSession?.dispose();
-      walletSession = await createSpacesTaprootWalletSession();
-      await walletSession.sendCode(email);
+      const created = await createSpacesTaprootWalletSession();
+      if (!current()) { created.dispose(); return; }
+      walletSession = created;
+      await created.sendCode(email);
+      if (!current()) return;
       setWalletStep("code");
       setClaimState({ kind: "verification", message: "Enter the code sent to your email to set up the receiving wallet." });
     } catch {
+      if (!current()) return;
       walletSession?.dispose();
       walletSession = undefined;
       setWalletStep("idle");
@@ -357,28 +375,31 @@ function BuyerPanel(props: {
 
   const completeWalletSetup = async () => {
     const session = walletSession;
-    const persona = selectedPersona();
+    const personaId = walletPersonaId;
     const csrf = readCsrf();
-    if (session === undefined || persona === undefined || csrf === undefined || walletCode().trim() === "") return;
+    if (session === undefined || personaId === undefined || csrf === undefined || walletCode().trim() === "") return;
+    const current = walletScope();
+    if (!current()) return;
     setWalletStep("working");
     try {
       await session.loginWithCode(walletEmail().trim(), walletCode().trim());
-      const result = await session.setup(persona.personaId, csrf);
+      if (!current()) return;
+      const result = await session.setup(personaId, csrf);
+      if (!current()) return;
       if (result.kind === "active") {
         setWalletNeeded(false);
-        setClaimState({ kind: "verification", message: "Receiving wallet ready. Select Claim again to request your name." });
+        setClaimState({ kind: "verification", message: "Receiving wallet ready. Your original request is retained. Check your Spaces name requests before continuing." });
       } else if (result.kind === "ambiguous") {
         setClaimState({ kind: "error", message: "Wallet setup needs review. No additional wallet will be created automatically." });
       } else {
         setClaimState({ kind: "verification", message: "Wallet setup is pending. Check again later; no additional wallet will be created automatically." });
       }
     } catch {
+      if (!current()) return;
       setClaimState({ kind: "error", message: "Wallet setup could not be confirmed. Try again later; the service will check the existing attempt before creating anything." });
     } finally {
       session.dispose();
-      walletSession = undefined;
-      setWalletCode("");
-      setWalletStep("idle");
+      if (current()) { walletSession = undefined; setWalletCode(""); setWalletStep("idle"); }
     }
   };
 
@@ -427,6 +448,11 @@ function BuyerPanel(props: {
   const loadPersonas = async () => {
     const generation = ++sessionGeneration;
     setSession({ kind: "loading" });
+    if (needsAccount && accountId() === undefined) {
+      if (account() === "anonymous") setSession({ kind: "anonymous" });
+      else if (account() === "failed") setSession({ kind: "error" });
+      return;
+    }
     try {
       const response = await client.get_personas(undefined);
       if (generation !== sessionGeneration) return;
@@ -436,41 +462,7 @@ function BuyerPanel(props: {
         setSelectedPersonaId(null);
         setLinkConfirmed(false);
       }
-      if (typeof sessionStorage !== "undefined") {
-        const savedClaimId = sessionStorage.getItem(savedClaimKey);
-        if (savedClaimId !== null && /^[a-zA-Z0-9_-]{1,128}$/u.test(savedClaimId)) {
-          try {
-            const saved = await client.get_handleClaimsClaimId({ path: { claimId: savedClaimId } },
-              { credentials: "same-origin" });
-            if (generation !== sessionGeneration) return;
-            const matches = saved.handle.family === "spaces"
-              && personas.some((persona) => persona.personaId === saved.owner_persona_id)
-              && state.offerings.some((item) => item.family === "spaces"
-                && item.offering_id === saved.offering_id
-                && item.sale_namespace_activation_id === saved.sale_namespace_activation_id);
-            if (matches) {
-              setSelectedPersonaId(saved.owner_persona_id);
-              setSelectedActivationId(saved.sale_namespace_activation_id);
-              setLabel(saved.handle.handle_label);
-              if (saved.state === "issued" && saved.grant?.status === "active") {
-                setClaimState({ kind: "issued", identifier: saved.display_identifier,
-                  persona: personas.find((persona) => persona.personaId === saved.owner_persona_id)?.displayName ?? "your persona" });
-                sessionStorage.removeItem(savedClaimKey);
-              } else if (saved.state === "issuance_pending") {
-                setClaimState({ kind: "pending", claimId: saved.claim_id });
-              } else {
-                sessionStorage.removeItem(savedClaimKey);
-              }
-            } else {
-              sessionStorage.removeItem(savedClaimKey);
-            }
-          } catch (error) {
-            if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
-              sessionStorage.removeItem(savedClaimKey);
-            }
-          }
-        }
-      }
+
     } catch (error: unknown) {
       if (generation !== sessionGeneration) return;
       setSession(error instanceof ApiClientError && error.status === 401
@@ -488,11 +480,16 @@ function BuyerPanel(props: {
   });
 
   createEffect(
-    () => isHnsServedOrigin(state),
-    served => {
+    () => ({ served: isHnsServedOrigin(state), account: account(), pending: accountPending() }),
+    ({ served, pending }) => {
+      sessionGeneration++; activeAttempt?.abort(); walletSession?.dispose(); walletSession = undefined; walletPersonaId = undefined;
+      setSession({ kind: "loading" }); setSelectedPersonaId(null); setLinkConfirmed(false);
+      setClaimState({ kind: "idle" }); setWalletNeeded(false); setWalletStep("idle"); setWalletCode(""); setWalletEmail("");
+      const expected = sessionGeneration;
       void Promise.resolve().then(() => {
+        if (disposed || expected !== sessionGeneration) return;
         setHnsServed(served);
-        return served ? undefined : loadPersonas();
+        return served || pending ? undefined : loadPersonas();
       });
     },
   );
@@ -546,43 +543,48 @@ function BuyerPanel(props: {
     }
 
     const signature = `${offering.offering_id}\u0000${persona.personaId}\u0000${desiredLabel}`;
-    if (attemptKeys === undefined || attemptSignature !== signature) {
-      attemptKeys = createHandleStorefrontAttemptKeys();
-      attemptSignature = signature;
+    if (offering.family === "hns" && (hnsAttemptKeys === undefined || hnsAttemptSignature !== signature)) {
+      hnsAttemptKeys = createHandleStorefrontAttemptKeys();
+      hnsAttemptSignature = signature;
     }
     activeAttempt?.abort();
     const controller = new AbortController();
     activeAttempt = controller;
     try {
-      const result = await runFreeHandleClaim({
-        client,
-        requestOptions: handleSalesMutationOptions(csrf, { signal: controller.signal }),
-        communityId: state.community.communityId,
-        offering,
-        personaId: persona.personaId,
-        desiredLabel,
-        linkingConfirmed: true,
-        keys: attemptKeys,
-        onProgress: update => setClaimState({ kind: "progress", ...update }),
-      });
+      const generation = sessionGeneration;
+      const id = accountId();
+      const current = () => !disposed && generation === sessionGeneration && !controller.signal.aborted
+        && (offering.family !== "spaces" || (id !== undefined && accountId() === id));
+      const onProgress = (update: import("./handle-storefront.flow.ts").HandleStorefrontProgressUpdate) => {
+        if (current()) setClaimState({ kind: "progress", ...update });
+      };
+      const result = offering.family === "spaces"
+        ? id === undefined || typeof localStorage === "undefined" ? { kind: "unknown" as const }
+          : await runSpacesMemberAttempt({ client, storage: localStorage, accountId: id, communityId: state.community.communityId,
+            offering, personaId: persona.personaId, desiredLabel, csrf, signal: controller.signal, current, onProgress })
+        : await runFreeHandleClaim({ client, requestOptions: handleSalesMutationOptions(csrf, { signal: controller.signal }),
+          communityId: state.community.communityId, offering, personaId: persona.personaId, desiredLabel,
+          linkingConfirmed: true, keys: hnsAttemptKeys ?? createHandleStorefrontAttemptKeys(), onProgress });
+      if (!current()) return;
+      if (result.kind === "unknown") {
+        setClaimState({ kind: "error", message: "Your earlier request outcome is unknown. Open Spaces name requests to check or retry the original request safely." });
+        return;
+      }
       if (result.kind === "issued") {
-        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.removeItem(savedClaimKey);
         setClaimState({
           kind: "issued",
           identifier: result.grant.display_identifier,
-          persona: persona.displayName,
+          persona: offering.family === "spaces" ? result.claim.owner_persona_id : persona.displayName,
         });
       } else if (result.kind === "pending") {
-        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.setItem(savedClaimKey, result.claim.claim_id);
         setClaimState({ kind: "pending", claimId: offering.family === "spaces" ? result.claim.claim_id : undefined });
       } else if (result.kind === "recipient_wallet_required") {
+        walletPersonaId = "originalPersonaId" in result && typeof result.originalPersonaId === "string" ? result.originalPersonaId : undefined;
         setWalletNeeded(true);
-        attemptKeys = undefined;
-        attemptSignature = undefined;
+        hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
         setClaimState({ kind: "verification", message: "This persona needs a Bitcoin Taproot wallet before it can receive a Spaces name." });
       } else if (result.kind === "nationality_required") {
-        attemptKeys = undefined;
-        attemptSignature = undefined;
+        hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
         const verificationClient = createSessionApiClient();
         const verified = await requestDocumentVerification({
           title: "Verify nationality for this handle", signal: controller.signal,
@@ -595,12 +597,10 @@ function BuyerPanel(props: {
           ? "Nationality verified. Select Claim again to get a fresh quote for this handle."
           : "Verification was cancelled. Your handle and persona choices are unchanged." });
       } else if (result.kind === "eligibility_required") {
-        attemptKeys = undefined;
-        attemptSignature = undefined;
+        hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
         setClaimState({ kind: "error", message: copy.eligibility });
       } else {
-        attemptKeys = undefined;
-        attemptSignature = undefined;
+        hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
         setClaimState({ kind: "error", message: blockedMessage(result.reason, copy) });
       }
     } catch (error: unknown) {
@@ -616,8 +616,7 @@ function BuyerPanel(props: {
         setPreferredOfferingId(effective?.offering_id ?? null);
       }
       if (shouldRotateAttemptKeys(error)) {
-        attemptKeys = undefined;
-        attemptSignature = undefined;
+        hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
       }
       const message = error instanceof HandleStorefrontProtocolError
         ? copy.unavailable
@@ -924,6 +923,7 @@ function SuccessState(props: {
       <Type as="p" variant="body" class="mt-2 text-muted-foreground">{namespaces.some((item) => item.family === "spaces")
         ? "Choose a persona with a Bitcoin Taproot wallet. A requested name stays private until registration is final." : copy.intro}</Type>
     </div>
+    <a class="underline" href="/spaces-name-requests">Check earlier Spaces name requests</a>
     <Show when={state.offerings.length > 0} fallback={
       <Card><CardContent class="p-6"><p role="status">{copy.noOfferings}</p></CardContent></Card>
     }>

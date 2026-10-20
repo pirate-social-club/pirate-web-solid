@@ -1,0 +1,9 @@
+# Spaces member readback client intake
+
+The standalone app consumes the genuine dependency-free @pirate/api-client0.124.0 archive, SHA2561884cf6632f2b4e80519876dcabd6021cd1ee8f5738636165adcb83193abb1ab. API PR628 normally merged as d27aaa02869954f58edbc5d1dc686c565119644f, tree627d661fc10d46a40d3d4a57751fb2008fc361f1, exactly matching independently reviewed source79ee2151 and the PR test tree. Full local check/test, all12hosted CI jobs and required check/postgres17/secret-boundary plus dependency audit pass. Native readback cases pass4tests49assertions with verified cleanup.
+
+The new GET /users/me/spaces-handle-requests returns account-private retained quote/reservation/claim actions and explicitly partial refusals. Cursor scope binds the actor and filters and preserves native microseconds. Original community, root/network, offering, persona and recipient remain attached to the retained objects. Existing methods and earlier vendor artifacts are preserved.
+
+Readback establishes no fresh-submission permission. Recovery reuses complete original account-bound commands and keys; missing keys, unlocated effects and partial or empty reads remain unknown with a safe check action. No replacement-admission fence, migration or generic journal framework is a ratified v1 requirement. Private results invalidate during account/session changes and pending revalidation. Browser correlation intent is never authentication or ownership.
+
+This source intake adds no legacy/workspace dependency, provider action, wallet creation, signing, chain/fund movement, credential/configuration change or runtime activation. Mainnet Claim/Send, Dance, broad Paper and Spaces runtime holds remain. The production API has not been released from this intake; consumer tests and later runtime/device acceptance are separate.
