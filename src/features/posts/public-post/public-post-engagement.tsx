@@ -12,6 +12,8 @@ import { PostEngagement, type PostEngagementPost } from "../post-engagement/post
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api";
 import type { CommentThreadReader } from "../post-engagement/comment-thread-api";
 import type { PendingEngagementStorage } from "../post-engagement/post-engagement-pending";
+import type { CommentNavigation, CommentNavigationReader } from "../../notifications/comment-navigation-api.ts";
+import { useTargetedPersona } from "../../notifications/targeted-persona-context.ts";
 
 export interface PublicPostEngagementDependencies {
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -19,6 +21,7 @@ export interface PublicPostEngagementDependencies {
   readonly transport?: PostEngagementTransport;
   readonly readComments?: CommentThreadReader;
   readonly pendingStorage?: PendingEngagementStorage;
+  readonly readTarget?: CommentNavigationReader;
 }
 
 /** Public content renders immediately; private controls wait for the viewer's own vote. */
@@ -33,9 +36,11 @@ export function PublicPostEngagement(props: {
   presentation?: "sheet" | "inline";
   /** Inline only: a signed-in visitor who is not a member joins here to comment. */
   joinHref?: string;
+  target?: CommentNavigation;
   children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
 }) {
   const inline = () => props.presentation === "inline";
+  const targetedPersona = useTargetedPersona();
   const [session, setSession] = createSignal<AuthenticatedSession>();
   const [anonymous, setAnonymous] = createSignal(false);
   const [issue, setIssue] = createSignal(false);
@@ -60,21 +65,23 @@ export function PublicPostEngagement(props: {
       if (!active) return;
       if (resolved === "anonymous") { setAnonymous(true); return; }
       setSession(resolved);
-      setPersonaId(defaultOperationPersonaId(communityOperationPersonas(resolved.personas, props.communityId)));
+      const available = communityOperationPersonas(resolved.personas, props.communityId), selected = targetedPersona?.selected();
+      setPersonaId(selected && available.some(persona => persona.personaId === selected) ? selected : defaultOperationPersonaId(available));
       await readVote();
     }, () => { if (active) setIssue(true); });
   });
   return (
     <>
-      <Show when={session() && vote()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
+      <Show when={session()} fallback={props.children(<EngagementControls score={(props.post.upvoteCount ?? 0) - (props.post.downvoteCount ?? 0)} commentCount={props.post.commentCount ?? 0} busy={!anonymous()} onVote={requestGlobalSignIn} onComment={requestGlobalSignIn} />)}>
         <Show when={session()}>{viewer => (
-          <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()!.value }} principalId={viewer().userId}
+          <PostEngagement canReportPost={props.canReportPost} post={{ ...props.post, viewerVote: vote()?.value ?? null }} votesReady={vote() !== undefined} principalId={viewer().userId}
             personaId={personaId()} communityId={props.communityId} transport={props.dependencies?.transport}
             readComments={props.dependencies?.readComments} pendingStorage={props.dependencies?.pendingStorage}
             presentation={props.presentation} joinHref={props.joinHref}
+            target={props.target} readTarget={props.dependencies?.readTarget}
             // The comment box opens with who the viewer comments as; with
             // several profiles here, tapping it opens the same picker.
-            composerIdentity={<OperationPersonaControl appearance="avatar" class="shrink-0" label="Commenting as" placeholder="Choose a profile to comment as" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={setPersonaId} />}>
+            composerIdentity={<OperationPersonaControl appearance="avatar" class="shrink-0" label="Commenting as" placeholder="Choose a profile to comment as" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={id => { setPersonaId(id); targetedPersona?.select(id); }} />}>
             {(controls, menuActions) => props.children(controls, menuActions)}
           </PostEngagement>
         )}</Show>

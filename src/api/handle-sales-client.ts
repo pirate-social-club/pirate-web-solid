@@ -32,6 +32,11 @@ export type SessionSpacesTaprootApiClient = Pick<
   | "post_personasPersonaIdWalletsSpacesTaprootConfirm"
 >;
 
+export type SessionSpacesMemberRecoveryApiClient = Pick<
+  PirateApiClient,
+  "get_usersMeSpacesHandleRequests" | "get_handleClaimsClaimId"
+>;
+
 export interface HandleSalesClientFactoryOptions {
   readonly origin?: string | URL;
   readonly fetchImpl?: ApiFetch;
@@ -88,6 +93,12 @@ export function createSessionHandleSalesClient(
 export function createSessionSpacesTaprootClient(
   options: HandleSalesClientFactoryOptions = {},
 ): SessionSpacesTaprootApiClient {
+  return createHandleSalesClient(options, { credentials: "same-origin" });
+}
+
+export function createSessionSpacesMemberRecoveryClient(
+  options: HandleSalesClientFactoryOptions = {},
+): SessionSpacesMemberRecoveryApiClient {
   return createHandleSalesClient(options, { credentials: "same-origin" });
 }
 

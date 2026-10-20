@@ -11,6 +11,10 @@ const clients = [
     dependency: "@pirate/api-client",
     provenance: "vendor/api-client-provenance.json",
     expectedScope: [
+      "get_meNotifications",
+      "post_meNotificationsNotificationIdRead",
+      "get_commentsCommentIdLocation",
+      "get_postsPostIdComments",
       "post_communitiesCommunityIdSpacesRouteAttachments",
       "get_communitiesCommunityIdSpacesRouteAttachmentsCurrent",
       "post_communitiesCommunityIdSpacesRouteAttachmentsAttachmentIntentIdProve",
@@ -94,6 +98,9 @@ const clients = [
       "post_communitiesCommunityIdHnsTxtAttachmentsAttachmentIntentIdCheck",
       "get_usersMeCommunityMemberships",
       "post_communitiesCommunityIdActivityPersonasPrepare",
+      "get_communitiesCommunityIdSpacesOwnershipRoots",
+      "get_communitiesCommunityIdSpacesOwnership",
+      "post_communitiesCommunityIdSpacesOwnershipResume",
     ],
   },
 ];

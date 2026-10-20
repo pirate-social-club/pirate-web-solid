@@ -492,9 +492,9 @@ async function publishSong(page, community, { lyrics }) {
     assert(!review.includes("Instrumental"),
       `reviewed lyrics never reached the submission: ${review.slice(0, 300)}`);
   }
-  assert(await form.getByRole("button", { name: "Post song" }).count() > 0,
+  assert(await form.getByRole("button", { name: "Post", exact: true }).count() > 0,
     `the review step was never reached: ${(await form.innerText()).slice(0, 300)}`);
-  await form.getByRole("button", { name: "Post song" }).click();
+  await form.getByRole("button", { name: "Post", exact: true }).click();
   try {
     // The steps end when the server accepts the song. Paper ruling 14: the
     // author stays on the community page and sees the song's one centred

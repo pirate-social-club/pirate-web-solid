@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.120.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.120.0-4a3acbc9.tgz",
-  "sha256": "4a3acbc91610120e34deb5ed8f4e5da059baa1286a481b3a541ec546466469d0",
-  "source": "api-next-contracts@40d2c1d2756381fbe6c8d6d18b5169a503e911f4f81e07109e194e1c79c8d119",
-  "openapiSha256": "40d2c1d2756381fbe6c8d6d18b5169a503e911f4f81e07109e194e1c79c8d119",
-  "clientSha256": "290a8e5c134f5110af6b0c1fdaee44f158be38659a70dd47ea2d2b6a1e09c9d7",
+  "version": "0.124.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.124.0-1884cf66.tgz",
+  "sha256": "1884cf6632f2b4e80519876dcabd6021cd1ee8f5738636165adcb83193abb1ab",
+  "source": "api-next-contracts@586f8f40f7888c2f808c5a115f783aee4f67365df77f6e03a4f1ac646bc5e8df",
+  "openapiSha256": "586f8f40f7888c2f808c5a115f783aee4f67365df77f6e03a4f1ac646bc5e8df",
+  "clientSha256": "df32eaec9b1f54cf710cd84fb834a9fd5a47321374784ebc8c25d5d1ec865e32",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -133,6 +133,17 @@
     "get_communitiesCommunityIdKaraokeSessionsSessionIdAttemptsAttemptIdCompletion",
     "get_communitiesCommunityIdPostsPostIdRewardsProgress",
     "get_communitiesCommunityIdRewardsProgress",
-    "get_communitiesCommunityIdRewardsPresentationPersona"
-  ]
+    "get_communitiesCommunityIdRewardsPresentationPersona",
+    "get_commentsCommentIdLocation",
+    "get_postsPostIdComments",
+    "get_meNotifications",
+    "post_meNotificationsNotificationIdRead",
+    "get_communitiesCommunityIdSpacesOwnershipRoots",
+    "get_communitiesCommunityIdSpacesOwnership",
+    "post_communitiesCommunityIdSpacesOwnershipResume",
+    "get_usersMeSpacesHandleRequests"
+  ],
+  "validatedSourceCommit": "d27aaa02869954f58edbc5d1dc686c565119644f",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/628",
+  "intakeStatus": "Genuine client0.124 artifact1884cf66 is accepted from API PR628/main d27aaa02/tree627d661f with independent source/native review and full local/required hosted gates. This intake adds account-private Spaces retained-request readback. Consumer implementation and live acceptance remain pending. It changes no financial/mainnet/Dance/Spaces runtime activation or held authority."
 }

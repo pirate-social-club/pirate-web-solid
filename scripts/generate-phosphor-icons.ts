@@ -19,6 +19,7 @@ const iconSpecs: readonly IconSpec[] = [
   { component: "IconGearSix", asset: "gear-six" },
   { component: "IconFileText", asset: "file-text" },
   { component: "IconImage", asset: "image" },
+  { component: "IconCamera", asset: "camera" },
   { component: "IconMaskHappy", asset: "mask-happy" },
   { component: "IconMicrophone", asset: "microphone" },
   { component: "IconTrash", asset: "trash" },

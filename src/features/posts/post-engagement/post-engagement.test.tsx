@@ -146,7 +146,7 @@ describe("PostEngagement", () => {
     await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));
     button("View replies").click();
     await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted reply"));
-    expect(readComments).toHaveBeenCalledWith({postId:"post-1",parentId:"root"});
+    expect(readComments).toHaveBeenCalledWith({postId:"post-1",parentId:"root",signal:expect.any(AbortSignal)});
     for(const dispose of disposers.splice(0)) dispose();
     mount();button("Comments (2)").click();
     await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));

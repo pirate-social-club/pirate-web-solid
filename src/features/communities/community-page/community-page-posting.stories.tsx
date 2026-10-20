@@ -438,11 +438,11 @@ async function postSongInsideTheShell(canvasElement: HTMLElement) {
   const canvas = await openSongInMain(canvasElement);
   const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
   for (const step of ["Royalties", "Review"]) {
-    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
     await canvas.findByRole("heading", { name: step });
   }
-  await userEvent.click(await waitFor(() => footer().getByRole("button", { name: "Post song" })));
+  await userEvent.click(await waitFor(() => footer().getByRole("button", { name: "Post" })));
   const posted = await waitFor(() => {
     const found = canvasElement.querySelector<HTMLElement>("[data-posted-song]");
     expect(found).not.toBeNull();
@@ -603,8 +603,8 @@ export const SongComposerInMainOnMobile: Story = {
     const canvas = await openSongInMain(canvasElement, false);
     const audio = canvas.getByRole("button", { name: "Remove audio" });
     const bar = await expectFlatPhoneComposer(canvasElement, audio);
-    const footer = await expectSongPhoneChrome(canvasElement, "Song", "Continue");
-    await expect(canvas.getAllByRole("button", { name: "Continue" })).toHaveLength(1);
+    const footer = await expectSongPhoneChrome(canvasElement, "Song", "Next");
+    await expect(canvas.getAllByRole("button", { name: "Next" })).toHaveLength(1);
     const lyrics = canvas.getByRole("textbox", { name: /Lyrics/u });
     await userEvent.click(lyrics);
     await userEvent.paste(longPost);
@@ -619,8 +619,8 @@ export const SongStepsReturnToFeed: Story = {
   render: args => <SongPostingPreview {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = await openSongInMain(canvasElement);
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
     const royalties = await canvas.findByRole("heading", { name: "Royalties" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
     // Paper ruling 11: the way back is the arrow beside the step's name; there
@@ -630,10 +630,10 @@ export const SongStepsReturnToFeed: Story = {
     await expect(back.getBoundingClientRect().right).toBeLessThanOrEqual(royalties.getBoundingClientRect().left);
     await expect(canvas.getAllByRole("button", { name: "Back" })).toHaveLength(1);
     await expect(canvas.queryByRole("button", { name: "Cancel" })).toBeNull();
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
     await canvas.findByRole("heading", { name: "Review" });
     await expect(canvas.getByRole("form", { name: "Post a song" }).closest("main")).not.toBeNull();
-    await userEvent.click(canvas.getByRole("button", { name: "Post song" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Post" }));
     await expectPostedSongThenFeed(canvasElement);
   },
 };
@@ -647,19 +647,19 @@ export const SongStepsReturnToFeedOnMobile: Story = {
     const canvas = await openSongInMain(canvasElement);
     const bar = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-sticky-header]")!);
     const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
-    await expectSongPhoneChrome(canvasElement, "Song", "Continue");
-    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await expectSongPhoneChrome(canvasElement, "Song", "Next");
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
     // Royalties: back on the left beside the step's name, forward below.
     await waitFor(() => expect(bar().getByRole("button", { name: "Back" })).toBeVisible());
-    await expectSongPhoneChrome(canvasElement, "Royalties", "Continue");
+    await expectSongPhoneChrome(canvasElement, "Royalties", "Next");
     await expect(canvas.getByText(/earnings/iu)).toBeVisible();
-    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
-    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
     // Review: the footer's button publishes.
-    await expectSongPhoneChrome(canvasElement, "Review", "Post song");
-    const publish = await waitFor(() => footer().getByRole("button", { name: "Post song" }));
-    await expect(canvas.getAllByRole("button", { name: "Post song" })).toHaveLength(1);
+    await expectSongPhoneChrome(canvasElement, "Review", "Post");
+    const publish = await waitFor(() => footer().getByRole("button", { name: "Post" }));
+    await expect(canvas.getAllByRole("button", { name: "Post" })).toHaveLength(1);
     await userEvent.click(publish);
     await expectPostedSongThenFeed(canvasElement);
   },
@@ -680,9 +680,9 @@ export const MobileBackRespectsTheSongGuard: Story = {
     const view = canvasElement.ownerDocument.defaultView!;
     const canvas = await openSongInMain(canvasElement);
     const footer = () => within(canvasElement.querySelector<HTMLElement>("[data-composer-footer]")!);
-    await waitFor(() => expect(footer().getByRole("button", { name: "Continue" })).toBeEnabled());
+    await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
     // Continue starts the upload, which the stand-in server holds open.
-    await userEvent.click(footer().getByRole("button", { name: "Continue" }));
+    await userEvent.click(footer().getByRole("button", { name: "Next" }));
     await waitFor(() => expect(canvasElement.querySelector("[data-media-composer-state='uploading']")).not.toBeNull());
     view.history.back();
     await waitFor(() => expect(canvas.getByText(/unresolved command/iu)).toBeVisible());
@@ -1096,7 +1096,7 @@ export const SongUploadProgress: Story = {
       new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
     await canvas.findByRole("heading", { name: "Song" });
     await selectSongStems(canvas);
-    const next = canvas.getByRole("button", { name: "Continue" });
+    const next = canvas.getByRole("button", { name: "Next" });
     await waitFor(() => expect(next).toBeEnabled());
     await userEvent.click(next);
     const progress = await canvas.findByRole("progressbar", { name: "Audio upload" });
@@ -1116,7 +1116,7 @@ async function beginHeldUpload(canvasElement: HTMLElement) {
   const canvas = within(canvasElement);
   await userEvent.upload(canvas.getByLabelText("Choose a song file"), new File([new Uint8Array(100)], "midnight-waves.mp3", { type: "audio/mpeg" }));
   await selectSongStems(canvas);
-  const next = await canvas.findByRole("button", { name: "Continue" });
+  const next = await canvas.findByRole("button", { name: "Next" });
   await waitFor(() => expect(next).toBeEnabled());
   await userEvent.click(next);
   await canvas.findByRole("progressbar", { name: "Audio upload" });

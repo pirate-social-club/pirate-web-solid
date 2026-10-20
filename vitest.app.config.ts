@@ -27,6 +27,8 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API, and
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
+      "src/features/notifications/notifications.test.tsx",
+      "src/features/notifications/comment-navigation.test.tsx",
       "src/features/activity/activity-api.test.ts",
       "src/features/activity/activity-private-api.test.ts",
       "src/features/activity/activity-current.test.tsx",
@@ -99,6 +101,9 @@ export default defineConfig({
       "src/features/communities/handle-storefront/handle-storefront.flow.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.model.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",
+      "src/features/communities/handle-storefront/spaces-member-recovery.test.ts",
+      "src/features/communities/handle-storefront/spaces-member-attempt.test.ts",
+      "src/features/communities/handle-storefront/spaces-member-requests.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status.test.ts",
       "src/features/communities/handle-storefront/spaces-claim-status-hydration.test.tsx",
       "src/features/karaoke/capture/karaoke-playback-clock.test.ts",

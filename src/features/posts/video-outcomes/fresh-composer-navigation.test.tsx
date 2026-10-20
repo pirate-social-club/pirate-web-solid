@@ -60,5 +60,5 @@ test.each([
     expect(readSong.mock.calls[0]?.[0]).toEqual({ kind: "post", postId: "frozen-post", communityId: "frozen-community" });
   }
   expect(container.querySelector("[aria-label='Record video']")).toBeNull();
-  expect([...container.querySelectorAll("button")].some(button => button.textContent === "Publish video")).toBe(false);
+  expect([...container.querySelectorAll("button")].some(button => button.textContent === "Post")).toBe(false);
 });

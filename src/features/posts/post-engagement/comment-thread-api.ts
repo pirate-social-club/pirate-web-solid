@@ -6,6 +6,7 @@ export type CommentThreadReader = (input: {
   postId: string;
   parentId?: string;
   cursor?: string;
+  signal?: AbortSignal;
 }) => Promise<CommentThreadPage>;
 /** Browser client construction is deferred until the user opens a thread. */
 export function createCommentThreadReader(
@@ -18,7 +19,7 @@ export function createCommentThreadReader(
         ...(input.parentId === undefined ? {} : { parent_comment_id: input.parentId }),
         ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
       },
-    });
+    }, { signal: input.signal });
 }
 
 /** One published-comment projection for persisted threads and profile activity. */

@@ -1,10 +1,11 @@
 import { ApiClientError, type GetHandleClaimsClaimIdResponse } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
-import { Show, createEffect, createMemo, createSignal, sharedConfig } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup, sharedConfig } from "solid-js";
 
 import { createSessionHandleSalesClient, type SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { Button, Card, CardContent, CardHeader } from "../../../design-system.ts";
 import { SpacesClaimStateCard } from "./spaces-claim-state.tsx";
+import { useApplicationSession, useApplicationSessionPending } from "../../shell/application-session.tsx";
 
 type SpacesClaim = Extract<GetHandleClaimsClaimIdResponse, { readonly handle: { readonly family: "spaces" } }>;
 type ClaimStatus =
@@ -21,38 +22,55 @@ export default function SpacesClaimStatus(props: {
   readonly communityPath: string;
   readonly client?: Pick<SessionHandleSalesApiClient, "get_handleClaimsClaimId">;
 }) {
-  const [status, setStatus] = createSignal<ClaimStatus>({ kind: "loading" });
+  const [status, setStatus] = createSignal<ClaimStatus>({ kind: "loading" }, { ownedWrite: true });
+  const account = useApplicationSession();
+  const pending = useApplicationSessionPending();
+  const accountId = () => { const session = account(); return !pending() && typeof session === "object" ? session.userId : undefined; };
   const ready = createMemo(() => {
     const current = status();
-    return current.kind === "ready" ? current.claim : undefined;
+    return current.kind === "ready" && accountId() === presentedAccount && current.claim.claim_id === props.claimId ? current.claim : undefined;
   });
   const orderPath = `${props.communityPath.replace(/\/names$/u, "/name-order")}/${encodeURIComponent(props.claimId)}`;
   const signInHref = `/auth/sign-in?return_to=${encodeURIComponent(orderPath)}`;
   let request = 0;
+  let presentedAccount: string | undefined;
+  let disposed = false;
+  let active: AbortController | undefined;
   const refresh = async () => {
     const current = ++request;
+    active?.abort();
+    const id = accountId();
+    const claimId = props.claimId;
+    if (disposed || id === undefined) return;
+    const controller = new AbortController(); active = controller;
+    const alive = () => !disposed && request === current && !controller.signal.aborted && accountId() === id && props.claimId === claimId;
     setStatus({ kind: "loading" });
     try {
       const client = props.client ?? createSessionHandleSalesClient();
-      const claim = await client.get_handleClaimsClaimId({ path: { claimId: props.claimId } });
-      if (request !== current) return;
-      if (isSpacesClaim(claim)) setStatus({ kind: "ready", claim });
+      const claim = await client.get_handleClaimsClaimId({ path: { claimId } }, { credentials: "same-origin", signal: controller.signal });
+      if (!alive()) return;
+      presentedAccount = id;
+      if (isSpacesClaim(claim) && claim.claim_id === claimId) setStatus({ kind: "ready", claim });
       else setStatus({ kind: "not-found" });
     } catch (error) {
-      if (request !== current) return;
+      if (!alive()) return;
       setStatus({ kind: error instanceof ApiClientError && error.status === 401 ? "signed-out"
         : error instanceof ApiClientError && error.status === 404 ? "not-found" : "error" });
     }
   };
   createEffect(
-    () => props.claimId,
-    () => {
+    () => ({ claimId: props.claimId, account: account(), pending: pending() }),
+    ({ account: session }) => {
+      request++; active?.abort(); presentedAccount = undefined;
+      setStatus({ kind: session === "anonymous" ? "signed-out" : session === "failed" ? "error" : "loading" });
+      const expected = request;
       // Keep the server's loading shell intact until its DOM is hydrated.
-      const load = () => queueMicrotask(() => { void refresh(); });
+      const load = () => queueMicrotask(() => { if (!disposed && request === expected) void refresh(); });
       if (sharedConfig.onHydrationEnd) sharedConfig.onHydrationEnd(load);
       else load();
     },
   );
+  onCleanup(() => { disposed = true; request++; active?.abort(); });
   return <main class="mx-auto max-w-2xl p-4" data-spaces-claim-order>
     <Title>Spaces name registration</Title>
     <Card>
@@ -68,7 +86,8 @@ export default function SpacesClaimStatus(props: {
         <Show when={ready()}>
           {claim => <SpacesClaimStateCard claim={claim()} />}
         </Show>
-        <Button variant="outline" onClick={() => void refresh()}>Refresh status</Button>
+        <Button variant="outline" disabled={accountId() === undefined} onClick={() => void refresh()}>Refresh status</Button>
+        <a href="/spaces-name-requests" class="underline">All Spaces name requests</a>
         <a href={props.communityPath} class="underline">Back to community names</a>
       </CardContent>
     </Card>

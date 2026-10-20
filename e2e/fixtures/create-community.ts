@@ -11,7 +11,9 @@ export async function createCommunity(page: Page, marker: string): Promise<strin
   await page.goto("/communities/new");
   await expect(page.locator("[data-creation-state='ready']")).toBeVisible();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(marker);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("heading", { name: "Join policy", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("textbox", { name: "Your name", exact: true }).fill("Community test creator");
   const [created] = await Promise.all([
     page.waitForResponse(response => response.request().method() === "POST"

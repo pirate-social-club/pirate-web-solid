@@ -318,7 +318,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           onClick={() => props.onPublish?.()}
           size="lg"
         >
-          {props.submitLabel ?? "Publish video"}
+          {props.submitLabel ?? "Post"}
         </Button>
       )}
       fullViewport

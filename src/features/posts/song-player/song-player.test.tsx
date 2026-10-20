@@ -17,13 +17,14 @@ function mount(
   }>,
   now: () => number = () => 1000000,
   postId = "song",
+  cacheAccess?: boolean,
 ) {
   const node = document.createElement("div");
   document.body.appendChild(node);
   createRoot((dispose) => {
     disposers.push(dispose);
     solidRender(
-      () => <SongPlayer postId={postId} title="Original song" readAccess={readAccess} now={now} />,
+      () => <SongPlayer postId={postId} title="Original song" readAccess={readAccess} now={now} cacheAccess={cacheAccess} />,
       node,
     );
   });
@@ -120,6 +121,23 @@ test("resumes a cached grant after a feed re-render replaces the player", async 
   expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/cached");
   expect(read).toHaveBeenCalledTimes(1);
 });
+test("a private targeted mount cannot inherit or publish a shared playback grant", async () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+  const shared = vi.fn(async () => ({ kind: "full_mix" as const, playback_url: "https://audio.example.test/shared", expires_at: 1900, renew_after: 1840 }));
+  const privateRead = vi.fn(async () => ({ kind: "full_mix" as const, playback_url: "https://audio.example.test/private", expires_at: 1900, renew_after: 1840 }));
+  mount(shared, undefined, "isolated-target-song"); button("Play song").click();
+  await vi.waitFor(() => expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/shared"));
+  for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren();
+  mount(privateRead, undefined, "isolated-target-song", false);
+  expect(document.querySelector("audio")).toBeNull(); expect(privateRead).not.toHaveBeenCalled();
+  button("Play song").click();
+  await vi.waitFor(() => expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/private"));
+  for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren();
+  mount(shared, undefined, "isolated-target-song");
+  expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/shared");
+});
+
 test("delivers an in-flight grant to the replacement player", async () => {
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});

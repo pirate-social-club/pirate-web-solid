@@ -147,7 +147,7 @@ class StoryMediaTransport implements MediaSubmissionTransport {
   }
 }
 
-/** A song transport whose audio upload never completes, so Continue fails. */
+/** A song transport whose audio upload never completes, so Next fails. */
 class FailingUploadStoryTransport extends StoryMediaTransport {
   override async upload(): Promise<void> {
     throw new Error("The audio upload did not finish. Try again.");
@@ -171,7 +171,7 @@ async function uploadStorySong(canvas: ReturnType<typeof within>, withStems = tr
 }
 
 async function continueSongStep(canvas: ReturnType<typeof within>): Promise<void> {
-  const button = await canvas.findByRole("button", { name: "Continue" });
+  const button = await canvas.findByRole("button", { name: "Next" });
   await waitFor(async () => { await expect(button).toBeEnabled(); });
   await userEvent.click(button);
 }
@@ -310,7 +310,7 @@ export const ContextualVideoMobile: Story = {
 
 /** The composer opens over a page whose mobile tab bar stays mounted, as on a
  * community page. The composer must cover that bar: on a Pixel the bar sat in
- * the same layer, rendered later, and took the tap meant for "Publish video". */
+ * the same layer, rendered later, and took the tap meant for the publish button. */
 export const ContextualSongOverMobileNavigation: Story = {
   name: "Contextual / Song / Over mobile navigation",
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -339,7 +339,7 @@ export const ContextualSongMultiplePersonas: Story = {
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Next" })).toBeInTheDocument();
     await waitFor(async () => {
       await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
     });
@@ -362,7 +362,7 @@ export const SongStepSongMobile: Story = {
 };
 
 /** The author adds the instrumental and vocals, which unlock Karaoke and
- * Study; both upload after the song on Continue. */
+ * Study; both upload after the song on Next. */
 export const SongStepStemsMobile: Story = {
   name: "Song / Step 1 — Song / Instrumental and vocals / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -370,14 +370,14 @@ export const SongStepStemsMobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas, false);
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
     await userEvent.upload(await canvas.findByLabelText("Upload instrumental"), storyMp3("midnight-waves-instrumental.mp3"));
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
     await userEvent.upload(await canvas.findByLabelText("Upload vocals"), storyMp3("midnight-waves-vocals.mp3"));
     await expect(await canvas.findByText("midnight-waves-instrumental.mp3")).toBeInTheDocument();
     await expect(await canvas.findByText("midnight-waves-vocals.mp3")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Remove vocals" })).toBeInTheDocument();
-    await waitFor(async () => { await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled(); });
+    await waitFor(async () => { await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled(); });
   },
 };
 
@@ -429,7 +429,7 @@ export const SongStemAttachmentResponseLost: Story = {
 };
 
 /** Long lyrics on a phone: after scrolling to the bottom of the form, the
- * header with Continue stays on screen. */
+ * header with Next stays on screen. */
 export const SongStepLongLyricsMobile: Story = {
   name: "Song / Step 1 — Song / Long lyrics / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
@@ -484,7 +484,9 @@ export const SongStepRights: Story = {
     await continueSongStep(canvas);
     await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
-    await expect(await canvas.findByText("All earnings go to you")).toBeInTheDocument();
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await expect(canvas.getByText("100%")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add collaborator" })).toBeVisible();
   },
 };
 
@@ -509,7 +511,7 @@ export const SongStepReview: Story = {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    // Both steps name their action Continue. Confirm the new step before
+    // Both steps name their action Next. Confirm the new step before
     // looking up the next action, rather than clicking the old button twice.
     await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await continueSongStep(canvas);

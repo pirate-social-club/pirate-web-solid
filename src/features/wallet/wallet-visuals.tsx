@@ -20,11 +20,11 @@ import {
 } from "../../design-system";
 import type { WalletHubChainId, WalletHubToken } from "./wallet-hub.types";
 
-import cosmosIconUrl from "../../assets/wallet-icons/cosmos.png";
-import ipIconUrl from "../../assets/wallet-icons/ip.png";
-import sentinelIconUrl from "../../assets/wallet-icons/sentinel.png";
-import solanaIconUrl from "../../assets/wallet-icons/solana.png";
-import storyIconUrl from "../../assets/wallet-icons/story.png";
+import cosmosIconUrl from "../../assets/wallet-icons/cosmos.png?no-inline";
+import ipIconUrl from "../../assets/wallet-icons/ip.png?no-inline";
+import sentinelIconUrl from "../../assets/wallet-icons/sentinel.png?no-inline";
+import solanaIconUrl from "../../assets/wallet-icons/solana.png?no-inline";
+import storyIconUrl from "../../assets/wallet-icons/story.png?no-inline";
 
 type Web3IconComponent = Component<Web3IconProps>;
 
