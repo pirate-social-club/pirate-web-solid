@@ -110,3 +110,12 @@ The app Storybook (`bun run storybook`, default port 6006;
 `bun run build-storybook`) owns only app stories under `src/`; set
 `STORYBOOK_PORT` to run it on another port. The design-system catalog remains
 at `packages/solid-ui`, defaults to port 6007, and accepts the same override.
+
+## Type checking
+
+Routine local checks use the exact pinned tsrs release. Run `bun run typecheck`
+for the app or `bun run typecheck:all` for the app, E2E and Solid UI projects.
+`verify` and `check:e2e` also use tsrs. CI additionally runs
+`bun run typecheck:typescript` against the retained official TypeScript version.
+Keep the `typescript` dependency for compiler API consumers and compatibility
+checks. Changes to the tsrs pin require an explicit reviewed dependency update.
