@@ -94,7 +94,8 @@
     "linkRequired": "请确认公开身份关联后重试。",
     "offeringChanged": "社区的有效方案已更改。请重新加载并查看后重试。",
     "retryFresh": "该次尝试已无法重放，请重新尝试。",
-    "rateLimited": "尝试次数过多。请稍后重试。"
+    "rateLimited": "尝试次数过多。请稍后重试。",
+    "temporarilyUnavailable": "暂时不可用"
   },
   "settings": {
     "booking": {

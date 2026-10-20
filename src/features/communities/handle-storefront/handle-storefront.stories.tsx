@@ -164,3 +164,23 @@ export const Mobile: Story = {
   name: "Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
+
+export const SpacesTemporarilyUnavailable: Story = {
+  name: "Spaces temporarily unavailable",
+  args: { data: success([{
+    ...offering(), family: "spaces", namespace_root: "first-root", display_root: "first-root",
+    current_availability: { kind: "temporarily_unavailable" },
+    label_scope: { kind: "label_rule_v2", label_grammar_id: "spaces_subspace_label_v1", reserved_labels_id: "reserved-1",
+      reserved_labels_revision: 1, reserved_labels_hash: "a".repeat(64),
+      availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 62 } },
+    allocation: { kind: "first_come_v1" }, fulfillment: { kind: "spaces_native_v1" },
+    qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
+      policy_hash: "a".repeat(64), provider_binding_hash: "a".repeat(64) },
+    issuance: { family: "spaces", driver_id: "spaces-native", driver_version: "1" },
+  }]) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("@first-root: Temporarily unavailable")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Check earlier Spaces name requests" })).toBeInTheDocument();
+  },
+};

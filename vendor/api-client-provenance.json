@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.124.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.124.0-1884cf66.tgz",
-  "sha256": "1884cf6632f2b4e80519876dcabd6021cd1ee8f5738636165adcb83193abb1ab",
-  "source": "api-next-contracts@586f8f40f7888c2f808c5a115f783aee4f67365df77f6e03a4f1ac646bc5e8df",
-  "openapiSha256": "586f8f40f7888c2f808c5a115f783aee4f67365df77f6e03a4f1ac646bc5e8df",
-  "clientSha256": "df32eaec9b1f54cf710cd84fb834a9fd5a47321374784ebc8c25d5d1ec865e32",
+  "version": "0.125.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.125.0-d47b6d6f.tgz",
+  "sha256": "d47b6d6f0b1a3663dd1fba90413021f16fffea91b5fc1b28ade7a7ae13d92b86",
+  "source": "api-next-contracts@dca39be20ff19a78c9f81cca6fbe1163ee33109e5a6b6f1385db4a2648b3d39a",
+  "openapiSha256": "dca39be20ff19a78c9f81cca6fbe1163ee33109e5a6b6f1385db4a2648b3d39a",
+  "clientSha256": "88c838395729c12501a764f3cd3a8c02298dc590a6a8a2e4d2847a952b0019c9",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -141,9 +141,10 @@
     "get_communitiesCommunityIdSpacesOwnershipRoots",
     "get_communitiesCommunityIdSpacesOwnership",
     "post_communitiesCommunityIdSpacesOwnershipResume",
-    "get_usersMeSpacesHandleRequests"
+    "get_usersMeSpacesHandleRequests",
+    "get_communitiesCommunityIdHandleOfferings"
   ],
-  "validatedSourceCommit": "d27aaa02869954f58edbc5d1dc686c565119644f",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/628",
-  "intakeStatus": "Genuine client0.124 artifact1884cf66 is accepted from API PR628/main d27aaa02/tree627d661f with independent source/native review and full local/required hosted gates. This intake adds account-private Spaces retained-request readback. Consumer implementation and live acceptance remain pending. It changes no financial/mainnet/Dance/Spaces runtime activation or held authority."
+  "validatedSourceCommit": "0518781f3d4f615842d3539b67e3ee90c5240ff1",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/631",
+  "intakeStatus": "Genuine immutable client0.125.0/d47b6d6f from reviewed draft API PR631 discovery source dcf83068, all fourteen hosted checks passed there. Normal current-main inheritance0518781f preserves all accepted discovery/client bytes; all fresh type/native/database checks pass, but dependency advisory policy fails on inherited Hono4.13.7/GHSA-5r4p-p66f-jhc7. API whole-head qualification remains incomplete. This paired consumer is under implementation, untested and unreleased. Availability is advisory and does not authorize transactions. Runtime, financial and mainnet holds remain unchanged."
 }

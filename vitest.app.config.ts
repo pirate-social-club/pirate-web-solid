@@ -104,6 +104,7 @@ export default defineConfig({
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",
       "src/features/communities/handle-storefront/spaces-member-recovery.test.ts",
       "src/features/communities/handle-storefront/spaces-member-attempt.test.ts",
+      "src/features/communities/handle-storefront/spaces-wallet-setup.test.tsx",
       "src/features/communities/handle-storefront/spaces-member-requests.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status.test.ts",
       "src/features/communities/handle-storefront/spaces-claim-status-hydration.test.tsx",

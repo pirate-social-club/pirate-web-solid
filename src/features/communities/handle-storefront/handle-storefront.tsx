@@ -1,7 +1,7 @@
 import { useApplicationSession, useApplicationSessionPending } from "../../shell/application-session.tsx";
 import { runSpacesMemberAttempt } from "./spaces-member-attempt.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
-import { createSpacesTaprootWalletSession, type SpacesTaprootWalletSession } from "../../../api/spaces-taproot-wallet-session.ts";
+import { SpacesWalletSetup } from "./spaces-wallet-setup.tsx";
 import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
 import { handleNationalityRequirement } from "../../verification/document-requirement.ts";
 import { ApiClientError } from "@pirate/api-client";
@@ -56,6 +56,7 @@ import {
   type HandleStorefrontProgress,
 } from "./handle-storefront.flow.ts";
 import {
+  isSpacesOfferingAvailable,
   initialHandleLabel,
   initialSaleNamespaceActivationId,
   loadHandleStorefrontPublic,
@@ -98,6 +99,11 @@ type ClaimUiState =
   | Readonly<{ readonly kind: "pending"; readonly claimId?: string }>
   | Readonly<{ readonly kind: "verification"; readonly message: string }>
   | Readonly<{ readonly kind: "error"; readonly message: string }>;
+
+function spacesNamespaceUnavailable(offerings: readonly SupportedHandleOffering[], activationId: string | undefined): boolean {
+  const scoped = offerings.filter(offering => offering.family === "spaces" && offering.sale_namespace_activation_id === activationId);
+  return scoped.length > 0 && scoped.every(offering => !isSpacesOfferingAvailable(offering));
+}
 
 function namesCopy() {
   const event = getRequestEvent();
@@ -326,12 +332,9 @@ function BuyerPanel(props: {
   const [linkConfirmed, setLinkConfirmed] = createSignal(false, { ownedWrite: true });
   const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" }, { ownedWrite: true });
   const [authOpen, setAuthOpen] = createSignal(false);
-  const [walletEmail, setWalletEmail] = createSignal("", { ownedWrite: true });
-  const [walletCode, setWalletCode] = createSignal("", { ownedWrite: true });
-  const [walletStep, setWalletStep] = createSignal<"idle" | "sending" | "code" | "working">("idle", { ownedWrite: true });
   const [walletNeeded, setWalletNeeded] = createSignal(false, { ownedWrite: true });
-  let walletSession: SpacesTaprootWalletSession | undefined;
-  let walletPersonaId: string | undefined;
+  const [walletBusy, setWalletBusy] = createSignal(false, { ownedWrite: true });
+  const [walletPersonaId, setWalletPersonaId] = createSignal<string | undefined>(undefined, { ownedWrite: true });
   const [hnsServed, setHnsServed] = createSignal(false);
   const account = useApplicationSession();
   const accountPending = useApplicationSessionPending();
@@ -342,66 +345,7 @@ function BuyerPanel(props: {
   let activeAttempt: AbortController | undefined;
   let hnsAttemptSignature: string | undefined;
   let hnsAttemptKeys: HandleStorefrontAttemptKeys | undefined;
-  onCleanup(() => { disposed = true; walletSession?.dispose(); });
-
-  const walletScope = () => {
-    const generation = sessionGeneration, id = accountId();
-    return () => id !== undefined && !disposed && sessionGeneration === generation && accountId() === id;
-  };
-
-  const beginWalletSetup = async () => {
-    const email = walletEmail().trim();
-    if (email === "" || walletStep() === "working") return;
-    const current = walletScope();
-    if (!current()) return;
-    setWalletStep("sending");
-    try {
-      walletSession?.dispose();
-      const created = await createSpacesTaprootWalletSession();
-      if (!current()) { created.dispose(); return; }
-      walletSession = created;
-      await created.sendCode(email);
-      if (!current()) return;
-      setWalletStep("code");
-      setClaimState({ kind: "verification", message: "Enter the code sent to your email to set up the receiving wallet." });
-    } catch {
-      if (!current()) return;
-      walletSession?.dispose();
-      walletSession = undefined;
-      setWalletStep("idle");
-      setClaimState({ kind: "error", message: "Wallet authorization is unavailable. Try again later." });
-    }
-  };
-
-  const completeWalletSetup = async () => {
-    const session = walletSession;
-    const personaId = walletPersonaId;
-    const csrf = readCsrf();
-    if (session === undefined || personaId === undefined || csrf === undefined || walletCode().trim() === "") return;
-    const current = walletScope();
-    if (!current()) return;
-    setWalletStep("working");
-    try {
-      await session.loginWithCode(walletEmail().trim(), walletCode().trim());
-      if (!current()) return;
-      const result = await session.setup(personaId, csrf);
-      if (!current()) return;
-      if (result.kind === "active") {
-        setWalletNeeded(false);
-        setClaimState({ kind: "verification", message: "Receiving wallet ready. Your original request is retained. Check your Spaces name requests before continuing." });
-      } else if (result.kind === "ambiguous") {
-        setClaimState({ kind: "error", message: "Wallet setup needs review. No additional wallet will be created automatically." });
-      } else {
-        setClaimState({ kind: "verification", message: "Wallet setup is pending. Check again later; no additional wallet will be created automatically." });
-      }
-    } catch {
-      if (!current()) return;
-      setClaimState({ kind: "error", message: "Wallet setup could not be confirmed. Try again later; the service will check the existing attempt before creating anything." });
-    } finally {
-      session.dispose();
-      if (current()) { walletSession = undefined; setWalletCode(""); setWalletStep("idle"); }
-    }
-  };
+  onCleanup(() => { disposed = true; });
 
   const activeOffering = createMemo(() => selectHandleOffering(
     state.offerings,
@@ -423,6 +367,15 @@ function BuyerPanel(props: {
       ? current.personas.find(persona => persona.personaId === selectedPersonaId())
       : undefined;
   });
+  const walletScope = () => {
+    const offering = activeOffering(), id = accountId(), recipientPersonaId = walletPersonaId(), personaId = selectedPersonaId();
+    if (disposed || session().kind !== "ready" || offering?.family !== "spaces" || !isSpacesOfferingAvailable(offering)
+      || id === undefined || recipientPersonaId === undefined || personaId === null) return undefined;
+    return { accountId: id, selectedPersonaId: personaId, recipientPersonaId, communityId: state.community.communityId,
+      activationId: offering.sale_namespace_activation_id, activationGeneration: offering.sale_namespace_activation_generation,
+      namespaceRoot: offering.namespace_root, offeringId: offering.offering_id, offeringRevision: offering.offering_revision,
+      offeringHash: offering.offering_hash, sessionGeneration };
+  };
   const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label(), selectedNamespace()?.family ?? "hns"));
   const identifier = createMemo(() => {
     const namespace = selectedNamespace();
@@ -431,14 +384,14 @@ function BuyerPanel(props: {
       ? undefined
       : namespace.family === "spaces" ? `${desired}@${namespace.displayRoot}` : `${desired}.${namespace.displayRoot}`;
   });
-  const busy = createMemo(() => claimState().kind === "progress" ||
-    walletStep() === "sending" || walletStep() === "working");
+  const busy = createMemo(() => claimState().kind === "progress" || walletBusy());
   const canClaim = createMemo(() => {
     const offering = activeOffering();
     const desired = normalizedLabel();
     return session().kind === "ready"
       && selectedPersona() !== undefined
       && offering !== undefined
+      && (offering.family !== "spaces" || isSpacesOfferingAvailable(offering))
       && desired !== null
       && offeringAppliesToLabel(offering, desired)
       && linkConfirmed()
@@ -482,9 +435,9 @@ function BuyerPanel(props: {
   createEffect(
     () => ({ served: isHnsServedOrigin(state), account: account(), pending: accountPending() }),
     ({ served, pending }) => {
-      sessionGeneration++; activeAttempt?.abort(); walletSession?.dispose(); walletSession = undefined; walletPersonaId = undefined;
+      sessionGeneration++; activeAttempt?.abort(); setWalletPersonaId(undefined);
       setSession({ kind: "loading" }); setSelectedPersonaId(null); setLinkConfirmed(false);
-      setClaimState({ kind: "idle" }); setWalletNeeded(false); setWalletStep("idle"); setWalletCode(""); setWalletEmail("");
+      setClaimState({ kind: "idle" }); setWalletNeeded(false); setWalletBusy(false);
       const expected = sessionGeneration;
       void Promise.resolve().then(() => {
         if (disposed || expected !== sessionGeneration) return;
@@ -502,9 +455,8 @@ function BuyerPanel(props: {
     if (busy()) return;
     setSelectedPersonaId(personaId);
     setWalletNeeded(false);
-    walletSession?.dispose();
-    walletSession = undefined;
-    setWalletStep("idle");
+    setWalletPersonaId(undefined);
+    setWalletBusy(false);
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
   };
@@ -513,20 +465,24 @@ function BuyerPanel(props: {
     if (busy()) return;
     setSelectedActivationId(activationId === "" ? null : activationId);
     setWalletNeeded(false);
-    walletSession?.dispose();
-    walletSession = undefined;
-    setWalletStep("idle");
+    setWalletPersonaId(undefined);
+    setWalletBusy(false);
     setPreferredOfferingId(null);
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
   };
 
   const claim = async () => {
+    if (busy()) return;
     if (hnsServed()) {
       location.assign(canonicalNamesUrl(state));
       return;
     }
     const offering = activeOffering();
+    if (offering?.family === "spaces" && !isSpacesOfferingAvailable(offering)) {
+      setClaimState({ kind: "error", message: copy.temporarilyUnavailable });
+      return;
+    }
     const persona = selectedPersona();
     const desiredLabel = normalizedLabel();
     if (offering === undefined || persona === undefined || desiredLabel === null || !linkConfirmed()) {
@@ -579,7 +535,7 @@ function BuyerPanel(props: {
       } else if (result.kind === "pending") {
         setClaimState({ kind: "pending", claimId: offering.family === "spaces" ? result.claim.claim_id : undefined });
       } else if (result.kind === "recipient_wallet_required") {
-        walletPersonaId = "originalPersonaId" in result && typeof result.originalPersonaId === "string" ? result.originalPersonaId : undefined;
+        setWalletPersonaId("originalPersonaId" in result && typeof result.originalPersonaId === "string" ? result.originalPersonaId : undefined);
         setWalletNeeded(true);
         hnsAttemptKeys = undefined; hnsAttemptSignature = undefined;
         setClaimState({ kind: "verification", message: "This persona needs a Bitcoin Taproot wallet before it can receive a Spaces name." });
@@ -796,6 +752,11 @@ function BuyerPanel(props: {
                   </Show>
                 </div>
 
+                <Show when={activeOffering()?.family === "spaces" && !isSpacesOfferingAvailable(activeOffering())
+                  && !spacesNamespaceUnavailable(state.offerings, activeOffering()?.sale_namespace_activation_id)}>
+                  <p role="status" data-spaces-offering-unavailable>{copy.temporarilyUnavailable}</p>
+                </Show>
+
                 <label class="flex items-start gap-2 text-sm leading-5">
                   <input
                     type="checkbox"
@@ -854,23 +815,8 @@ function BuyerPanel(props: {
                   {verification => <p role="status">{verification().message}</p>}
                 </Show>
                 <Show when={selectedNamespace()?.family === "spaces" && walletNeeded()}>
-                  <div class="rounded-xl border border-border-soft p-4" data-spaces-wallet-setup>
-                    <p class="font-semibold">Set up a receiving wallet</p>
-                    <p class="text-sm text-muted-foreground">Confirm your account by email. This does not send bitcoin.</p>
-                    <label class="mt-3 block text-sm" for="spaces-wallet-email">Account email</label>
-                    <Input id="spaces-wallet-email" type="email" autocomplete="email" value={walletEmail()}
-                      disabled={walletStep() !== "idle"} onInput={event => setWalletEmail(event.currentTarget.value)} />
-                    <Show when={walletStep() === "code" || walletStep() === "working"}>
-                      <label class="mt-3 block text-sm" for="spaces-wallet-code">Email code</label>
-                      <Input id="spaces-wallet-code" type="text" inputmode="numeric" autocomplete="one-time-code"
-                        value={walletCode()} disabled={walletStep() === "working"}
-                        onInput={event => setWalletCode(event.currentTarget.value)} />
-                    </Show>
-                    <Button class="mt-3" disabled={walletStep() === "sending" || walletStep() === "working"}
-                      onClick={() => void (walletStep() === "code" ? completeWalletSetup() : beginWalletSetup())}>
-                      {walletStep() === "code" ? "Confirm wallet" : walletStep() === "working" ? "Checking wallet" : "Send code"}
-                    </Button>
-                  </div>
+                  <SpacesWalletSetup scope={walletScope} readCsrf={readCsrf} onBusyChange={setWalletBusy}
+                    onMessage={(kind, message) => setClaimState({ kind, message })} onReady={() => setWalletNeeded(false)} />
                 </Show>
                 <Show when={claimError()}>
                   {errorState => <p role="alert" class="text-destructive-text">{errorState().message}</p>}
@@ -924,6 +870,9 @@ function SuccessState(props: {
         ? "Choose a persona with a Bitcoin Taproot wallet. A requested name stays private until registration is final." : copy.intro}</Type>
     </div>
     <a class="underline" href="/spaces-name-requests">Check earlier Spaces name requests</a>
+    <For each={namespaces.filter(choice => choice.family === "spaces" && spacesNamespaceUnavailable(state.offerings, choice.activationId))}>
+      {choice => <p role="status" data-spaces-discovery-unavailable>{`@${choice.displayRoot}: ${copy.temporarilyUnavailable}`}</p>}
+    </For>
     <Show when={state.offerings.length > 0} fallback={
       <Card><CardContent class="p-6"><p role="status">{copy.noOfferings}</p></CardContent></Card>
     }>

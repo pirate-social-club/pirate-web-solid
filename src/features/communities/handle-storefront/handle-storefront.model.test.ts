@@ -8,6 +8,7 @@ import type {
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  isSpacesOfferingAvailable,
   initialHandleLabel,
   initialSaleNamespaceActivationId,
   isSupportedHandleOffering,
@@ -151,7 +152,8 @@ describe("community handle storefront model", () => {
     if (broadScope.kind !== "label_rule_v2") throw new Error("broad fixture must use a label rule");
     expect(isSupportedHandleOffering(broad)).toBe(true);
     expect(isSupportedHandleOffering({ ...broad, status: "paused" })).toBe(false);
-    const spaces = { ...broad, family: "spaces" as const,
+    const spaces = { ...broad, family: "spaces" as const, status: "active" as const,
+      current_availability: { kind: "available" },
       label_scope: { ...broadScope, label_grammar_id: "spaces_subspace_label_v1" },
       allocation: { kind: "first_come_v1" }, fulfillment: { kind: "spaces_native_v1" },
       qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
@@ -172,6 +174,35 @@ describe("community handle storefront model", () => {
       ...exact,
       qualification_policy: { kind: "none_v1", policy_id: "policy-1", policy_revision: 1, policy_hash: "policy-hash" },
     })).toBe(false);
+  });
+
+  test("temporarily unavailable discovery preserves two roots and opaque pagination", async () => {
+    const broadScope = broad.label_scope;
+    if (broadScope.kind !== "label_rule_v2") throw new Error("broad fixture must use a label rule");
+    const first = { ...broad, family: "spaces", status: "active", current_availability: { kind: "temporarily_unavailable" },
+      qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
+        policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
+      label_scope: { ...broadScope, label_grammar_id: "spaces_subspace_label_v1" },
+      fulfillment: { kind: "spaces_native_v1" }, issuance: { ...broad.issuance, family: "spaces" } } as const satisfies SupportedHandleOffering;
+    const second = { ...first, offering_id: "offering-second", namespace_root: "second-root", display_root: "second-root",
+      sale_namespace_activation_id: "activation-second" };
+    const list = vi.fn(async (input: GetCommunitiesCommunityIdHandleOfferingsInput) => input.query?.cursor === "hcp1-original-cursor"
+      ? { items: [second], next_cursor: null } : { items: [first], next_cursor: "hcp1-original-cursor" });
+    const state = await loadHandleStorefrontPublic({ get_cPathSegment: async () => route,
+      get_communitiesCommunityIdPreview: async () => preview }, { get_communitiesCommunityIdHandleOfferings: list }, "charizard");
+    if (state.kind !== "success") throw new Error("public storefront expected");
+    expect(state.offerings.map(item => item.offering_id)).toEqual([first.offering_id, second.offering_id]);
+    expect(projectSaleNamespaceChoices(state.offerings).map(item => item.namespaceRoot)).toEqual(["charizard", "second-root"]);
+    expect(list.mock.calls[1]?.[0].query?.cursor).toBe("hcp1-original-cursor");
+    expect(isSpacesOfferingAvailable(state.offerings[0])).toBe(false);
+    expect(isSpacesOfferingAvailable({ ...first, current_availability: { kind: "available" } })).toBe(true);
+    for (const availability of [undefined, null, {}, "available", { kind: "unknown" }, { kind: "available", extra: true }]) {
+      // SAFETY: malformed discovery must preserve the supported choice but never admit a fresh attempt.
+      const invalid = { ...first, current_availability: availability } as SupportedHandleOffering;
+      expect(isSupportedHandleOffering(invalid)).toBe(true);
+      expect(isSpacesOfferingAvailable(invalid)).toBe(false);
+    }
+    expect(isSpacesOfferingAvailable(broad)).toBe(false);
   });
 
   test("projects only active personas without exposing wallet assignments", () => {
