@@ -2,7 +2,6 @@ import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
-import { Button, Type } from "../../design-system";
 
 import {
   applyServerLesson,
@@ -92,35 +91,6 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   let active = true;
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
-  const [micDisclosure, setMicDisclosure] = createSignal<string | null>(null);
-
-  // Spec 019 §5.1: learner-facing microphone capture requires a first-use
-  // disclosure naming the provider and its retention before the first
-  // capture. The acknowledgment is a local UI fact, not an account fact.
-  const MIC_DISCLOSURE_STORAGE_KEY = "study:microphone-disclosure:v1";
-
-  const micDisclosureAcknowledged = (): boolean => {
-    try {
-      return globalThis.localStorage?.getItem(MIC_DISCLOSURE_STORAGE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  };
-
-  const acknowledgeMicDisclosure = () => {
-    const pending = micDisclosure();
-    try {
-      globalThis.localStorage?.setItem(MIC_DISCLOSURE_STORAGE_KEY, "1");
-    } catch {
-      // Storage can be unavailable (private mode); the disclosure simply
-      // reappears next session, which is the safe direction.
-    }
-    setMicDisclosure(null);
-    const surface = lesson().surface;
-    if (pending !== null && surface.kind === "say_it_back" && surface.exercise.id === pending) {
-      beginCapture(surface);
-    }
-  };
 
   const attemptIdempotencyKey = (exerciseId: string, attemptNumber: number): string => {
     const logical = `${props.payload.session_id}:${exerciseId}:${attemptNumber}`;
@@ -392,11 +362,8 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     if (card.phase === "idle" || (card.phase === "wrong" && !card.revealReference)) {
       // A retryable miss behaves exactly like idle: the footer already reads
       // "Record", so pressing it starts the recording rather than costing the
-      // learner an extra tap to clear the banner first.
-      if (!micDisclosureAcknowledged()) {
-        setMicDisclosure(card.exercise.id);
-        return;
-      }
+      // learner an extra tap to clear the banner first. Recording terms live
+      // in the Privacy Policy accepted at sign-in, so capture starts at once.
       beginCapture(card);
       return;
     }
@@ -463,42 +430,6 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   return (
     <>
       <Title>{props.payload.title ? `${props.payload.title} · Study` : "Study"}</Title>
-      <Show when={micDisclosure() !== null}>
-        <div
-          class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-          data-study-mic-disclosure
-          role="dialog"
-          aria-modal="true"
-          aria-label="Recording disclosure"
-        >
-          <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
-            <Type as="h2" variant="h3">Before you record</Type>
-            <Type as="p" class="mt-3 text-muted-foreground" variant="body">
-              Your voice recording is sent to our speech provider, ElevenLabs,
-              for transcription. Under its standard terms, ElevenLabs may retain
-              the recording. Pirate also stores your recording privately for 24
-              months for your study review history, and you can delete it from
-              Settings at any time.
-            </Type>
-            <div class="mt-6 flex gap-3">
-              <Button
-                class="flex-1"
-                onClick={() => setMicDisclosure(null)}
-                variant="secondary"
-              >
-                Cancel
-              </Button>
-              <Button
-                class="flex-1"
-                data-study-mic-disclosure-accept
-                onClick={acknowledgeMicDisclosure}
-              >
-                Continue to record
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Show>
       <StudyingSurface
         lessonProgress={lessonProgressOf(lesson())}
         onExit={props.onExit}

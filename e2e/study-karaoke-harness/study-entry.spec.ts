@@ -39,11 +39,6 @@ const sessionsFor = (accountId: string): SessionRow[] =>
       WHERE account_id='${accountId}' ORDER BY created_at`,
   );
 
-const audioFor = (accountId: string): { readonly count: number }[] =>
-  databaseRows<{ count: number }>(
-    `SELECT count(*)::int AS count FROM learner_audio_artifacts WHERE account_id='${accountId}'`,
-  );
-
 const databaseContainer =
   process.env.HARNESS_PG_CONTAINER?.trim() || "study-karaoke-harness-pg17";
 
@@ -235,30 +230,17 @@ test("a deliberate new lesson after completion creates a second session", async 
   expect(sessions.map((session) => session.status).sort()).toEqual(["active", "completed"]);
 });
 
-test("cancelling the disclosure leaves no audio and no second session", async ({
+test("the first Record starts capture with no recording notice in the flow", async ({
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 19);
+  await useAccount(context, manifest, 19);
   await page.goto(studyUrl());
   await expectFirstExercise(page);
   await recordButton(page).click();
-  const disclosure = page.locator("[data-study-mic-disclosure]");
-  await expect(disclosure).toBeVisible();
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(disclosure).toHaveCount(0);
-  await expect(recordButton(page)).toBeVisible();
-  await expect
-    .poll(() => sessionsFor(account.accountId).length, { timeout: 15_000 })
-    .toBe(1);
-  expect(audioFor(account.accountId)[0]?.count).toBe(0);
-
-  // Accepting the disclosure on the next attempt starts capture.
-  await recordButton(page).click();
-  await expect(disclosure).toBeVisible();
-  await page.locator("[data-study-mic-disclosure-accept]").click();
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
     timeout: 30_000,
   });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Stop", exact: true }).click();
 });

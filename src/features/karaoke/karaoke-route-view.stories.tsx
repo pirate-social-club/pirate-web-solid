@@ -146,32 +146,6 @@ export const LeaderboardLoadFailure: Story = {
   ),
 };
 
-// The first-use recording notice is a local acknowledgment (see
-// karaoke-route-view.tsx). Each story below sets it as it needs and puts the
-// viewer's own value back afterwards.
-const MIC_DISCLOSURE_KEY = "karaoke:microphone-disclosure:v1";
-
-function withMicDisclosure(acknowledged: boolean) {
-  return () => {
-    let previous: string | null = null;
-    try {
-      previous = localStorage.getItem(MIC_DISCLOSURE_KEY);
-      if (acknowledged) localStorage.setItem(MIC_DISCLOSURE_KEY, "1");
-      else localStorage.removeItem(MIC_DISCLOSURE_KEY);
-    } catch {
-      // Storage unavailable: the route treats the notice as unacknowledged.
-    }
-    return () => {
-      try {
-        if (previous === null) localStorage.removeItem(MIC_DISCLOSURE_KEY);
-        else localStorage.setItem(MIC_DISCLOSURE_KEY, previous);
-      } catch {
-        // Nothing to restore.
-      }
-    };
-  };
-}
-
 /**
  * A scoring controller double at the route's createScoring seam: Start
  * records the call and, when given a microphone failure, reports it the way
@@ -208,25 +182,17 @@ async function pressStart(canvasElement: HTMLElement) {
   await userEvent.click(start);
 }
 
-const recordingNoticeStart = fn();
+const firstStart = fn();
 
-/** First scored take: the recording notice comes before the microphone. Cancel leaves it unrecorded. */
-export const RecordingNotice: Story = {
-  beforeEach: withMicDisclosure(false),
+/** First scored take: Start goes straight to the microphone, with no recording notice in the flow. */
+export const StartRecordsAtOnce: Story = {
   render: () => <KaraokeSessionRouteView client={sessionClient} postId={storyPostId} resolveSession={storySinger}
-    createScoring={storyScoring(recordingNoticeStart)} />,
+    createScoring={storyScoring(firstStart)} />,
   play: async ({ canvasElement }) => {
-    recordingNoticeStart.mockClear();
+    firstStart.mockClear();
     await pressStart(canvasElement);
-    const notice = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Recording disclosure" });
-    const dialog = within(notice);
-    await expect(dialog.getByRole("heading", { name: "Before you record" })).toBeVisible();
-    await expect(notice).toHaveTextContent("ElevenLabs");
-    await expect(dialog.getByRole("button", { name: "Continue to record" })).toBeVisible();
-    await expect(recordingNoticeStart).not.toHaveBeenCalled();
-    await userEvent.click(dialog.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(notice).not.toBeInTheDocument());
-    await expect(recordingNoticeStart).not.toHaveBeenCalled();
+    await waitFor(() => expect(firstStart).toHaveBeenCalledOnce());
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).toBeNull();
   },
 };
 
@@ -234,7 +200,6 @@ const micStart = fn();
 
 /** The browser refused the microphone: the take explains it and Start stays available. */
 export const MicBlocked: Story = {
-  beforeEach: withMicDisclosure(true),
   render: () => <KaraokeSessionRouteView client={sessionClient} postId={storyPostId} resolveSession={storySinger}
     createScoring={storyScoring(micStart, "permission_denied")} />,
   play: async ({ canvasElement }) => {
@@ -249,7 +214,6 @@ export const MicBlocked: Story = {
 
 /** No microphone is connected. */
 export const NoMic: Story = {
-  beforeEach: withMicDisclosure(true),
   render: () => <KaraokeSessionRouteView client={sessionClient} postId={storyPostId} resolveSession={storySinger}
     createScoring={storyScoring(micStart, "no_device")} />,
   play: async ({ canvasElement }) => {
