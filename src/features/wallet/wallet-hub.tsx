@@ -92,7 +92,7 @@ export function WalletHub(props: WalletHubProps) {
             <IconWallet class="size-[18px]" />
             {view().walletLabel}
           </span>
-          <Button
+          <Show when={props.showChangeWalletAction !== false}><Button
             variant="ghost"
             size="sm"
             disabled={view().actions.changeWallet.disabled}
@@ -100,7 +100,7 @@ export function WalletHub(props: WalletHubProps) {
             onClick={() => view().actions.changeWallet.onSelect?.()}
           >
             {props.changeWalletLabel ?? view().actions.changeWallet.label}
-          </Button>
+          </Button></Show>
         </div>
       </header>
 
@@ -192,7 +192,6 @@ export function WalletHub(props: WalletHubProps) {
           <Type as="h2" variant="h3">Assets</Type>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <Show when={props.assetsUnavailable && !view().isEmpty}><Type variant="caption">Balances are shown in tokens. Fiat values are unavailable.</Type></Show>
           <Show
             when={!view().isEmpty}
             fallback={

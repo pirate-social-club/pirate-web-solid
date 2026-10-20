@@ -5,7 +5,7 @@ import { createSessionApiClient } from "../../api/client.ts";
 import { PageContainer } from "@pirate/web-solid-ui";
 import { Button, Card, CardContent, Type } from "../../design-system";
 import { requestGlobalSignIn } from "../auth/global-sign-in-host.tsx";
-import { useApplicationSession } from "../shell/application-session.tsx";
+import { useApplicationSession, useApplicationSessionPending } from "../shell/application-session.tsx";
 import { useApplicationPersonas } from "../shell/application-personas.tsx";
 import { loadPersonaWallets, type PersonaWallet } from "./wallet-portfolio-model.ts";
 import { createWalletBalances } from "./wallet-balances.ts";
@@ -38,10 +38,11 @@ function dropResumeClaim() {
 
 export function WalletRouteView() {
   const account = useApplicationSession();
+  const accountPending = useApplicationSessionPending();
   const profiles = useApplicationPersonas();
   const [wallets, setWallets] = createSignal<readonly PersonaWallet[]>([]);
   const [walletOwner, setWalletOwner] = createSignal<string>();
-  const ownedWallets = () => { const session = account(); return typeof session === "object" && walletOwner() === session.userId ? wallets() : []; };
+  const ownedWallets = () => { const session = account(); return !accountPending() && typeof session === "object" && walletOwner() === session.userId ? wallets() : []; };
   const networkHost = walletNetworkHost(servingHostname());
   const [networkMode, setNetworkMode] = createSignal<WalletNetworkMode>(networkHost.defaultMode);
   const balances = createWalletBalances(() => {
@@ -53,7 +54,7 @@ export function WalletRouteView() {
   const [failed, setFailed] = createSignal(false);
   let request = 0;
   let active = true;
-  const authenticated = () => typeof account() === "object";
+  const authenticated = () => !accountPending() && typeof account() === "object";
   const load = () => {
     const epoch = ++request;
     setWalletOwner(undefined);
@@ -71,7 +72,7 @@ export function WalletRouteView() {
       if (active && request === epoch) setLoading(false);
     });
   };
-  createEffect(account, load);
+  createEffect(() => [account(), accountPending()] as const, load);
   onCleanup(() => { active = false; request++; });
   return <main data-route-path="/wallet"><Title>Wallet</Title><PageContainer gutter class="flex flex-col gap-6 py-8">
     {/* Signed-in, the Wallet Hub owns the page heading. */}
@@ -90,8 +91,11 @@ export function WalletRouteView() {
     <Show when={authenticated()}>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
-      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={networkHost.switchable ? setNetworkMode : undefined} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => controls.open && wallet.address
-        ? <WalletSponsoredSendSheet personaId={wallet.personaId} walletAddress={wallet.address} onClose={() => controls.onOpenChange(false)} /> : null} /></Show>
+      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={networkHost.switchable ? setNetworkMode : undefined} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => {
+        const onConfirmed = balances.captureReload();
+        return controls.open && wallet.address
+          ? <WalletSponsoredSendSheet personaId={wallet.personaId} walletAddress={wallet.address} onConfirmed={onConfirmed} onClose={() => controls.onOpenChange(false)} /> : null;
+      }} /></Show>
     </Show>
   </PageContainer></main>;
 }

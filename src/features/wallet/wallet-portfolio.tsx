@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Avatar, Button, Card, CardContent, CardHeader, Type } from "../../design-system";
+import { Avatar, Button, Card, CardContent, CardHeader, IconArrowsClockwise, Type } from "../../design-system";
 import { WalletHub } from "./wallet-hub.tsx";
 import { WalletReceiveSheet } from "./wallet-receive-sheet.tsx";
 import { type PersonaWallet } from "./wallet-portfolio-model.ts";
@@ -34,12 +34,11 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
         <Button size="sm" variant={(props.networkMode ?? "mainnet") === "mainnet" ? "secondary" : "ghost"} aria-pressed={(props.networkMode ?? "mainnet") === "mainnet" ? "true" : "false"} onClick={() => change()("mainnet")}>Mainnet</Button>
         <Button size="sm" variant={props.networkMode === "testnet" ? "secondary" : "ghost"} aria-pressed={props.networkMode === "testnet" ? "true" : "false"} onClick={() => change()("testnet")}>Testnet</Button>
       </div>}</Show>
-      <Show when={props.onRefresh}><Button class="ms-auto" size="sm" variant="outline" disabled={props.balancesLoading || !selected()?.address} onClick={props.onRefresh}>{props.balancesLoading ? "Refreshing…" : "Refresh balances"}</Button></Show>
+      <Show when={props.onRefresh}><Button class="ms-auto" size="icon" variant="ghost" aria-label="Refresh balances" aria-busy={props.balancesLoading ? "true" : "false"} disabled={props.balancesLoading || !selected()?.address} onClick={() => { if (!props.balancesLoading && selected()?.address) props.onRefresh?.(); }}><IconArrowsClockwise class="size-5" aria-hidden="true" /></Button></Show>
     </div>
-    <Show when={props.networkMode === "testnet"}><Type>Testnet tokens have no monetary value.</Type></Show>
     <Show when={selected()} fallback={<Type>Choose a profile to view its wallet.</Type>}>
       {(wallet) => <WalletHub walletLabel={wallet().displayName} walletAddress={wallet().address}
-        assetsUnavailable totalBalanceUsd={null} changeWalletLabel="Switch profile" onChangeWallet={props.onChangeProfile}
+        assetsUnavailable totalBalanceUsd={null} showChangeWalletAction={false}
         chainSections={sections()}
         renderAssetSupplement={(chainId, token) => props.networkMode === "testnet" && chainId === "base" && token.id === "usdc"
           ? props.renderBaseUsdc?.(wallet()) : undefined}

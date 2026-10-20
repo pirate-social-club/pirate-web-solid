@@ -1,4 +1,4 @@
-import { createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
+import { createEffect, createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
 import { formatUnits, getAddress, parseUnits } from "viem";
 import {
   Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle,
@@ -34,6 +34,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   personaId: string;
   walletAddress: string;
   onClose: () => void;
+  onConfirmed?: () => void;
   dependencies?: WalletSponsoredSendDependencies;
 }>) {
   const dependencies = props.dependencies ?? browserWalletSponsoredSend();
@@ -51,6 +52,15 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   const signInAbort = new AbortController();
   let alive = true;
   let wallet: SigningWallet | undefined;
+  const notification = { personaId: props.personaId, address: props.walletAddress, confirmed: props.onConfirmed };
+  const reported = new Set<string>();
+  createEffect(record, current => {
+    if (!alive || current?.status !== "confirmed" || reported.has(current.send_id)
+      || current.persona_id !== notification.personaId || props.personaId !== notification.personaId
+      || props.walletAddress !== notification.address || current.sender_address.toLowerCase() !== notification.address.toLowerCase()) return;
+    reported.add(current.send_id);
+    notification.confirmed?.();
+  });
   const shutdown = () => { alive = false; signInAbort.abort(); wallet?.dispose(); wallet = undefined; };
   onCleanup(shutdown);
   const close = () => { shutdown(); props.onClose(); };

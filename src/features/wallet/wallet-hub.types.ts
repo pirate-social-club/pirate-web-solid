@@ -53,6 +53,7 @@ export interface WalletHubProps {
   title?: string;
   walletLabel?: string;
   changeWalletLabel?: string;
+  showChangeWalletAction?: boolean;
   assetsUnavailable?: boolean;
   walletAddress?: string | null;
   walletActionsPending?: boolean;
