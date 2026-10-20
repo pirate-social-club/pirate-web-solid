@@ -1,5 +1,26 @@
 # Paper design decisions
 
+## Current Notifications guidance, 2026-10-20
+
+Notifications has shipped with a functional private inbox at `/activity`, reached
+from the desktop sidebar and mobile drawer. The header bell remains hidden, and
+the four mobile tabs are unchanged. Mark read is explicit; opening a notification
+target does not implicitly mark it read. The accepted comment and reply scope is
+recorded in [PR 98](https://github.com/pirate-social-club/pirate-web-solid/pull/98).
+It does not establish Dance qualification-result notifications.
+
+The dated October 16 snapshot below retains its original source observations,
+including the unavailable inbox placeholder and pending reply targeting. Those
+statements describe that snapshot, not the current release. The October 17
+Management and spoken Study decisions recorded at the end remain adopted.
+
+Video discussions use one reply level, with Reply on top-level comments only.
+The October 20 launch direction requires newest-first root comments and
+oldest-first replies on the video post page, retaining View replies, pagination
+and notification targeting. A Home comments sheet is outside this slice.
+Ordering repairs and the remaining desktop and Pixel acceptance are still open;
+the existing one-level controls do not establish acceptance of those cases.
+
 ## Adopted rulings, 2026-10-16
 
 The workspace_owner adopted the rulings below on 2026-10-16. They answer questions 2 to 9 of the original list, which is kept unchanged under [Original questions](#original-questions-2026-10-15). Question 1 was resolved earlier the same day, and that change has shipped.
@@ -23,9 +44,13 @@ Each ruling is checked against `main` at `60d8f61f`. Conforms means the code alr
 - The host's composer stays Song and Video only, including its overflow controls, on desktop and mobile. The generic capability code, such as the composer's Live tab, stays intact and stays unused by this host.
 - Notifications gets its navigation entry together with its functional inbox. Remaining: `/activity` currently renders "Notifications are unavailable", and the header's notification action is hidden. The entry and the inbox ship together, and ruling 6's reply targeting builds on them.
 
-### Still undecided
+### Adopted 2026-10-17
 
-This batch does not decide:
+The two questions this batch left undecided were settled by the workspace_owner on 2026-10-17:
+
+> Adopted 2026-10-17. Management reports remain inline cards in the moderation queue for v1; Paper's report-detail page is deferred. Studying keeps immediate advancement on a correct spoken answer; Paper 077's Correct box is not adopted for v1.
+
+Both keep current behavior, so neither adds runtime work. They were previously listed here as still undecided:
 - Management report detail. Paper draws a report-detail page; the app's queue uses inline cards.
 - Studying Correct box (Paper 077). Correct spoken answers still advance immediately.
 
