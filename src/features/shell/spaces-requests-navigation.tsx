@@ -57,10 +57,13 @@ export function SpacesRequestsNavigation(props: SpacesRequestsNavigationProps) {
     },
   });
   createEffect(() => ({ account: account(), pending: pending() }), ({ account: session, pending: checking }) => {
-    const expected = ++generation;
     const changed = owner.setSession(checking || session === "resolving" || session === undefined ? { kind: "pending" }
       : session === "failed" ? { kind: "failed" } : session === "anonymous" ? { kind: "anonymous" } : { kind: "ready", accountId: session.userId });
-    if (changed || accountId() === undefined) setLocalAccount(undefined);
+    // A replacement snapshot for the same resolved account must not cancel
+    // its one hydration-deferred load. Identity changes still invalidate it.
+    if (!changed && accountId() !== undefined) return;
+    const expected = ++generation;
+    setLocalAccount(undefined);
     if (!changed) return;
     const load = () => queueMicrotask(() => {
       const id = accountId();

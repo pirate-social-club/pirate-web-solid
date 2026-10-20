@@ -66,17 +66,20 @@ test("a validated original local intent keeps recovery reachable during a servic
   expect(view.button()).not.toBeNull();
 });
 
-test("private reads and local intent checks wait for the hydration completion callback", async () => {
+test.each(["local", "server"])("a same-account snapshot before hydration preserves the one deferred %s recovery read", async retained => {
   const descriptor = Object.getOwnPropertyDescriptor(sharedConfig, "onHydrationEnd");
   const callbacks: Array<() => void> = [];
   Object.defineProperty(sharedConfig, "onHydrationEnd", { configurable: true, value: (callback: () => void) => callbacks.push(callback) });
   try {
-    localAttempt();
-    const get = vi.fn(async () => page());
+    if (retained === "local") localAttempt();
+    const get = vi.fn(async () => page(retained === "server" ? [item] : []));
     const view = mount({ enabled: false, client: { get_usersMeSpacesHandleRequests: get } });
     await vi.waitFor(() => expect(callbacks).toHaveLength(1));
     expect(get).not.toHaveBeenCalled();
     expect(view.button()).toBeNull();
+    view.setAccount({ status: "authenticated", userId: "account-a" });
+    await Promise.resolve(); await Promise.resolve();
+    expect(callbacks).toHaveLength(1);
     callbacks[0]?.();
     await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(1));
     expect(view.button()).not.toBeNull();
