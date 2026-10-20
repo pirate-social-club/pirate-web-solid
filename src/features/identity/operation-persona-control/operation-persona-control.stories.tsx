@@ -52,7 +52,7 @@ export const UnknownSelection: Story = {
   args: { selectedPersonaId: "p_missing", placeholder: "Choose a profile" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Posting as Choose a persona" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Posting as Choose a profile" })).toBeEnabled();
     await expect(canvas.queryByText("Night Shift")).not.toBeInTheDocument();
   },
 };
