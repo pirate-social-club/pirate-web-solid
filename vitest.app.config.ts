@@ -28,6 +28,7 @@ export default defineConfig({
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
       "src/features/notifications/notifications.test.tsx",
+      "src/features/shell/spaces-requests-navigation.test.tsx",
       "src/features/notifications/comment-navigation.test.tsx",
       "src/features/activity/activity-api.test.ts",
       "src/features/activity/activity-private-api.test.ts",
