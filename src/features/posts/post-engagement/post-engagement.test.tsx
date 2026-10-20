@@ -260,6 +260,43 @@ describe("PostEngagement", () => {
     expect(textarea.value).toBe("Newly typed text");
   });
 
+  test.each(["missing", "published", "hidden"] as const)("retained video root reconciles %s readback without duplicating identity or counts", async state => {
+    const storage = createMemoryPendingEngagementStorage();
+    const record = await createPendingEngagementRecord({ kind: "comment", postId: "post-1", personaId: "persona-1", body: "Original retained root", idempotencyKey: "video-original-key" }, { principalId: "user-1", postId: "post-1" });
+    await storage.saveNew(record);
+    const createComment = vi.fn<PostEngagementTransport["createComment"]>(async () => ({
+      submission_id: "retained-submission", href: "/comments/retained-root", surface: "comment", status: "published",
+      result: { decision: "allow", reason_code: null }, review_ref: null,
+      created_at: "2026-09-29T00:00:00Z", updated_at: "2026-09-29T00:00:00Z",
+      published_resource: { kind: "comment", comment_id: "retained-root", href: "/comments/retained-root" },
+    }));
+    const older = { id: "other-root", submissionId: "other-submission", parentId: null, body: "Another root", depth: 0, replyCount: 0, state: "published" as const, caseRef: null, href: "/comments/other-root" };
+    const existing = { ...older, id: "retained-root", submissionId: "retained-submission", body: "Current readback projection", replyCount: 2, state: state === "hidden" ? "hidden" as const : "published" as const, href: "/comments/retained-root" };
+    const generateKey = vi.fn(() => "unexpected-new-key");
+    const count = state === "published" ? 2 : 1;
+    const container = render(() => <PostEngagement presentation="inline" newestFirstRoots
+      principalId="user-1" initialComments={state === "missing" ? [older] : [older, existing]}
+      pendingStorage={storage} generateIdempotencyKey={generateKey} transport={transportFixture(createComment)}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: count, viewerVote: null }} />);
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    button("Retry retained request").click();
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Retry retained request"));
+    expect(createComment).toHaveBeenCalledExactlyOnceWith(record.envelope);
+    expect(generateKey).not.toHaveBeenCalled();
+    expect(await storage.listForPost("user-1", "post-1")).toEqual([]);
+    const rows = [...container.querySelectorAll("[data-comment-id]")];
+    expect(rows.map(row => row.getAttribute("data-comment-id"))).toEqual(state === "missing" ? ["retained-root", "other-root"] : ["other-root", "retained-root"]);
+    expect(container.querySelectorAll("[data-comment-id='retained-root']")).toHaveLength(1);
+    expect(button(`Comments (${state === "hidden" ? 1 : 2})`)).toBeTruthy();
+    const row = container.querySelector("[data-comment-id='retained-root']")!;
+    expect(row.getAttribute("data-comment-state")).toBe(state === "hidden" ? "hidden" : "published");
+    if (state === "published") {
+      expect(row.textContent).toContain("Current readback projection");
+      expect(row.textContent).toContain("View replies");
+    }
+    if (state === "hidden") expect(row.textContent).not.toContain("Original retained root");
+  });
+
   test("mints a new comment key only after explicit rejected-action discard", async () => {
     window.scrollTo = vi.fn();
     const createComment = vi.fn()

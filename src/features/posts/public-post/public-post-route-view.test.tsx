@@ -421,11 +421,19 @@ it("gives a signed-in visitor Join to comment in place of the comment box", asyn
   expect(reply?.getAttribute("href")).toBe("/c/harbor");
 });
 
-it("draws replies one level in, without a Reply of their own, and names whom a reply answers", async () => {
+it.each(["text", "video"] as const)("%s draws oldest-first replies one level in, with Reply only on the root", async postType => {
   const readComments = vi.fn(async (input: { parentId?: string }) => ({ items: input.parentId === "root" ? [replyComment] : [rootComment], next_cursor: null }));
-  const container = render(communityTextState("member", 2), undefined, {
+  const createReply = vi.fn<PostEngagementTransport["createReply"]>(async () => ({
+    submission_id: "new-reply-submission", href: "/comments/new-reply", surface: "reply", status: "published",
+    result: { decision: "allow", reason_code: null }, review_ref: null,
+    created_at: "2026-09-30T00:00:00Z", updated_at: "2026-09-30T00:00:00Z",
+    published_resource: { kind: "comment", comment_id: "new-reply", href: "/comments/new-reply" },
+  }));
+  const state = communityTextState("member", 2);
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: postType } } } }, undefined, {
     resolveSession: async () => member, readViewerVote: async () => null, readComments,
-    pendingStorage: createMemoryPendingEngagementStorage(), transport: noTransport(),
+    pendingStorage: createMemoryPendingEngagementStorage(), transport: { ...noTransport(), createReply },
   });
   await vi.waitFor(() => expect(container.querySelector("[data-comment-id='root']")).not.toBeNull());
   const rootRow = container.querySelector("[data-comment-id='root']")!;
@@ -438,7 +446,47 @@ it("draws replies one level in, without a Reply of their own, and names whom a r
   expect([...replyRow.querySelectorAll("button")].some(button => button.textContent === "Reply")).toBe(false);
   await userEvent.click([...rootRow.querySelectorAll("button")].find(button => button.textContent === "Reply")!);
   await vi.waitFor(() => expect(container.querySelector("[data-comment-bar]")?.textContent).toContain("Replying to nightowl"));
-  expect(container.querySelector("input[aria-label='Write a reply']")).not.toBeNull();
+  const input = container.querySelector<HTMLInputElement>("input[aria-label='Write a reply']")!;
+  input.value = "A later reply"; input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Post reply']")?.disabled).toBe(false));
+  container.querySelector<HTMLButtonElement>("button[aria-label='Post reply']")!.click();
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-id='new-reply']")).not.toBeNull());
+  expect([...container.querySelectorAll("[data-comment-id]")].map(row => row.getAttribute("data-comment-id"))).toEqual(["root", "reply", "new-reply"]);
+  expect(createReply).toHaveBeenCalledOnce();
+  expect(await decodePendingEngagementAction(createReply.mock.calls[0]![0])).toMatchObject({ kind: "reply", commentId: "root", personaId: "profile", body: "A later reply" });
+});
+
+it.each(["text", "song", "video"] as const)("%s places a new local root correctly while pending and after publication", async postType => {
+  const state = communityTextState("member", 1);
+  const response: Awaited<ReturnType<PostEngagementTransport["createComment"]>> = {
+    submission_id: "new-root-submission", href: "/comments/new-root", surface: "comment", status: "published",
+    result: { decision: "allow", reason_code: null }, review_ref: null,
+    created_at: "2026-09-30T00:00:00Z", updated_at: "2026-09-30T00:00:00Z",
+    published_resource: { kind: "comment", comment_id: "new-root", href: "/comments/new-root" },
+  };
+  let finish: (value: typeof response) => void = () => undefined;
+  const createComment = vi.fn<PostEngagementTransport["createComment"]>(() => new Promise(resolve => { finish = resolve; }));
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: postType } } } }, undefined, {
+    resolveSession: async () => member, readViewerVote: async () => null,
+    readComments: async () => ({ items: [{ ...rootComment, reply_count: 0 }], next_cursor: null }),
+    pendingStorage: createMemoryPendingEngagementStorage(), transport: { ...noTransport(), createComment },
+  });
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-id='root']")).not.toBeNull());
+  const input = container.querySelector<HTMLInputElement>("input[aria-label='Write a comment']")!;
+  input.value = "A new root"; input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[aria-label='Post comment']")?.disabled).toBe(false));
+  container.querySelector<HTMLButtonElement>("button[aria-label='Post comment']")!.click();
+  await vi.waitFor(() => expect(createComment).toHaveBeenCalledOnce());
+  const ids = () => [...container.querySelectorAll("[data-comment-id]")].map(row => row.getAttribute("data-comment-id"));
+  const pending = container.querySelector("[data-comment-state='submitting']")?.getAttribute("data-comment-id");
+  expect(pending).toMatch(/^pending:/u);
+  expect(ids()).toEqual(postType === "video" ? [pending, "root"] : ["root", pending]);
+  finish(response);
+  await vi.waitFor(() => expect(container.querySelector("[data-comment-id='new-root']")).not.toBeNull());
+  expect(ids()).toEqual(postType === "video" ? ["new-root", "root"] : ["root", "new-root"]);
+  expect(createComment).toHaveBeenCalledOnce();
+  expect(await decodePendingEngagementAction(createComment.mock.calls[0]![0])).toMatchObject({ kind: "comment", postId: "post-1", personaId: "profile", body: "A new root" });
 });
 
 it("preserves the public video reader while checking the session for inline comments", async () => {
