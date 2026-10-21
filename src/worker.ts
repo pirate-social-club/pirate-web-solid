@@ -56,7 +56,6 @@ async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIn
             PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
             COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED:
               env.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,
-            SPACES_NAME_REQUESTS_ENABLED: env.SPACES_NAME_REQUESTS_ENABLED,
             PERSONA_PUBLIC_PROFILE_PREFLIGHT: {
               personaId: persona.persona.persona_id,
               state,
@@ -97,7 +96,6 @@ export async function applicationRequest(request: Request, env: Env): Promise<Re
       PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
       COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED:
         env.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,
-      SPACES_NAME_REQUESTS_ENABLED: env.SPACES_NAME_REQUESTS_ENABLED,
     },
   });
 }
