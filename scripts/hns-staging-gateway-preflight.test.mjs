@@ -8,7 +8,7 @@ function fixture() {
   const origin = "https://hns-community-ingress-staging.pirate.sc";
   const manifestBytes = Buffer.from(JSON.stringify({
     schema: "pirate-hns-community-app-handle-gateway-staging-public-v1",
-    mode: "staging-public-tls", solid_origin: origin,
+    mode: "staging-public-tls", public_tls_listener: "94.103.168.209:443", solid_origin: origin,
     solid_ingress_composition_reference: fingerprint,
   }));
   const reference = `hns-community-app-handle-gateway-sha256:${createHash("sha256").update(manifestBytes).digest("hex")}`;
@@ -45,4 +45,17 @@ test("refuses stale source and built gateway bindings", () => {
   value.sourceConfig.env.staging.vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE = value.reference;
   value.builtConfig.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE = "old";
   assert.throws(() => checkStagingGatewayCandidate(value), /worker_bindings_differ_from_active_gateway/u);
+});
+
+test("refuses the wallet listener even when its complete manifest is pinned", () => {
+  const value = fixture();
+  const manifest = JSON.parse(value.manifestBytes);
+  manifest.public_tls_listener = "81.15.150.167:443";
+  value.manifestBytes = Buffer.from(JSON.stringify(manifest));
+  const reference = `hns-community-app-handle-gateway-sha256:${createHash("sha256").update(value.manifestBytes).digest("hex")}`;
+  for (const vars of [value.sourceConfig.env.staging.vars, value.builtConfig.vars]) {
+    vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE = reference;
+    vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE = reference;
+  }
+  assert.throws(() => checkStagingGatewayCandidate(value), /gateway_manifest_is_not_staging/u);
 });
