@@ -14,7 +14,7 @@ describe("security policy", () => {
   test("allows Privy sign-in and data QR images on the Very route", () => {
     const policy = securityPolicy("/verify/very", "nonce-value");
     expect(policy).toContain("style-src 'self' 'unsafe-inline'");
-    expect(policy).toContain("img-src 'self' data: https://assets.very.org");
+    expect(policy).toContain("img-src 'self' blob: data: https://assets.very.org");
     expect(policy).toContain("frame-src https://auth.privy.io");
     expect(policy).toContain("connect-src 'self' https://auth.privy.io https://bridge.very.org https://verify.very.org");
     expect(policy).not.toContain("wss://bridge.very.org");
@@ -80,5 +80,19 @@ test("fixed wallet RPC origins remain available after SPA navigation from every 
     for (const origin of WALLET_RPC_ORIGINS) expect(connect).toContain(origin);
     expect(connect).toContain(PRIVY_REWARD_RPC_ORIGIN);
     expect(WALLET_RPC_ORIGINS.every(origin => !origin.includes("*"))).toBe(true);
+  }
+});
+
+// A client navigation retains the policy of its original document.
+test("local avatar previews work after every application entry route", () => {
+  for (const path of ["/", "/communities/new", "/auth/sign-in", "/verify/very", "/verify/zkpassport"]) {
+    const directives = securityPolicy(path, "fixture").split(";").map(value => value.trim());
+    const images = directives.filter(value => value.startsWith("img-src "));
+    expect(images).toHaveLength(1);
+    expect(images[0]?.split(" ")).toContain("blob:");
+    expect(images[0]?.split(" ")).toContain("'self'");
+    expect(images[0]?.split(" ")).not.toContain("*");
+    expect(directives).toContain("object-src 'none'");
+    expect(directives).toContain("script-src 'nonce-fixture' 'strict-dynamic'" + (path === "/verify/zkpassport" ? " 'wasm-unsafe-eval'" : ""));
   }
 });
