@@ -30,6 +30,8 @@ export const Desktop: Story = {
   render: () => <PortfolioStory />,
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).queryByRole("group", { name: "Wallet networks" })).toBeNull();
+    await expect(within(canvasElement).getByRole("button", { name: "Refresh balances" })).toBeEnabled();
+    await expect(within(canvasElement).queryByRole("button", { name: "Switch profile" })).toBeNull();
   },
 };
 export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <PortfolioStory /> };
@@ -62,6 +64,6 @@ export const PersonaBalances: Story = {
     await expect(canvas.queryByText("42.36")).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Testnet" }));
     await expect(canvas.getByText("Base Sepolia")).toBeVisible();
-    await expect(canvas.getByText("Testnet tokens have no monetary value.")).toBeVisible();
+    await expect(canvas.queryByText("Testnet tokens have no monetary value.")).toBeNull();
   },
 };

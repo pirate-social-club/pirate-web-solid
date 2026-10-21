@@ -1,4 +1,4 @@
-import { createRoot } from "solid-js";
+import { flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, test, vi } from "vitest";
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
@@ -44,9 +44,11 @@ function fixture(options: { reserveFails?: boolean; submitFails?: boolean; chang
   return { dependencies, data, wallet };
 }
 
-function mount(dependencies: WalletSponsoredSendDependencies) {
+function mount(dependencies: WalletSponsoredSendDependencies, onConfirmed = vi.fn(), onClose = vi.fn()) {
   const element = document.createElement("div"); document.body.appendChild(element);
-  createRoot(dispose => { disposers.push(dispose); render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={vi.fn()} />, element); });
+  const unmount = render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={onClose} onConfirmed={onConfirmed} />, element);
+  disposers.push(unmount);
+  return unmount;
 }
 const text = () => document.body.textContent ?? "";
 const button = (name: string) => {
@@ -106,4 +108,57 @@ test("changed server record never reaches wallet signing", async () => {
   await vi.waitFor(() => expect(text()).toContain("recorded send changed"));
   expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
   expect(f.data.submit).not.toHaveBeenCalled();
+});
+
+test("only a server-confirmed matching send notifies the parent, once per send", async () => {
+  const f = fixture(), onConfirmed = vi.fn(), onClose = vi.fn();
+  let current: WalletSponsoredSendRecord = { ...reserved, status: "held", authorization: null };
+  vi.mocked(f.data.read).mockImplementation(async () => current);
+  mount(f.dependencies, onConfirmed, onClose);
+  await vi.waitFor(() => expect(text()).toContain("network is checking this send"));
+  expect(onConfirmed).not.toHaveBeenCalled();
+  current = { ...current, status: "confirmed", transaction_hash: `0x${"a".repeat(64)}` };
+  button("Refresh status").click();
+  await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(button("Refresh status").disabled).toBe(false));
+  let finishRefresh: (record: WalletSponsoredSendRecord) => void = () => { throw new Error("refresh did not start"); };
+  vi.mocked(f.data.read).mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; }));
+  button("Refresh status").click(); flush();
+  expect(button("Refresh status").disabled).toBe(true);
+  button("Close").click();
+  expect(onClose).not.toHaveBeenCalled();
+  finishRefresh(current);
+  await vi.waitFor(() => expect(button("Refresh status").disabled).toBe(false));
+  button("Close").click();
+  expect(onClose).toHaveBeenCalledOnce(); expect(onConfirmed).toHaveBeenCalledOnce();
+  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled(); expect(f.data.reserve).not.toHaveBeenCalled();
+});
+
+test("closing an uncertain send is not confirmation", async () => {
+  const f = fixture(), onConfirmed = vi.fn(), onClose = vi.fn();
+  vi.mocked(f.data.read).mockResolvedValue({ ...reserved, status: "held", authorization: null });
+  mount(f.dependencies, onConfirmed, onClose);
+  await vi.waitFor(() => expect(text()).toContain("network is checking this send"));
+  button("Close").click();
+  expect(onClose).toHaveBeenCalledOnce(); expect(onConfirmed).not.toHaveBeenCalled();
+});
+
+test.each(["profile", "address"] as const)("a server result for another %s cannot notify this wallet", async field => {
+  const f = fixture(), onConfirmed = vi.fn();
+  vi.mocked(f.data.read).mockResolvedValue({ ...reserved, status: "confirmed", authorization: null,
+    ...(field === "profile" ? { persona_id: "another-profile" } : { sender_address: recipient }) });
+  mount(f.dependencies, onConfirmed);
+  await vi.waitFor(() => expect(text()).toContain("This send is confirmed"));
+  expect(onConfirmed).not.toHaveBeenCalled();
+});
+
+test("a late confirmed read after disposal cannot refresh the parent", async () => {
+  const f = fixture(), onConfirmed = vi.fn();
+  let finish: (value: WalletSponsoredSendRecord) => void = () => { throw new Error("read not started"); };
+  vi.mocked(f.data.read).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const unmount = mount(f.dependencies, onConfirmed);
+  await vi.waitFor(() => expect(f.data.read).toHaveBeenCalledOnce());
+  unmount(); finish({ ...reserved, status: "confirmed", authorization: null });
+  await Promise.resolve(); await Promise.resolve();
+  expect(onConfirmed).not.toHaveBeenCalled();
 });

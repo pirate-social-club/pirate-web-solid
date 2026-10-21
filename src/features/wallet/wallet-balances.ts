@@ -11,8 +11,10 @@ export function createWalletBalances(selected: Accessor<SelectedWallet | undefin
   const [loading, setLoading] = createSignal(false);
   let controller: AbortController | undefined;
   let generation = 0;
+  let scopeGeneration = 0;
   let active = true;
   const reload = () => {
+    if (!active) return;
     controller?.abort();
     const request = ++generation;
     const wallet = untrack(selected);
@@ -29,10 +31,26 @@ export function createWalletBalances(selected: Accessor<SelectedWallet | undefin
       if (active && request === generation && identity === key()) setSections(walletAssetSections(wallet.address, network));
     }).finally(() => { if (active && request === generation) setLoading(false); });
   };
-  createEffect(key, reload);
-  onCleanup(() => { active = false; generation++; controller?.abort(); });
+  createEffect(key, () => { scopeGeneration++; reload(); });
+  const onReturn = () => { if (document.visibilityState !== "hidden") reload(); };
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", onReturn);
+    window.addEventListener("pageshow", onReturn);
+  }
+  onCleanup(() => {
+    active = false; generation++; scopeGeneration++; controller?.abort();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", onReturn);
+      window.removeEventListener("pageshow", onReturn);
+    }
+  });
   return {
     sections: () => owner() === key() ? sections() : walletAssetSections(selected()?.address ?? null, mode(), selected() ? "Loading…" : "Unavailable"),
     loading, reload,
+    /** Freeze the parent identity when an owned send sheet opens. */
+    captureReload: () => {
+      const identity = untrack(key), scope = scopeGeneration;
+      return () => { if (active && identity !== undefined && identity === key() && scope === scopeGeneration) reload(); };
+    },
   };
 }
