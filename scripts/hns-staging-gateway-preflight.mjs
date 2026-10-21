@@ -8,7 +8,7 @@ import {
 } from "./hns-ingress-composition-identity.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const gatewayHost = "ubuntu@81.15.150.167";
+const gatewayHost = "ubuntu@94.103.168.209";
 const manifestPath = "/srv/pirate-hns-staging/public-gateway/current/deployment-manifest.json";
 const gatewayPrefix = "hns-community-app-handle-gateway-sha256:";
 
@@ -32,6 +32,7 @@ export function checkStagingGatewayCandidate({ sourceConfig, builtConfig, manife
   const manifest = readJson(manifestBytes, "gateway_manifest");
   if (manifest.schema !== "pirate-hns-community-app-handle-gateway-staging-public-v1"
     || manifest.mode !== "staging-public-tls"
+    || manifest.public_tls_listener !== "94.103.168.209:443"
     || manifest.solid_origin !== "https://hns-community-ingress-staging.pirate.sc") {
     refuse("gateway_manifest_is_not_staging");
   }
