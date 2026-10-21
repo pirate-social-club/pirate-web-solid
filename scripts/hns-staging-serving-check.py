@@ -19,7 +19,9 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 
 ROOT = dns.name.from_text("8s28.")
-AUTHORITIES = (("ns1", 5301, "81.15.150.167"),
+# Staging deliberately co-locates both authority names on the CI host.
+# Production retains its separate primary and secondary hosts.
+AUTHORITIES = (("ns1", 5301, "94.103.168.209"),
                ("ns2", 5302, "94.103.168.209"))
 GATEWAY_PORT = 8443
 READER_HOST = "ubuntu@81.15.150.162"
@@ -72,9 +74,9 @@ def start_tunnel():
     child = subprocess.Popen(
         ["ssh", "-N", "-T", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes",
          "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=yes",
-         "-L", "127.0.0.1:5301:81.15.150.167:53",
+         "-L", "127.0.0.1:5301:94.103.168.209:53",
          "-L", "127.0.0.1:5302:94.103.168.209:53",
-         "-L", "127.0.0.1:8443:81.15.150.167:443", READER_HOST],
+         "-L", "127.0.0.1:8443:94.103.168.209:443", READER_HOST],
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL)
     for _ in range(30):
@@ -195,7 +197,7 @@ def check_route():
             raise ValueError(f"{label}: signed control TXT mismatch")
         for host in hosts:
             host_a = signed(port, f"{host}.", "A", keys)
-            if [record.address for record in host_a] != ["81.15.150.167"]:
+            if [record.address for record in host_a] != ["94.103.168.209"]:
                 raise ValueError(f"{label}: {host} address mismatch")
             tlsa = signed(port, f"_443._tcp.{host}.", "TLSA", keys)
             if not any((record.usage, record.selector, record.mtype,
