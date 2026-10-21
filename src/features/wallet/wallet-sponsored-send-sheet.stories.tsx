@@ -14,6 +14,7 @@ const confirmed: WalletSponsoredSendRecord = {
   recipient_address: recipient, amount_atomic: "5000000",
   transaction_hash: "0x5be1c0de5be1c0de5be1c0de5be1c0de5be1c0de5be1c0de5be1c0de5be1c0de",
   authorization: null,
+  verification_required: false,
 };
 
 /**
@@ -29,6 +30,7 @@ function storyDependencies(existing: WalletSponsoredSendRecord | null = null): W
       read: async () => existing,
       reserve: fn(() => new Promise<WalletSponsoredSendRecord>(() => {})),
       submit: fn(() => new Promise<WalletSponsoredSendRecord>(() => {})),
+      issueVerificationIntent: fn(async () => "wallet-send_story"),
     },
     openWallet: async () => ({
       restoreAuthorization: async () => true,
@@ -42,6 +44,7 @@ const meta = {
   title: "Flows/Wallet/Send",
   component: WalletSponsoredSendSheet,
   args: {
+    accountId: "account_story",
     personaId: "persona_story",
     walletAddress: sender,
     onClose: fn(),
@@ -152,5 +155,18 @@ export const Sent: Story = {
     if (close === undefined) throw new Error("Expected the footer Close button");
     await userEvent.click(close);
     await expect(args.onClose).toHaveBeenCalled();
+  },
+};
+
+/** A recorded send stays unsigned while current Palm evidence is missing. */
+export const PalmRequired: Story = {
+  args: { dependencies: storyDependencies({ ...confirmed, status: "reserved", transaction_hash: null, verification_required: true }) },
+  play: async ({ canvasElement, args }) => {
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Send USDC" });
+    const sheet = within(dialog);
+    await expect(await sheet.findByRole("button", { name: "Verify palm" })).toBeVisible();
+    await expect(sheet.queryByRole("button", { name: "Authorize recorded send" })).not.toBeInTheDocument();
+    await expect(args.dependencies?.data.reserve).not.toHaveBeenCalled();
+    await expect(args.dependencies?.data.submit).not.toHaveBeenCalled();
   },
 };

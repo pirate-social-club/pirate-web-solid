@@ -53,6 +53,7 @@ const clients = [
       "post_rewardsWinnerSendsSendIdCancellation",
       "get_rewardsWinnerSendsSendId",
       "post_walletPersonasPersonaIdSponsoredSend",
+      "post_walletPersonasPersonaIdSendVerificationIntents",
       "get_walletPersonasPersonaIdSponsoredSend",
       "post_walletSponsoredSendsSendIdSubmit",
       "get_walletSponsoredSendsSendId",

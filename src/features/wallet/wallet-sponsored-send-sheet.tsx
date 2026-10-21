@@ -1,10 +1,12 @@
 import { createEffect, createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
 import { formatUnits, getAddress, parseUnits } from "viem";
+import { ApiClientResponseValidationError } from "@pirate/api-client";
 import {
   Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle,
   TextField, TextFieldInput, TextFieldLabel, Type,
 } from "../../design-system.ts";
-import { createWalletSponsoredSendData, type WalletSponsoredSendData, type WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
+import { createWalletSponsoredSendData, walletSendVerificationRequired, type WalletSponsoredSendData, type WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
+import { forgetWalletSend, rememberWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
 import { createRewardWalletSession, type RewardTokenTransfer, type RewardWalletSession } from "../../api/reward-wallet-session.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import { defaultPrivyFactory } from "../../api/privy-session.ts";
@@ -14,12 +16,14 @@ import { checkRecipient, explorerTransactionUrl } from "../rewards/winnings-send
 const USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const DECIMALS = 6;
 type Sender = Readonly<{ address: string; walletIndex: number }>;
-type Step = "loading" | "unavailable" | "details" | "authorization" | "review" | "status";
+type Step = "loading" | "unavailable" | "details" | "authorization" | "verification" | "review" | "status";
 type SigningWallet = Pick<RewardWalletSession, "restoreAuthorization" | "signSponsoredRequest" | "dispose">;
 
 export type WalletSponsoredSendDependencies = Readonly<{
   data: WalletSponsoredSendData;
   openWallet: () => Promise<SigningWallet>;
+  navigate?: (path: string) => void;
+  reload?: () => void;
 }>;
 
 export function browserWalletSponsoredSend(): WalletSponsoredSendDependencies {
@@ -31,28 +35,37 @@ export function browserWalletSponsoredSend(): WalletSponsoredSendDependencies {
 
 /** The ordinary Wallet USDC send; tokens need not come from a reward. */
 export function WalletSponsoredSendSheet(props: Readonly<{
+  accountId: string;
   personaId: string;
   walletAddress: string;
   onClose: () => void;
   onConfirmed?: () => void;
   dependencies?: WalletSponsoredSendDependencies;
+  resumeDraft?: WalletSendDraft;
 }>) {
   const dependencies = props.dependencies ?? browserWalletSponsoredSend();
   const [step, setStep] = createSignal<Step>("loading");
   const [sender, setSender] = createSignal<Sender>();
   const [balance, setBalance] = createSignal<bigint>();
   const [record, setRecord] = createSignal<WalletSponsoredSendRecord | null>(null);
-  const [recipient, setRecipient] = createSignal("");
-  const [amount, setAmount] = createSignal("");
+  const candidate = props.resumeDraft;
+  const resumed = candidate?.accountId === props.accountId && candidate.personaId === props.personaId
+    && candidate.walletAddress.toLowerCase() === props.walletAddress.toLowerCase() ? candidate : undefined;
+  const [recipient, setRecipient] = createSignal(resumed?.recipient ?? "");
+  const [amount, setAmount] = createSignal(resumed?.amount ?? "");
   const [touched, setTouched] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [submitting, setSubmitting] = createSignal(false);
   const [error, setError] = createSignal("");
-  const [idempotencyKey, setIdempotencyKey] = createSignal(crypto.randomUUID());
+  const [reloadRequired, setReloadRequired] = createSignal(false);
+  const [returnConflict, setReturnConflict] = createSignal(false);
+  let returnChecked = false;
+  const [idempotencyKey, setIdempotencyKey] = createSignal(resumed?.idempotencyKey ?? crypto.randomUUID());
   const signInAbort = new AbortController();
   let alive = true;
   let wallet: SigningWallet | undefined;
   const notification = { personaId: props.personaId, address: props.walletAddress, confirmed: props.onConfirmed };
+  const owner = { accountId: props.accountId, personaId: props.personaId, address: props.walletAddress };
   const reported = new Set<string>();
   createEffect(record, current => {
     if (!alive || current?.status !== "confirmed" || reported.has(current.send_id)
@@ -62,21 +75,44 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     notification.confirmed?.();
   });
   const shutdown = () => { alive = false; signInAbort.abort(); wallet?.dispose(); wallet = undefined; };
+  createEffect(() => [props.accountId, props.personaId, props.walletAddress] as const, ([accountId, personaId, address]) => {
+    if (accountId !== owner.accountId || personaId !== owner.personaId || address !== owner.address) {
+      shutdown(); setStep("unavailable"); setError("The account or wallet changed. Reopen Send from your wallet.");
+    }
+  });
   onCleanup(shutdown);
-  const close = () => { shutdown(); props.onClose(); };
+  const close = () => { try { forgetWalletSend(idempotencyKey()); } catch { /* A form hint grants no authority. */ } shutdown(); props.onClose(); };
   const requestClose = () => { if (!busy() && !submitting()) close(); };
   const run = async (operation: () => Promise<void>) => {
     if (busy() || !alive) return;
     setBusy(true);
     setError("");
     try { await operation(); }
-    catch {
+    catch (cause) {
       if (alive) {
-        setError("The send could not be completed. Check its recorded status before trying again.");
-        setStep("status");
+        if (cause instanceof ApiClientResponseValidationError) versionMismatch();
+        else { setError("The send could not be completed. Check its recorded status before trying again."); setStep("status"); }
       }
     } finally { if (alive) setBusy(false); }
   };
+  const versionMismatch = () => {
+    setReloadRequired(true); setStep("unavailable");
+    setError("Wallet information could not be checked. Reload the page and check the recorded send before continuing.");
+  };
+  const requireVerification = () => { setStep("verification"); setError(""); };
+  const verify = () => run(async () => {
+    const to = recipientCheck(); const value = amountCheck(); const current = record();
+    if (current !== null && current.status !== "reserved") { await refresh(); return; }
+    if (current === null && (!to.ok || !value.ok)) { setStep("details"); return; }
+    const draft: WalletSendDraft = {
+      accountId: owner.accountId, personaId: owner.personaId, walletAddress: owner.address,
+      recipient: current?.recipient_address ?? (to.ok ? to.address : ""),
+      amount: current === null ? amount().trim() : formatUnits(BigInt(current.amount_atomic), DECIMALS),
+      idempotencyKey: idempotencyKey(), sendId: current?.send_id ?? null,
+    };
+    const path = rememberWalletSend(draft);
+    if (dependencies.navigate) dependencies.navigate(path); else window.location.assign(path);
+  });
   const format = (atomic: bigint) => `${formatUnits(atomic, DECIMALS)} USDC`;
   const recipientCheck = () => checkRecipient(recipient(), sender()?.address ?? props.walletAddress, USDC);
   const amountCheck = () => {
@@ -94,7 +130,14 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     const current = await dependencies.data.read(props.personaId);
     if (!alive) return;
     setRecord(current);
-    setStep(current === null ? "details" : "status");
+    if (!returnChecked && resumed !== undefined && (resumed.sendId === null ? current !== null : current?.send_id !== resumed.sendId)) {
+      returnChecked = true; setReturnConflict(true);
+      setError("The recorded send changed. Nothing was signed. Check its status.");
+      setStep(current === null ? "unavailable" : "status");
+      return;
+    }
+    returnChecked = true;
+    setStep(current?.status === "reserved" && current.verification_required ? "verification" : current === null ? "details" : "status");
   };
   const refreshBalance = async () => {
     const assigned = await dependencies.data.sender(props.personaId);
@@ -103,13 +146,13 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (!alive) return;
     setSender(assigned);
     setBalance(held);
-    setAmount(formatUnits(held, DECIMALS));
+    if (resumed === undefined) setAmount(formatUnits(held, DECIMALS));
   };
   onSettled(() => {
     void Promise.resolve().then(async () => {
       try {
         await Promise.all([refresh(), refreshBalance()]);
-      } catch { if (alive) setStep("unavailable"); }
+      } catch (cause) { if (alive) { if (cause instanceof ApiClientResponseValidationError) versionMismatch(); else setStep("unavailable"); } }
     });
   });
   const openWallet = async () => {
@@ -134,9 +177,14 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     getAddress(current.recipient_address) === getAddress(intended.recipient) &&
     current.amount_atomic === intended.amountAtomic;
   const authorize = async (current: WalletSponsoredSendRecord) => {
+    if (returnConflict()) return;
+    if (current.status === "reserved" && current.verification_required) { requireVerification(); return; }
     if (current.status !== "reserved" || current.authorization === null) { await refresh(); return; }
     const fresh = await dependencies.data.read(props.personaId);
     if (!alive) return;
+    if (fresh?.send_id === current.send_id && fresh.status === "reserved" && fresh.verification_required) {
+      setRecord(fresh); requireVerification(); return;
+    }
     if (fresh === null || fresh.send_id !== current.send_id || fresh.status !== "reserved" || fresh.authorization === null ||
       fresh.chain_id !== current.chain_id || fresh.token_address !== current.token_address ||
       fresh.sender_address !== current.sender_address || fresh.recipient_address !== current.recipient_address ||
@@ -148,28 +196,35 @@ export function WalletSponsoredSendSheet(props: Readonly<{
       setRecord(fresh); setStep("status"); setError("The assigned wallet changed. Nothing was signed."); return;
     }
     const currentWallet = await openWallet();
-    if (!await currentWallet.restoreAuthorization()) { setStep("authorization"); return; }
+    if (!await currentWallet.restoreAuthorization()) { if (alive) setStep("authorization"); return; }
+    if (!alive) return;
     const signature = await currentWallet.signSponsoredRequest(intended, fresh.authorization.wallet_id, fresh.authorization.payload_base64);
     if (!alive) return;
     setSubmitting(true); setStep("status");
     try { setRecord(await dependencies.data.submit(fresh.send_id, signature)); }
-    catch {
+    catch (cause) {
       try { await refresh(); } catch { /* A failed read cannot authorize another submission. */ }
-      setError("The send may have reached the network. Check its status; do not send again.");
+      if (!alive) return;
+      if (cause instanceof ApiClientResponseValidationError) versionMismatch();
+      else if (walletSendVerificationRequired(cause, owner.personaId) && record()?.status === "reserved") requireVerification();
+      else setError("The send may have reached the network. Check its status; do not send again.");
     } finally { if (alive) setSubmitting(false); }
   };
   const begin = () => run(async () => {
     setTouched(true);
     if (!recipientCheck().ok || !amountCheck().ok) return;
     const current = await openWallet();
-    setStep(await current.restoreAuthorization() ? "review" : "authorization");
+    const restored = await current.restoreAuthorization();
+    if (alive) setStep(restored ? "review" : "authorization");
   });
   const signIn = () => run(async () => {
     const authenticated = await requestGlobalSignInCompletion(signInAbort.signal);
     if (!alive || !authenticated) return;
     wallet?.dispose(); wallet = undefined;
     const current = await openWallet();
-    if (!await current.restoreAuthorization()) {
+    const restored = await current.restoreAuthorization();
+    if (!alive) return;
+    if (!restored) {
       setError("Wallet authorization could not be restored. Sign in again from the Wallet page.");
       return;
     }
@@ -182,13 +237,17 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (!to.ok || !value.ok || assigned === undefined) { setStep("details"); return; }
     let reserved: WalletSponsoredSendRecord;
     try { reserved = await dependencies.data.reserve(props.personaId, to.address, value.atomic.toString(), idempotencyKey()); }
-    catch {
+    catch (cause) {
+      if (!alive) return;
+      if (cause instanceof ApiClientResponseValidationError) { versionMismatch(); return; }
+      if (walletSendVerificationRequired(cause, owner.personaId)) { requireVerification(); return; }
       try { await refresh(); } catch { setStep("unavailable"); }
       setError("The send could not be recorded. Nothing was signed. Check its status.");
       return;
     }
     if (!alive) return;
     setRecord(reserved); setStep("status");
+    if (reserved.status === "reserved" && reserved.verification_required) { requireVerification(); return; }
     const intended: RewardTokenTransfer = {
       sender: assigned.address, token: USDC, recipient: to.address,
       amountAtomic: value.atomic.toString(), walletIndex: assigned.walletIndex,
@@ -201,6 +260,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   const startNew = () => run(async () => {
     await refreshBalance();
     if (!alive) return;
+    setReturnConflict(false);
     setIdempotencyKey(crypto.randomUUID());
     setRecord(null); setRecipient(""); setTouched(false); setStep("details");
   });
@@ -211,7 +271,8 @@ export function WalletSponsoredSendSheet(props: Readonly<{
       <Show when={error()}>{message => <Type role="alert" class="text-destructive-text break-words">{message()}</Type>}</Show>
       <Switch>
         <Match when={step() === "loading"}><Type role="status">Loading your wallet…</Type></Match>
-        <Match when={step() === "unavailable"}><Type role="alert">Your wallet or send record could not be loaded. Nothing was signed.</Type><Button onClick={requestClose}>Close</Button></Match>
+        <Match when={step() === "unavailable"}><Type role="alert">Your wallet or send record could not be loaded.</Type><Show when={reloadRequired()}><Button onClick={() => dependencies.reload ? dependencies.reload() : window.location.reload()}>Reload wallet</Button></Show><Button onClick={requestClose}>Close</Button></Match>
+        <Match when={step() === "verification"}><Type>Verify your palm with Very before sending. Your send details will be kept for your return.</Type><Button disabled={busy()} onClick={() => void verify()}>Verify palm</Button><Button variant="ghost" disabled={busy()} onClick={() => void run(refresh)}>Check status</Button></Match>
         <Match when={step() === "details"}><div class="flex flex-col gap-4">
           <Type class="text-sm">Wallet balance: {balance() === undefined ? "unavailable" : format(balance()!)}</Type>
           <TextField value={recipient()} onChange={setRecipient} validationState={touched() && !recipientCheck().ok ? "invalid" : "valid"}>
@@ -244,7 +305,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
               <Match when={current().status === "confirmed"}><Type role="status">This send is confirmed. The USDC arrived at the recipient.</Type></Match>
               <Match when={current().status === "reverted"}><Type role="status">This transaction failed. Its token transfer did not happen.</Type></Match>
               <Match when={current().status === "abandoned"}><Type role="status">This unsigned request expired. No transaction was submitted.</Type></Match>
-              <Match when={current().status === "reserved"}><Type role="status">This send is recorded but has not been submitted.</Type><Button disabled={busy() || current().authorization === null || sender() === undefined} onClick={() => void run(() => authorize(current()))}>Authorize recorded send</Button></Match>
+              <Match when={current().status === "reserved"}><Type role="status">This send is recorded but has not been submitted.</Type><Show when={current().verification_required} fallback={<Button disabled={busy() || returnConflict() || current().authorization === null || sender() === undefined} onClick={() => void run(() => authorize(current()))}>Authorize recorded send</Button>}><Button disabled={busy() || returnConflict()} onClick={requireVerification}>Verify palm</Button></Show></Match>
               <Match when={true}><Type role="status">The network is checking this send. Check its status before any other action.</Type></Match>
             </Switch>
             <Show when={["confirmed", "reverted", "abandoned"].includes(current().status)}><Button disabled={busy()} onClick={() => void startNew()}>New send</Button></Show>
