@@ -49,7 +49,7 @@ export function studyLessonPayload(session: StudySession): StudyingLessonPayload
   const current = session.lesson.current;
   let item: StudySessionItem | undefined;
   let presentationNumber = 0;
-  if (current !== null && session.status !== "completed") {
+  if (current !== null && session.status === "active") {
     const currentItemId = current.session_item_id;
     item = session.items.find(({ session_item_id }) => session_item_id === currentItemId);
     presentationNumber = current.presentation_number;
@@ -61,6 +61,7 @@ export function studyLessonPayload(session: StudySession): StudyingLessonPayload
     resolved_count: session.lesson.resolved_card_count,
     served_count: session.lesson.total_card_count,
     session_id: session.session_id,
+    expired: session.status === "expired",
     spoken_submission: session.spoken_submission,
   };
 }

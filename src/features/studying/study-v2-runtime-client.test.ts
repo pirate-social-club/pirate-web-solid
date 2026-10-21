@@ -126,6 +126,15 @@ function spokenResult(input: {
 }
 
 describe("Study v2 runtime client", () => {
+  test("keeps expiry distinct from completion while preserving saved progress", () => {
+    const expired = session({ status: "expired" });
+    expect(studyLessonPayload(expired)).toMatchObject({
+      expired: true, exercises: [], session_id: expired.session_id,
+      resolved_count: expired.lesson.resolved_card_count,
+      served_count: expired.lesson.total_card_count,
+      correct_count: expired.progress.first_pass_correct,
+    });
+  });
   test("preserves the authoritative provider uncertainty for the resumed card", () => {
     const blocked = { state: "provider_outcome_unknown" as const, session_item_id: "item-1", attempt_number: 1, next_action: "operator_review" as const };
     expect(studyLessonPayload(session({ spoken_submission: blocked })).spoken_submission).toEqual(blocked);

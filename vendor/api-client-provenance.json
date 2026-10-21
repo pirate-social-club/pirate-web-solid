@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.125.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.125.0-d47b6d6f.tgz",
-  "sha256": "d47b6d6f0b1a3663dd1fba90413021f16fffea91b5fc1b28ade7a7ae13d92b86",
-  "source": "api-next-contracts@dca39be20ff19a78c9f81cca6fbe1163ee33109e5a6b6f1385db4a2648b3d39a",
-  "openapiSha256": "dca39be20ff19a78c9f81cca6fbe1163ee33109e5a6b6f1385db4a2648b3d39a",
-  "clientSha256": "88c838395729c12501a764f3cd3a8c02298dc590a6a8a2e4d2847a952b0019c9",
+  "version": "0.126.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.126.0-1b9a0b26.tgz",
+  "sha256": "1b9a0b2657abdf75da64796dd61af716c570a95ffd8c65c69c80d91302136c01",
+  "source": "api-next-contracts@78be78a810c4256f55576b3dffb69aa8ff0a7a3fad755765c42a7866ce13ae3e",
+  "openapiSha256": "78be78a810c4256f55576b3dffb69aa8ff0a7a3fad755765c42a7866ce13ae3e",
+  "clientSha256": "faf0672e89b0f8881e1f5e602b04abcc79487740dba51de350d28aa8d0307029",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -144,7 +144,7 @@
     "get_usersMeSpacesHandleRequests",
     "get_communitiesCommunityIdHandleOfferings"
   ],
-  "validatedSourceCommit": "0518781f3d4f615842d3539b67e3ee90c5240ff1",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/631",
-  "intakeStatus": "Genuine immutable client0.125.0/d47b6d6f from reviewed draft API PR631 discovery source dcf83068. Normal current-main inheritance0518781f preserves all accepted discovery/client bytes. Source-only consumer review accepted; focused83app and2SSR cases pass. Initial hosted verification failed on test-fixture typing. A subsequent local check separately failed the historical runtime-table pin. The bounded correction is under qualification; all108operations and three runtime tables remain protected, with only the adopted public Spaces offering response changed. API dependency policy remains blocked pending its precise Hono/follow-redirects successors. Neither API whole-head qualification nor complete consumer hosted/runtime acceptance is claimed. Runtime, financial and mainnet holds remain unchanged."
+  "validatedSourceCommit": "44d0cbbbc72b2f958d3c409deff8aa63831b799f",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/637",
+  "intakeStatus": "Generated account Study expiry client0.126.0 from API PR637 source44d0cbbb. API full check/test and all three genuine account producer PostgreSQL cases pass (1641 assertions); independent review and hosted gates are in progress. No deployment is claimed; guest, Rewards and Mainnet holds remain."
 }

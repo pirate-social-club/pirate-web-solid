@@ -79,13 +79,13 @@ function readRecord(storage: StudySessionStartStorage, key: string): StoredRecor
 }
 
 function isTerminal(session: StudySession): boolean {
-  return session.status !== "active";
+  return session.status === "completed";
 }
 
 export interface StudySessionStartCoordinator {
   start(scope: StudySessionStartScope): Promise<StudySessionStartResult>;
   /** Explicit new-lesson action: the next start rotates to a fresh key. */
-  forget(scope: StudySessionStartScope): void;
+  forget(scope: StudySessionStartScope, sessionId: string): Promise<boolean>;
 }
 
 export interface StudySessionStartLock {
@@ -248,8 +248,19 @@ export function createStudySessionStartCoordinator(deps: {
     }
   };
 
-  const forget = (scope: StudySessionStartScope): void => {
-    storage?.removeItem(studySessionStartScopeKey(scope));
+  const forget = async (scope: StudySessionStartScope, sessionId: string): Promise<boolean> => {
+    if (storage === null || locks === null) return false;
+    const recordKey = studySessionStartScopeKey(scope);
+    try {
+      return await locks.request(`study-session-start:${recordKey}`, async () => {
+        // A slower expired tab cannot discard a new lesson started in another tab.
+        if (readRecord(storage, recordKey)?.sessionId !== sessionId) return false;
+        storage.removeItem(recordKey);
+        return true;
+      });
+    } catch {
+      return false;
+    }
   };
 
   return { start, forget };

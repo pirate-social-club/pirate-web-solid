@@ -121,6 +121,7 @@ export interface StudyingAttemptResult {
   diff?: StudyingTranscriptDiff;
   next_lesson?: {
     exercises: StudyingServerExercise[];
+    expired?: boolean;
     resolved_count?: number;
   };
   outcome?: "correct" | "incorrect" | "ungraded_rerecord";

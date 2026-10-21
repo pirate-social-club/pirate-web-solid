@@ -59,6 +59,27 @@ export const RecordingOutcomeUnknown: Story = {
   },
 };
 
+export const ExpiredLesson: Story = {
+  render: () => (
+    <StudyingRouteView
+      client={createStoryLessonClient({ loadLesson: async () => ({
+        ...storyLessonPayload, expired: true, resolved_count: 2, served_count: 4, exercises: [],
+      }) })}
+      onExit={noop}
+      onStudyAgain={noop}
+      postId={storyPostId}
+      recorder={createStoryRecorder()}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("heading", { name: "Study session expired" })).toBeInTheDocument();
+    await expect(canvas.getByText("2 of 4 cards resolved.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Record" })).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Start new lesson" })).toBeEnabled();
+  },
+};
+
 export const LessonFlow: Story = {
   render: () => (
     <StudyingRouteView
