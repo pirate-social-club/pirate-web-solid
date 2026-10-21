@@ -84,6 +84,37 @@ test("a denied microphone returns to Record without submitting", async () => {
   expect(api.submitAttempt).not.toHaveBeenCalled();
 });
 
+test("an expired lesson keeps saved progress and requires an explicit new-lesson action", async () => {
+  const api = client({ ...lesson(), expired: true, resolved_count: 2, exercises: [] });
+  const capture = recorder();
+  const restart = vi.fn();
+  const { container } = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} onStudyAgain={restart} rewardSlot={<div>Completion rewards</div>} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Study session expired"));
+  expect(container.textContent).toContain("Your progress is saved");
+  expect(container.textContent).toContain("2 of 4 cards resolved");
+  expect(button(container, "Record")).toBeUndefined();
+  expect(container.textContent).not.toContain("Completion rewards");
+  expect(restart).not.toHaveBeenCalled();
+  expect(capture.start).not.toHaveBeenCalled();
+  expect(api.submitAttempt).not.toHaveBeenCalled();
+  await press(container, "Start new lesson");
+  expect(restart).toHaveBeenCalledOnce();
+});
+
+test("a refusal at natural expiry reloads into recovery instead of another recording", async () => {
+  const api = client();
+  api.loadLesson.mockResolvedValueOnce(lesson()).mockResolvedValue({ ...lesson(), expired: true, exercises: [] });
+  api.submitAttempt.mockRejectedValue({ status: 404, code: "not_found" });
+  const capture = recorder();
+  const { container } = mount(() => <StudyingRouteView postId="song" client={api} recorder={capture} />);
+  await recordAndSubmit(container);
+  await vi.waitFor(() => expect(container.textContent).toContain("Study session expired"));
+  expect(api.loadLesson).toHaveBeenCalledTimes(2);
+  expect(api.submitAttempt).toHaveBeenCalledOnce();
+  expect(button(container, "Record")).toBeUndefined();
+  expect(capture.cancel).toHaveBeenCalled();
+});
+
 test.each([353, 999])("refuses a %i ms new recording before any provider submission", async duration => {
   const api = client();
   const { container } = mount(() => <StudyingRouteView postId="song" client={api} recorder={recorder(duration)} />);

@@ -1,6 +1,7 @@
 import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
+import { Button, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 import {
@@ -141,6 +142,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     const exerciseId = input.exercise_id;
     void props.client.submitAttempt(input).then((result) => {
       if (!active) return;
+      if (result.next_lesson?.expired) { props.onReload(); return; }
       // A landed attempt proves we are back in step with the server; spend the
       // recovery budget again only if we drift a second time.
       divergenceRecoveries = 0;
@@ -510,12 +512,25 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
               />
             )}
           >
-            <LoadedStudyingLesson
+            <Show when={!loaded().expired} fallback={(
+              <section class="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 py-8" aria-label="Expired Study session">
+                <Title>Study</Title>
+                <Type as="h1" variant="h1">Study session expired</Type>
+                <Type as="p" variant="body">Your progress is saved. Start a new lesson when you're ready.</Type>
+                <Type as="p" variant="body">{loaded().resolved_count ?? 0} of {loaded().served_count ?? 0} cards resolved.</Type>
+                <div class="mt-auto flex gap-3">
+                  <Button class="flex-1" onClick={props.onExit} variant="secondary">Exit</Button>
+                  <Button class="flex-1" onClick={props.onStudyAgain}>Start new lesson</Button>
+                </div>
+              </section>
+            )}>
+              <LoadedStudyingLesson
               {...props}
               onAuthRequired={() => setAuthRequired(true)}
               onReload={load}
               payload={loaded()}
-            />
+              />
+            </Show>
           </Show>
         )}
       </Show>

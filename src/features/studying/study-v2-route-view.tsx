@@ -438,8 +438,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                           rewardSlot={<div class="space-y-4"><ActivityCompletion communityId={lesson().session.community_id} postId={props.postId} personaId={lesson().session.persona_id} ownerAccountId={lesson().accountId} dependencies={{ resolveSession: props.resolveSession }} attempt={{ kind: "study", session_id: lesson().session.session_id }} /><MegapotShareStatus communityId={lesson().session.community_id} postId={props.postId} /><ActivityLeaderboard communityId={lesson().session.community_id} postId={props.postId} /></div>}
                           onExit={() => navigate(props.exitPath ?? "/")}
                           onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
-                          onStudyAgain={() => {
-                            if (lastStartScope !== undefined) startCoordinator.forget(lastStartScope);
+                          onStudyAgain={async () => {
+                            if (lastStartScope !== undefined) await startCoordinator.forget(lastStartScope, lesson().session.session_id);
                             void load();
                           }}
                           postId={props.postId}

@@ -20,6 +20,8 @@ export interface StudyingLessonPayload {
   resolved_count?: number;
   served_count?: number;
   session_id?: string;
+  /** Server-derived expiry retains progress but cannot accept another answer. */
+  expired?: boolean;
   /** Authoritative current-card provider uncertainty, retained across reloads. */
   spoken_submission?: StudySession["spoken_submission"];
   /** Pre-session streak snapshot; only the completion slot animation reads it. */

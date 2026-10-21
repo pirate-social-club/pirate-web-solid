@@ -21,7 +21,7 @@ const scope = (overrides: Partial<StudySessionStartScope> = {}): StudySessionSta
   ...overrides,
 });
 
-const session = (sessionId: string, status: "active" | "completed"): StudySession =>
+const session = (sessionId: string, status: StudySession["status"]): StudySession =>
   // SAFETY: the coordinator reads only session_id and status from the API
   // result; the generated response type is complete at the call boundary.
   ({ session_id: sessionId, status }) as StudySession;
@@ -263,13 +263,43 @@ describe("Study session start coordinator", () => {
     expect(api.attempts[0]!.key).not.toBe("stored-key");
   });
 
+  it("retains an expired lesson on entry until a deliberate new-lesson action", async () => {
+    const api = new FakeApi();
+    const storage = new MemoryStorage();
+    const expired = session("session-expired", "expired");
+    api.byId.set(expired.session_id, expired);
+    const key = studySessionStartScopeKey(scope());
+    const original = JSON.stringify({ key: "retained-key", sessionId: expired.session_id, timezone: "UTC" });
+    storage.setItem(key, original);
+    const coordinator = coordinatorFor(api, storage);
+    expect(await coordinator.start(scope())).toEqual({ status: "started", sessionId: expired.session_id });
+    expect(storage.getItem(key)).toBe(original);
+    expect(api.attempts).toHaveLength(0);
+    expect(await coordinator.forget(scope(), expired.session_id)).toBe(true);
+    await coordinator.start(scope());
+    expect(api.attempts).toHaveLength(1);
+    expect(api.attempts[0]?.key).not.toBe("retained-key");
+  });
+
+  it("an old expired tab cannot forget a newer lesson's coordination record", async () => {
+    const api = new FakeApi();
+    const storage = new MemoryStorage();
+    const key = studySessionStartScopeKey(scope());
+    const current = JSON.stringify({ key: "new-key", sessionId: "new-session", timezone: "UTC" });
+    storage.setItem(key, current);
+    const coordinator = coordinatorFor(api, storage);
+    expect(await coordinator.forget(scope(), "old-expired-session")).toBe(false);
+    expect(storage.getItem(key)).toBe(current);
+  });
+
   it("rotates on an explicit new-lesson action", async () => {
     const api = new FakeApi();
     const storage = new MemoryStorage();
     const coordinator = coordinatorFor(api, storage);
-    await coordinator.start(scope());
+    const first = await coordinator.start(scope());
     const firstKey = api.attempts[0]!.key;
-    coordinator.forget(scope());
+    if (first.status !== "started") throw new Error("First session did not start");
+    expect(await coordinator.forget(scope(), first.sessionId)).toBe(true);
     const second = await coordinator.start(scope());
     expect(second.status).toBe("started");
     expect(api.attempts).toHaveLength(2);
