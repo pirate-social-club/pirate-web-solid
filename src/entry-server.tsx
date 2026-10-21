@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { isTelegramLinkPage, isTelegramPageAlias, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { isTelegramProbePage, telegramProbeEnabled } from "./features/identity/telegram-identity-probe/telegram-identity-probe-config.ts";
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
@@ -44,7 +45,6 @@ export async function render(
     readonly API_NEXT_ORIGIN?: string;
     readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
     readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;
-    readonly SPACES_NAME_REQUESTS_ENABLED?: string;
     readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
     readonly CANONICAL_ASSET_ORIGIN?: string;
     readonly DISABLE_HYDRATION?: boolean;
@@ -52,6 +52,8 @@ export async function render(
   },
   dependencies: EntryServerRenderDependencies = {},
 ) {
+  // Presentation configuration belongs to SSR, outside the protected ingress adapter.
+  const spacesNameRequests = env.SPACES_NAME_REQUESTS_ENABLED === "true";
   const event = getRequestEvent();
   const privateNotFound = () => new Response(null, { status: 404, headers: {
     "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex, nofollow",
@@ -93,7 +95,7 @@ export async function render(
       spacesRequestsNavigationEnabled?: boolean;
     };
     locals.apiNextOrigin = context?.API_NEXT_ORIGIN;
-    locals.spacesRequestsNavigationEnabled = context?.SPACES_NAME_REQUESTS_ENABLED === "true";
+    locals.spacesRequestsNavigationEnabled = spacesNameRequests;
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
@@ -205,7 +207,7 @@ export async function render(
           context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true"
         }
         publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}
-        spacesNameRequests={context?.SPACES_NAME_REQUESTS_ENABLED === "true"}
+        spacesNameRequests={spacesNameRequests}
         hydrate={context?.DISABLE_HYDRATION !== true}
       >
         <Application />
