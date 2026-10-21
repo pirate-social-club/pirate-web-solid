@@ -1,6 +1,8 @@
 import { Show, createSignal, onCleanup, onSettled } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { createRewardClaimData } from "../../api/reward-claim";
+import { createWalletSponsoredSendData } from "../../api/wallet-sponsored-send.ts";
+import { validWalletSendIdentifier } from "../../features/wallet/wallet-send-continuation.ts";
 import { safeReturnPath } from "../../features/auth/sign-in-return";
 import { resolveSession, sessionPersonasUnavailable, refreshSession } from "../../api/session";
 import { toCommunityPersonaChoiceWire } from "../../features/identity/community-persona-choice";
@@ -157,6 +159,7 @@ export type VeryVerificationRouteProps = Readonly<{
   joinCommunity?: typeof joinVeryCommunity;
   prepareProfile?: ReturnType<typeof createCommunityProfileAttempt>;
   issueRewardClaimIntent?: () => Promise<string>;
+  issueWalletSendIntent?: (personaId: string) => Promise<string>;
   /** The route URL; defaults to the request or window location. */
   url?: URL;
   /** Phone presentation; defaults to the user agent. */
@@ -177,6 +180,10 @@ export function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
   const invalidCreationTarget = parsedCreationTarget === "invalid";
   const rewardClaim = !invalidCreationTarget && creationTarget === undefined && initialRewardClaim(url);
+  const sendPurpose = url?.searchParams.get("purpose") === "wallet_send";
+  const sendPersona = sendPurpose ? url?.searchParams.get("persona_id") ?? "" : "";
+  const walletSend = !invalidCreationTarget && creationTarget === undefined && sendPurpose;
+  const invalidSend = walletSend && !validWalletSendIdentifier(sendPersona);
   const returnTo = initialReturnTo(url);
   const mobile = () => props.mobile ?? mobileRuntime();
   const navigate = (path: string) => {
@@ -189,13 +196,13 @@ export function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   };
 
   const operationTarget = () =>
-    creationTarget?.ceremonyIntentId ?? (rewardClaim ? "reward_claim" : communityId.trim());
+    creationTarget?.ceremonyIntentId ?? (walletSend ? `wallet_send:${sendPersona}` : rewardClaim ? "reward_claim" : communityId.trim());
   // Every caller passes its target, so a link without one cannot be repaired
   // here; it says so instead of asking for an identifier.
-  const linkBroken = invalidCreationTarget || operationTarget() === "";
+  const linkBroken = invalidCreationTarget || invalidSend || operationTarget() === "";
   const title = creationTarget !== undefined
     ? "Create your community"
-    : rewardClaim ? "Claim your winnings" : "Join this community";
+    : walletSend ? "Verify to send" : rewardClaim ? "Claim your winnings" : "Join this community";
 
   const [phase, setPhase] = createSignal<Phase>(linkBroken ? "error" : "starting");
   const [message, setMessage] = createSignal(linkBroken ? INCOMPLETE_LINK_MESSAGE : "");
@@ -248,7 +255,7 @@ export function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
 
   async function finishVerification(_result: VeryWebCompletion, target: string, epoch: number) {
     if (!operationIsCurrent(epoch, target)) return;
-    if (creationTarget !== undefined || rewardClaim) {
+    if (creationTarget !== undefined || rewardClaim || walletSend) {
       finish("verified");
       return;
     }
@@ -379,6 +386,10 @@ export function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
       let created: VeryWebCeremony;
       if (creationTarget !== undefined) {
         created = await (props.createCeremony ?? createVeryWebCeremony)({ creation: creationTarget });
+      } else if (walletSend) {
+        const intentId = await (props.issueWalletSendIntent ?? ((personaId) => createWalletSponsoredSendData().issueVerificationIntent(personaId)))(sendPersona);
+        if (!operationIsCurrent(epoch, value)) return;
+        created = await (props.createCeremony ?? createVeryWebCeremony)({ intentId });
       } else if (rewardClaim) {
         const intentId = await (props.issueRewardClaimIntent ?? (() => createRewardClaimData().issueVerificationIntent()))();
         if (!operationIsCurrent(epoch, value)) return;

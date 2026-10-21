@@ -1,4 +1,4 @@
-import type { GetWalletSponsoredSendsSendIdResponse } from "@pirate/api-client";
+import { ApiClientError, type GetWalletSponsoredSendsSendIdResponse } from "@pirate/api-client";
 import { getAddress } from "viem";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions, type PirateApiClient } from "./client.ts";
 import { baseSepoliaReads } from "./reward-winnings-send.ts";
@@ -11,10 +11,18 @@ export interface WalletSponsoredSendData {
   read(personaId: string): Promise<WalletSponsoredSendRecord | null>;
   reserve(personaId: string, recipient: string, amountAtomic: string, idempotencyKey: string): Promise<WalletSponsoredSendRecord>;
   submit(sendId: string, signature: string): Promise<WalletSponsoredSendRecord>;
+  issueVerificationIntent(personaId: string): Promise<string>;
+}
+
+export function walletSendVerificationRequired(error: unknown, personaId: string): boolean {
+  return error instanceof ApiClientError && error.status === 403 && error.code === "verification_required"
+    && error.details?.purpose === "wallet_send" && error.details.persona_id === personaId
+    && error.details.provider_id === "very.web";
 }
 
 function isNotFound(error: unknown): boolean {
-  return error !== null && typeof error === "object" && "status" in error && error.status === 404;
+  return error instanceof ApiClientError && error.status === 404
+    && error.code === "not_found" && error.declaredName === "NotFound";
 }
 
 /** Session ownership is checked by Pirate; Privy sees no Pirate account token. */
@@ -50,6 +58,10 @@ export function createWalletSponsoredSendData(
       return client.post_walletSponsoredSendsSendIdSubmit({
         path: { sendId }, body: { authorization_signature: signature },
       }, write());
+    },
+    async issueVerificationIntent(personaId) {
+      const result = await client.post_walletPersonasPersonaIdSendVerificationIntents({ path: { personaId } }, write());
+      return result.intent_id;
     },
   };
 }

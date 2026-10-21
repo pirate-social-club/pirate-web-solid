@@ -15,6 +15,7 @@ import { WalletPortfolio } from "./wallet-portfolio.tsx";
 import { createRewardClaimData } from "../../api/reward-claim.ts";
 import { WalletWinnings } from "../rewards/wallet-winnings.tsx";
 import { WalletSponsoredSendSheet } from "./wallet-sponsored-send-sheet.tsx";
+import { forgetWalletSend, readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
 
 /** A claim to resume after returning from the palm scan (browser only). */
 function resumeClaimId(): string | undefined {
@@ -45,6 +46,32 @@ export function WalletRouteView() {
   const ownedWallets = () => { const session = account(); return !accountPending() && typeof session === "object" && walletOwner() === session.userId ? wallets() : []; };
   const networkHost = walletNetworkHost(servingHostname());
   const [networkMode, setNetworkMode] = createSignal<WalletNetworkMode>(networkHost.defaultMode);
+  const [sendReturn, setSendReturn] = createSignal<WalletSendDraft>();
+  const [sendReturnUnavailable, setSendReturnUnavailable] = createSignal(false);
+  createEffect(() => [account(), accountPending(), walletOwner(), wallets()] as const, () => {
+    const session = account();
+    setSendReturn(undefined);
+    if (typeof window === "undefined" || accountPending() || typeof session !== "object" || walletOwner() !== session.userId
+      || (!networkHost.switchable && networkHost.defaultMode !== "testnet")) return;
+    const key = new URL(window.location.href).searchParams.get("send_return");
+    if (key === null) return;
+    setSendReturnUnavailable(true);
+    try {
+      const draft = readWalletSend(key, session.userId);
+      const wallet = draft === undefined ? undefined : wallets().find(item => item.personaId === draft.personaId
+        && item.address?.toLowerCase() === draft.walletAddress.toLowerCase());
+      if (draft !== undefined && wallet !== undefined) {
+        profiles?.select(wallet.personaId); setNetworkMode("testnet"); setSendReturn(draft); setSendReturnUnavailable(false);
+      }
+    } catch { /* Storage failure cannot resume a send or grant authority. */ }
+  });
+  const closeSendReturn = () => {
+    const draft = sendReturn();
+    try { if (draft !== undefined) forgetWalletSend(draft.idempotencyKey); } catch { /* Tab-private hint only. */ }
+    setSendReturn(undefined); setSendReturnUnavailable(false);
+    const url = new URL(window.location.href); url.searchParams.delete("send_return");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
   const balances = createWalletBalances(() => {
     const session = account();
     const wallet = ownedWallets().find(item => item.personaId === profiles?.selected()?.personaId);
@@ -89,13 +116,15 @@ export function WalletRouteView() {
       </CardContent></Card>
     </Show>
     <Show when={authenticated()}>
+      <Show when={sendReturnUnavailable()}><Type role="status">Your saved send could not be resumed. Open Send to check its recorded status.</Type></Show>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
       <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={networkHost.switchable ? setNetworkMode : undefined} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => {
         const onConfirmed = balances.captureReload();
         return controls.open && wallet.address
-          ? <WalletSponsoredSendSheet personaId={wallet.personaId} walletAddress={wallet.address} onConfirmed={onConfirmed} onClose={() => controls.onOpenChange(false)} /> : null;
+          ? <WalletSponsoredSendSheet accountId={walletOwner()!} personaId={wallet.personaId} walletAddress={wallet.address} onConfirmed={onConfirmed} onClose={() => controls.onOpenChange(false)} /> : null;
       }} /></Show>
+      <Show when={sendReturn()}>{draft => <WalletSponsoredSendSheet accountId={draft().accountId} personaId={draft().personaId} walletAddress={draft().walletAddress} resumeDraft={draft()} onConfirmed={balances.captureReload()} onClose={closeSendReturn} />}</Show>
     </Show>
   </PageContainer></main>;
 }

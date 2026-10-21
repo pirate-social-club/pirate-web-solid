@@ -1,11 +1,13 @@
-import { flush } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, test, vi } from "vitest";
+import { ApiClientError, ApiClientProtocolError, ApiClientResponseValidationError } from "@pirate/api-client";
+import { readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
 import { WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
+afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); sessionStorage.clear(); });
 const sender = "0x1111111111111111111111111111111111111111";
 const recipient = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
 const token = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
@@ -13,6 +15,7 @@ const reserved: WalletSponsoredSendRecord = {
   object: "wallet_sponsored_send", send_id: "wallet_send_1", persona_id: "persona_1",
   status: "reserved", chain_id: 84532, token_address: token, sender_address: sender,
   recipient_address: recipient, amount_atomic: "1000000", transaction_hash: null,
+  verification_required: false,
   authorization: { wallet_id: "wallet_1", payload_base64: "cGF5bG9hZA==" },
 };
 
@@ -39,14 +42,15 @@ function fixture(options: { reserveFails?: boolean; submitFails?: boolean; chang
       if (options.submitFails) throw new Error("response_lost");
       return current;
     }),
+    issueVerificationIntent: vi.fn(async () => "wallet-send_intent"),
   };
   const dependencies: WalletSponsoredSendDependencies = { data, openWallet: vi.fn(async () => wallet) };
   return { dependencies, data, wallet };
 }
 
-function mount(dependencies: WalletSponsoredSendDependencies, onConfirmed = vi.fn(), onClose = vi.fn()) {
+function mount(dependencies: WalletSponsoredSendDependencies, onConfirmed = vi.fn(), onClose = vi.fn(), resumeDraft?: WalletSendDraft) {
   const element = document.createElement("div"); document.body.appendChild(element);
-  const unmount = render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={onClose} onConfirmed={onConfirmed} />, element);
+  const unmount = render(() => <WalletSponsoredSendSheet accountId="account_1" personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={onClose} onConfirmed={onConfirmed} resumeDraft={resumeDraft} />, element);
   disposers.push(unmount);
   return unmount;
 }
@@ -108,6 +112,108 @@ test("changed server record never reaches wallet signing", async () => {
   await vi.waitFor(() => expect(text()).toContain("recorded send changed"));
   expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
   expect(f.data.submit).not.toHaveBeenCalled();
+});
+
+const palmRequired = () => new ApiClientError(
+  { status: 403, code: "verification_required", name: "VerificationRequired", retryable: false },
+  { error: { code: "verification_required", message: "Verify", retryable: false, details: { purpose: "wallet_send", persona_id: "persona_1", provider_id: "very.web" } } },
+);
+
+test("Palm refusal preserves the form and same idempotency key through a tab-private return", async () => {
+  const f = fixture(); const navigate = vi.fn();
+  vi.mocked(f.data.reserve).mockRejectedValueOnce(palmRequired());
+  mount({ ...f.dependencies, navigate }); await review(); button("Authorize send").click();
+  await vi.waitFor(() => expect(text()).toContain("Verify your palm"));
+  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled(); expect(f.data.submit).not.toHaveBeenCalled();
+  button("Verify palm").click();
+  await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+  const target = new URL(navigate.mock.calls[0][0], location.origin);
+  expect(target.searchParams.get("purpose")).toBe("wallet_send");
+  expect(target.searchParams.get("persona_id")).toBe("persona_1");
+  const key = new URL(target.searchParams.get("return_to")!, location.origin).searchParams.get("send_return")!;
+  const draft = readWalletSend(key, "account_1")!;
+  expect(draft).toMatchObject({ personaId: "persona_1", amount: "1", idempotencyKey: vi.mocked(f.data.reserve).mock.calls[0][3], sendId: null });
+  disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren();
+  mount(f.dependencies, vi.fn(), vi.fn(), draft);
+  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 1 USDC"));
+  expect(f.data.reserve).toHaveBeenCalledOnce(); expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
+  button("Continue").click(); await vi.waitFor(() => expect(text()).toContain("Covered by Pirate"));
+  button("Authorize send").click(); await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());
+  expect(vi.mocked(f.data.reserve).mock.calls[1][3]).toBe(key);
+});
+
+test("revoked evidence on a fresh read prompts verification without signing an existing reservation", async () => {
+  const f = fixture();
+  vi.mocked(f.data.read).mockResolvedValue({ ...reserved, verification_required: true, authorization: null });
+  mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("Verify your palm"));
+  expect(f.data.reserve).not.toHaveBeenCalled(); expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
+});
+
+test("Palm expiry between reservation and authorization never reaches signing", async () => {
+  const f = fixture();
+  vi.mocked(f.data.read).mockResolvedValueOnce(null).mockResolvedValue({ ...reserved, verification_required: true, authorization: null });
+  mount(f.dependencies); await review(); button("Authorize send").click();
+  await vi.waitFor(() => expect(text()).toContain("Verify your palm"));
+  expect(f.data.reserve).toHaveBeenCalledOnce(); expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
+});
+
+test("an incompatible response offers reload without a signing or submission retry", async () => {
+  const f = fixture(); const reload = vi.fn();
+  vi.mocked(f.data.reserve).mockRejectedValue(new ApiClientResponseValidationError("reserve", 200, "$.verification_required"));
+  mount({ ...f.dependencies, reload }); await review(); button("Authorize send").click();
+  await vi.waitFor(() => expect(text()).toContain("Reload the page"));
+  button("Reload wallet").click(); expect(reload).toHaveBeenCalledOnce();
+  expect(f.data.reserve).toHaveBeenCalledOnce(); expect(f.data.submit).not.toHaveBeenCalled(); expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
+});
+
+test("unknown404 history keeps the flow unavailable rather than showing a new Send form", async () => {
+  const f = fixture(); vi.mocked(f.data.read).mockRejectedValue(new ApiClientProtocolError("Malformed history", 404));
+  mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("send record could not be loaded"));
+  expect(document.body.querySelector("input")).toBeNull();
+  expect(f.data.reserve).not.toHaveBeenCalled(); expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
+});
+
+test("a return to a different recorded send cannot authorize it", async () => {
+  const f = fixture();
+  vi.mocked(f.data.read).mockResolvedValue(reserved);
+  mount(f.dependencies, vi.fn(), vi.fn(), { accountId: "account_1", personaId: "persona_1", walletAddress: sender,
+    recipient, amount: "1", idempotencyKey: crypto.randomUUID(), sendId: "another_send" });
+  await vi.waitFor(() => expect(text()).toContain("recorded send changed"));
+  expect(button("Authorize recorded send").disabled).toBe(true);
+  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled(); expect(f.data.reserve).not.toHaveBeenCalled();
+});
+
+test("an account change during wallet restoration closes signing authority", async () => {
+  const f = fixture();
+  let restored: (value: boolean) => void = () => { throw new Error("restoration not started"); };
+  vi.mocked(f.wallet.restoreAuthorization).mockImplementationOnce(() => new Promise(resolve => { restored = resolve; }));
+  const [accountId, setAccountId] = createSignal("account_1");
+  const element = document.createElement("div"); document.body.appendChild(element);
+  disposers.push(render(() => <WalletSponsoredSendSheet accountId={accountId()} personaId="persona_1" walletAddress={sender} dependencies={f.dependencies} onClose={vi.fn()} />, element));
+  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 1 USDC"));
+  await type("Send to", recipient); button("Continue").click();
+  await vi.waitFor(() => expect(f.wallet.restoreAuthorization).toHaveBeenCalledOnce());
+  setAccountId("account_2"); flush(); restored(true);
+  await vi.waitFor(() => expect(text()).toContain("account or wallet changed"));
+  expect(f.wallet.dispose).toHaveBeenCalledOnce(); expect(f.data.reserve).not.toHaveBeenCalled();
+  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled(); expect(f.data.submit).not.toHaveBeenCalled();
+});
+
+test("a pre-effect Palm refusal during submission returns to the same recorded send", async () => {
+  const f = fixture();
+  vi.mocked(f.data.read).mockResolvedValueOnce(null).mockResolvedValueOnce(reserved)
+    .mockResolvedValue({ ...reserved, verification_required: true, authorization: null });
+  vi.mocked(f.data.submit).mockRejectedValueOnce(palmRequired());
+  const navigate = vi.fn(); mount({ ...f.dependencies, navigate }); await review(); button("Authorize send").click();
+  await vi.waitFor(() => expect(text()).toContain("Verify your palm"));
+  expect(f.wallet.signSponsoredRequest).toHaveBeenCalledOnce(); expect(f.data.submit).toHaveBeenCalledOnce();
+  button("Verify palm").click(); await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+  const href = new URL(navigate.mock.calls[0][0], location.origin);
+  const key = new URL(href.searchParams.get("return_to")!, location.origin).searchParams.get("send_return")!;
+  expect(readWalletSend(key, "account_1")?.sendId).toBe(reserved.send_id);
+  expect(f.data.reserve).toHaveBeenCalledOnce();
 });
 
 test("only a server-confirmed matching send notifies the parent, once per send", async () => {

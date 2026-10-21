@@ -211,6 +211,32 @@ describe("Very verification route", () => {
     expect(navigate).not.toHaveBeenCalledWith(expect.stringContaining("evil"));
   });
 
+  it("uses the intended-persona Send intent and returns without joining or sending", async () => {
+    window.history.replaceState(null, "", "/verify/very?purpose=wallet_send&persona_id=persona_1&return_to=%2Fwallet%3Fsend_return%3Dkey");
+    const issueWalletSendIntent = vi.fn(async () => "wallet-send_1");
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+      cancel: vi.fn(), completeWithWidget: vi.fn(), pollBridge: vi.fn(), presentation: undefined,
+      initialCompletion: { proofSessionId: "proof-send", replayed: false, status: "completed" }, proofSessionId: "proof-send",
+    });
+    const navigate = vi.fn();
+    const container = render(() => <VeryVerificationRoute issueWalletSendIntent={issueWalletSendIntent} navigate={navigate} />);
+    expect(container.textContent).toContain("Verify to send");
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/wallet?send_return=key"));
+    expect(issueWalletSendIntent).toHaveBeenCalledExactlyOnceWith("persona_1");
+    expect(createCeremony).toHaveBeenCalledWith({ intentId: "wallet-send_1" });
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Send link without its persona instead of starting a community scan", () => {
+    window.history.replaceState(null, "", "/verify/very?purpose=wallet_send&community_id=community_1");
+    const issueWalletSendIntent = vi.fn();
+    const container = render(() => <VeryVerificationRoute issueWalletSendIntent={issueWalletSendIntent} />);
+    expect(container.textContent).toContain("This link is incomplete");
+    expect(issueWalletSendIntent).not.toHaveBeenCalled();
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+  });
+
   it("rejects an incomplete or legacy creation target without resolving a join", () => {
     window.history.replaceState(null, "", "/verify/very?intent_id=creation-ceremony-1");
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
