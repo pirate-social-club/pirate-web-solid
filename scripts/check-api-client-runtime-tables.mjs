@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client130 retains all351 protected129 rows exactly and adds the account-private
-// shared-song participant read:118operations/354rows. The original117-operation
+// Client131 retains all354 protected130 rows and protects the complete moderated
+// Dance capture/review API:137operations/411rows. The original118-operation
 // comparison is retained in docs/shared-song-contribution-client-intake.md.
-const expectedDigest = "54401ae1aeea800471ecf5d39841619aa8d31bf73bdb8eb924fa2f51e7179031";
+const expectedDigest = "ad77d5b9ed2a10000d0c8060a6a0a1df272b10ca1f93aac2103ed6a003afffaa";
 
 const operations = [
   "get_meNotifications",
@@ -133,6 +133,25 @@ const operations = [
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
   "get_communitiesCommunityIdDanceReviewsReviewIdResult",
   "get_communitiesCommunityIdPostsPostIdMegapotParticipation",
+  "get_communitiesCommunityIdDanceModeratedSessionsSessionIdCaptureContext",
+  "get_communitiesCommunityIdDanceOwnerReviewsReviewIdRubric",
+  "post_communitiesCommunityIdDanceReviewsReviewIdSubmit",
+  "post_communitiesCommunityIdDanceReviewsReviewIdVisibility",
+  "post_communitiesCommunityIdDanceReviewsReviewIdWithdraw",
+  "post_communitiesCommunityIdDanceReviewsReviewIdVerdict",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedChoreographiesChoreographyIdRevisionsRevisionLatestReview",
+  "get_communitiesCommunityIdDanceOwnerReviews",
+  "get_communitiesCommunityIdDanceOwnerReviewsReviewId",
+  "post_communitiesCommunityIdDanceModeratedSessions",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdConsent",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdUpload",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdFinalizeUpload",
+  "get_communitiesCommunityIdDanceModeratedSessionsSessionId",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdUploadAccess",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedOptions",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedReferencesChoreographyId",
+  "post_communitiesCommunityIdPostsPostIdDanceModeratedReferences",
+  "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
 ];
 
 const tables = [
