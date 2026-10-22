@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { ALL_FORMATS, BlobSource, EncodedPacketSink, Input } from "mediabunny";
+import { ALL_FORMATS, BlobSource, BufferTarget, EncodedAudioPacketSource, EncodedPacketSink, EncodedVideoPacketSource, Input, Mp4OutputFormat, Output } from "mediabunny";
 import { describe, expect, test } from "vitest";
 import { boundDanceRecording } from "./dance-capture-media";
 
@@ -25,7 +25,35 @@ async function inspect(file: File) {
       ends: await Promise.all([video.computeDuration(), audio.computeDuration(), input.computeDuration()]) };
   } finally { input.dispose(); }
 }
-const options = () => ({ bodyEndMs: 8013, maximumBytes: 1_000_000, signal: new AbortController().signal, assertCurrent() {} });
+const options = () => ({ window: { body_start_ms: 2000, body_end_ms: 8013, cue: { kind: "arms_t" as const, start_ms: 0, end_ms: 2000, hold_ms: 1000 } }, maximumBytes: 1_000_000, signal: new AbortController().signal, assertCurrent() {} });
+
+// Preserve the real encoded fixture bytes while simulating each source's
+// first-arrival offset. No codec, frame interpolation or generated timestamp
+// from the implementation under test is involved.
+async function offsetRecording(videoStart: number, audioStart: number): Promise<File> {
+  const input = new Input({ source: new BlobSource(await recording()), formats: ALL_FORMATS });
+  const target = new BufferTarget(), output = new Output({ target, format: new Mp4OutputFormat({ fastStart: "fragmented" }) });
+  const video = new EncodedVideoPacketSource("avc"), audio = new EncodedAudioPacketSource("aac");
+  output.addVideoTrack(video); output.addAudioTrack(audio);
+  try {
+    const v = await input.getPrimaryVideoTrack(), a = await input.getPrimaryAudioTrack();
+    if (!v || !a) throw new Error("fixture_missing_tracks");
+    const videoConfig = await v.getDecoderConfig(), audioConfig = await a.getDecoderConfig();
+    if (!videoConfig || !audioConfig) throw new Error("fixture_missing_config");
+    await output.start();
+    await Promise.all([
+      (async () => { let first = true; for await (const packet of new EncodedPacketSink(v).packets()) {
+        await video.add(packet.clone({ timestamp: packet.timestamp + videoStart }), first ? { decoderConfig: videoConfig } : undefined); first = false;
+      } video.close(); })(),
+      (async () => { let first = true; for await (const packet of new EncodedPacketSink(a).packets()) {
+        await audio.add(packet.clone({ timestamp: packet.timestamp + audioStart }), first ? { decoderConfig: audioConfig } : undefined); first = false;
+      } audio.close(); })(),
+    ]);
+    await output.finalize();
+    if (!target.buffer) throw new Error("fixture_missing_output");
+    return new File([target.buffer], "offset.mp4", { type: "video/mp4" });
+  } finally { input.dispose(); }
+}
 
 describe("Dance keeps its cue and complete body", () => {
   test("bounds a non-frame-aligned end without shifting or re-encoding any prefix packet", async () => {
@@ -51,8 +79,24 @@ describe("Dance keeps its cue and complete body", () => {
     }
   });
 
+  test.each([[0.25, 0], [0, 0.25], [1, 0]])("preserves natural source starts video=%s audio=%s when the full cue and body still fit", async (videoStart, audioStart) => {
+    const original = await offsetRecording(videoStart, audioStart), before = await inspect(original);
+    const after = await inspect(await boundDanceRecording({ ...options(), file: original }));
+    expect(after.video[0]!.timestamp).toBeCloseTo(videoStart, 5);
+    expect(after.audio[0]!.timestamp).toBeCloseTo(audioStart, 5);
+    expect(after.ends.map(end => Math.round(end * 1000))).toEqual([8013, 8013, 8013]);
+    for (const kind of ["video", "audio"] as const) {
+      expect(after[kind].map(packet => packet.digest)).toEqual(before[kind].filter(packet => packet.timestamp < 8.013).map(packet => packet.digest));
+    }
+  });
+
+  test.each([[1.01, 0], [0, 2.01], [0.25, 0.25]])("refuses missing cue, missing body audio or absent common zero: video=%s audio=%s", async (videoStart, audioStart) => {
+    await expect(boundDanceRecording({ ...options(), file: await offsetRecording(videoStart, audioStart) })).rejects.toThrow("dance_capture_incomplete");
+  });
+
   test("refuses a take that does not cover the frozen body end", async () => {
-    await expect(boundDanceRecording({ ...options(), file: await recording(), bodyEndMs: 9000 })).rejects.toThrow("dance_capture_incomplete");
+    const input = options();
+    await expect(boundDanceRecording({ ...input, file: await recording(), window: { ...input.window, body_end_ms: 9000 } })).rejects.toThrow("dance_capture_incomplete");
   });
 
   test("refuses an encoded result above the frozen byte bound", async () => {
@@ -62,7 +106,7 @@ describe("Dance keeps its cue and complete body", () => {
   test("refuses negative AAC pre-roll rather than discard decoder history", async () => {
     const file = await recording("capture-preroll-avc-aac.mp4");
     expect((await inspect(file)).audio[0]!.timestamp).toBeLessThan(0);
-    await expect(boundDanceRecording({ ...options(), file, bodyEndMs: 50 })).rejects.toThrow("dance_capture_incomplete");
+    await expect(boundDanceRecording({ ...options(), file, window: { body_start_ms: 25, body_end_ms: 50, cue: { kind: "arms_t", start_ms: 0, end_ms: 25, hold_ms: 10 } } })).rejects.toThrow("dance_capture_incomplete");
   });
 
   test.each(["abort", "authority"])("%s during media preparation cannot return a recording", async reason => {
