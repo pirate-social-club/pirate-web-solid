@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Show, createSignal } from "solid-js";
 import { Button } from "../../design-system.ts";
 import { SongContributionDialog } from "./song-contribution-dialog.tsx";
@@ -22,16 +22,25 @@ function Fixture(props: { readonly unknown?: boolean; readonly paused?: boolean 
 export const Amount: Story = { render: () => <Fixture /> };
 export const Paused: Story = { render: () => <Fixture paused /> };
 
+const clickReady = async (page: ReturnType<typeof within>, name: string) => {
+  const button = await waitFor(() => {
+    const candidate = page.getByRole("button", { name, exact: true });
+    if (candidate.matches(":disabled")) throw new Error(`Waiting for ${name} to be enabled`);
+    return candidate;
+  });
+  await expect(button).toBeEnabled();
+  await userEvent.click(button);
+};
 const reviewPayment = async (body: HTMLElement) => {
   const page = within(body);
   await userEvent.type(await page.findByLabelText("Contribution (USDC)"), "2");
-  await userEvent.click(page.getByRole("button", { name: "Review contribution" }));
-  await userEvent.click(await page.findByRole("button", { name: "Continue to payment" }));
-  await userEvent.click(await page.findByRole("button", { name: "Review payment" }));
+  await clickReady(page, "Review contribution");
+  await clickReady(page, "Continue to payment");
+  await clickReady(page, "Review payment");
   await userEvent.type(await page.findByLabelText("Email for your wallet"), "operator@example.test");
-  await userEvent.click(page.getByRole("button", { name: "Send code" }));
+  await clickReady(page, "Send code");
   await userEvent.type(await page.findByLabelText("Code"), "123456");
-  await userEvent.click(page.getByRole("button", { name: "Review transfer" }));
+  await clickReady(page, "Review transfer");
   await expect(await page.findByRole("button", { name: "Pay 2 USDC" })).toBeVisible();
 };
 export const ReviewPay: Story = {
@@ -42,7 +51,7 @@ export const UnknownWalletOutcome: Story = {
   render: () => <Fixture unknown />,
   play: async ({ canvasElement }) => {
     const page = within(canvasElement.ownerDocument.body); await reviewPayment(canvasElement.ownerDocument.body);
-    await userEvent.click(page.getByRole("button", { name: "Pay 2 USDC" }));
+    await clickReady(page, "Pay 2 USDC");
     await expect(await page.findByRole("button", { name: "Check original request" })).toBeVisible();
   },
 };
