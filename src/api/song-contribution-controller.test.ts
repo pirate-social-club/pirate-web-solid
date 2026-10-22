@@ -80,6 +80,21 @@ test("an unknown wallet result remains durable across reload and never signs twi
   const reopened = h.controller(); await reopened.open(); await expect(reopened.preparePayment()).rejects.toThrow("original_submission_pending");
   await expect(reopened.startFresh()).rejects.toThrow("resolution_unproven"); expect(h.walletInvocations()).toBe(1);
 });
+test("closing a pending wallet operation releases the journal for recovery and ignores a late result", async () => {
+  const h = fixture(), { controller, review } = await payable(h);
+  let finish = (_hash: string) => {}, outcome = "pending";
+  const walletResult = new Promise<string>(resolve => { finish = resolve; });
+  vi.mocked(h.wallet.send).mockImplementation(async (_original, _fee, before) => { await before(); return walletResult; });
+  const attempt = controller.confirmPayment(review.reviewId).then(() => { outcome = "resolved"; }, () => { outcome = "rejected"; });
+  await vi.waitFor(() => expect(h.journal().read()?.invocations).toHaveLength(1)); controller.dispose();
+  try {
+    await vi.waitFor(() => expect(outcome).toBe("rejected"), { timeout: 150 });
+    expect((await h.controller().open()).kind).toBe("status");
+  } finally { finish(f.observationRequest.transaction_hash); await attempt; }
+  await Promise.resolve();
+  expect(h.journal().read()?.invocations[0]?.transactionHash).toBeNull();
+  expect(h.wallet.send).toHaveBeenCalledTimes(1); expect(h.api.observe).not.toHaveBeenCalled();
+});
 test.each(["claimed", "finalized"] as const)("remote %s cancellation authority prevents a cached funding grant from dispatching", async cancellationState => {
   const h = fixture(), { controller, review } = await payable(h);
   h.beforeWallet(() => h.setCurrent({ ...h.current(), submissions: [...h.current().submissions, {

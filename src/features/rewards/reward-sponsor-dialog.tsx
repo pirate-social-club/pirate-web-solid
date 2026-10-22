@@ -36,7 +36,7 @@ export interface RewardSponsorDependencies {
   readonly fundingApi?: RewardFundingApi;
   readonly fundingRecovery?: RewardFundingRecovery;
 }
-export function RewardSponsorDialog(props: { communityId: string; postId: string; songTitle: string; onClose: () => void; dependencies?: RewardSponsorDependencies }) {
+export function RewardSponsorDialog(props: { communityId: string; postId: string; songTitle: string; onClose: () => void; dependencies?: RewardSponsorDependencies; recoveryOnly?: boolean; initialPersonaId?: string }) {
   const dependencies = untrack(() => props.dependencies);
   const data = dependencies?.data ?? createRewardSponsorData();
   const applicationSession = useApplicationSession();
@@ -114,14 +114,14 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     if (!allowedKinds.includes(draft().kind) && allowedKinds[0]) update("kind", allowedKinds[0]);
     await creation.reconcilePending();
     if (!alive || scope !== selectedScope) return;
-    setStep(creation.pending() ? "resume" : "compose");
+    setStep(creation.pending() ? "resume" : props.recoveryOnly ? "unavailable" : "compose");
   };
   createEffect(() => true, () => { queueMicrotask(() => { void run(async () => {
     const [loaded, song] = await Promise.all([data.catalog(), data.song(props.communityId, props.postId)]);
     if (!alive) return;
     setCatalog(loaded); setSongState(song);
     update("assetAddress", loaded.assets.items[0]?.token_address ?? "");
-    const first = loaded.personas.find(p => p.community_binding?.community_id === props.communityId) ?? loaded.personas[0];
+    const first = props.initialPersonaId ? loaded.personas.find(p => p.persona_id === props.initialPersonaId) : loaded.personas.find(p => p.community_binding?.community_id === props.communityId) ?? loaded.personas[0];
     if (!first) throw new Error("Create a persona wallet before funding rewards.");
     await selectPersona(first.persona_id, loaded);
   }); }); });
@@ -135,6 +135,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     onCleanup(() => window.removeEventListener("focus", verify));
   });
   const review = () => {
+    if (props.recoveryOnly) return;
     if (!scope || !catalog()) return;
     try {
       const context = sponsorContext();
@@ -146,6 +147,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Check the reward terms."); }
   };
   const attach = async (resume: boolean) => {
+    if (props.recoveryOnly && !resume) throw new Error("reward_creation_recovery_only");
     if (!scope || !creation) throw new Error("Choose a persona.");
     const record = creation.pending();
     setStep("resume");
@@ -217,10 +219,10 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const bonusTerms = () => { const leg = terms()?.leg; return leg?.kind === "asset_bonus" ? leg : undefined; };
   const poolTerms = () => { const leg = terms()?.leg; return leg?.kind === "megapot_pool" ? leg : undefined; };
   return <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent class="flex max-h-[88dvh] w-full flex-col overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,440px)] md:max-w-[440px] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
-    <ModalHeader class="text-start"><ModalTitle>Create a bounty</ModalTitle><ModalDescription>Reward people who practice {props.songTitle}.</ModalDescription></ModalHeader>
+    <ModalHeader class="text-start"><ModalTitle>{props.recoveryOnly ? "Saved reward payment" : "Create a bounty"}</ModalTitle><ModalDescription>{props.recoveryOnly ? `Check the original saved payment for ${props.songTitle}.` : `Reward people who practice ${props.songTitle}.`}</ModalDescription></ModalHeader>
     <Show when={error()}>{message => <p role="alert" class="text-destructive-text break-words">{message()}</p>}</Show>
     <Switch>
-      <Match when={step() === "unavailable"}><p>Sign in with a persona wallet and reopen rewards to try again.</p></Match>
+      <Match when={step() === "unavailable"}><p>{props.recoveryOnly ? "Reopen the song pot to check available contribution options. Saved payment data is kept." : "Sign in with a persona wallet and reopen rewards to try again."}</p></Match>
       <Match when={step() === "loading"}><p>Loading rewards…</p></Match>
       <Match when={step() === "compose"}>
         <div class="mt-5 space-y-4">
@@ -282,7 +284,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
       <Match when={step() === "funding"}><RewardFundingPanel state={funding()} personaLabel={personaLabel()} tokenSymbol={terms()?.tokenSymbol ?? "token"} busy={busy()}
         onConfirm={id => { void run(async () => { try { setFunding(await wallet!.controller.confirm(id)); } finally { if (alive) setFunding(wallet!.controller.state); } }); }}
         onRefresh={() => { void run(refresh); }} onReconcile={hash => { void run(async () => { setFunding(await wallet!.controller.reconcileTransaction(hash)); }); }} />
-        <Show when={terminalFunding()}>
+        <Show when={!props.recoveryOnly && terminalFunding()}>
           <Button disabled={busy()} onClick={() => { void run(addAnother); }}>Add another reward</Button>
         </Show>
       </Match>

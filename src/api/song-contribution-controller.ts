@@ -32,6 +32,16 @@ export function createSongContributionController(options: {
   const assertCurrent = () => { if (!current()) throw new Error("contribution_scope_changed"); };
   const until = (expires: string) => { const clock = now(); if (!Number.isFinite(clock) || !(Date.parse(expires) > clock)) throw new Error("contribution_review_expired"); };
   const publish = (next: SongContributionView) => { assertCurrent(); view = next; return next; };
+  // The provider may remain pending after the dialog closes. Stop waiting and
+  // release the journal lock while retaining its durable unknown-outcome fence.
+  // The late provider result is observed but cannot resume this command.
+  const walletOutcome = (task: Promise<string>) => new Promise<string>((resolve, reject) => {
+    const closed = () => reject(new DOMException("Contribution wallet view closed", "AbortError"));
+    const settle = () => lifetime.signal.removeEventListener("abort", closed);
+    lifetime.signal.addEventListener("abort", closed, { once: true });
+    task.then(value => { settle(); resolve(value); }, error => { settle(); reject(error); });
+    if (lifetime.signal.aborted) { settle(); closed(); }
+  });
   const pendingCommand = (entry: ContributionJournalEntry) => entry.commands.find(command => command.requestHash === null);
   const stored = (handle: ContributionJournalHandle) => {
     const entry = handle.read(); if (!entry) throw new Error("contribution_journal_missing"); return entry;
@@ -145,7 +155,7 @@ export function createSongContributionController(options: {
         const response = await execute(handle, append(handle, claim), true);
         if (!response?.freshClaim) return showStored(handle);
         const delivery = response.freshClaim;
-        const transactionHash = await wallet.send(fresh.command_receipt, review.fee, async () => {
+        const transactionHash = await walletOutcome(wallet.send(fresh.command_receipt, review.fee, async () => {
           const latest = await state(handle); assertCurrent();
           if (JSON.stringify(latest.command_receipt) !== JSON.stringify(fresh.command_receipt) || latest.pause_reason !== null || !["unresolved", "reserved_unknown"].includes(latest.nonce_state)) throw new Error("contribution_submission_unavailable");
           if (claim.body.purpose === "funding_transfer" && latest.submissions.some(submission => submission.purpose === "nonce_cancellation" && (submission.state === "claimed" || submission.state === "finalized"))) throw new Error("contribution_submission_unavailable");
@@ -157,7 +167,7 @@ export function createSongContributionController(options: {
           }
           else until(latest.command_receipt.instruction.expires_at);
           handle.beforeWallet(claim.body.idempotency_key, delivery);
-        }, review.cancellation ?? undefined);
+        }, review.cancellation ?? undefined));
         assertCurrent(); handle.recordTransaction(claim.body.idempotency_key, transactionHash);
         const observation = append(handle, { operation: "ObserveSongMegapotContributionV2", body: { idempotency_key: key(), instruction_hash: claim.body.instruction_hash, transaction_hash: transactionHash } });
         await execute(handle, observation, true);

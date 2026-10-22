@@ -1,14 +1,47 @@
 import { expect, test, vi } from "vitest";
-import type { GetUsersMeResponse } from "@pirate/api-client";
+import type { GetPersonasResponse, GetUsersMeResponse } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import { createSongContributionApi, songContributionRequest, type SongContributionScope } from "./song-contributions.ts";
 import { contributionFixtures as f } from "./song-contributions.fixture.ts";
+import { createSongContributionCatalog } from "./song-contribution-catalog.ts";
 
 const unverified = { state: "unverified" } as const;
 const me = { id: f.scope.accountId, object: "user", verification_state: "unverified", created: 1, verification_capabilities: { unique_human: unverified, age_over_18: unverified, minimum_age: unverified, nationality: unverified, gender: unverified, wallet_score: unverified } } as const satisfies GetUsersMeResponse;
 const base = `/api/communities/${f.scope.communityId}/posts/${f.scope.postId}`;
 const contribution = `${base}/megapot-contributions/${f.receipt.contribution_id}`;
 const signal = () => new AbortController().signal;
+const catalogPersona = {
+  object: "persona", persona_id: f.scope.personaId, status: "active",
+  profile: { object: "persona_profile", persona_id: f.scope.personaId, revision: 1, display_name: "Fixture profile", avatar_ref: null, cover_ref: null, bio: null, preferred_locale: "en", primary_public_handle: null },
+  wallet_set: { evm: { chain_account_kind: "evm", address: f.receipt.instruction.from, hd_wallet_index: 0, assigned_at: f.receipt.created_at } },
+  community_binding: { community_id: f.scope.communityId, binding_source: "persona_creation" }, created_at: f.receipt.created_at, retired_at: null,
+} as const satisfies GetPersonasResponse["personas"][number];
+
+test("the genuine catalog reads one account around personas and keeps only active wallet profiles", async () => {
+  const requested: string[] = [], active = signal();
+  const personas: GetPersonasResponse = { personas: [catalogPersona, { ...catalogPersona, status: "retired" }, { ...catalogPersona, wallet_set: { evm: null } }] };
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url)).pathname; requested.push(path); expect(init?.signal).toBe(active);
+    return Response.json(path === "/api/users/me" ? me : personas);
+  });
+  const catalog = await createSongContributionCatalog(createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }))(active);
+  expect(catalog).toEqual({ accountId: me.id, personas: [catalogPersona] });
+  expect(requested).toEqual(["/api/users/me", "/api/personas", "/api/users/me"]);
+});
+test("a catalog read across replacement cookies cannot publish another account's profiles", async () => {
+  let accountReads = 0;
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL) => Response.json(new URL(String(url)).pathname === "/api/users/me"
+    ? { ...me, id: ++accountReads === 1 ? me.id : "replacement-account" } : { personas: [catalogPersona] }));
+  await expect(createSongContributionCatalog(createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }))(signal())).rejects.toThrow("account_changed");
+});
+test("an aborted catalog cannot publish a private profile list", async () => {
+  const active = new AbortController();
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+    if (new URL(String(url)).pathname === "/api/personas") { active.abort(); return Response.json({ personas: [catalogPersona] }); }
+    return Response.json(me);
+  });
+  await expect(createSongContributionCatalog(createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }))(active.signal)).rejects.toThrow();
+});
 type Respond = (url: URL, init?: RequestInit) => Response | Promise<Response>;
 function harness(respond?: Respond) {
   let current: SongContributionScope | null = f.scope, csrf: string | undefined = "csrf-fixture";

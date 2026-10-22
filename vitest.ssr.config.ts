@@ -33,6 +33,7 @@ export default defineConfig({
     // worker per core saturates a shared workstation.
     maxWorkers: 4,
     include: [
+      "src/song-contribution-dialog-ssr.test.tsx",
       "src/features/dance/dance-result-ssr.test.tsx",
       "src/features/notifications/notifications-ssr.test.tsx",
       "src/spaces-requests-navigation-ssr.test.tsx",
