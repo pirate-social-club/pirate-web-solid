@@ -3,9 +3,11 @@ import { decodeContributionCommand, encodeContributionCommand, type Contribution
 import { contributionFixtures as f } from "./song-contributions.fixture.ts";
 import { contributionJournalKey, createSongContributionJournal, decodeContributionJournal, type ContributionJournalStore } from "./song-contribution-journal.ts";
 import type { SongContributionScope } from "./song-contributions.ts";
+import { contributionCreationRequestHash } from "./song-contribution-refusal.ts";
 
 const create = { operation: "CreateSongMegapotContributionV2", body: f.createRequest } as const;
 const claim = { operation: "ClaimSongMegapotContributionSubmissionV2", body: f.claimRequest } as const;
+const refusalProof = { command_id: "refused-command", request_hash: f.receipt.request_hash, allocation: "none", instruction_issued: false } as const;
 function fixture() {
   const values = new Map<string, string>(), tails = new Map<string, Promise<void>>();
   let failWrite = false, current: SongContributionScope | null = f.scope;
@@ -68,6 +70,59 @@ test("reopening retains the original request and cannot initialize another contr
   expect(h.journal().read()?.commands[0]?.bodyJson).toBe(JSON.stringify(f.createRequest));
   await expect(h.journal().exclusive(async handle => { handle.initialize({ ...create, body: { ...f.createRequest, idempotency_key: "different_original_key_01" } }, f.claimRequest.client_instance_id); })).rejects.toThrow("journal_pending");
   expect(h.values.get(key)).toBe(saved);
+});
+
+test("a matching refusal is archived durably before clearing only its original Create", async () => {
+  const h = fixture(), journal = h.journal(), key = contributionJournalKey(f.scope);
+  await journal.exclusive(async handle => { handle.initialize(create, f.claimRequest.client_instance_id); });
+  const original = journal.read();
+  const remove = h.store.remove;
+  h.store.remove = selected => {
+    expect(selected).toBe(key);
+    expect(JSON.parse(h.values.get(`${key}:history:refused:${f.createRequest.idempotency_key}`)!)).toEqual({ entry: original, refusal: refusalProof });
+    remove(selected);
+  };
+  await journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof));
+  expect(h.journal().read()).toBeNull();
+  await journal.exclusive(async handle => { handle.initialize({ ...create, body: { ...create.body, idempotency_key: "fresh_creation_key_01" } }, f.claimRequest.client_instance_id); });
+  expect(journal.read()?.commands).toHaveLength(1);
+  expect(h.values.has(`${key}:history:refused:${f.createRequest.idempotency_key}`)).toBe(true);
+});
+test("a foreign request hash cannot release the original Create", async () => {
+  const h = fixture(), journal = h.journal(), key = contributionJournalKey(f.scope);
+  await journal.exclusive(async handle => { handle.initialize(create, f.claimRequest.client_instance_id); });
+  const original = h.values.get(key);
+  for (const request_hash of ["f".repeat(64), await contributionCreationRequestHash({ ...f.scope, postId: "another-post" }, f.createRequest)]) {
+    await expect(journal.exclusive(handle => handle.archiveRefusedCreation({ ...refusalProof, request_hash }))).rejects.toThrow("resolution_unproven");
+    expect(h.values.get(key)).toBe(original);
+  }
+});
+test("an allocated, acknowledged or wallet-invoked journal cannot use creation refusal recovery", async () => {
+  for (const prepare of [initialized, readyToInvoke]) {
+    const h = fixture(), journal = await prepare(h), original = journal.read();
+    await expect(journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof))).rejects.toThrow("resolution_unproven");
+    expect(journal.read()).toEqual(original);
+  }
+  const h = fixture(), journal = await readyToInvoke(h);
+  await journal.exclusive(async handle => { handle.beforeWallet(f.claimRequest.idempotency_key, f.claim); });
+  await expect(journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof))).rejects.toThrow("resolution_unproven");
+  expect(journal.read()?.invocations).toHaveLength(1);
+});
+test("failed archive storage preserves the original Create for recovery", async () => {
+  const h = fixture(), journal = h.journal();
+  await journal.exclusive(async handle => { handle.initialize(create, f.claimRequest.client_instance_id); });
+  const original = journal.read(); h.fail(true);
+  await expect(journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof))).rejects.toThrow("storage failed");
+  expect(journal.read()).toEqual(original);
+});
+test("a failed active-pointer removal can retry the same durable refusal archive", async () => {
+  const h = fixture(), journal = h.journal(), remove = h.store.remove;
+  await journal.exclusive(async handle => { handle.initialize(create, f.claimRequest.client_instance_id); });
+  h.store.remove = () => {};
+  await expect(journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof))).rejects.toThrow("journal_unavailable");
+  expect(journal.read()).not.toBeNull(); h.store.remove = remove;
+  await journal.exclusive(handle => handle.archiveRefusedCreation(refusalProof));
+  expect(journal.read()).toBeNull();
 });
 
 test("two journal instances serialize the actor/song even before a server identity exists", async () => {

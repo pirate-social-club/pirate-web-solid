@@ -1,5 +1,6 @@
 import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
+import { contributionRefusalFromError } from "./song-contribution-refusal.ts";
 
 type ContextOp = "get_communitiesCommunityIdPostsPostIdMegapotFundingContext";
 type CreateOp = "post_communitiesCommunityIdPostsPostIdMegapotContributions";
@@ -114,7 +115,13 @@ export function createSongContributionApi(options: {
     async create(body: SongContributionRequest, signal: AbortSignal): Promise<SongContributionReceipt> {
       const request = Object.freeze({ ...body }), requestOptions = writeOptions(signal);
       if (request.persona_id !== scope.personaId) throw new Error("contribution_scope_changed");
-      const value = await checked(signal, () => client.post_communitiesCommunityIdPostsPostIdMegapotContributions({ path, body: request }, requestOptions));
+      let value: SongContributionReceipt;
+      try { value = await checked(signal, () => client.post_communitiesCommunityIdPostsPostIdMegapotContributions({ path, body: request }, requestOptions)); }
+      catch (error) {
+        const refusal = contributionRefusalFromError(error);
+        if (refusal) { await account(signal); throw refusal; }
+        throw error;
+      }
       assertReceipt(value);
       if (value.idempotency_key !== request.idempotency_key || value.accepted_context_hash !== request.expected_context_hash || value.instruction.amount_atomic !== request.funding_amount_atomic || value.instruction.wallet_assignment_id !== request.context_wallet_assignment_id || (request.expected_terms_kind === "prospective" ? value.accepted_prospective_terms_hash !== request.expected_terms_hash : value.terms_hash !== request.expected_terms_hash)) throw new Error("contribution_receipt_mismatch");
       return value;
@@ -136,6 +143,8 @@ export function createSongContributionApi(options: {
         if (value.object === "song_megapot_contribution_command_receipt") { assertReceipt(value); if (value.idempotency_key !== idempotencyKey) throw new Error("contribution_command_mismatch"); }
         return value;
       } catch (error) {
+        const refusal = contributionRefusalFromError(error);
+        if (refusal) { await account(signal); throw refusal; }
         if (error instanceof ApiClientError && error.status === 404 && error.declaredName === "ContributionNotFoundV2") {
           // A miss under a replacement cookie cannot release an old account's journal.
           await account(signal);

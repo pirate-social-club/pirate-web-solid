@@ -9,6 +9,7 @@ import { rewardCreationKey } from "../../api/reward-creation.ts";
 import { establishSessionAuthority, forgetSessionAuthority } from "../../api/browser-session-events.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../shell/application-session.tsx";
 import { SongContributionDialog, type SongContributionAuthorization, type SongContributionDependencies } from "./song-contribution-dialog.tsx";
+import { ContributionCreationRefused, contributionCreationRequestHash } from "../../api/song-contribution-refusal.ts";
 
 // SAFETY: vitest.app selects the DOM renderer; the app config resolves its server overload.
 const renderDom = render as (view: () => JSX.Element, host: HTMLElement) => void;
@@ -89,6 +90,16 @@ test("an uncertain original creation reopens as recovery without posting a new c
   await controller.reviewAmount("2000000"); await expect(controller.reserve()).rejects.toThrow(); const original = h.journal().read()?.commands[0]?.bodyJson;
   mount({ fixture: h }); await vi.waitFor(() => expect(document.body.textContent).toContain("Your original request is saved"));
   expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.journal().read()?.commands[0]?.bodyJson).toBe(original); expect(h.walletInvocations()).toBe(0);
+});
+
+test("a refused original request offers a new amount review without wallet authorization or an automatic POST", async () => {
+  const { h, dependencies } = mount(); await waitAmount();
+  vi.mocked(h.api.create).mockImplementationOnce(async body => { throw new ContributionCreationRefused("context_stale", { command_id: "refused-command", request_hash: await contributionCreationRequestHash(f.scope, body), allocation: "none", instruction_issued: false }); });
+  const user = userEvent.setup(); await user.type(input("song-contribution-amount"), "2"); await user.click(button("Review contribution"));
+  await vi.waitFor(() => expect(button("Continue to payment")).toBeDefined()); await user.click(button("Continue to payment"));
+  await vi.waitFor(() => expect(document.querySelector('[role="status"]')?.textContent).toContain("refused before a payment instruction was issued"));
+  expect(button("Review contribution")).toBeDefined(); expect(h.api.create).toHaveBeenCalledTimes(1);
+  expect(h.journal().read()).toBeNull(); expect(dependencies.authorization).not.toHaveBeenCalled(); expect(h.walletInvocations()).toBe(0);
 });
 test("account replacement clears private terms, input and wallet authority", async () => {
   const { setSession, h } = mount(); await reserve(); expect(document.body.textContent).toContain("At most one share per account");

@@ -4,6 +4,7 @@ import { createSessionApiClient } from "./client.ts";
 import { createSongContributionApi, songContributionRequest, type SongContributionScope } from "./song-contributions.ts";
 import { contributionFixtures as f } from "./song-contributions.fixture.ts";
 import { createSongContributionCatalog } from "./song-contribution-catalog.ts";
+import { ContributionCreationRefused } from "./song-contribution-refusal.ts";
 
 const unverified = { state: "unverified" } as const;
 const me = { id: f.scope.accountId, object: "user", verification_state: "unverified", created: 1, verification_capabilities: { unique_human: unverified, age_over_18: unverified, minimum_age: unverified, nationality: unverified, gender: unverified, wallet_score: unverified } } as const satisfies GetUsersMeResponse;
@@ -138,6 +139,25 @@ test("a missing command under a changed cookie is not proof about the original a
   let reads = 0;
   const h = harness(url => url.pathname === "/api/users/me" ? Response.json(++reads === 1 ? me : { ...me, id: "other-account" }) : missing());
   await expect(h.api.command("CreateSongMegapotContributionV2", f.createRequest.idempotency_key, signal())).rejects.toThrow("contribution_account_changed");
+});
+
+const refusalProof = { command_id: "refused-command", request_hash: f.receipt.request_hash, allocation: "none", instruction_issued: false } as const;
+const refused = (proof: object | null = refusalProof, code = "not_found") => errorResponse(404, "not_found", { object: "contribution_error", version: 2, code, request_id: "fixture-refused", retry_after_seconds: null, current_state_href: null, refusal_receipt: proof });
+test.each(["create", "command"] as const)("genuine129 decodes a durable %s refusal before ordinary404 handling", async operation => {
+  const h = harness(url => url.pathname === "/api/users/me" ? Response.json(me) : refused());
+  const result = operation === "create" ? h.api.create(f.createRequest, signal()) : h.api.command("CreateSongMegapotContributionV2", f.createRequest.idempotency_key, signal());
+  await expect(result).rejects.toBeInstanceOf(ContributionCreationRefused);
+  await expect(result).rejects.toMatchObject({ proof: refusalProof });
+  expect(h.fetchImpl).toHaveBeenCalledTimes(3);
+});
+test("a refusal under a replacement cookie cannot release the original journal", async () => {
+  let reads = 0;
+  const h = harness(url => url.pathname === "/api/users/me" ? Response.json(++reads === 1 ? me : { ...me, id: "replacement-account" }) : refused());
+  await expect(h.api.command("CreateSongMegapotContributionV2", f.createRequest.idempotency_key, signal())).rejects.toThrow("account_changed");
+});
+test.each(["outcome_unknown", "idempotency_conflict"])("%s never becomes a no-allocation proof", async code => {
+  const h = harness(url => url.pathname === "/api/users/me" ? Response.json(me) : errorResponse(409, "conflict", { object: "contribution_error", version: 2, code, request_id: "fixture-uncertain", retry_after_seconds: null, current_state_href: null, refusal_receipt: refusalProof }));
+  await expect(h.api.create(f.createRequest, signal())).rejects.not.toBeInstanceOf(ContributionCreationRefused);
 });
 
 test("missing CSRF, changed scope and aborted work perform no network write", async () => {

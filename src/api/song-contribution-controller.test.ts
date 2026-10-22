@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { contributionJournalKey } from "./song-contribution-journal.ts";
 import { contributionFixtures as f } from "./song-contributions.fixture.ts";
 import { contributionControllerFixture as fixture } from "../../test/fixtures/song-contribution-controller.ts";
+import { ContributionCreationRefused, contributionCreationRequestHash } from "./song-contribution-refusal.ts";
 
 async function reserved(h: ReturnType<typeof fixture>) {
   const controller = h.controller(); await controller.reviewAmount("2000000"); await controller.reserve(); return controller;
@@ -41,6 +42,48 @@ test("a read miss preserves an unknown original request; only explicit retry res
   const reopened = h.controller(); expect((await reopened.open()).kind).toBe("pending"); expect(h.api.create).toHaveBeenCalledTimes(1);
   h.setCreation("ok"); await reopened.retryOriginalCommand(); expect(h.api.create).toHaveBeenCalledTimes(2);
   expect(h.journal().read()?.commands[0]?.bodyJson).toBe(raw); expect(h.api.create).toHaveBeenNthCalledWith(2, vi.mocked(h.api.create).mock.calls[0]?.[0], expect.any(AbortSignal));
+});
+
+test("a proved Create refusal returns to amount and requires a new review before any new POST", async () => {
+  const h = fixture(), controller = h.controller();
+  vi.mocked(h.api.create).mockImplementationOnce(async body => { throw new ContributionCreationRefused("context_stale", { command_id: "refused-command", request_hash: await contributionCreationRequestHash(f.scope, body), allocation: "none", instruction_issued: false }); });
+  const reviewed = await controller.reviewAmount("2000000");
+  const refused = await controller.reserve();
+  expect(refused).toMatchObject({ kind: "amount", notice: expect.stringContaining("refused") });
+  expect(h.journal().read()).toBeNull(); expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.wallet.send).not.toHaveBeenCalled();
+  await expect(controller.reserve()).rejects.toThrow("review_required");
+  const fresh = await controller.reviewAmount("2000000");
+  if (reviewed.kind !== "terms" || fresh.kind !== "terms") throw new Error("fixture_terms_missing");
+  expect(fresh.request.idempotency_key).not.toBe(reviewed.request.idempotency_key);
+  expect(h.api.create).toHaveBeenCalledTimes(1);
+});
+test("lost refusal acknowledgement recovers on reload with reads and retains durable history", async () => {
+  const h = fixture(), controller = h.controller(); h.setCreation("before");
+  await controller.reviewAmount("2000000"); await expect(controller.reserve()).rejects.toThrow();
+  const entry = h.journal().read()!, original = JSON.parse(entry.commands[0]!.bodyJson);
+  const proof = { command_id: "refused-command", request_hash: await contributionCreationRequestHash(f.scope, original), allocation: "none", instruction_issued: false } as const;
+  vi.mocked(h.api.command).mockRejectedValueOnce(new ContributionCreationRefused("paused", proof));
+  expect((await h.controller().open()).kind).toBe("amount");
+  expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.wallet.send).not.toHaveBeenCalled();
+  expect(h.journal().read()).toBeNull();
+  expect(JSON.parse(h.values.get(`${contributionJournalKey(f.scope)}:history:refused:${original.idempotency_key}`)!)).toEqual({ entry, refusal: proof });
+});
+test("a mismatched refusal preserves the original journal and cannot start afresh", async () => {
+  const h = fixture(), controller = h.controller();
+  vi.mocked(h.api.create).mockRejectedValueOnce(new ContributionCreationRefused("context_stale", { command_id: "foreign-command", request_hash: "f".repeat(64), allocation: "none", instruction_issued: false }));
+  await controller.reviewAmount("2000000");
+  await expect(controller.reserve()).rejects.toThrow("resolution_unproven");
+  expect(controller.state.kind).toBe("pending"); expect(h.journal().read()).not.toBeNull();
+  expect((await h.controller().open()).kind).toBe("pending"); expect(h.api.create).toHaveBeenCalledTimes(1);
+});
+test("a failed context refresh after refusal cannot reuse previously reviewed terms", async () => {
+  const h = fixture(), controller = h.controller(); await controller.reviewAmount("2000000");
+  vi.mocked(h.api.create).mockImplementationOnce(async body => { throw new ContributionCreationRefused("context_stale", { command_id: "refused-command", request_hash: await contributionCreationRequestHash(f.scope, body), allocation: "none", instruction_issued: false }); });
+  vi.mocked(h.api.context).mockRejectedValueOnce(new Error("context_unavailable"));
+  await expect(controller.reserve()).rejects.toThrow("context_unavailable");
+  expect(controller.state.kind).toBe("idle"); expect(h.journal().read()).toBeNull();
+  await expect(controller.reserve()).rejects.toThrow("review_required");
+  expect((await controller.refresh()).kind).toBe("amount"); expect(h.api.create).toHaveBeenCalledTimes(1);
 });
 test("two tabs that reviewed the amount serialize reservation into one original contribution", async () => {
   const h = fixture(), first = h.controller(), second = h.controller();

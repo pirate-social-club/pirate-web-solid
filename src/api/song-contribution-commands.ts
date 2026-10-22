@@ -1,6 +1,7 @@
 import { decodeContributionCommand } from "./contribution-command-codec.ts";
 import type { createSongContributionJournal, StoredContributionCommand } from "./song-contribution-journal.ts";
 import type { SongContributionApi } from "./song-contributions.ts";
+import { ContributionCreationRefused } from "./song-contribution-refusal.ts";
 
 export type ContributionJournal = ReturnType<typeof createSongContributionJournal>;
 export type ContributionJournalHandle = Parameters<Parameters<ContributionJournal["exclusive"]>[0]>[0];
@@ -16,10 +17,11 @@ export async function resolveContributionCommand(options: {
   readonly signal: AbortSignal;
   readonly allowWrite: boolean;
   readonly assertCurrent: () => void;
-}): Promise<{ readonly receipt: Receipt; readonly freshClaim: ClaimDelivery | null } | null> {
+}): Promise<{ readonly kind: "receipt"; readonly receipt: Receipt; readonly freshClaim: ClaimDelivery | null } | { readonly kind: "refused" } | null> {
   const { handle, stored, api, signal, assertCurrent } = options;
   const command = decodeContributionCommand(stored.operation, stored.bodyJson), key = command.body.idempotency_key;
   assertCurrent();
+  try {
   let receipt = await api.command(command.operation, key, signal, stored.contributionId ?? undefined);
   assertCurrent();
   let freshClaim: ClaimDelivery | null = null;
@@ -44,5 +46,12 @@ export async function resolveContributionCommand(options: {
     assertCurrent();
   }
   handle.acknowledge(key, receipt.request_hash, receipt.object === "song_megapot_contribution_command_receipt" ? receipt : undefined);
-  return { receipt, freshClaim };
+  return { kind: "receipt", receipt, freshClaim };
+  } catch (error) {
+    if (!(error instanceof ContributionCreationRefused) || command.operation !== "CreateSongMegapotContributionV2") throw error;
+    assertCurrent();
+    await handle.archiveRefusedCreation(error.proof);
+    assertCurrent();
+    return { kind: "refused" };
+  }
 }

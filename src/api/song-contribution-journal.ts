@@ -5,6 +5,7 @@ import {
   type JournalJson, type JournalRule, type JournalFields,
 } from "./contribution-command-codec.ts";
 import type { SongContributionApi, SongContributionCommand, SongContributionReceipt, SongContributionScope, SongContributionState } from "./song-contributions.ts";
+import { contributionCreationRequestHash, decodeContributionRefusalProof, type ContributionRefusalProof } from "./song-contribution-refusal.ts";
 
 export interface ContributionJournalStore {
   read(key: string): string | null;
@@ -101,6 +102,7 @@ export function createSongContributionJournal(options: {
       acknowledge(commandKey: string, requestHash: string, receipt?: SongContributionReceipt): ContributionJournalEntry;
       beforeWallet(claimKey: string, delivery: Awaited<ReturnType<SongContributionApi["claim"]>>): ContributionJournalEntry;
       recordTransaction(claimKey: string, transactionHash: string): ContributionJournalEntry;
+      archiveRefusedCreation(proof: ContributionRefusalProof): Promise<void>;
       archive(state: SongContributionState): void;
     }) => Promise<T>): Promise<T> {
       current();
@@ -166,6 +168,27 @@ export function createSongContributionJournal(options: {
               });
               if (!found) throw new Error("contribution_wallet_invocation_forbidden");
               return revise(entry, { invocations });
+            },
+            async archiveRefusedCreation(value) {
+              const entry = required(), command = entry.commands[0]!;
+              const original = decodeContributionCommand(command.operation, command.bodyJson);
+              // A refusal can release only the original, unacknowledged Create.
+              // Allocated contributions retain the existing nonce-resolution path.
+              if (entry.contributionId !== null || entry.commands.length !== 1 || entry.invocations.length !== 0 || command.requestHash !== null || original.operation !== "CreateSongMegapotContributionV2") throw new Error("contribution_resolution_unproven");
+              const proof = decodeContributionRefusalProof(value);
+              if (proof.request_hash !== await contributionCreationRequestHash(scope, original.body)) throw new Error("contribution_resolution_unproven");
+              const unchanged = () => {
+                if (JSON.stringify(required()) !== JSON.stringify(entry)) throw new Error("contribution_journal_changed");
+              };
+              unchanged();
+              const historyKey = `${key}:history:refused:${original.body.idempotency_key}`, raw = JSON.stringify({ entry, refusal: proof });
+              const history = store.read(historyKey);
+              if (history !== null && history !== raw) throw new Error("contribution_history_conflict");
+              store.write(historyKey, raw);
+              if (store.read(historyKey) !== raw) throw new Error("contribution_journal_unavailable");
+              unchanged();
+              store.remove(key);
+              if (store.read(key) !== null) throw new Error("contribution_journal_unavailable");
             },
             archive(state) {
               const entry = required(), first = decodeContributionCommand(entry.commands[0]!.operation, entry.commands[0]!.bodyJson);

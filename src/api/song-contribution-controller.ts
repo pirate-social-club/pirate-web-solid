@@ -7,7 +7,7 @@ import type { RewardFeeEstimate } from "./reward-wallet-session.ts";
 
 export type SongContributionView =
   | { readonly kind: "idle" }
-  | { readonly kind: "amount"; readonly context: SongContributionContext }
+  | { readonly kind: "amount"; readonly context: SongContributionContext; readonly notice?: string }
   | { readonly kind: "terms"; readonly context: Extract<SongContributionContext, { readonly readiness: "ready" }>; readonly request: SongContributionRequest }
   | { readonly kind: "pending"; readonly entry: ContributionJournalEntry; readonly current: SongContributionState | null }
   | { readonly kind: "status"; readonly current: SongContributionState }
@@ -63,10 +63,17 @@ export function createSongContributionController(options: {
     handle.acknowledge(original.body.idempotency_key, result.command_receipt.request_hash, result.command_receipt);
     return result;
   };
+  const showRefused = async () => {
+    // If refreshing fails, no previously reviewed terms remain actionable.
+    publish({ kind: "idle" });
+    return publish({ kind: "amount", context: await api.context(lifetime.signal), notice: "The previous contribution was refused before a payment instruction was issued. Review the current amount and terms to try again." });
+  };
   const showStored = async (handle: ContributionJournalHandle) => {
     let entry = stored(handle);
     // A command acknowledgement may have been lost even though it committed.
-    for (const command of entry.commands.filter(command => command.requestHash === null)) await execute(handle, command, false);
+    for (const command of entry.commands.filter(command => command.requestHash === null)) {
+      if ((await execute(handle, command, false))?.kind === "refused") return showRefused();
+    }
     entry = stored(handle);
     const result = entry.contributionId ? await state(handle) : null;
     if (!result || pendingCommand(stored(handle))) return publish({ kind: "pending", entry: stored(handle), current: result });
@@ -115,14 +122,14 @@ export function createSongContributionController(options: {
         if (view.kind !== "terms") throw new Error("contribution_review_required");
         until(view.context.context_expires_at); until(view.context.schedule.valid_until);
         const entry = handle.initialize({ operation: "CreateSongMegapotContributionV2", body: view.request }, key());
-        await execute(handle, entry.commands[0]!, true);
+        if ((await execute(handle, entry.commands[0]!, true))?.kind === "refused") return showRefused();
         return showStored(handle);
       }));
     },
     retryOriginalCommand() {
       return run(() => journal.exclusive(async handle => {
         const command = pendingCommand(stored(handle));
-        if (command) await execute(handle, command, true);
+        if (command && (await execute(handle, command, true))?.kind === "refused") return showRefused();
         // Even a fresh claim returned on recovery is discarded, never signed.
         return showStored(handle);
       }));
@@ -153,7 +160,7 @@ export function createSongContributionController(options: {
           expected_state_revision: fresh.revision, instruction_hash: review.cancellation?.instruction_hash ?? fresh.instruction_hash,
         } } as const;
         const response = await execute(handle, append(handle, claim), true);
-        if (!response?.freshClaim) return showStored(handle);
+        if (response?.kind !== "receipt" || !response.freshClaim) return showStored(handle);
         const delivery = response.freshClaim;
         const transactionHash = await walletOutcome(wallet.send(fresh.command_receipt, review.fee, async () => {
           const latest = await state(handle); assertCurrent();
@@ -199,7 +206,7 @@ export function createSongContributionController(options: {
         if (!result.allowed_actions.includes("prepare_nonce_cancellation")) throw new Error("contribution_cancellation_unavailable");
         const command = append(handle, { operation: "PrepareSongMegapotContributionCancellationV2", body: { idempotency_key: key(), expected_state_revision: result.revision, purpose: "cancel_original_nonce" } });
         const response = await execute(handle, command, true);
-        if (response?.receipt.object === "contribution_cancellation_command_receipt") contributionCancellationTransfer(result.command_receipt, response.receipt);
+        if (response?.kind === "receipt" && response.receipt.object === "contribution_cancellation_command_receipt") contributionCancellationTransfer(result.command_receipt, response.receipt);
         return showStored(handle);
       }));
     },

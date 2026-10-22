@@ -143,7 +143,8 @@ export function SongContributionDialog(props: { readonly communityId: string; re
         <Match when={phase() === "previous"}><p>A previous reward payment is saved for this profile. Check it before starting a new contribution.</p><Button onClick={() => setPreviousOpen(true)}>Check saved reward</Button></Match>
         <Match when={phase() === "ready"}>
           <Show when={authorizing()} fallback={<Switch>
-            <Match when={amountView()}><Show when={readyContext()} fallback={<p>{unavailableContext()}</p>}>{ready => <>
+            <Match when={view().kind === "idle"}><Button disabled={busy()} onClick={() => { void run(selected => selected.refresh()); }}>Refresh terms</Button></Match>
+            <Match when={amountView()}><Show when={amountView()?.notice}>{notice => <p role="status">{notice()}</p>}</Show><Show when={readyContext()} fallback={<p>{unavailableContext()}</p>}>{ready => <>
               <p>Available contribution: {usdc(ready().limits.minimum_atomic)}–{usdc(maximumContribution(ready()))}.</p><p class="text-sm text-muted-foreground">{contributionChainLabel(ready().chain_id)} · Payment fee comes from this profile’s wallet.</p>
               <BoostAmountField id="song-contribution-amount" label="Contribution (USDC)" value={amount()} onChange={setAmount} />
               <Button disabled={busy() || !amount()} onClick={() => { void run(selected => selected.reviewAmount(contributionAmount(amount()))); }}>Review contribution</Button>
