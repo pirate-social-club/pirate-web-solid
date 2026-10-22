@@ -25,7 +25,7 @@ const pendingDetails =
 export const termsOfService: LegalDocumentContent = {
   path: "/terms",
   title: "Terms of Service",
-  updated: "9 October 2026",
+  updated: "22 October 2026",
   summary:
     "These terms cover your use of this app: your account and profiles, what you post, how communities work, and the wallets that come with your profiles.",
   sections: [
@@ -67,6 +67,14 @@ export const termsOfService: LegalDocumentContent = {
       ],
     },
     {
+      heading: "Dance recordings",
+      paragraphs: [
+        "When you submit a Dance recording for review, the community owner reviews it privately. The review period ends seven days after upload. Your recording is not public before it passes. A pass is a qualification decision, and does not guarantee a reward or permission to publish.",
+        "The Show publicly if it passes choice controls whether a passed recording is also submitted as a separate Post, subject to the usual posting and safety checks. You may change that choice while review is pending. Keeping a recording private does not change its qualification or reward rules.",
+        "Funded objectives are shown and accepted before a funded recording starts. Those objectives stay fixed for that recording. Later funding or a policy change cannot upgrade an earlier practice recording.",
+      ],
+    },
+    {
       heading: "Wallets and money",
       paragraphs: [
         "Each profile gets its own wallet, created through Privy. Signing anything with it requires proof that you control it, and we never move funds between your profiles. Blockchain transactions cannot be reversed, and wallet addresses and transactions are public.",
@@ -93,7 +101,7 @@ export const termsOfService: LegalDocumentContent = {
 export const privacyPolicy: LegalDocumentContent = {
   path: "/privacy",
   title: "Privacy Policy",
-  updated: "23 September 2026",
+  updated: "22 October 2026",
   summary:
     "This explains what we collect, why, who processes it for us, what is public by design and how deletion works. We do not use advertising trackers or analytics tools.",
   sections: [
@@ -105,6 +113,7 @@ export const privacyPolicy: LegalDocumentContent = {
         "What you post: songs, videos, images, lyrics, posts, comments, votes and follows.",
         "Practice activity: Study answers and transcripts, Karaoke scores, streaks and leaderboard results.",
         "Microphone recordings from Study and Karaoke.",
+        "Dance recordings, their review and publication choices, and private review decisions.",
         "Verification results: whether you passed an age, palm or nationality check. We keep the result, not your documents.",
         "Wallets: one wallet address per profile.",
         "Technical data: your IP address, used to prevent abuse and protect media playback, and your approximate region, which may set your streak time zone.",
@@ -141,6 +150,14 @@ export const privacyPolicy: LegalDocumentContent = {
       heading: "Microphone recordings",
       paragraphs: [
         "When you practise with your microphone, the recording is sent to ElevenLabs for speech-to-text, and ElevenLabs may keep it under its own policy. We also store the recording privately and set it to expire 24 months after it is made. We do not use it to identify you by voice or to train models. You can delete your stored recordings at any time in Settings.",
+      ],
+    },
+    {
+      heading: "Private Dance review recordings",
+      paragraphs: [
+        "A submitted Dance recording is private to you, the community owner reviewing it and the service providers needed to process and check it. The owner has up to seven days from upload to decide. We do not publish the review verdict.",
+        "The private recording and its processing copies are deleted after a decision, expiry or withdrawal. Safety-flagged recordings may be retained for platform safety review. We keep limited consent, review and deletion records separately from the recording. We do not use private Dance recordings for model training.",
+        "If you choose Show publicly if it passes, a passed recording may become a separate Post after the ordinary posting and safety checks. That Post follows the normal rules for published media; deleting the private review copy does not delete the Post.",
       ],
     },
     {
