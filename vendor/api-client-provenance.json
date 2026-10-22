@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.127.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.127.0-4210a1e4.tgz",
-  "sha256": "4210a1e4dbd01b1ac9054d7c43bdcb075981e0c3494681b4f6bd20e768810e2f",
-  "source": "api-next-contracts@de0636114f3dc6a246bd90dc61af8fa98898c4c60208b77f2ec4348fab77a75c",
-  "openapiSha256": "de0636114f3dc6a246bd90dc61af8fa98898c4c60208b77f2ec4348fab77a75c",
-  "clientSha256": "d6dcd0c43d3089b966cd513069c824b2573693d415b098cb34f85b17ea6c6b92",
+  "version": "0.129.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.129.0-fde7eb54.tgz",
+  "sha256": "fde7eb54f3ad82d7d9edee0927e84456bce258c6170bf232847ba2cb7a8c3fce",
+  "source": "api-next-contracts@9da0f3f642f03fba3e582bfe380fa2cc2ca511b8826641acdecfb7ced42c3172",
+  "openapiSha256": "9da0f3f642f03fba3e582bfe380fa2cc2ca511b8826641acdecfb7ced42c3172",
+  "clientSha256": "43a8f74c1acb19b227d73db3def29565029caa62f483a6a1f85346ba8950777d",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -143,9 +143,17 @@
     "post_communitiesCommunityIdSpacesOwnershipResume",
     "get_usersMeSpacesHandleRequests",
     "get_communitiesCommunityIdHandleOfferings",
-    "post_walletPersonasPersonaIdSendVerificationIntents"
+    "post_walletPersonasPersonaIdSendVerificationIntents",
+    "get_communitiesCommunityIdPostsPostIdMegapotFundingContext",
+    "post_communitiesCommunityIdPostsPostIdMegapotContributions",
+    "get_communitiesCommunityIdPostsPostIdMegapotContributionsContributionId",
+    "get_communitiesCommunityIdPostsPostIdMegapotContributionCommandsOperationIdempotencyKey",
+    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdSubmissionClaims",
+    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdObservations",
+    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
+    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations"
   ],
-  "validatedSourceCommit": "1f408f7f7e7e15204ed9e3ac9430dc6e28f16055",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/644",
-  "intakeStatus": "Genuine reviewed Send Palm client0.127.0 from published API PR644. Independent source/SQL/package/detector acceptance and full local check/test pass; required hosted checks and main integration remain pending. Paired serving and old-tab refusal/reload acceptance remain open. No deployment or financial execution."
+  "validatedSourceCommit": "46a4c537909ef191235f9ba4694c589a1534c7e4",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/625",
+  "intakeStatus": "Genuine immutable client129 candidate, including accepted Send128 and the reviewed contribution interface. Producer PR625 remains draft at an older advertised head; full Funding/Dance feature acceptance and integration remain pending. Consumer source preparation only, no serving or financial admission."
 }

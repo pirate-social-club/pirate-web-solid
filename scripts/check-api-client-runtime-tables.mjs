@@ -8,11 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.125.0 adds required current_availability to public Spaces offerings.
-// Of 324 protected rows, only that discovery response changes from 0.124.0.
-// All 108 operations, HNS branches, success statuses and errors are retained.
-// See docs/spaces-discovery-client-intake.md for the exact schema comparison.
-const expectedDigest = "8009db1545daf87e83664e8f0faeaf4fa198ee387fb7166590a88cea5f7c5003";
+// Client129 adds the moderated Dance notification alternative and the winnings
+// Send VerificationRequired error. The other322 protected rows are unchanged.
+// Protect the eight new contribution operations as well:116 operations/348 rows.
+// See docs/shared-song-contribution-client-intake.md for the exact comparison.
+const expectedDigest = "6572e28276df91edbd9f174f8e77c1bab008f503b03616335c1cd9ffbb12ed62";
 
 const operations = [
   "get_meNotifications",
@@ -124,6 +124,14 @@ const operations = [
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
   "get_assetBonusLegsLegIdFundingFundingEffectId",
   "get_publicPersonasPersonaIdActivity",
+  "get_communitiesCommunityIdPostsPostIdMegapotFundingContext",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributions",
+  "get_communitiesCommunityIdPostsPostIdMegapotContributionsContributionId",
+  "get_communitiesCommunityIdPostsPostIdMegapotContributionCommandsOperationIdempotencyKey",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdSubmissionClaims",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdObservations",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
 ];
 
 const tables = [
