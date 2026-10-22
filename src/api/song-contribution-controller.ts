@@ -76,6 +76,7 @@ export function createSongContributionController(options: {
     : publish({ kind: "amount", context: await api.context(lifetime.signal) })));
   const dispatchAllowed = (result: SongContributionState, cancellation: ContributionCancellationReceipt | null) => {
     if (!result.allowed_actions.includes(cancellation ? "claim_nonce_cancellation" : "claim_funding_submission") || result.pause_reason !== null || !["unresolved", "reserved_unknown"].includes(result.nonce_state)) throw new Error("contribution_submission_unavailable");
+    if (!cancellation && result.submissions.some(submission => submission.purpose === "nonce_cancellation" && (submission.state === "claimed" || submission.state === "finalized"))) throw new Error("contribution_submission_unavailable");
     if (cancellation) {
       contributionCancellationTransfer(result.command_receipt, cancellation);
       if (result.cancellation.current_preparation_id !== cancellation.preparation_id || result.cancellation.current_preparation_revision !== cancellation.preparation_revision || result.cancellation.current_receipt?.instruction_hash !== cancellation.instruction_hash) throw new Error("contribution_cancellation_mismatch");
@@ -147,6 +148,7 @@ export function createSongContributionController(options: {
         const transactionHash = await wallet.send(fresh.command_receipt, review.fee, async () => {
           const latest = await state(handle); assertCurrent();
           if (JSON.stringify(latest.command_receipt) !== JSON.stringify(fresh.command_receipt) || latest.pause_reason !== null || !["unresolved", "reserved_unknown"].includes(latest.nonce_state)) throw new Error("contribution_submission_unavailable");
+          if (claim.body.purpose === "funding_transfer" && latest.submissions.some(submission => submission.purpose === "nonce_cancellation" && (submission.state === "claimed" || submission.state === "finalized"))) throw new Error("contribution_submission_unavailable");
           const grant = latest.submissions.find(submission => submission.grant_id === delivery.receipt.grant_id);
           if (!grant || grant.state !== "claimed" || grant.purpose !== claim.body.purpose || grant.holder_client_instance_id !== entry.clientInstanceId || grant.submission_attempt_id !== claim.body.submission_attempt_id || grant.valid_until !== delivery.receipt.valid_until || grant.cancellation_preparation_id !== delivery.receipt.cancellation_preparation_id || grant.cancellation_preparation_revision !== delivery.receipt.cancellation_preparation_revision) throw new Error("contribution_claim_mismatch");
           if (review.cancellation) {

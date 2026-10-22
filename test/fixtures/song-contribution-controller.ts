@@ -64,7 +64,7 @@ export function contributionControllerFixture() {
     estimate: vi.fn(async () => fee),
     send: vi.fn(async (_original, _fee, before: () => Promise<void>) => {
       beforeWallet?.(); await before();
-      expect(journal().read()?.invocations).toHaveLength(1); walletInvocations++;
+      expect(journal().read()?.invocations).toHaveLength(walletInvocations + 1); walletInvocations++;
       if (walletResult === "unknown") throw new Error("wallet_submission_uncertain");
       return f.observationRequest.transaction_hash;
     }), dispose: vi.fn(),

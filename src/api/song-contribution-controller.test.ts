@@ -80,6 +80,36 @@ test("an unknown wallet result remains durable across reload and never signs twi
   const reopened = h.controller(); await reopened.open(); await expect(reopened.preparePayment()).rejects.toThrow("original_submission_pending");
   await expect(reopened.startFresh()).rejects.toThrow("resolution_unproven"); expect(h.walletInvocations()).toBe(1);
 });
+test.each(["claimed", "finalized"] as const)("remote %s cancellation authority prevents a cached funding grant from dispatching", async cancellationState => {
+  const h = fixture(), { controller, review } = await payable(h);
+  h.beforeWallet(() => h.setCurrent({ ...h.current(), submissions: [...h.current().submissions, {
+    state: cancellationState, purpose: "nonce_cancellation", grant_id: "remote-cancellation-grant", grant_revision: 1,
+    holder_client_instance_id: "remote_client_instance_one", submission_attempt_id: "remote_submission_attempt_one",
+    valid_until: f.claim.receipt.valid_until, cancellation_preparation_id: f.cancellation.preparation_id, cancellation_preparation_revision: f.cancellation.preparation_revision,
+  }] }));
+  await expect(controller.confirmPayment(review.reviewId)).rejects.toThrow("submission_unavailable");
+  expect(h.current().submissions[0]?.purpose).toBe("funding_transfer");
+  expect(h.api.claim).toHaveBeenCalledTimes(1); expect(h.journal().read()?.commands).toHaveLength(2);
+  expect(h.journal().read()?.invocations).toEqual([]); expect(h.walletInvocations()).toBe(0);
+});
+test("prepared but unclaimed cancellation does not consume funding dispatch authority", async () => {
+  const h = fixture(), { controller, review } = await payable(h);
+  h.beforeWallet(() => h.setCurrent({ ...h.current(), submissions: [...h.current().submissions, {
+    state: "unclaimed", purpose: "nonce_cancellation", grant_id: null, grant_revision: 0,
+    holder_client_instance_id: null, submission_attempt_id: null, valid_until: null,
+    cancellation_preparation_id: f.cancellation.preparation_id, cancellation_preparation_revision: f.cancellation.preparation_revision,
+  }] }));
+  await controller.confirmPayment(review.reviewId); expect(h.walletInvocations()).toBe(1);
+});
+test("an uncertain funding invocation may still be followed by one original-nonce cancellation", async () => {
+  const h = fixture(), { controller, review } = await payable(h); h.setWallet("unknown");
+  await expect(controller.confirmPayment(review.reviewId)).rejects.toThrow("submission_uncertain");
+  await controller.prepareCancellation(); h.setWallet("ok"); h.setClock("2026-10-18T14:20:10.000Z");
+  const cancellation = await controller.preparePayment(true); if (cancellation.kind !== "pay") throw new Error("fixture_pay_missing");
+  await controller.confirmPayment(cancellation.reviewId);
+  expect(h.journal().read()?.invocations.map(invocation => invocation.purpose)).toEqual(["funding_transfer", "nonce_cancellation"]);
+  expect(h.walletInvocations()).toBe(2); expect(h.api.claim).toHaveBeenCalledTimes(2);
+});
 test("a lost observation acknowledgement recovers the saved transaction without sending again", async () => {
   const h = fixture(), { controller, review } = await payable(h); h.setObservationLost();
   await expect(controller.confirmPayment(review.reviewId)).rejects.toThrow("observation_response_lost");
