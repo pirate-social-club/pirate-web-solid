@@ -122,7 +122,9 @@ export function createSongContributionApi(options: {
     async state(contributionId: string, signal: AbortSignal): Promise<SongContributionState> {
       const value = await checked(signal, () => client.get_communitiesCommunityIdPostsPostIdMegapotContributionsContributionId({ path: contributionPath(contributionId) }, { signal }));
       assertContribution(contributionId, value.contribution_id); assertTarget(value.target); assertReceipt(value.command_receipt);
-      if (value.original_persona_id !== scope.personaId || value.original_sender !== value.command_receipt.instruction.from || value.terms_hash !== value.command_receipt.terms_hash || value.instruction_hash !== value.command_receipt.instruction.instruction_hash) throw new Error("contribution_receipt_mismatch");
+      const original = value.command_receipt;
+      const targetFields = ["community_id", "post_id", "canonical_song_id", "audio_revision", "kind", "offer_id", "pool_leg_id"] as const;
+      if (original.contribution_id !== value.contribution_id || original.funding_effect_id !== value.funding_effect_id || targetFields.some(key => original.target[key] !== value.target[key]) || value.original_persona_id !== scope.personaId || value.original_sender !== original.instruction.from || value.terms_hash !== original.terms_hash || value.instruction_hash !== original.instruction.instruction_hash) throw new Error("contribution_receipt_mismatch");
       return value;
     },
     async command(operation: SongContributionCommand, idempotencyKey: string, signal: AbortSignal, contributionId?: string): Promise<Reply<CommandOp> | null> {
