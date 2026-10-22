@@ -653,7 +653,7 @@ export const SongStepsReturnToFeedOnMobile: Story = {
     // Royalties: back on the left beside the step's name, forward below.
     await waitFor(() => expect(bar().getByRole("button", { name: "Back" })).toBeVisible());
     await expectSongPhoneChrome(canvasElement, "Royalties", "Next");
-    await expect(canvas.getByText(/earnings/iu)).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Earnings split" })).toBeVisible();
     await waitFor(() => expect(footer().getByRole("button", { name: "Next" })).toBeEnabled());
     await userEvent.click(footer().getByRole("button", { name: "Next" }));
     // Review: the footer's button publishes.
