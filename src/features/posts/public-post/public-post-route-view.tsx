@@ -1,3 +1,4 @@
+import { SharedSongParticipationStatus } from "../../rewards/shared-song-participation.tsx";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
@@ -205,6 +206,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
                 <h1 class="sr-only">{title()}</h1>
                 <CommunityPostCard flush post={cardPost("song")} actions={controls} menuActions={menuActions} isolatePlayback={props.target !== undefined} />
                 <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <SharedSongParticipationStatus communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <ActivityLeaderboard communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <Show when={route()}>

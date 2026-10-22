@@ -342,6 +342,7 @@ export function EarningsSplit(props: {
   return (
     <section class="space-y-3">
       <Type as="h3" variant="body-strong">{props.copy.rights.earningsTitle}</Type>
+      <Type class="text-sm text-muted-foreground">Creator and collaborator earnings are separate from the song’s pool winnings.</Type>
       <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft bg-background">
         <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3">
           <div class="flex min-w-0 items-center gap-3">

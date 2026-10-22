@@ -1,3 +1,4 @@
+import { SharedSongParticipationStatus } from "../rewards/shared-song-participation.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { isServer } from "@solidjs/web";
 import { useParams } from "@solidjs/router";
@@ -58,6 +59,7 @@ export function DanceResultPage(props: { readonly communityId: string; readonly 
         <Show when={value().publication_status === "pending"}><p>Your separate video post is being prepared.</p></Show>
         <Show when={value().publication_status === "failed"}><p>The video post could not be created. Your private result is unchanged.</p></Show>
       </section>
+      <SharedSongParticipationStatus communityId={props.communityId} postId={value().song_post_id} />
       <a class={buttonVariants({ variant: "secondary" })} href={`/post/${encodeURIComponent(value().song_post_id)}`}>Back to song</a>
     </>}</Show>
     <a class="text-sm underline" href="/activity">Notifications</a>

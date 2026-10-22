@@ -255,6 +255,7 @@ describe("the designed rights step", () => {
       }, container);
     });
     disposers.push(() => { dispose(); container.remove(); });
+    expect(container.textContent).toContain("Creator and collaborator earnings are separate from the song’s pool winnings.");
     const add = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => (button.getAttribute("aria-label") ?? button.textContent?.trim()) === "Add collaborator")!;
     expect(add).toBeInstanceOf(HTMLButtonElement);
