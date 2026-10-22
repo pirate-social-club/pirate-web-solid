@@ -177,6 +177,67 @@ test("a different claim key cannot invoke the same funding instruction a second 
   expect(journal.read()?.invocations).toHaveLength(1);
 });
 
+const cancellationClaim = {
+  operation: claim.operation,
+  body: { ...f.claimRequest, idempotency_key: "cancel_claim_submission_key_01", purpose: "nonce_cancellation", instruction_hash: f.cancellation.instruction_hash },
+} as const;
+const cancellationGrant = {
+  ...f.claim,
+  receipt: { ...f.claim.receipt, purpose: "nonce_cancellation", instruction_hash: f.cancellation.instruction_hash, grant_id: "cancellation-grant", cancellation_preparation_id: f.cancellation.preparation_id, cancellation_preparation_revision: f.cancellation.preparation_revision },
+} as const;
+async function addCancellationClaim(journal: ReturnType<ReturnType<typeof fixture>["journal"]>) {
+  await journal.exclusive(async handle => {
+    handle.append(cancellationClaim, f.receipt.contribution_id);
+    handle.acknowledge(cancellationClaim.body.idempotency_key, cancellationGrant.receipt.request_hash);
+  });
+}
+
+test("another claim key cannot invoke cancellation twice", async () => {
+  const h = fixture(), journal = await initialized(h); await addCancellationClaim(journal);
+  const next = { ...cancellationClaim, body: { ...cancellationClaim.body, idempotency_key: "cancel_claim_submission_key_02" } };
+  await journal.exclusive(async handle => {
+    handle.beforeWallet(cancellationClaim.body.idempotency_key, cancellationGrant);
+    handle.append(next, f.receipt.contribution_id); handle.acknowledge(next.body.idempotency_key, cancellationGrant.receipt.request_hash);
+  });
+  await expect(journal.exclusive(async handle => { handle.beforeWallet(next.body.idempotency_key, { ...cancellationGrant, receipt: { ...cancellationGrant.receipt, grant_id: "second-cancellation-grant" } }); })).rejects.toThrow("invocation_forbidden");
+  expect(journal.read()?.invocations).toHaveLength(1);
+});
+
+test("a cached funding grant cannot invoke after cancellation has begun", async () => {
+  const h = fixture(), journal = await readyToInvoke(h); await addCancellationClaim(journal);
+  await journal.exclusive(async handle => { handle.beforeWallet(cancellationClaim.body.idempotency_key, cancellationGrant); });
+  await expect(journal.exclusive(async handle => { handle.beforeWallet(f.claimRequest.idempotency_key, f.claim); })).rejects.toThrow("invocation_forbidden");
+  expect(journal.read()?.invocations.map(invocation => invocation.purpose)).toEqual(["nonce_cancellation"]);
+});
+
+test("one original funding attempt may be followed by one explicit nonce cancellation", async () => {
+  const h = fixture(), journal = await readyToInvoke(h);
+  await journal.exclusive(async handle => { handle.beforeWallet(f.claimRequest.idempotency_key, f.claim); });
+  await addCancellationClaim(journal);
+  await journal.exclusive(async handle => { handle.beforeWallet(cancellationClaim.body.idempotency_key, cancellationGrant); });
+  expect(h.journal().read()?.invocations.map(invocation => invocation.purpose)).toEqual(["funding_transfer", "nonce_cancellation"]);
+});
+
+test("reload rejects a second persisted cancellation invocation under a different claim", async () => {
+  const h = fixture(), journal = await initialized(h); await addCancellationClaim(journal);
+  await journal.exclusive(async handle => { handle.beforeWallet(cancellationClaim.body.idempotency_key, cancellationGrant); });
+  const entry = journal.read()!;
+  const second = { ...cancellationClaim, body: { ...cancellationClaim.body, idempotency_key: "cancel_claim_submission_key_02" } };
+  const raw = JSON.stringify({ ...entry,
+    commands: [...entry.commands, { operation: second.operation, contributionId: entry.contributionId, bodyJson: encodeContributionCommand(second), requestHash: cancellationGrant.receipt.request_hash }],
+    invocations: [...entry.invocations, { ...entry.invocations[0]!, claimKey: second.body.idempotency_key, grantId: "second-cancellation-grant" }],
+  });
+  expect(() => decodeContributionJournal(raw, f.scope)).toThrow("journal_corrupt");
+});
+
+test("reload rejects persisted cancellation followed by funding", async () => {
+  const h = fixture(), journal = await readyToInvoke(h);
+  await journal.exclusive(async handle => { handle.beforeWallet(f.claimRequest.idempotency_key, f.claim); });
+  await addCancellationClaim(journal); await journal.exclusive(async handle => { handle.beforeWallet(cancellationClaim.body.idempotency_key, cancellationGrant); });
+  const entry = journal.read()!, raw = JSON.stringify({ ...entry, invocations: [...entry.invocations].reverse() });
+  expect(() => decodeContributionJournal(raw, f.scope)).toThrow("journal_corrupt");
+});
+
 test.each([
   { ...f.receipt, accepted_context_hash: "f".repeat(64) },
   { ...f.receipt, instruction: { ...f.receipt.instruction, amount_atomic: "1" } },

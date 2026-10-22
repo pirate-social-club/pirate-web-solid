@@ -71,7 +71,10 @@ export function decodeContributionJournal(raw: string, scope: SongContributionSc
     if (command.operation === "ClaimSongMegapotContributionSubmissionV2" && command.body.client_instance_id !== entry.clientInstanceId) throw corrupt();
   }
   if (new Set(entry.invocations.map(invocation => invocation.claimKey)).size !== entry.invocations.length) throw corrupt();
+  const invokedPurposes = new Set<ContributionWalletInvocation["purpose"]>();
   for (const invocation of entry.invocations) {
+    if (invokedPurposes.has(invocation.purpose) || invocation.purpose === "funding_transfer" && invokedPurposes.has("nonce_cancellation")) throw corrupt();
+    invokedPurposes.add(invocation.purpose);
     const claim = parsed.find(command => command.body.idempotency_key === invocation.claimKey);
     if (!claim || claim.operation !== "ClaimSongMegapotContributionSubmissionV2" || claim.body.purpose !== invocation.purpose || claim.body.instruction_hash !== invocation.instructionHash) throw corrupt();
   }
@@ -146,7 +149,7 @@ export function createSongContributionJournal(options: {
             },
             beforeWallet(claimKey, delivery) {
               const entry = required(), receipt = delivery.receipt;
-              if (delivery.delivery.kind !== "fresh_grant" || delivery.delivery.replayed || entry.invocations.some(invocation => invocation.claimKey === claimKey || invocation.purpose === "funding_transfer" && receipt.purpose === "funding_transfer")) throw new Error("contribution_wallet_invocation_forbidden");
+              if (delivery.delivery.kind !== "fresh_grant" || delivery.delivery.replayed || entry.invocations.some(invocation => invocation.claimKey === claimKey || invocation.purpose === receipt.purpose || receipt.purpose === "funding_transfer" && invocation.purpose === "nonce_cancellation")) throw new Error("contribution_wallet_invocation_forbidden");
               const stored = entry.commands.find(command => decodeContributionCommand(command.operation, command.bodyJson).body.idempotency_key === claimKey);
               const claim = stored && decodeContributionCommand(stored.operation, stored.bodyJson);
               const now = (options.nowMs ?? Date.now)();
