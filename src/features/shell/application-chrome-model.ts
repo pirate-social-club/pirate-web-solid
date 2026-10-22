@@ -75,6 +75,9 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   if (activitySession) {
     return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: segments[2] === "study" ? "Study" : "Karaoke", mode: "bare" };
   }
+  if (first === "dance" && segments[2] === "songs" && segments.length === 4) {
+    return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Dance", mode: "bare" };
+  }
   if (segments.length === 0) {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "immersive" };
   }

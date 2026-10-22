@@ -12,7 +12,7 @@ afterEach(forgetSessionAuthority);
 
 test("the result and recording pages are separate reachable route leaves", async () => {
   const router = new PageFileSystemRouter({ dir: resolve("src/routes"), extensions: ["js", "jsx", "ts", "tsx"] });
-  const routes = buildRouteTree(await router.getRoutes()).filter(route => route.path.startsWith("/dance/"));
+  const routes = buildRouteTree(await router.getRoutes()).filter(route => route.path.startsWith("/dance/:communityId/reviews/"));
   expect(routes.map(route => ({ path: route.path, children: route.children }))).toEqual([
     { path: "/dance/:communityId/reviews/:reviewId/", children: undefined },
     { path: "/dance/:communityId/reviews/:reviewId/recording", children: undefined },

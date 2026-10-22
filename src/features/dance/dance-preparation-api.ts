@@ -1,9 +1,10 @@
-import type { PirateApiClient } from "@pirate/api-client";
+import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "../../api/client.ts";
 import { captureSessionAuthority, isCurrentSessionAuthority } from "../../api/browser-session-events.ts";
 
 type PreparationClient = Pick<PirateApiClient,
   | "get_usersMe"
+  | "get_communitiesCommunityIdMeCapabilities"
   | "post_communitiesCommunityIdActivityPersonasPrepare"
   | "get_communitiesCommunityIdPostsPostIdDanceModeratedOptions"
   | "get_communitiesCommunityIdPostsPostIdDanceModeratedChoreographiesChoreographyIdRevisionsRevisionLatestReview"
@@ -72,6 +73,19 @@ export function createDancePreparationApi(provided?: PreparationClient, csrf: ()
     return result;
   };
   return {
+    owner(scope: DancePreparationScope, signal: AbortSignal) {
+      scope = { ...scope };
+      return guarded(scope, signal, async api => {
+        try {
+          const role = await api.get_communitiesCommunityIdMeCapabilities({ path: { communityId: scope.communityId } }, { signal });
+          if (role.community_id !== scope.communityId || role.role !== "owner") throw new Error("dance_preparation_target_changed");
+          return true;
+        } catch (error) {
+          if (error instanceof ApiClientError && error.declaredName === "NotFound") return false;
+          throw error;
+        }
+      }, () => {});
+    },
     preparePersona(scope: DancePreparationScope, body: Input<"post_communitiesCommunityIdActivityPersonasPrepare">["body"], signal: AbortSignal) {
       scope = { ...scope };
       body = { ...body, choice: { ...body.choice } };

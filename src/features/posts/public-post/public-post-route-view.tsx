@@ -16,6 +16,7 @@ import type { PublicPostContentResponse, PublicPostRouteState } from "./public-p
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
 import { SongVideoEntry } from "./song-video-entry.tsx";
+import { danceSongPath } from "../../dance/dance-song-path";
 import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
@@ -211,9 +212,10 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
                 <ActivityLeaderboard communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <Show when={route()}>
                   {(songRoute) => (
-                    <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
+                    <nav aria-label="Song activities" class="grid grid-cols-3 gap-3">
                       <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.study}>Study</a>
                       <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
+                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={danceSongPath(props.response.content.post.community, props.response.post_id)}>Dance</a>
                     </nav>
                   )}
                 </Show>

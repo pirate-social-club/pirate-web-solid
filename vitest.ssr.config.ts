@@ -37,6 +37,7 @@ export default defineConfig({
       "src/shared-song-participation-ssr.test.tsx",
       "src/features/dance/dance-result-ssr.test.tsx",
       "src/features/dance/dance-review-ssr.test.tsx",
+      "src/features/dance/dance-camera-ssr.test.tsx",
       "src/features/notifications/notifications-ssr.test.tsx",
       "src/spaces-requests-navigation-ssr.test.tsx",
       "src/features/activity/activity-leaderboard-ssr.test.tsx",

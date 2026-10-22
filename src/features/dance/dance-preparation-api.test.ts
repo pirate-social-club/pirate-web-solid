@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { PirateApiClient } from "@pirate/api-client";
+import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "../../api/client.ts";
 import { establishSessionAuthority, forgetSessionAuthority, replaceSessionAuthority } from "../../api/browser-session-events.ts";
 import { createDancePreparationApi, type DanceCreateCommand, type DancePreparationOptions, type DanceCaptureContext } from "./dance-preparation-api.ts";
@@ -35,6 +35,7 @@ function harness() {
   let csrf: string | undefined = "csrf-fixture";
   const client = {
     get_usersMe: vi.fn<Client["get_usersMe"]>(async () => user),
+    get_communitiesCommunityIdMeCapabilities: vi.fn<Client["get_communitiesCommunityIdMeCapabilities"]>(async () => ({ community_id: scope.communityId, role: "owner", role_assignment_id: "owner-assignment", capabilities: ["moderation.view", "moderation.act"] })),
     post_communitiesCommunityIdActivityPersonasPrepare: vi.fn<Client["post_communitiesCommunityIdActivityPersonasPrepare"]>(async () => ({ object: "activity_persona_preparation", community_id: scope.communityId, persona_id: context.persona_id, persona_status: "active", activity_presentation: null })),
     get_communitiesCommunityIdPostsPostIdDanceModeratedOptions: vi.fn<Client["get_communitiesCommunityIdPostsPostIdDanceModeratedOptions"]>(async () => options),
     get_communitiesCommunityIdPostsPostIdDanceModeratedChoreographiesChoreographyIdRevisionsRevisionLatestReview: vi.fn<Client["get_communitiesCommunityIdPostsPostIdDanceModeratedChoreographiesChoreographyIdRevisionsRevisionLatestReview"]>(async () => ({ object: "latest_moderated_dance_review", latest_submitted: null, active_session_id: context.session.session_id })),
@@ -47,6 +48,32 @@ function harness() {
 }
 beforeEach(() => { establishSessionAuthority(); });
 afterEach(() => { forgetSessionAuthority(); vi.restoreAllMocks(); });
+
+test("owner entry authority is read for the exact community between fresh account checks", async () => {
+  const { api, client } = harness(), abort = signal();
+  expect(await api.owner(scope, abort)).toBe(true);
+  expect(client.get_communitiesCommunityIdMeCapabilities).toHaveBeenCalledWith({ path: { communityId: scope.communityId } }, { signal: abort });
+  expect(client.get_usersMe).toHaveBeenCalledTimes(2);
+});
+test("only a declared redacted NotFound means this account is not the owner", async () => {
+  const { api, client } = harness();
+  client.get_communitiesCommunityIdMeCapabilities.mockRejectedValueOnce(new ApiClientError({ name: "NotFound", status: 404, code: "not_found", retryable: false }, { error: { code: "not_found", message: "Unavailable", retryable: false } }));
+  expect(await api.owner(scope, signal())).toBe(false); expect(client.get_usersMe).toHaveBeenCalledTimes(2);
+});
+test("a failed ownership read cannot become permission to record", async () => {
+  const { api, client } = harness(); client.get_communitiesCommunityIdMeCapabilities.mockRejectedValueOnce(new Error("offline"));
+  await expect(api.owner(scope, signal())).rejects.toThrow("offline");
+});
+test("foreign community ownership cannot authorize the target", async () => {
+  const { api, client } = harness(); client.get_communitiesCommunityIdMeCapabilities.mockResolvedValueOnce({ community_id: "elsewhere", role: "owner", role_assignment_id: "assignment", capabilities: ["moderation.view"] });
+  await expect(api.owner(scope, signal())).rejects.toThrow("target_changed");
+});
+test("a nonowner read is also fenced against account replacement", async () => {
+  const { api, client } = harness();
+  client.get_communitiesCommunityIdMeCapabilities.mockRejectedValueOnce(new ApiClientError({ name: "NotFound", status: 404, code: "not_found", retryable: false }, { error: { code: "not_found", message: "Unavailable", retryable: false } }));
+  client.get_usersMe.mockResolvedValueOnce(user).mockResolvedValueOnce({ ...user, id: "replacement" });
+  await expect(api.owner(scope, signal())).rejects.toThrow("account_changed");
+});
 
 test("funded context remains funded while serving Rewards is false", async () => {
   const { api } = harness();

@@ -125,7 +125,7 @@ export function DanceReviewPage(props: {
     </>}</Show>
     <Modal open={confirmCancel()} onOpenChange={setConfirmCancel}>
       <ModalContent><ModalHeader><ModalTitle>Cancel review of this recording?</ModalTitle></ModalHeader>
-        <p>This ends review and conditional posting of this recording.</p>
+        <p>It won’t be reviewed or posted.</p>
         <Button onClick={() => void act({ operation: "withdraw" })}>Cancel review</Button><Button variant="secondary" onClick={() => setConfirmCancel(false)}>Keep waiting</Button>
       </ModalContent>
     </Modal>
