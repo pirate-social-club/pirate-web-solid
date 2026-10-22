@@ -10,9 +10,9 @@ const currentClient = resolve(
 );
 // Client129 adds the moderated Dance notification alternative and the winnings
 // Send VerificationRequired error. The other322 protected rows are unchanged.
-// Protect the eight new contribution operations as well:116 operations/348 rows.
+// Protect eight contribution operations and the private Dance result:117 operations/351 rows.
 // See docs/shared-song-contribution-client-intake.md for the exact comparison.
-const expectedDigest = "6572e28276df91edbd9f174f8e77c1bab008f503b03616335c1cd9ffbb12ed62";
+const expectedDigest = "22a5440fc006797cff6288bd60b4a3852c515176e3d72ee88bc4e838a64b238d";
 
 const operations = [
   "get_meNotifications",
@@ -132,6 +132,7 @@ const operations = [
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdObservations",
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
+  "get_communitiesCommunityIdDanceReviewsReviewIdResult",
 ];
 
 const tables = [

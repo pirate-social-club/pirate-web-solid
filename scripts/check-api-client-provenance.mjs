@@ -102,6 +102,7 @@ const clients = [
       "get_communitiesCommunityIdSpacesOwnershipRoots",
       "get_communitiesCommunityIdSpacesOwnership",
       "post_communitiesCommunityIdSpacesOwnershipResume",
+      "get_communitiesCommunityIdDanceReviewsReviewIdResult",
       "get_communitiesCommunityIdPostsPostIdMegapotFundingContext",
       "post_communitiesCommunityIdPostsPostIdMegapotContributions",
       "get_communitiesCommunityIdPostsPostIdMegapotContributionsContributionId",

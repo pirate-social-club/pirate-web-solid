@@ -151,7 +151,8 @@
     "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdSubmissionClaims",
     "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdObservations",
     "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
-    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations"
+    "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
+    "get_communitiesCommunityIdDanceReviewsReviewIdResult"
   ],
   "validatedSourceCommit": "46a4c537909ef191235f9ba4694c589a1534c7e4",
   "pullRequest": "https://github.com/pirate-social-club/api-next/pull/625",
