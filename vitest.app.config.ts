@@ -28,7 +28,7 @@ export default defineConfig({
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
       "src/features/dance/dance-result.test.tsx",
-      "src/features/dance/dance-preparation-api.test.ts",
+      "src/features/dance/dance-preparation*.test.ts",
       "src/features/notifications/notifications.test.tsx",
       "src/features/shell/spaces-requests-navigation.test.tsx",
       "src/features/notifications/comment-navigation.test.tsx",
