@@ -37,11 +37,12 @@ const browserDependencies = (): SongContributionDependencies => ({
 
 function SharedPotTermsView(props: { readonly terms: SharedPotTerms }) {
   return <section class="space-y-2" aria-label="Shared pot terms">
-    <p>Study, singing and passed Dance reviews contribute to the same song pot.</p>
+    <p>This shared pot rewards Study, singing and passed Dance reviews.</p>
     <For each={qualificationLines(props.terms)}>{line => <p class="text-sm">{line}</p>}</For>
-    <p class="text-sm">At most one share per palm-verified account in each drawing. Qualifying does not guarantee winnings.</p>
-    <p class="text-sm">Drawings {props.terms.first_drawing_id}–{props.terms.last_planned_drawing_id}. Ends <time datetime={termsEnd(props.terms)}>{new Date(termsEnd(props.terms)).toLocaleString()}</time>.</p>
+    <p class="text-sm">At most one share per account in each drawing. You can enter without verification. Verification is required to claim winnings. Qualifying does not guarantee winnings.</p>
+    <p class="text-sm">Up to {props.terms.planned_drawing_ids.length} drawings. Ends <time datetime={termsEnd(props.terms)}>{new Date(termsEnd(props.terms)).toLocaleString()}</time>.</p>
     <p class="text-sm">Ticket price ceiling: {usdc(props.terms.ticket_price_ceiling_atomic)}. No ticket is purchased without qualifiers. Qualifiers share net winnings.</p>
+    <p class="text-sm">Ticket spending uses the pot’s budget. After the reward ends, the remaining unspent budget is refunded to the original funding wallets in proportion to confirmed contributions.</p>
   </section>;
 }
 
@@ -104,7 +105,15 @@ export function SongContributionDialog(props: { readonly communityId: string; re
     const selected = controller, attempt = revision; if (!selected || busy()) return;
     setBusy(true); setError("");
     try { await operation(selected); }
-    catch (cause) { if (owns(attempt)) { if (cause instanceof Error && cause.message === "wallet_reauthentication_required") setAuthorizing(true); setError(contributionFailure(cause)); } }
+    catch (cause) {
+      if (owns(attempt)) {
+        if (cause instanceof Error && (cause.message === "contribution_account_changed" || cause.message === "contribution_scope_changed")) {
+          clear(); setPhase("error"); setError("Your sign-in changed. Reopen the song pot to continue.");
+        } else if (cause instanceof Error && cause.message === "wallet_reauthentication_required") {
+          setAuthorizing(true); setError("");
+        } else setError(contributionFailure(cause));
+      }
+    }
     finally { if (owns(attempt)) { setView(selected.state); setBusy(false); } }
   };
   const payment = (cancel: boolean) => { cancellation = cancel; void run(selected => selected.preparePayment(cancel)); };

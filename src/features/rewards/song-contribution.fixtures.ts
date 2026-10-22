@@ -6,6 +6,8 @@ import type { SongContributionApi, SongContributionScope, SongContributionState 
 import type { SongContributionAuthorization, SongContributionDependencies } from "./song-contribution-dialog.tsx";
 import { rewardCreationKey } from "../../api/reward-creation.ts";
 
+export const contributionDialogFixtureTarget = { communityId: f.scope.communityId, postId: f.scope.postId, songTitle: "Fixture song" };
+
 // Deterministic application-command projections, not provider, nonce-finality,
 // database or financial acceptance. Real transport decoding has its own tests.
 export function createSongContributionFixture() {
@@ -73,6 +75,7 @@ export function createSongContributionFixture() {
   };
   const controller = () => createSongContributionController({ scope: f.scope, currentScope: () => currentScope, journal: journal(), api, wallet, nowMs: () => clock, key: () => `fixture_command_key_${String(++sequence).padStart(5, "0")}` });
   return { api, wallet, values, receipts, store, journal, controller, current: () => current,
+    setPaused: () => { api.context = async () => ({ object: "song_megapot_funding_context", version: 2, readiness: "unavailable", target: f.context.target, persona_id: f.scope.personaId, reason: "paused", retry_after_seconds: 30, own_recovery_href: null }); },
     setCurrent: (value: SongContributionState) => { current = value; }, scope: (value: SongContributionScope | null) => { currentScope = value; },
     setCreation: (value: typeof creation) => { creation = value; }, setClaim: (value: typeof claim) => { claim = value; },
     setWallet: (value: typeof walletResult) => { walletResult = value; }, setObservationLost: () => { observationLost = true; },

@@ -2,9 +2,8 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { Show, createSignal } from "solid-js";
 import { Button } from "../../design-system.ts";
-import { contributionFixtures as f } from "../../api/song-contributions.fixture.ts";
 import { SongContributionDialog } from "./song-contribution-dialog.tsx";
-import { createContributionDialogFixture, createSongContributionFixture } from "./song-contribution.fixtures.ts";
+import { contributionDialogFixtureTarget, createContributionDialogFixture, createSongContributionFixture } from "./song-contribution.fixtures.ts";
 
 const meta = {
   title: "Flows/Rewards/Shared song contribution",
@@ -16,9 +15,9 @@ type Story = StoryObj<typeof meta>;
 function Fixture(props: { readonly unknown?: boolean; readonly paused?: boolean }) {
   const fixture = createSongContributionFixture(), dependencies = createContributionDialogFixture(fixture);
   if (props.unknown) fixture.setWallet("unknown");
-  if (props.paused) fixture.api.context = async () => ({ object: "song_megapot_funding_context", version: 2, readiness: "unavailable", target: f.context.target, persona_id: f.scope.personaId, reason: "paused", retry_after_seconds: 30, own_recovery_href: null });
+  if (props.paused) fixture.setPaused();
   const [open, setOpen] = createSignal(true);
-  return <><Button onClick={() => setOpen(true)}>Open contribution</Button><Show when={open()}><SongContributionDialog communityId={f.scope.communityId} postId={f.scope.postId} songTitle="Fixture song" onClose={() => setOpen(false)} dependencies={dependencies} /></Show></>;
+  return <><Button onClick={() => setOpen(true)}>Open contribution</Button><Show when={open()}><SongContributionDialog {...contributionDialogFixtureTarget} onClose={() => setOpen(false)} dependencies={dependencies} /></Show></>;
 }
 export const Amount: Story = { render: () => <Fixture /> };
 export const Paused: Story = { render: () => <Fixture paused /> };

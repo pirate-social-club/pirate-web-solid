@@ -51,6 +51,7 @@ const waitAmount = () => vi.waitFor(() => expect(document.getElementById("song-c
 async function reserve() {
   await waitAmount(); const user = userEvent.setup(); await user.type(input("song-contribution-amount"), "2");
   await user.click(button("Review contribution")); await vi.waitFor(() => expect(document.body.textContent).toContain("Study: meet the 70%"));
+  expect(document.body.textContent).toContain("unspent budget is refunded to the original funding wallets in proportion to confirmed contributions");
   await user.click(button("Continue to payment")); await vi.waitFor(() => expect(button("Review payment")).toBeDefined()); return user;
 }
 
@@ -58,12 +59,14 @@ test("the actual shared-pot dialog presents Amount then all activities without a
   const { h } = mount(); await waitAmount(); expect(document.body.textContent).toContain("Base Sepolia (testnet)");
   expect(document.querySelector('[role="radio"]')).toBeNull(); expect(document.body.textContent).not.toContain("People earn by");
   await reserve(); expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.walletInvocations()).toBe(0);
-  expect(document.body.textContent).toContain("At most one share per palm-verified account in each drawing");
+  expect(document.body.textContent).toContain("At most one share per account in each drawing");
+  expect(document.body.textContent).toContain("You can enter without verification. Verification is required to claim winnings");
   expect(document.body.textContent).toContain("Dance: a community-owner review must pass");
 });
 test("authorization leads to Review/Pay and only explicit Pay invokes the simulated wallet", async () => {
   const { h, authorization } = mount(); const user = await reserve(); await user.click(button("Review payment"));
   await vi.waitFor(() => expect(document.body.textContent).toContain("Email for your wallet"));
+  expect(document.querySelector('[role="alert"]')).toBeNull();
   const email = document.querySelector<HTMLInputElement>('input[inputmode="email"]'); if (!email) throw new Error("fixture email missing");
   await user.type(email, "operator@example.test"); await user.click(button("Send code"));
   await vi.waitFor(() => expect(button("Review transfer")).toBeDefined());
@@ -71,6 +74,7 @@ test("authorization leads to Review/Pay and only explicit Pay invokes the simula
   await user.type(code, "123456"); await user.click(button("Review transfer"));
   await vi.waitFor(() => expect(button("Pay 2 USDC")).toBeDefined()); expect(h.walletInvocations()).toBe(0);
   expect(authorization.loginWithCode).toHaveBeenCalledOnce(); expect(document.body.textContent).toContain("Payment fee");
+  expect(document.body.textContent).toContain("unspent budget is refunded to the original funding wallets in proportion to confirmed contributions");
   await user.click(button("Pay 2 USDC")); await vi.waitFor(() => expect(document.body.textContent).toContain("Confirming payment"));
   expect(h.walletInvocations()).toBe(1); expect(h.api.observe).toHaveBeenCalledTimes(1);
 });
@@ -87,10 +91,16 @@ test("an uncertain original creation reopens as recovery without posting a new c
   expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.journal().read()?.commands[0]?.bodyJson).toBe(original); expect(h.walletInvocations()).toBe(0);
 });
 test("account replacement clears private terms, input and wallet authority", async () => {
-  const { setSession, h } = mount(); await reserve(); expect(document.body.textContent).toContain(f.receipt.committed_terms.first_drawing_id);
+  const { setSession, h } = mount(); await reserve(); expect(document.body.textContent).toContain("At most one share per account");
   setSession({ status: "authenticated", userId: "different-account" }); flush();
   expect(document.body.textContent).not.toContain("Original contribution"); expect(document.body.textContent).not.toContain("Study: meet the 70%");
   expect(h.walletInvocations()).toBe(0);
+});
+test.each(["contribution_account_changed", "contribution_scope_changed"])("an account proof rejects %s before stale shell state can preserve private views", async reason => {
+  const { h } = mount(); const user = await reserve();
+  vi.mocked(h.api.state).mockRejectedValueOnce(new Error(reason)); await user.click(button("Review payment"));
+  await vi.waitFor(() => expect(document.body.textContent).not.toContain("Fixture profile"));
+  expect(h.journal().read()?.contributionId).toBe(f.receipt.contribution_id); expect(h.walletInvocations()).toBe(0);
 });
 test("pagehide clears private payment projections while retaining the durable journal", async () => {
   const { h } = mount(); await reserve(); window.dispatchEvent(new Event("pagehide")); flush();
