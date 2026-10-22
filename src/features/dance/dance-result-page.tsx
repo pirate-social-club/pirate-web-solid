@@ -8,6 +8,7 @@ import { onSessionRefreshed, resolveSession, type SessionResolution } from "../.
 import { Button, buttonVariants, Type } from "../../design-system.ts";
 import { bindPrivatePageLifecycle } from "../notifications/private-page-lifecycle.ts";
 import { createDanceResultApi, danceResultPath, danceResultPresentation, type DanceResult, type DanceResultApi } from "./dance-result-api.ts";
+import { danceReviewEditable, danceReviewPath } from "./dance-review-api";
 
 type State = { readonly phase: "loading" | "anonymous" | "unavailable" | "error" } | { readonly phase: "ready"; readonly result: DanceResult };
 
@@ -59,6 +60,7 @@ export function DanceResultPage(props: { readonly communityId: string; readonly 
         <Show when={value().publication_status === "pending"}><p>Your separate video post is being prepared.</p></Show>
         <Show when={value().publication_status === "failed"}><p>The video post could not be created. Your private result is unchanged.</p></Show>
       </section>
+      <Show when={danceReviewEditable(value())}><a class={buttonVariants({ variant: "secondary" })} href={danceReviewPath(props.communityId, props.reviewId)}>{value().state === "uploaded" ? "Review recording" : "Manage recording"}</a></Show>
       <SharedSongParticipationStatus communityId={props.communityId} postId={value().song_post_id} />
       <a class={buttonVariants({ variant: "secondary" })} href={`/post/${encodeURIComponent(value().song_post_id)}`}>Back to song</a>
     </>}</Show>

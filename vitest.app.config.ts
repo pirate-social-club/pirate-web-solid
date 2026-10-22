@@ -32,6 +32,8 @@ export default defineConfig({
       "src/features/dance/dance-capture*.test.ts",
       "src/features/dance/dance-recording*.test.ts",
       "src/features/dance/dance-upload*.test.ts",
+      "src/features/dance/dance-review*.test.ts",
+      "src/features/dance/dance-review-page.test.tsx",
       "src/features/notifications/notifications.test.tsx",
       "src/features/shell/spaces-requests-navigation.test.tsx",
       "src/features/notifications/comment-navigation.test.tsx",

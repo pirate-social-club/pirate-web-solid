@@ -79,6 +79,11 @@ test("the real page displays a committed categorical result and the separate son
   expect(host.textContent).not.toMatch(/10000|score|3333333|qualification-v1|dancer|owner|win|ticket/iu);
 });
 
+test.each([fixtures.uploaded, fixtures.awaiting])("the private result links to the reachable recording-management page while editable", async result => {
+  const host = mount(() => <DanceResultPage {...scope} api={{ read: async () => result }} session={session} />);
+  await vi.waitFor(() => expect(host.querySelector('a[href="/dance/community/reviews/review/recording"]')).not.toBeNull());
+});
+
 test("page hiding aborts a pending result and ignores its late private data", async () => {
   const pending = deferred<DanceResult>(); let signal: AbortSignal | undefined;
   const api: DanceResultApi = { read: vi.fn((_scope, active) => { signal = active; return pending.promise; }) };

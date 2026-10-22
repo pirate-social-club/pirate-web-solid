@@ -5,6 +5,14 @@ export type DanceResult = GetCommunitiesCommunityIdDanceReviewsReviewIdResultRes
 export interface DanceResultScope { readonly communityId: string; readonly reviewId: string; readonly accountId: string }
 export interface DanceResultApi { read(scope: DanceResultScope, signal: AbortSignal): Promise<DanceResult> }
 
+export function assertDanceResult(result: DanceResult, scope: DanceResultScope): void {
+  if (result.community_id !== scope.communityId || result.review_id !== scope.reviewId) throw new Error("dance_result_target_mismatch");
+  const passed = result.state === "reviewed" && result.verdict === "passed" && result.cue_attestation === "affirmed";
+  if ((result.state === "reviewed") !== (result.verdict !== null) || (result.verdict === "passed" && !passed) || (result.qualification_ref !== null && !passed)) throw new Error("dance_result_projection_invalid");
+  if ((result.cue_attestation === "affirmed") !== (result.verdict === "passed") || (result.cue_attestation === "not_attested") !== (result.verdict === "not_passed")) throw new Error("dance_result_projection_invalid");
+  if ((result.publication_status === "pending" || result.publication_status === "failed") && (!passed || result.show_publicly_if_passed !== true)) throw new Error("dance_result_projection_invalid");
+}
+
 export function createDanceResultApi(client?: Pick<PirateApiClient, "get_communitiesCommunityIdDanceReviewsReviewIdResult" | "get_usersMe">): DanceResultApi {
   return {
     async read(scope, signal) {
@@ -12,11 +20,7 @@ export function createDanceResultApi(client?: Pick<PirateApiClient, "get_communi
       const result = await api.get_communitiesCommunityIdDanceReviewsReviewIdResult({ path: { communityId: scope.communityId, reviewId: scope.reviewId } }, { signal });
       const current = await api.get_usersMe(undefined, { signal });
       if (current.id !== scope.accountId) throw new Error("dance_result_session_changed");
-      if (result.community_id !== scope.communityId || result.review_id !== scope.reviewId) throw new Error("dance_result_target_mismatch");
-      const passed = result.state === "reviewed" && result.verdict === "passed" && result.cue_attestation === "affirmed";
-      if ((result.state === "reviewed") !== (result.verdict !== null) || (result.verdict === "passed" && !passed) || (result.qualification_ref !== null && !passed)) throw new Error("dance_result_projection_invalid");
-      if ((result.cue_attestation === "affirmed") !== (result.verdict === "passed") || (result.cue_attestation === "not_attested") !== (result.verdict === "not_passed")) throw new Error("dance_result_projection_invalid");
-      if ((result.publication_status === "pending" || result.publication_status === "failed") && (!passed || result.show_publicly_if_passed !== true)) throw new Error("dance_result_projection_invalid");
+      assertDanceResult(result, scope);
       return result;
     },
   };
