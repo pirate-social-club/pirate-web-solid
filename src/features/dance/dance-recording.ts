@@ -90,6 +90,10 @@ export function createDanceRecordingController(options: {
     return { metadata, blob: record.blob };
   };
   return {
+    async cleanupExpired(signal: AbortSignal): Promise<void> {
+      const guard = () => current(signal); guard();
+      await storage.pruneExpired(time(), guard); guard();
+    },
     async retain(ready: Extract<DancePreparationView, { kind: "capture_ready" }>, take: DanceRecordedTake, signal: AbortSignal) {
       take = { ...take };
       const session = { ...ready.session }, file = take.file;
