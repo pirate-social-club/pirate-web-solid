@@ -133,7 +133,10 @@ export function SongContributionDialog(props: { readonly communityId: string; re
   const termsView = () => { const state = view(); return state.kind === "terms" ? state : undefined; };
   const payView = () => { const state = view(); return state.kind === "pay" ? state : undefined; };
   return <Show when={!previousOpen()} fallback={<RewardSponsorDialog recoveryOnly initialPersonaId={personaId()} communityId={props.communityId} postId={props.postId} songTitle={props.songTitle} onClose={() => { setPreviousOpen(false); void load(); }} />}>
-    <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent mobileSide="bottom" class="flex max-h-[88dvh] w-full flex-col gap-4 overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,440px)] md:max-w-[440px] md:px-7 md:pb-7 md:pt-7" data-song-contribution={phase()}>
+    <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent onOpenAutoFocus={event => {
+      const dialog = event.currentTarget, focused = document.activeElement;
+      if (dialog instanceof HTMLElement && focused instanceof HTMLElement && dialog.contains(focused)) event.preventDefault();
+    }} mobileSide="bottom" class="flex max-h-[88dvh] w-full flex-col gap-4 overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,440px)] md:max-w-[440px] md:px-7 md:pb-7 md:pt-7" data-song-contribution={phase()}>
       <ModalHeader class="text-start"><ModalTitle>Add to the song pot</ModalTitle><ModalDescription>Support people who practice {props.songTitle}.</ModalDescription></ModalHeader>
       <Show when={error()}>{message => <p role="alert" class="text-destructive-text">{message()}</p>}</Show>
       <Show when={catalog()}>{loaded => <label class="block"><Type as="span" variant="label">Paying profile</Type><select aria-label="Paying profile" class="block w-full rounded-md border border-input bg-background px-3 py-2" value={personaId()} disabled={busy()} onChange={event => { void selectPersona(event.currentTarget.value, loaded()); }}><For each={loaded().personas}>{persona => <option value={persona.persona_id}>{persona.profile.display_name ?? persona.persona_id}</option>}</For></select></label>}</Show>

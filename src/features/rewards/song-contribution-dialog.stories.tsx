@@ -37,7 +37,10 @@ const reviewPayment = async (body: HTMLElement) => {
   await clickReady(page, "Review contribution");
   await clickReady(page, "Continue to payment");
   await clickReady(page, "Review payment");
-  await userEvent.type(await page.findByLabelText("Email for your wallet"), "operator@example.test");
+  const email = await page.findByLabelText("Email for your wallet");
+  await userEvent.type(email, "operator@example.test");
+  await expect(page.getByLabelText("Email for your wallet")).toBe(email);
+  await expect(email).toHaveValue("operator@example.test");
   await clickReady(page, "Send code");
   await userEvent.type(await page.findByLabelText("Code"), "123456");
   await clickReady(page, "Review transfer");
