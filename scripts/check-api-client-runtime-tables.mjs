@@ -8,11 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client129 adds the moderated Dance notification alternative and the winnings
-// Send VerificationRequired error. The other322 protected rows are unchanged.
-// Protect eight contribution operations and the private Dance result:117 operations/351 rows.
-// See docs/shared-song-contribution-client-intake.md for the exact comparison.
-const expectedDigest = "22a5440fc006797cff6288bd60b4a3852c515176e3d72ee88bc4e838a64b238d";
+// Client130 retains all351 protected129 rows exactly and adds the account-private
+// shared-song participant read:118operations/354rows. The original117-operation
+// comparison is retained in docs/shared-song-contribution-client-intake.md.
+const expectedDigest = "54401ae1aeea800471ecf5d39841619aa8d31bf73bdb8eb924fa2f51e7179031";
 
 const operations = [
   "get_meNotifications",
@@ -133,6 +132,7 @@ const operations = [
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
   "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
   "get_communitiesCommunityIdDanceReviewsReviewIdResult",
+  "get_communitiesCommunityIdPostsPostIdMegapotParticipation",
 ];
 
 const tables = [
