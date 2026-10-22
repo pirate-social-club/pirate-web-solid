@@ -36,6 +36,8 @@ export default defineConfig({
       "src/features/dance/dance-review-page.test.tsx",
       "src/features/dance/dance-recorder.test.ts",
       "src/features/dance/dance-song-page.test.tsx",
+      "src/features/dance/dance-owner*.test.ts",
+      "src/features/dance/dance-owner-page.test.tsx",
       "src/features/notifications/notifications.test.tsx",
       "src/features/shell/spaces-requests-navigation.test.tsx",
       "src/features/notifications/comment-navigation.test.tsx",

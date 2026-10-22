@@ -19,6 +19,7 @@ import type { createDanceRecorder } from "./dance-recorder";
 import { assertDanceResult, danceResultPath, danceResultPresentation, type DanceResult } from "./dance-result-api";
 import { danceReviewPath, danceReviewPending } from "./dance-review-api";
 import { danceSongPath } from "./dance-song-path";
+import { danceOwnerPath } from "./dance-owner-path";
 
 type Api = ReturnType<typeof createDancePreparationApi>;
 type Choice = DancePreparationOptions["choreographies"][number];
@@ -163,7 +164,7 @@ export function DanceSongPage(props: {
                 <Button variant="secondary" disabled={busy() || entry.fixedPersonaId !== null} onClick={() => setProfileOpen(true)}>{profileLabel()}</Button>
                 <Show when={!value.options.ready || !value.options.policy}><p>Recording isn’t available for this dance right now.</p></Show>
                 <Show when={!(entry.latest && danceReviewPending(entry.latest!))}><Button disabled={busy() || !personaId() || !value.options.ready || !value.options.policy} onClick={() => void begin()}>Do this dance</Button></Show>
-              </>}><p>You review recordings for this community.</p></Show>
+            </>}><p>You review recordings for this community.</p><a class="underline" href={danceOwnerPath(props.communityId)}>Review recordings</a></Show>
             </>}</Show>
             <Show when={message()}><p role="alert">{message()}</p><Button variant="secondary" disabled={busy()} onClick={() => void choose(target)}>Check dance</Button></Show>
           </div>

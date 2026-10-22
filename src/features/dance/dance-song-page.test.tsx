@@ -19,7 +19,7 @@ const renderDom = render as (view: () => JSX.Element, host: HTMLElement) => void
 const cleanups: Array<() => void> = [];
 beforeEach(() => { establishSessionAuthority(); vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {}); vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {}); vi.spyOn(window, "scrollTo").mockImplementation(() => {}); });
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); document.body.replaceChildren(); forgetSessionAuthority(); vi.restoreAllMocks(); });
-function mount(view: () => JSX.Element) { const host = document.createElement("div"); document.body.appendChild(host); createRoot(dispose => { cleanups.push(dispose); renderDom(() => <VideoPlaybackSeamsContext value={{ posterPath: () => "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" }}>{view()}</VideoPlaybackSeamsContext>, host); }); return host; }
+function mount(view: () => JSX.Element) { const host = document.createElement("div"); document.body.appendChild(host); createRoot(dispose => { cleanups.push(dispose); renderDom(() => <VideoPlaybackSeamsContext value={{ posterPath: () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" }}>{view()}</VideoPlaybackSeamsContext>, host); }); return host; }
 function button(host: Pick<ParentNode, "querySelectorAll">, label: string) { const found = [...host.querySelectorAll("button")].find(value => value.textContent === label || value.getAttribute("aria-label") === label); expect(found).toBeDefined(); return found!; }
 const authenticated = async () => { establishSessionAuthority(); return session; };
 
