@@ -155,7 +155,7 @@ assert.equal(
 );
 assert.equal(
   staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
-  "hns-community-app-handle-gateway-sha256:b1457435805e81b41fcd253af6b9ac95559e503efae64b07705d1a0a844fc83d",
+  "hns-community-app-handle-gateway-sha256:c8cd1fb6f961f3435259bc42e5c8be7022219fb215ea053ebf81107d28cf2b7c",
 );
 assert.equal(
   staging.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
