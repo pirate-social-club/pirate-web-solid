@@ -115,4 +115,26 @@ describe("durable community profile preparation intent", () => {
     expect(localStorage.length).toBe(0);
   });
 
+  it.each(["chosen", "other"])("reconciles a caller's preferred identity against its retained choice: %s", async preferredPersonaId => {
+    const request = input([profile("chosen", null)]);
+    let fresh = request.session;
+    const options = { resolve: async () => fresh, refresh: vi.fn(), locks: serialLocks() };
+    const uncertain = vi.fn(async () => { throw new Error("response_lost"); });
+    await expect(createCommunityProfileAttempt(uncertain, options)({ ...request, choice: { kind: "existing", personaId: "chosen" } })).rejects.toThrow("response_lost");
+    fresh = { ...fresh, personas: [profile("chosen", "community"), profile("other", "community")] };
+    const prepare = vi.fn(async (value: CommunityProfilePreparationInput) => {
+      expect(value.choice).toEqual({ kind: "existing", personaId: "chosen" });
+      return fresh.personas[0]!;
+    });
+    const recover = createCommunityProfileAttempt(prepare, options)({ ...request, preferredPersonaId });
+    if (preferredPersonaId === "other") {
+      await expect(recover).rejects.toThrow("profile_attempt_conflict");
+      expect(prepare).not.toHaveBeenCalled();
+      expect(localStorage.length).toBe(1);
+    } else {
+      expect((await recover).personaId).toBe("chosen");
+      expect(localStorage.length).toBe(0);
+    }
+  });
+
 });

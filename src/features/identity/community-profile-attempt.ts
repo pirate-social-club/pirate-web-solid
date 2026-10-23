@@ -27,6 +27,8 @@ export function createCommunityProfileAttempt(prepare = createCommunityProfilePr
       return input.choice === undefined ? profiles.length > 0
         : input.choice.kind === "existing" && profiles.some(profile => input.choice?.kind === "existing" && profile.personaId === input.choice.personaId);
     };
+    const selectedChoice = input.choice ?? (input.preferredPersonaId === undefined ? undefined
+      : { kind: "existing" as const, personaId: input.preferredPersonaId });
     const readAttempt = () => localStorage.getItem(storageKey) ?? sessionStorage.getItem(storageKey);
     let initialSaved: string | null;
     try { initialSaved = readAttempt(); }
@@ -64,8 +66,8 @@ export function createCommunityProfileAttempt(prepare = createCommunityProfilePr
         // SAFETY: retained data is correlation intent only; preparation validates server authority.
         attempt = value as ProfileAttempt;
         if (attempt.choice !== undefined && (attempt.choice.kind !== "create_new" && (attempt.choice.kind !== "existing" || typeof attempt.choice.personaId !== "string"))) throw new Error("invalid_profile_attempt");
-        if (input.choice !== undefined && attempt.choice !== undefined
-          && (input.choice.kind !== attempt.choice.kind || (input.choice.kind === "existing" && attempt.choice.kind === "existing" && input.choice.personaId !== attempt.choice.personaId))) {
+        if (selectedChoice !== undefined && attempt.choice !== undefined
+          && (selectedChoice.kind !== attempt.choice.kind || (selectedChoice.kind === "existing" && attempt.choice.kind === "existing" && selectedChoice.personaId !== attempt.choice.personaId))) {
           throw new Error("profile_attempt_conflict");
         }
         localStorage.setItem(storageKey, JSON.stringify(attempt));
