@@ -38,11 +38,17 @@ export function createCommunityProfilePreparation(options: {
     if (input.session.userId !== input.accountId) throw new CommunityProfilePreparationError("identity_changed");
     if (sessionPersonasUnavailable(input.session)) throw new CommunityProfilePreparationError("profiles_unavailable");
     const existing = communityOperationPersonas(input.session.personas, input.communityId);
-    const preferred = existing.find(persona => persona.personaId === input.preferredPersonaId);
-    if (preferred !== undefined) return preferred;
-    if (existing.length === 1) return existing[0]!;
-    if (existing.length > 1) throw new CommunityProfilePreparationError("profile_selection_required");
+    const selectedId = input.choice?.kind === "existing" ? input.choice.personaId
+      : input.choice === undefined ? input.preferredPersonaId : undefined;
+    const selected = existing.find(persona => persona.personaId === selectedId);
+    if (selected !== undefined) return selected;
+    if (input.choice === undefined) {
+      if (input.preferredPersonaId !== undefined) throw new CommunityProfilePreparationError("profile_selection_required");
+      if (existing.length === 1) return existing[0]!;
+      if (existing.length > 1) throw new CommunityProfilePreparationError("profile_selection_required");
+    }
     const unbound = input.session.personas.filter(persona => persona.communityBinding === null);
+    if (input.choice === undefined && unbound.length > 1) throw new CommunityProfilePreparationError("profile_selection_required");
     const choice = input.choice ?? (unbound.length === 1
       ? { kind: "existing" as const, personaId: unbound[0]!.personaId }
       : { kind: "create_new" as const });

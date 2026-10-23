@@ -141,7 +141,9 @@ export function activityPreparationMessage(error: unknown): string {
       return "That profile isn't available for this community. Refresh and choose again.";
     }
     if (error.status === 409) {
-      return "That profile belongs to another community. Refresh and choose another.";
+      return error.message === "Persona is bound to another community"
+        ? "That profile belongs to another community. Refresh and choose another."
+        : "We couldn't prepare a profile for this community. Your account may have reached its profile limit.";
     }
     if (error.status === 429) {
       return "Too many attempts. Wait a moment, then try again.";

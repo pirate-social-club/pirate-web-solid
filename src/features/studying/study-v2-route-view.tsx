@@ -9,17 +9,18 @@ import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { onSessionRefreshed, refreshSession, resolveSession, sessionPersonasUnavailable, type ActivePersonaPublicProjection, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import { onSessionRefreshed, resolveSession, sessionPersonasUnavailable, type ActivePersonaPublicProjection, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
 import {
-  activityPreparationAdmissible,
   activityPreparationCandidates,
   activityPreparationMessage,
   createActivityPersonaPreparationApi,
   type ActivityPersonaPreparationApi,
 } from "../identity/activity-persona-preparation";
+import { createCommunityProfileAttempt } from "../identity/community-profile-attempt.ts";
+import { CommunityProfilePreparationError, createCommunityProfilePreparation } from "../identity/community-profile-preparation.ts";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -66,6 +67,7 @@ export interface StudyV2RouteViewProps {
   verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
   preparationApi?: ActivityPersonaPreparationApi;
+  prepareProfile?: ReturnType<typeof createCommunityProfileAttempt>;
   navigate?: (href: string) => void;
   postId: string;
   routePath?: string;
@@ -105,14 +107,12 @@ function safeFailure(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function sessionKey(postId: string): string {
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `study-session:${postId}:${random}`;
-}
-
 export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const api = props.api ?? createStudyV2Api();
-  const preparation = props.preparationApi ?? createActivityPersonaPreparationApi();
+  const prepareProfile = props.prepareProfile ?? createCommunityProfileAttempt(createCommunityProfilePreparation({
+    api: props.preparationApi ?? createActivityPersonaPreparationApi(),
+    resolve: props.resolveSession,
+  }), { resolve: props.resolveSession });
   const recorder = props.recorder ?? createStudyingBrowserRecorder();
   const startCoordinator =
     props.startCoordinator ?? createStudySessionStartCoordinator({ api });
@@ -123,16 +123,13 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const [learnerBand, setLearnerBand] = createSignal<StudyLearnerBand | "">("");
   const [starting, setStarting] = createSignal(false);
   const [preparing, setPreparing] = createSignal(false);
-  const [walletConfirmationRequired, setWalletConfirmationRequired] = createSignal(false);
-  const [walletConfirming, setWalletConfirming] = createSignal(false);
   const [message, setMessage] = createSignal("");
   let active = true;
   let loadStarted = false;
   let loadInFlight = false;
   let requestGeneration = 0;
-  let prepareIdempotencyKey = sessionKey(`prepare:${props.postId}`);
   let lastStartScope: StudySessionStartScope | undefined;
-  let walletConfirmationController: AbortController | undefined;
+  let preparationController: AbortController | undefined;
 
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
@@ -147,6 +144,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     readonly session: AuthenticatedSession;
     readonly targetLanguage: string | null;
   }): Promise<void> => {
+    const generation = requestGeneration;
     setState({ kind: "starting" });
     setMessage("");
     const scope: StudySessionStartScope = {
@@ -159,7 +157,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     };
     lastStartScope = scope;
     const result = await startCoordinator.start(scope);
-    if (!active) return;
+    if (!active || generation !== requestGeneration) return;
     if (result.status === "unavailable") {
       setState({ kind: "unavailable", message: result.message });
       return;
@@ -169,9 +167,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         communityId: input.communityId,
         sessionId: result.sessionId,
       });
-      if (active) setState({ kind: "lesson", session, accountId: input.session.userId });
+      if (active && generation === requestGeneration) setState({ kind: "lesson", session, accountId: input.session.userId });
     } catch {
-      if (active) {
+      if (active && generation === requestGeneration) {
         setState({ kind: "failed", message: "Study could not open the started session. Retry once the connection is stable." });
       }
     }
@@ -179,6 +177,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
 
   const load = async (preserveChoices = false) => {
     const generation = ++requestGeneration;
+    preparationController?.abort();
     // Set synchronously so a burst of refresh callbacks cannot each start a
     // request before the queued `loading` state is visible.
     loadInFlight = true;
@@ -203,20 +202,20 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       }
       const eligible = communityOperationPersonas(resolved.personas, loaded.communityId);
       if (eligible.length === 0) {
-        // Study never requires joining this community. An account without an
-        // exact-community persona prepares one explicitly through the API
-        // instead of being sent through a join or proof flow.
         const candidates = activityPreparationCandidates(resolved.personas);
-        prepareIdempotencyKey = sessionKey(`prepare:${loaded.communityId}`);
         setPreparePersonaId(defaultOperationPersonaId(candidates) ?? "");
-        setWalletConfirmationRequired(false);
-        setState({
+        const preparationState: Extract<RouteState, { kind: "prepare" }> = {
           availability: loaded.availability,
           candidates,
           communityId: loaded.communityId,
           kind: "prepare",
           session: resolved,
-        });
+        };
+        // Opening Study is the activity-entry action. Only an actual choice
+        // between profiles needs another screen; preparation retains its exact
+        // command keys through reloads and uncertain responses.
+        if (candidates.length <= 1) await prepareIdentity(preparationState);
+        else setState(preparationState);
         return;
       }
       if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
@@ -275,7 +274,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       void load();
     }));
   }
-  onCleanup(() => { active = false; walletConfirmationController?.abort(); });
+  onCleanup(() => { active = false; preparationController?.abort(); });
 
   const start = async (configuration: Extract<RouteState, { kind: "configure" }>) => {
     const language = targetLanguage();
@@ -308,77 +307,49 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
 
   const prepareIdentity = async (preparationState: Extract<RouteState, { kind: "prepare" }>) => {
     const candidates = preparationState.candidates;
-    // One unbound candidate is an unambiguous bind; several require an
-    // explicit selection; none mints a fresh pending_wallet identity.
-    const single = defaultOperationPersonaId(candidates);
-    const choice = candidates.length === 0
-      ? { kind: "create_new" as const }
-      : single !== undefined
-        ? { kind: "existing" as const, personaId: single }
-        : preparePersonaId() === ""
-          ? undefined
-          : { kind: "existing" as const, personaId: preparePersonaId() };
-    if (choice === undefined) {
+    const choice = candidates.length > 1 && preparePersonaId() !== ""
+      ? { kind: "existing" as const, personaId: preparePersonaId() }
+      : undefined;
+    if (candidates.length > 1 && choice === undefined) {
       setMessage("Choose your profile for this community.");
       return;
     }
+    if (preparing()) return;
     setPreparing(true);
+    setState({ kind: "starting" });
     setMessage("");
-    setWalletConfirmationRequired(false);
+    const controller = new AbortController();
+    preparationController = controller;
     try {
-      const result = await preparation.prepare({
-        choice,
+      const profile = await prepareProfile({
+        session: preparationState.session,
         communityId: preparationState.communityId,
-        idempotencyKey: prepareIdempotencyKey,
+        ...(choice === undefined ? {} : { choice }),
+        signal: controller.signal,
       });
-      if (!active) return;
-      if (activityPreparationAdmissible(result)) {
-        // The binding is now server-visible; drop the cached session read and
-        // reload so the prepared persona is selectable and starts through the
-        // ordinary session path.
-        refreshSession();
-        await load(true);
-        return;
-      }
-      setWalletConfirmationRequired(true);
-      setMessage("Confirm this profile's wallet to start Study. We'll email you a code.");
+      if (!active || controller.signal.aborted) return;
+      await beginSession({
+        availability: preparationState.availability,
+        communityId: preparationState.communityId,
+        learnerBand: null,
+        personaId: profile.personaId,
+        session: preparationState.session,
+        targetLanguage: null,
+      });
     } catch (error) {
-      if (!active) return;
-      setMessage(activityPreparationMessage(error));
+      if (!active || controller.signal.aborted) return;
       if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) {
         setState({ kind: "auth-required" });
+      } else {
+        setState({ kind: "failed", message: error instanceof CommunityProfilePreparationError
+          ? error.reason === "activation_required" ? "Sign in to continue Study."
+            : "We couldn't confirm your profile. Retry to continue Study."
+          : activityPreparationMessage(error) });
       }
     } finally {
+      if (preparationController === controller) preparationController = undefined;
       if (active) setPreparing(false);
     }
-  };
-
-  /**
-   * An actionable confirmation for a freshly minted pending_wallet persona:
-   * the ordinary additional-persona activation runs on the next authenticated
-   * session exchange, which prepares and confirms the pending wallet without
-   * any join, then the route reloads into the prepared persona.
-   */
-  const confirmPendingWallet = async () => {
-    if (walletConfirming()) return;
-    setWalletConfirming(true);
-    setMessage("");
-    walletConfirmationController?.abort();
-    const controller = new AbortController();
-    walletConfirmationController = controller;
-    const completion = requestGlobalSignInCompletion(controller.signal);
-    const authenticated = await completion;
-    if (walletConfirmationController === controller) walletConfirmationController = undefined;
-    if (!active) return;
-    if (!authenticated) {
-      setMessage("Wallet confirmation was cancelled. Confirm again when you are ready.");
-      setWalletConfirming(false);
-      return;
-    }
-    refreshSession();
-    setWalletConfirmationRequired(false);
-    await load(true);
-    if (active) setWalletConfirming(false);
   };
 
   const failureState = () => {
@@ -456,10 +427,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                     return (
                       <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 py-8">
                         <header class="space-y-2">
-                          <Type as="h1" variant="h1">Set up Study</Type>
+                          <Type as="h1" variant="h1">Choose a profile</Type>
                           <Type as="p" class="text-muted-foreground" variant="body">
-                            You don't need to join to study. Choose one of your profiles, or create a new
-                            one. A new profile can start once its wallet is confirmed.
+                            Choose how you appear in this community.
                           </Type>
                         </header>
                         <Show when={candidates().length > 0}>
@@ -470,7 +440,6 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                             selectedPersonaId={preparePersonaId()}
                             onSelect={(id) => {
                               setPreparePersonaId(id);
-                              prepareIdempotencyKey = sessionKey(`prepare:${preparationState().communityId}`);
                             }}
                           />
                         </Show>
@@ -479,15 +448,6 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                           your account.
                         </p>
                         <Show when={message()}>{(error) => <FormNote tone="destructive">{error()}</FormNote>}</Show>
-                        <Show when={walletConfirmationRequired()}>
-                          <Button
-                            disabled={walletConfirming()}
-                            loading={walletConfirming()}
-                            onClick={() => void confirmPendingWallet()}
-                          >
-                            Confirm wallet and continue
-                          </Button>
-                        </Show>
                         <div class="mt-auto flex gap-3">
                           <Button class="flex-1" onClick={() => navigate(props.exitPath ?? "/")} variant="secondary">Exit</Button>
                           <Button
