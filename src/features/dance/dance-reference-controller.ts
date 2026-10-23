@@ -92,5 +92,23 @@ export function createDanceReferenceController(options: {
         return dispatch(raw, signal);
       });
     },
+    async prepareAgain(choreographyId: string, signal: AbortSignal): Promise<DanceReferenceView> {
+      current(signal); return store.exclusive(key, async () => {
+        current(signal); const raw = store.read(key); if (raw === null) throw new Error("dance_reference_original_missing");
+        const { entry, body } = decode(raw, locator);
+        // A stale click, concurrent tab or unknown original cannot allocate a
+        // new command. Only a fresh status for this exact failed reference can.
+        const view = await read(raw, signal);
+        if (entry.choreographyId !== choreographyId || view.kind !== "status" || view.reference.status !== "failed") return view;
+        const fresh = await api.target(locator.accountId, locator.referencePostId, signal); current(signal);
+        if (danceReferenceIdentity(fresh.scope) !== danceReferenceIdentity(entry) || !fresh.playable) throw new Error("dance_reference_target_changed");
+        const nextKey = (options.commandKey ?? (() => crypto.randomUUID()))();
+        if (nextKey === body.idempotency_key) throw new Error("dance_reference_command_key_reused");
+        const nextBody: DanceReferenceCommand = { ...body, idempotency_key: nextKey };
+        // Original server receipts remain immutable. Persist this new attempt
+        // before POST so a lost reply recovers this exact new key and body.
+        return dispatch(saved({ ...entry, bodyJson: JSON.stringify(nextBody), choreographyId: null }, raw, signal), signal);
+      });
+    },
   };
 }
