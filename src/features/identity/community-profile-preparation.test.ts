@@ -20,17 +20,17 @@ describe("community profile preparation", () => {
   it.each([{ personas: [] }, { personas: [profile("foreign", "elsewhere")] }])("prepares and activates a new exact-community profile before returning authority", async ({ personas }) => {
     const prepare = vi.fn(async () => prepared());
     const activateWallet = vi.fn(async () => true);
-    const refresh = vi.fn();
+    const clearCache = vi.fn();
     const resolve = vi.fn(async () => session([profile("created", "community")]));
-    const result = await createCommunityProfilePreparation({ api: { prepare }, activateWallet, refresh, resolve })(input(personas));
+    const result = await createCommunityProfilePreparation({ api: { prepare }, activateWallet, clearCache, resolve })(input(personas));
     expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ choice: { kind: "create_new" }, communityId: "community", idempotencyKey: "prepare-key" }));
     expect(activateWallet).toHaveBeenCalledWith("account", "created", "wallet-key", expect.any(AbortSignal));
-    expect(result.personaId).toBe("created"); expect(refresh).toHaveBeenCalledOnce();
+    expect(result.personaId).toBe("created"); expect(clearCache).toHaveBeenCalledOnce();
   });
   it("binds the first-time unbound profile without replacing it", async () => {
     const prepare = vi.fn(async () => prepared("unbound", "active"));
     const activateWallet = vi.fn();
-    await createCommunityProfilePreparation({ api: { prepare }, activateWallet, refresh: vi.fn(), resolve: async () => session([profile("unbound", "community")]) })(input([profile("unbound", null)]));
+    await createCommunityProfilePreparation({ api: { prepare }, activateWallet, clearCache: vi.fn(), resolve: async () => session([profile("unbound", "community")]) })(input([profile("unbound", null)]));
     expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ choice: { kind: "existing", personaId: "unbound" } })); expect(activateWallet).not.toHaveBeenCalled();
   });
   it("requires the existing profile selection when multiple eligible profiles exist", async () => {
@@ -41,13 +41,13 @@ describe("community profile preparation", () => {
     expect((await run({ ...request, preferredPersonaId: "current" })).personaId).toBe("current"); expect(prepare).not.toHaveBeenCalled();
   });
   it.each(["another-account", "inactive-profile"])("does not treat pending preparation or changed identity as active: %s", async failure => {
-    const run = createCommunityProfilePreparation({ api: { prepare: async () => prepared() }, activateWallet: async () => true, refresh: vi.fn(),
+    const run = createCommunityProfilePreparation({ api: { prepare: async () => prepared() }, activateWallet: async () => true, clearCache: vi.fn(),
       resolve: async () => session([], failure === "another-account" ? "other" : "account") });
     await expect(run(input([]))).rejects.toMatchObject({ reason: failure === "another-account" ? "identity_changed" : "activation_required" });
   });
   it("resumes an existing pending wallet through the shared sign-in completion after reload", async () => {
     const signIn = vi.fn(async () => true);
-    const run = createCommunityProfilePreparation({ api: { prepare: async () => prepared() }, activateWallet: async () => false, signIn, refresh: vi.fn(), resolve: async () => session([profile("created", "community")]) });
+    const run = createCommunityProfilePreparation({ api: { prepare: async () => prepared() }, activateWallet: async () => false, signIn, clearCache: vi.fn(), resolve: async () => session([profile("created", "community")]) });
     await run(input([])); expect(signIn).toHaveBeenCalledWith(expect.any(AbortSignal));
   });
   it("does not advance after cancellation during activation", async () => {

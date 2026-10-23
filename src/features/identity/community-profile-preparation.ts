@@ -1,5 +1,5 @@
 import { browserIdentitySession } from "../../api/browser-identity-session.ts";
-import { refreshSession, resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type ActivePersonaPublicProjection } from "../../api/session.ts";
+import { clearSessionResolutionCache, resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type ActivePersonaPublicProjection } from "../../api/session.ts";
 import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host.tsx";
 import { createActivityPersonaPreparationApi, type ActivityPersonaPreparationApi } from "./activity-persona-preparation.ts";
 import { communityOperationPersonas, type CommunityPersonaChoice } from "./community-persona-choice.ts";
@@ -28,7 +28,7 @@ export function createCommunityProfilePreparation(options: {
   readonly resolve?: typeof resolveSession;
   readonly activateWallet?: typeof browserIdentitySession.activatePersonaWallet;
   readonly signIn?: typeof requestGlobalSignInCompletion;
-  readonly refresh?: typeof refreshSession;
+  readonly clearCache?: typeof clearSessionResolutionCache;
 } = {}) {
   const api = options.api ?? createActivityPersonaPreparationApi();
   const resolve = options.resolve ?? resolveSession;
@@ -65,7 +65,7 @@ export function createCommunityProfilePreparation(options: {
       if (!activated && !await (options.signIn ?? requestGlobalSignInCompletion)(input.signal)) throw new CommunityProfilePreparationError("activation_required");
       alive();
     }
-    (options.refresh ?? refreshSession)();
+    (options.clearCache ?? clearSessionResolutionCache)();
     const session = await resolve();
     alive();
     if (session === "anonymous" || session.userId !== input.accountId) throw new CommunityProfilePreparationError("identity_changed");

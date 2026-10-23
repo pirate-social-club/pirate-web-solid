@@ -315,6 +315,58 @@ describe("shared session store", () => {
     expect(spies.get_personas).not.toHaveBeenCalled();
   });
 
+  test("quiet cache clearing rereads facts without invalidating the mounted route", async () => {
+    let current = "original";
+    const spies = stubClient({ usersMe: async () => ({ id: current }) });
+    const store = storeFrom(spies);
+    const listener = vi.fn();
+    store.onSessionRefreshed(listener);
+    await expect(store.resolveSession()).resolves.toMatchObject({ userId: "original" });
+    current = "current";
+    store.clearSessionResolutionCache();
+    await expect(store.resolveSession()).resolves.toMatchObject({ userId: "current" });
+    expect(listener).not.toHaveBeenCalled();
+    expect(spies.get_usersMe).toHaveBeenCalledTimes(2);
+    expect(spies.get_personas).toHaveBeenCalledTimes(2);
+    store.clearSession();
+    expect(listener).toHaveBeenCalledOnce();
+    await expect(store.resolveSession()).resolves.toBe("anonymous");
+  });
+
+  test("a response started before quiet cache clearing cannot replace its successor", async () => {
+    let finish!: (value: { id: string }) => void;
+    const spies = stubClient({ usersMe: () => new Promise(resolve => { finish = resolve; }) });
+    const authenticated = vi.fn();
+    const store = createSessionStore(() => spies.client, authenticated);
+    const old = store.resolveSession();
+    const finishOld = finish;
+    store.clearSessionResolutionCache();
+    const current = store.resolveSession();
+    finish({ id: "current" });
+    await current;
+    finishOld({ id: "old" });
+    await old;
+    expect(store.resolveSession()).toBe(current);
+    expect(authenticated).toHaveBeenCalledOnce();
+    await expect(store.resolveSession()).resolves.toMatchObject({ userId: "current" });
+  });
+
+  test.each(["clearSession", "invalidateSession"] as const)("quiet cache clearing preserves %s until an explicit refresh", async invalidate => {
+    const spies = stubClient();
+    const store = storeFrom(spies);
+    await store.resolveSession();
+    store[invalidate]();
+    store.clearSessionResolutionCache();
+    await expect(store.resolveSession()).resolves.toBe("anonymous");
+    await expect(store.resolveAccountSession()).resolves.toBe("anonymous");
+    expect(spies.get_usersMe).toHaveBeenCalledOnce();
+    expect(spies.get_personas).toHaveBeenCalledOnce();
+    store.refreshSession();
+    await expect(store.resolveSession()).resolves.toMatchObject({ userId: "user-1" });
+    expect(spies.get_usersMe).toHaveBeenCalledTimes(2);
+    expect(spies.get_personas).toHaveBeenCalledTimes(2);
+  });
+
   test("explicit transport bypasses the slots so injected callers stay deterministic", async () => {
     const spies = stubClient();
     const store = storeFrom(spies);

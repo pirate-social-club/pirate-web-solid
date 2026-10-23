@@ -158,6 +158,8 @@ export interface SessionStore {
   resolveAccountSession(options?: AccountSessionResolutionOptions): Promise<AccountSessionResolution>;
   /** Drop the cached resolutions and notify subscribers. */
   refreshSession(): void;
+  /** Reread account/profile facts without announcing an identity change. */
+  clearSessionResolutionCache(): void;
   /** Hide private UI after refusal while preserving recoverable author work. */
   invalidateSession(): void;
   clearSession(): void;
@@ -273,9 +275,15 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
     },
     refreshSession() {
       invalidated = false;
+      store.clearSessionResolutionCache();
+      for (const listener of [...refreshListeners]) listener();
+    },
+    clearSessionResolutionCache() {
+      // A late profile continuation cannot reopen a deliberately refused or
+      // signed-out session. Only an explicit identity refresh may do that.
+      if (invalidated) return;
       slots.account.promise = undefined;
       slots.session.promise = undefined;
-      for (const listener of [...refreshListeners]) listener();
     },
     onSessionRefreshed(listener: () => void) {
       refreshListeners.add(listener);
@@ -316,6 +324,11 @@ export function resolveAccountSession(
 export function refreshSession(): void {
   refreshSessionAuthority();
   browserStore.refreshSession();
+}
+
+/** A profile mutation needs fresh facts, while its initiating route stays mounted. */
+export function clearSessionResolutionCache(): void {
+  browserStore.clearSessionResolutionCache();
 }
 
 /** Subscribe to shared `refreshSession` calls; returns the unsubscribe function. */
