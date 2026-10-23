@@ -1,12 +1,37 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { MemoryOnlyStorage } from "./privy-session.ts";
 import { createRewardWalletSession } from "./reward-wallet-session.ts";
-import { clearWalletAuthorization, rememberWalletAuthorization, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
+import { clearWalletAuthorization, hasBoundWalletAuthorization, rememberWalletAuthorization, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
 
 const subject = "did:privy:wallet-owner";
 const token = `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
 const otherToken = `header.${btoa(JSON.stringify({ sub: "did:privy:another-account" }))}.signature`;
 const key = "pirate:privy-wallet-authorization:v1";
+test("the local bootstrap hint requires the same account and original unexpired save time", () => {
+  const tab = tabStorage();
+  expect(hasBoundWalletAuthorization("account", tab, 1001)).toBe(false);
+  const memory = new MemoryOnlyStorage(); memory.put("privy:token", token);
+  rememberWalletAuthorization(memory, token, "app", tab, 1000);
+  expect(hasBoundWalletAuthorization("account", tab, 1001)).toBe(false);
+  rememberWalletAuthorization(memory, token, "app", tab, 1000, "account");
+  const before = tab.getItem(key);
+  expect(hasBoundWalletAuthorization("account", tab, 1001)).toBe(true);
+  expect(hasBoundWalletAuthorization("other", tab, 1001)).toBe(false);
+  expect(hasBoundWalletAuthorization("account", tab, 999)).toBe(false);
+  expect(hasBoundWalletAuthorization("account", tab, 3601000)).toBe(false);
+  expect(tab.getItem(key)).toBe(before);
+  tab.setItem(key, "{");
+  expect(hasBoundWalletAuthorization("account", tab, 1001)).toBe(false);
+});
+test("binds the verified account without changing the original restoration expiry", () => {
+  const tab = tabStorage();
+  const memory = new MemoryOnlyStorage(); memory.put("privy:token", token);
+  rememberWalletAuthorization(memory, token, "app", tab, 1000, "account");
+  const before = tab.getItem(key);
+  expect(restoreWalletAuthorization(new MemoryOnlyStorage(), "app", tab, 1001)).toEqual({ subject, accountId: "account", expiresAt: 3601000 });
+  expect(tab.getItem(key)).toBe(before);
+  expect(restoreWalletAuthorization(new MemoryOnlyStorage(), "app", tab, 3601000)).toBeUndefined();
+});
 afterEach(() => vi.unstubAllGlobals());
 function tabStorage() {
   const values = new Map<string, string>();
