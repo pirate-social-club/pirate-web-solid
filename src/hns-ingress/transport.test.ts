@@ -29,6 +29,19 @@ function proxy(request: Request, fetchImpl: (input: RequestInfo | URL, init?: Re
 }
 
 describe("bounded HNS ingress transport", () => {
+  it.each([204, 205])("preserves a bodyless %s response instead of failing construction", async status => {
+    const response = await proxy(apiRequest(), async () => new Response(null, { status }));
+    expect(response.status).toBe(status);
+    expect(response.body).toBeNull();
+    expect(response.headers.get("content-length")).toBe("0");
+  });
+
+  it("keeps a HEAD response bodyless", async () => {
+    const request = new Request(apiRequest(), { method: "HEAD" });
+    const response = await proxy(request, async () => new Response(null, { status: 200 }));
+    expect(response.status).toBe(200);
+    expect(response.body).toBeNull();
+  });
   it("rejects declared and observed request-body overflow", async () => {
     const declared = new Request("https://solid-hns-ingress.test/api/upload", {
       method: "POST",

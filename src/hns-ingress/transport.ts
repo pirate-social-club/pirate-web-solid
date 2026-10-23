@@ -1,3 +1,4 @@
+import { preserveTrustedEdgeAddress } from "../api/trusted-edge-address.ts";
 import {
   CF_ACCESS_ASSERTION_HEADER,
   CF_ACCESS_CLIENT_ID_HEADER,
@@ -328,6 +329,9 @@ export async function proxyVerifiedHnsApiRequest(options: {
   const source = new URL(options.request.url);
   const target = new URL(`${source.pathname}${source.search}`, options.apiOrigin);
   const headers = cleanHnsApplicationHeaders(options.request.headers);
+  // The signed gateway does not carry an authenticated visitor address. Its
+  // trusted edge address therefore defines the conservative shared bucket.
+  preserveTrustedEdgeAddress(options.request.headers, headers);
   for (const name of HNS_FORWARDER_RESERVED_HEADERS) {
     const value = options.request.headers.get(name);
     if (value === null) throw new HnsIngressFailure("invalid_request");
@@ -352,7 +356,8 @@ export async function proxyVerifiedHnsApiRequest(options: {
     if (upstream.status >= 300 && upstream.status < 400) throw new HnsIngressFailure("upstream_unavailable");
     const bytes = await readBoundedUpstream(upstream, bounded.interrupt);
     const responseBytes = options.request.method === "HEAD" ? new Uint8Array() : bytes;
-    return new Response(ownedArrayBuffer(responseBytes), {
+    const noBody = options.request.method === "HEAD" || upstream.status === 204 || upstream.status === 205;
+    return new Response(noBody ? null : ownedArrayBuffer(responseBytes), {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: validatedHnsResponseHeaders(upstream, responseBytes.byteLength),

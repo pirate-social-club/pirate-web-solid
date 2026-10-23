@@ -11,6 +11,7 @@ import {
   safeResponseHeaders,
 } from "./headers.ts";
 import { apiNextOriginOrError, upstreamUrl } from "./origin.ts";
+import { preserveTrustedEdgeAddress } from "./trusted-edge-address.ts";
 
 export const API_PROXY_TIMEOUT_MS = 15_000;
 
@@ -165,6 +166,7 @@ export async function proxyApiRequest(
 
     timeout = timeoutSignal(request, options.timeoutMs ?? API_PROXY_TIMEOUT_MS);
     const headers = safeRequestHeaders(request);
+    preserveTrustedEdgeAddress(request.headers, headers);
     // Keep the same interrupt race around bounded body preflight and fetch:
     // a client disconnect or timeout must settle a stalled request body too.
     const body = await Promise.race([bodyFor(request, timeout.signal), timeout.interrupt]);
