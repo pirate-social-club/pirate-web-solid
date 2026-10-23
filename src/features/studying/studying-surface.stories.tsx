@@ -18,8 +18,8 @@ const meta = {
           "Presentational studying activity surface, ported from the legacy React `SongStudySurface`. " +
           "Every state is injected: the say-it-back phase machine (idle/listening/checking/wrong), " +
           "multiple choice with reveal styling, and completion. Recording, network, " +
-          "and timers live at the route-view seam, never in this component. The production v2 client " +
-          "never supplies a reward or streak, so no story here depicts one.",
+          "and timers live at the route-view seam, never in this component. The production completion " +
+          "sequence and exact-attempt streak reads are covered by Flows/Studying/Completion.",
       },
     },
   },

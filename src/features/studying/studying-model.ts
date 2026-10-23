@@ -74,9 +74,9 @@ export type StudyingSurfaceState =
     streak?: {
       currentStreak: number;
       qualifiedToday: boolean;
-      studyAttemptsToday: number;
-      studyCorrectCount: number;
-      studyTargetCount: number;
+      studyAttemptsToday?: number;
+      studyCorrectCount?: number;
+      studyTargetCount?: number;
     };
     /** Seven booleans, Monday through Sunday, for the streak completion view. */
     streakWeek?: readonly boolean[];
@@ -241,9 +241,8 @@ export function previousStreakForAnimation(
   streak: { currentStreak: number } | undefined,
   previousStreak: number | undefined,
 ): number | undefined {
-  if (!streak) return undefined;
-  const previous = previousStreak ?? streak.currentStreak - 1;
-  return Math.max(0, Math.min(previous, streak.currentStreak));
+  if (!streak || previousStreak === undefined) return undefined;
+  return Math.max(0, Math.min(previousStreak, streak.currentStreak));
 }
 
 export function lockedSurface(priceLabel?: string): StudyingSurfaceState {

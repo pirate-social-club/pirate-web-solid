@@ -193,7 +193,10 @@ test("completed Study reads current qualification for its owned session instead 
   const api = studyApi(async () => completed, async () => completed);
   const container = render(() => <StudyV2RouteView api={api} postId={completed.post_id} startCoordinator={testCoordinator(api)} resolveSession={async () => ({ status: "authenticated", userId: "study-owner", personas: [{ avatarRef: null, displayName: "Community learner", personaId: completed.persona_id, primaryPublicHandle: null, communityBinding: { communityId: completed.community_id, bindingSource: "activity_participation" } }] })} />);
   disposers.push(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-  await vi.waitFor(() => expect(container.textContent).toContain("historical qualification decision is unavailable"));
+  await vi.waitFor(() => expect(transport.mock.calls.filter(([input]) => String(input).endsWith("/completion"))).toHaveLength(1));
+  expect(container.textContent).toContain("100%");
+  expect(container.textContent).not.toContain("day streak");
+  expect(container.textContent).not.toContain("Qualification");
   expect(container.textContent).not.toContain("This attempt qualified");
   expect(transport.mock.calls.filter(([input]) => String(input).endsWith("/completion")).map(([input]) => new URL(String(input)).pathname)).toEqual([
     `/api/communities/${completed.community_id}/study/v2/sessions/${completed.session_id}/completion`,
