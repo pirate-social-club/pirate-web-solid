@@ -12,8 +12,8 @@ import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import { defaultPrivyFactory } from "../../api/privy-session.ts";
 import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host.tsx";
 import { checkRecipient, explorerTransactionUrl } from "../rewards/winnings-send-model.ts";
+import { sponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
-const USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const DECIMALS = 6;
 type Sender = Readonly<{ address: string; walletIndex: number }>;
 type Step = "loading" | "unavailable" | "details" | "authorization" | "verification" | "review" | "status";
@@ -28,7 +28,7 @@ export type WalletSponsoredSendDependencies = Readonly<{
 
 export function browserWalletSponsoredSend(): WalletSponsoredSendDependencies {
   return {
-    data: createWalletSponsoredSendData(),
+    data: createWalletSponsoredSendData(undefined, undefined, sponsoredSendNetwork(globalThis.location?.hostname ?? "")),
     openWallet: async () => createRewardWalletSession(await fetchVerificationConfig(), defaultPrivyFactory, { restoreSaved: true }),
   };
 }
@@ -44,6 +44,8 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   resumeDraft?: WalletSendDraft;
 }>) {
   const dependencies = props.dependencies ?? browserWalletSponsoredSend();
+  const network = dependencies.data.network;
+  const USDC = network.usdc;
   const [step, setStep] = createSignal<Step>("loading");
   const [sender, setSender] = createSignal<Sender>();
   const [balance, setBalance] = createSignal<bigint>();
@@ -167,11 +169,11 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (assigned === undefined) throw new Error("wallet_sender_unavailable");
     return {
       sender: assigned.address, token: USDC, recipient: current.recipient_address,
-      amountAtomic: current.amount_atomic, walletIndex: assigned.walletIndex,
+      amountAtomic: current.amount_atomic, walletIndex: assigned.walletIndex, chainId: network.chainId,
     };
   };
   const matches = (current: WalletSponsoredSendRecord, intended: RewardTokenTransfer) =>
-    current.persona_id === props.personaId && current.chain_id === 84_532 &&
+    current.persona_id === props.personaId && current.chain_id === network.chainId &&
     getAddress(current.sender_address) === getAddress(intended.sender) &&
     getAddress(current.token_address) === getAddress(intended.token) &&
     getAddress(current.recipient_address) === getAddress(intended.recipient) &&
@@ -250,7 +252,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (reserved.status === "reserved" && reserved.verification_required) { requireVerification(); return; }
     const intended: RewardTokenTransfer = {
       sender: assigned.address, token: USDC, recipient: to.address,
-      amountAtomic: value.atomic.toString(), walletIndex: assigned.walletIndex,
+      amountAtomic: value.atomic.toString(), walletIndex: assigned.walletIndex, chainId: network.chainId,
     };
     if (!matches(reserved, intended) || reserved.status !== "reserved" || reserved.authorization === null) {
       setError("The recorded send differs from this form. Nothing was signed."); return;
@@ -300,7 +302,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
           <Show when={record()}>{current => <>
             <Type class="text-sm">Recorded amount: {format(BigInt(current().amount_atomic))}</Type>
             <Type class="text-sm break-all">To: {current().recipient_address}</Type>
-            <Show when={current().transaction_hash}>{hash => <a class="break-all text-sm underline" href={explorerTransactionUrl(hash())} target="_blank" rel="noopener noreferrer">View transfer</a>}</Show>
+            <Show when={current().transaction_hash}>{hash => <a class="break-all text-sm underline" href={explorerTransactionUrl(hash(), network.chainId)} target="_blank" rel="noopener noreferrer">View transfer</a>}</Show>
             <Switch>
               <Match when={current().status === "confirmed"}><Type role="status">This send is confirmed. The USDC arrived at the recipient.</Type></Match>
               <Match when={current().status === "reverted"}><Type role="status">This transaction failed. Its token transfer did not happen.</Type></Match>

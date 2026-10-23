@@ -4,7 +4,7 @@ import {
   defaultPrivyFactory, MemoryOnlyStorage,
   type EthereumProvider, type OAuthProvider, type PrivyFactory,
 } from "./privy-session.ts";
-import type { RewardFundingContext } from "./reward-funding-client.ts";
+import { fundingChainAdmitted, type RewardFundingContext } from "./reward-funding-client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 import { clearWalletAuthorization, privyAccessTokenSubject, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
 
@@ -92,11 +92,11 @@ function rpcInteger(value: unknown): bigint {
 /** The funding instruction as a transfer; its checks run first, so funding errors are unchanged. */
 export function fundingTransfer(context: RewardFundingContext): RewardTokenTransfer {
   const f = context.funding;
-  if (f.chain_id !== 84532 || !/^[1-9][0-9]*$/u.test(f.expected_amount_atomic)) throw new Error("funding_instruction_mismatch");
+  if (!fundingChainAdmitted(f) || !/^[1-9][0-9]*$/u.test(f.expected_amount_atomic)) throw new Error("funding_instruction_mismatch");
   if (BigInt(f.expected_amount_atomic) >= 2n ** 256n) throw new Error("funding_amount_out_of_range");
   return {
     sender: f.sender_address, token: f.token_address, recipient: f.recipient_address,
-    amountAtomic: f.expected_amount_atomic, walletIndex: context.walletIndex,
+    amountAtomic: f.expected_amount_atomic, walletIndex: context.walletIndex, chainId: f.chain_id,
   };
 }
 export function tokenTransfer(transfer: RewardTokenTransfer) {

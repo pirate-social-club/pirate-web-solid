@@ -25,9 +25,17 @@ export interface RewardFundingApi {
   observe(target: RewardFundingTarget, actor: RewardFundingActor, transactionHash: string, key: string): Promise<RewardFunding>;
 }
 
+/**
+ * Megapot pools are funded on Base Sepolia, or on Base for the owner-executed Safe
+ * pool pilot; asset bonuses stay on Base Sepolia.
+ */
+export function fundingChainAdmitted(funding: RewardFunding): boolean {
+  return funding.chain_id === 84532 || (funding.object === "megapot_pool_funding" && funding.chain_id === 8453);
+}
+
 export function assertFundingTarget(target: RewardFundingTarget, funding: RewardFunding): void {
   if (funding.leg_id !== target.legId || funding.funding_effect_id !== target.fundingEffectId ||
-      funding.object !== `${target.kind}_funding` || funding.chain_id !== 84532) {
+      funding.object !== `${target.kind}_funding` || !fundingChainAdmitted(funding)) {
     throw new Error("funding_instruction_mismatch");
   }
 }

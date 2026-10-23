@@ -8,8 +8,8 @@ export function canSendWinning(credit: RewardCredit): boolean {
   return credit.chain_id === 84532 && credit.claim?.status === "accepted" && credit.claim.payout_status === "confirmed";
 }
 
-export function explorerTransactionUrl(hash: string): string {
-  return `https://sepolia.basescan.org/tx/${hash}`;
+export function explorerTransactionUrl(hash: string, chainId: 8453 | 84532 = 84532): string {
+  return `https://${chainId === 8453 ? "" : "sepolia."}basescan.org/tx/${hash}`;
 }
 
 export type RecipientCheck = Readonly<{ ok: true; address: string }> | Readonly<{ ok: false; message: string }>;

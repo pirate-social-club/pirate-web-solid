@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.133.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.133.0-4fb8f710.tgz",
-  "sha256": "4fb8f710fb40f6d51bdea6becb6ce96a28198a2f98eb7ccd3b01ae09c8da0676",
-  "source": "api-next-contracts@545062916e74cdf984aa27393b11c61c7d89c1ff67cec88bed7db6c64cf05306",
-  "openapiSha256": "545062916e74cdf984aa27393b11c61c7d89c1ff67cec88bed7db6c64cf05306",
-  "clientSha256": "4f6ec2896f1576e950b15aae4d58743193ca143f7bf7563e9cdebddee9de3fab",
+  "version": "0.134.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.134.0-e1309b81.tgz",
+  "sha256": "e1309b8141a6c5c329538491a7a9a13e03c1c94818a0d665f86fdc7d1e35ff6e",
+  "source": "api-next-contracts@02a5dcb37bed391a2e5f19aa5013fa1a5fe717c78e340452d15bfe472cd31810",
+  "openapiSha256": "02a5dcb37bed391a2e5f19aa5013fa1a5fe717c78e340452d15bfe472cd31810",
+  "clientSha256": "76109ed3a2d777c530a848acc27763601cfe6cb8a4aaa9ed08377abb3cdf823b",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -175,8 +175,8 @@
     "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
     "get_communitiesCommunityIdDanceReviewsReviewIdPublication"
   ],
-  "validatedSourceCommit": "d09afe9a0358110eea9407e4ea1d41d0567014b0",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/625",
-  "intakeStatus": "Genuine immutable133 at published API d09afe9a, fully qualified locally. Whole-feature owner audit, hosted CI and real provider/phone acceptance remain separate gates. No deployment or operational admission.",
-  "sourceBase": "4dfdaad7c7f632e9926c1709efa6726cf937ef81"
+  "validatedSourceCommit": "c7e65cf4773ebbc7a574b3f03c323fee03a47213",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/656",
+  "intakeStatus": "Genuine immutable134 at api-next c7e65cf4 (PR656, hosted run 39988905920 green). Adds chain 8453 beside 84532 on Megapot pool legs, pool funding and the song pool projection for the owner-executed Safe pool pilot; nothing else changes. Owner audit and staging rehearsal remain separate gates. No deployment or operational admission.",
+  "sourceBase": "3e0e079027a616da5ec718a7feef9d8faec5e5fe"
 }
