@@ -17,6 +17,7 @@ import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
 import { SongVideoEntry } from "./song-video-entry.tsx";
 import { danceSongPath } from "../../dance/dance-song-path";
+import { danceReferencePath } from "../../dance/dance-reference-api";
 import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
@@ -178,7 +179,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
         </Show>
         <Show when={postType() === "video"}>
           <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community} joinHref={joinHref()} post={engagementPost()} presentation="inline" newestFirstRoots target={props.target}>
-            {() => <>
+            {(_controls, _actions, viewer) => <>
           <div class="mt-6"><Show when={!props.target || videoState().playback !== "ready" || videoRequested()} fallback={<Button onClick={() => setVideoRequested(true)} variant="secondary">Play video</Button>}>
             <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={videoState()} />
           </Show></div>
@@ -187,6 +188,10 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           </Show>
           <Show when={props.response.content.video?.dance_credit}>
             {credit => <a class="mt-2 inline-flex min-h-11 items-center text-sm underline" href={`/post/${encodeURIComponent(credit().reference_video_post_id)}`}>View choreography reference</a>}
+          </Show>
+          <Show when={props.response.content.video?.soundtrack?.kind === "song_reference" && !viewer?.personasUnavailable
+            && viewer?.personas.some(p => p.personaId === props.response.content.post.author_persona?.persona_id && p.communityBinding?.communityId === props.response.content.post.community)}>
+            <a class="mt-2 inline-flex min-h-11 items-center text-sm underline" href={danceReferencePath(props.response.post_id)}>Make this a Dance</a>
           </Show>
             </>}
           </PublicPostEngagement>

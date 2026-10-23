@@ -40,6 +40,7 @@ export default defineConfig({
       "src/features/dance/dance-review-ssr.test.tsx",
       "src/features/dance/dance-camera-ssr.test.tsx",
       "src/features/dance/dance-owner-ssr.test.tsx",
+      "src/features/dance/dance-reference-ssr.test.tsx",
       "src/features/notifications/notifications-ssr.test.tsx",
       "src/spaces-requests-navigation-ssr.test.tsx",
       "src/features/activity/activity-leaderboard-ssr.test.tsx",

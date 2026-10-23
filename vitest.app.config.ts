@@ -28,6 +28,8 @@ export default defineConfig({
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
       "src/features/dance/dance-result.test.tsx",
+      "src/features/dance/dance-reference*.test.ts",
+      "src/features/dance/dance-reference-page.test.tsx",
       "src/features/dance/dance-publication.test.tsx",
       "src/features/dance/dance-preparation*.test.ts",
       "src/features/dance/dance-capture*.test.ts",
