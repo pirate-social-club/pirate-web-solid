@@ -36,6 +36,7 @@ export default defineConfig({
       "src/song-contribution-dialog-ssr.test.tsx",
       "src/shared-song-participation-ssr.test.tsx",
       "src/features/dance/dance-result-ssr.test.tsx",
+      "src/features/dance/dance-publication-ssr.test.tsx",
       "src/features/dance/dance-review-ssr.test.tsx",
       "src/features/dance/dance-camera-ssr.test.tsx",
       "src/features/dance/dance-owner-ssr.test.tsx",

@@ -1,3 +1,4 @@
+import { DancePublicationStatus } from "./dance-publication-status";
 import { ApiClientError } from "@pirate/api-client";
 import { isServer } from "@solidjs/web";
 import { useParams } from "@solidjs/router";
@@ -117,8 +118,7 @@ export function DanceReviewPage(props: {
         }><Button onClick={() => void act({ operation: "submit", showPublicly: showPublicly() })}>Submit</Button></Show>
       </Show>
       <Show when={danceReviewPending(view().result)}><p class="text-sm text-muted-foreground">Review deadline: <time datetime={view().result.review_deadline}>{new Date(view().result.review_deadline).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time></p></Show>
-      <Show when={view().result.publication_status === "pending"}><p>Your separate video post is being prepared.</p></Show>
-      <Show when={view().result.publication_status === "failed"}><p>The video post could not be created. Your private result is unchanged.</p></Show>
+      <Show when={["pending", "transferred", "failed"].includes(view().result.publication_status)}><DancePublicationStatus communityId={props.communityId} reviewId={props.reviewId} initialStatus={view().result.publication_status} session={provided.session} /></Show>
       <a class={buttonVariants({ variant: "secondary" })} href={`/post/${encodeURIComponent(view().result.song_post_id)}`}>Done</a>
       <Show when={danceReviewEditable(view().result)}><Button variant="ghost" onClick={() => setConfirmCancel(true)}>Cancel review</Button></Show>
       <Show when={!danceReviewEditable(view().result)}><a class="text-sm underline" href={danceResultPath(props.communityId, props.reviewId)}>View dance result</a></Show>

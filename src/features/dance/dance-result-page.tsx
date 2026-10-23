@@ -1,3 +1,4 @@
+import { DancePublicationStatus } from "./dance-publication-status";
 import { SharedSongParticipationStatus } from "../rewards/shared-song-participation.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { isServer } from "@solidjs/web";
@@ -57,8 +58,7 @@ export function DanceResultPage(props: { readonly communityId: string; readonly 
         <p>{danceResultPresentation(value()).detail}</p>
         <Show when={value().submitted_at}>{submitted => <p class="text-sm text-muted-foreground">Submitted <time datetime={submitted()}>{submitted()}</time></p>}</Show>
         <Show when={value().state === "screening" || value().state === "awaiting_review"}><p class="text-sm text-muted-foreground">Review deadline: <time datetime={value().review_deadline}>{value().review_deadline}</time></p></Show>
-        <Show when={value().publication_status === "pending"}><p>Your separate video post is being prepared.</p></Show>
-        <Show when={value().publication_status === "failed"}><p>The video post could not be created. Your private result is unchanged.</p></Show>
+        <Show when={["pending", "transferred", "failed"].includes(value().publication_status)}><DancePublicationStatus communityId={props.communityId} reviewId={props.reviewId} initialStatus={value().publication_status} session={props.session} /></Show>
       </section>
       <Show when={danceReviewEditable(value())}><a class={buttonVariants({ variant: "secondary" })} href={danceReviewPath(props.communityId, props.reviewId)}>{value().state === "uploaded" ? "Review recording" : "Manage recording"}</a></Show>
       <SharedSongParticipationStatus communityId={props.communityId} postId={value().song_post_id} />

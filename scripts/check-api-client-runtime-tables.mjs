@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client131 retains all354 protected130 rows and protects the complete moderated
-// Dance capture/review API:137operations/411rows. The original118-operation
-// comparison is retained in docs/shared-song-contribution-client-intake.md.
-const expectedDigest = "ad77d5b9ed2a10000d0c8060a6a0a1df272b10ca1f93aac2103ed6a003afffaa";
+// Client133 protects138operations/414rows. The genuine131 comparison admits
+// only the transferred enum and optional public Dance reference credit.
+// Exact retained-row evidence is in docs/shared-song-contribution-client-intake.md.
+const expectedDigest = "9fc88d30d4d8680c84621bb3e99ddaedc3754b0c83b25e9fc262918c4e42cbd5";
 
 const operations = [
   "get_meNotifications",
@@ -152,6 +152,7 @@ const operations = [
   "get_communitiesCommunityIdPostsPostIdDanceModeratedReferencesChoreographyId",
   "post_communitiesCommunityIdPostsPostIdDanceModeratedReferences",
   "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
+  "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
 ];
 
 const tables = [

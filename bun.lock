@@ -5,7 +5,7 @@
     "": {
       "name": "pirate-web-solid",
       "dependencies": {
-        "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.131.0-caa3e383.tgz",
+        "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.133.0-4fb8f710.tgz",
         "@pirate/web-solid-ui": "workspace:*",
         "@privy-io/js-sdk-core": "0.70.0",
         "@selfxyz/sdk-common": "1.0.0",
@@ -517,7 +517,7 @@
 
     "@phosphor-icons/core": ["@phosphor-icons/core@2.1.1", "", {}, "sha512-v4ARvrip4qBCImOE5rmPUylOEK4iiED9ZyKjcvzuezqMaiRASCHKcRIuvvxL/twvLpkfnEODCOJp5dM4eZilxQ=="],
 
-    "@pirate/api-client": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.131.0-caa3e383.tgz", {}, "sha512-ia28xbTn/cLxqh9uQOQ6n3Oa7J2lnYw0mbjaaTYUuvbHzYSPVpCvdSfm/N/4R95GHB2GFdFN0lQZ799OYCycYA=="],
+    "@pirate/api-client": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.133.0-4fb8f710.tgz", {}, "sha512-qAIJF0SLDhPBpSi/fGXRO0zQqraOQJjR8Q+4uSdsKQINQjQnMygc5ikMWu3gV41YGs3978RTiQ5QuBzWpiHyAw=="],
 
     "@pirate/web-solid-ui": ["@pirate/web-solid-ui@workspace:packages/solid-ui"],
 

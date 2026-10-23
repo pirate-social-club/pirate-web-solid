@@ -10,7 +10,7 @@ export function assertDanceResult(result: DanceResult, scope: DanceResultScope):
   const passed = result.state === "reviewed" && result.verdict === "passed" && result.cue_attestation === "affirmed";
   if ((result.state === "reviewed") !== (result.verdict !== null) || (result.verdict === "passed" && !passed) || (result.qualification_ref !== null && !passed)) throw new Error("dance_result_projection_invalid");
   if ((result.cue_attestation === "affirmed") !== (result.verdict === "passed") || (result.cue_attestation === "not_attested") !== (result.verdict === "not_passed")) throw new Error("dance_result_projection_invalid");
-  if ((result.publication_status === "pending" || result.publication_status === "failed") && (!passed || result.show_publicly_if_passed !== true)) throw new Error("dance_result_projection_invalid");
+  if ((result.publication_status === "pending" || result.publication_status === "failed" || result.publication_status === "transferred") && (!passed || result.show_publicly_if_passed !== true)) throw new Error("dance_result_projection_invalid");
 }
 
 export function createDanceResultApi(client?: Pick<PirateApiClient, "get_communitiesCommunityIdDanceReviewsReviewIdResult" | "get_usersMe">): DanceResultApi {

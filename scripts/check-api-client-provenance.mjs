@@ -103,6 +103,7 @@ const clients = [
       "get_communitiesCommunityIdSpacesOwnership",
       "post_communitiesCommunityIdSpacesOwnershipResume",
       "get_communitiesCommunityIdDanceReviewsReviewIdResult",
+      "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
       "get_communitiesCommunityIdPostsPostIdMegapotParticipation",
       "get_communitiesCommunityIdDanceModeratedSessionsSessionIdCaptureContext",
       "get_communitiesCommunityIdDanceOwnerReviewsReviewIdRubric",
