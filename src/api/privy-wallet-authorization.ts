@@ -11,6 +11,7 @@ type Snapshot = Readonly<{
   subject: string;
   mode: "single" | "multi";
   savedAt: number;
+  accountId?: string;
   entries: readonly (readonly [string, unknown])[];
 }>;
 
@@ -38,6 +39,25 @@ export function clearWalletAuthorization(tab: TabStorage | undefined = browserSt
   catch { /* A storage refusal leaves wallet restoration unavailable. */ }
 }
 
+/** A local hint to avoid configuration requests without a usable account binding.
+ * This grants no authority; restoration still validates the app and every entry. */
+export function hasBoundWalletAuthorization(
+  accountId: string,
+  tab: TabStorage | undefined = browserStorage(),
+  now = Date.now(),
+): boolean {
+  try {
+    const raw = tab?.getItem(KEY);
+    if (raw === null || raw === undefined) return false;
+    const value: unknown = JSON.parse(raw);
+    return value !== null && typeof value === "object" && !Array.isArray(value) &&
+      "version" in value && value.version === 1 &&
+      "accountId" in value && value.accountId === accountId &&
+      "savedAt" in value && typeof value.savedAt === "number" && Number.isFinite(value.savedAt) &&
+      value.savedAt <= now && now - value.savedAt < LIFETIME_MS;
+  } catch { return false; }
+}
+
 /** Save only the SDK's single-user auth keys, after Pirate sign-in succeeds. */
 export function rememberWalletAuthorization(
   storage: MemoryOnlyStorage,
@@ -45,6 +65,7 @@ export function rememberWalletAuthorization(
   appId: string,
   tab: TabStorage | undefined = browserStorage(),
   now = Date.now(),
+  accountId?: string,
 ): boolean {
   const subject = privyAccessTokenSubject(token);
   if (!tab || !subject) return false;
@@ -61,7 +82,8 @@ export function rememberWalletAuthorization(
     entries.push(["privy:saved-users", JSON.stringify([subject])]);
   }
   try {
-    tab.setItem(KEY, JSON.stringify({ version: 1, appId, subject, mode, savedAt: now, entries } satisfies Snapshot));
+    const binding = typeof accountId === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(accountId) ? { accountId } : {};
+    tab.setItem(KEY, JSON.stringify({ version: 1, appId, subject, mode, savedAt: now, entries, ...binding } satisfies Snapshot));
     return true;
   } catch {
     clearWalletAuthorization(tab);
@@ -75,7 +97,7 @@ export function restoreWalletAuthorization(
   appId: string,
   tab: TabStorage | undefined = browserStorage(),
   now = Date.now(),
-): Readonly<{ subject: string; expiresAt: number }> | undefined {
+): Readonly<{ subject: string; expiresAt: number; accountId?: string }> | undefined {
   if (!tab) return undefined;
   try {
     const raw = tab.getItem(KEY);
@@ -110,7 +132,8 @@ export function restoreWalletAuthorization(
       }
     }
     for (const [key, item] of snapshot.entries) storage.put(key, item);
-    return { subject: snapshot.subject, expiresAt: snapshot.savedAt + LIFETIME_MS };
+    const binding = typeof snapshot.accountId === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(snapshot.accountId) ? { accountId: snapshot.accountId } : {};
+    return { subject: snapshot.subject, expiresAt: snapshot.savedAt + LIFETIME_MS, ...binding };
   } catch {
     clearWalletAuthorization(tab);
     storage.clear();

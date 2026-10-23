@@ -4,6 +4,20 @@ import { createBrowserIdentitySessionStore, browserIdentitySession } from "./bro
 import { createGeneratedApiClient } from "./client";
 
 describe("page-local identity recovery", () => {
+  test("fences late bootstrap after explicit sign-in and bounds a stalled restore", async () => {
+    const store = createBrowserIdentitySessionStore(5);
+    let finish!: (value: { renew(): Promise<boolean>; clear(): void }) => void;
+    const lateClear = vi.fn();
+    const pending = store.bootstrap(() => new Promise(resolve => { finish = resolve; }));
+    store.retain({ renew: async () => true, clear: vi.fn() });
+    expect(await pending).toBe(false);
+    finish({ renew: async () => false, clear: lateClear });
+    await Promise.resolve();
+    expect(lateClear).toHaveBeenCalledOnce();
+    expect(await store.renew()).toBe(true);
+    store.clear();
+    expect(await store.bootstrap(() => new Promise(() => {}))).toBe(false);
+  });
   test("retires profile activation promptly on account replacement even when the provider stalls", async () => {
     const store = createBrowserIdentitySessionStore();
     let activationSignal: AbortSignal | undefined;

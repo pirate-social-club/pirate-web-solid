@@ -12,12 +12,17 @@ export function createBrowserIdentitySessionStore(timeoutMs = 30_000) {
   let pending: Promise<boolean> | undefined;
   let controller: AbortController | undefined;
   const activations = new Set<AbortController>();
+  let bootstrapController: AbortController | undefined;
+  let bootstrapping: Promise<boolean> | undefined;
   const clear = () => {
     const previous = current;
     current = undefined;
     pending = undefined;
     controller?.abort();
     controller = undefined;
+    bootstrapController?.abort();
+    bootstrapController = undefined;
+    bootstrapping = undefined;
     for (const activation of activations) activation.abort();
     activations.clear();
     previous?.clear();
@@ -28,6 +33,34 @@ export function createBrowserIdentitySessionStore(timeoutMs = 30_000) {
       current = session;
     },
     clear,
+    /** Restore only an already verified account, without replacing its authority epoch. */
+    bootstrap(restore: (signal: AbortSignal) => Promise<BrowserIdentitySession | undefined>): Promise<boolean> {
+      if (current !== undefined) return Promise.resolve(true);
+      if (bootstrapping !== undefined) return bootstrapping;
+      const control = new AbortController();
+      bootstrapController = control;
+      const timer = setTimeout(() => control.abort(), timeoutMs);
+      let stop!: () => void;
+      const cancelled = new Promise<boolean>(resolve => {
+        stop = () => resolve(false);
+        control.signal.addEventListener("abort", stop, { once: true });
+      });
+      const candidate = restore(control.signal).then(session => {
+        if (control.signal.aborted || bootstrapController !== control || current !== undefined) {
+          session?.clear();
+          return false;
+        }
+        current = session;
+        return session !== undefined;
+      }, () => false);
+      const pendingRestore = Promise.race([candidate, cancelled]).finally(() => {
+        clearTimeout(timer);
+        control.signal.removeEventListener("abort", stop);
+        if (bootstrapController === control) { bootstrapController = undefined; bootstrapping = undefined; }
+      });
+      bootstrapping = pendingRestore;
+      return pendingRestore;
+    },
     async activatePersonaWallet(accountId: string, personaId: string, idempotencyKey: string, signal: AbortSignal): Promise<boolean> {
       const session = current;
       if (session?.activatePersonaWallet === undefined || signal.aborted) return false;

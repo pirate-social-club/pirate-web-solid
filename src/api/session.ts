@@ -2,7 +2,7 @@ import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
 import { browserIdentitySession } from "./browser-identity-session.ts";
-import { establishSessionAuthority, forgetSessionAuthority, refreshSessionAuthority, SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
+import { captureSessionAuthority, establishSessionAuthority, forgetSessionAuthority, isCurrentSessionAuthority, refreshSessionAuthority, SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
 import type { ApiFetch } from "./proxy.ts";
 
 export interface AuthenticatedSession {
@@ -187,7 +187,7 @@ interface StoreSlots {
   session: ResolutionSlot<SessionResolution>;
 }
 
-export function createSessionStore(clientFactory: SessionClientFactory, onAuthenticated?: () => void): SessionStore {
+export function createSessionStore(clientFactory: SessionClientFactory, onAuthenticated?: (accountId: string) => void): SessionStore {
   const slots: StoreSlots = {
     account: { promise: undefined },
     session: { promise: undefined },
@@ -247,7 +247,7 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
         return resolveAccountSessionUncached({ client });
       });
       void pending.then(account => {
-        if (account !== "anonymous" && slots.account.promise === pending) onAuthenticated?.();
+        if (account !== "anonymous" && slots.account.promise === pending) onAuthenticated?.(account.userId);
       }, () => {});
       return pending;
     },
@@ -302,7 +302,15 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
  */
 const browserStore = createSessionStore(() => createSessionApiClient({
   fetchImpl: boundedFetch(fetch, SESSION_TIMEOUT_MS),
-}), establishSessionAuthority);
+}), accountId => {
+  establishSessionAuthority();
+  const authority = captureSessionAuthority();
+  void browserIdentitySession.bootstrap(async signal => {
+    const { restoreBrowserIdentitySession } = await import("./privy-browser-bootstrap.ts");
+    if (signal.aborted || !isCurrentSessionAuthority(authority)) return undefined;
+    return restoreBrowserIdentitySession(accountId, signal, () => isCurrentSessionAuthority(authority));
+  });
+});
 
 /** Resolve the session for persona-aware surfaces; see `createSessionStore`. */
 export function resolveSession(options: SessionResolutionOptions = {}): Promise<SessionResolution> {
