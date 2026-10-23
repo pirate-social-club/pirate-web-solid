@@ -1,4 +1,4 @@
-import { refreshSession, resolveSession, type AuthenticatedSession } from "../../api/session.ts";
+import { resolveSession, type AuthenticatedSession } from "../../api/session.ts";
 import { CommunityProfilePreparationError, createCommunityProfilePreparation } from "./community-profile-preparation.ts";
 import { communityOperationPersonas, type CommunityPersonaChoice } from "./community-persona-choice.ts";
 
@@ -15,7 +15,6 @@ export interface CommunityProfileLock {
 /** Only command keys and an identity choice are retained; no credentials. */
 export function createCommunityProfileAttempt(prepare = createCommunityProfilePreparation(), options: {
   readonly resolve?: typeof resolveSession;
-  readonly refresh?: typeof refreshSession;
   readonly locks?: CommunityProfileLock;
 } = {}) {
   return async (input: { session: AuthenticatedSession; communityId: string; preferredPersonaId?: string; choice?: CommunityPersonaChoice; signal: AbortSignal }) => {
@@ -48,9 +47,9 @@ export function createCommunityProfileAttempt(prepare = createCommunityProfilePr
     return locks.request(storageKey, input.signal, async () => {
       input.signal.throwIfAborted();
       // Another tab may have finished while this caller waited. Reconcile
-      // owned active authority before reading or allocating an intent.
-      (options.refresh ?? refreshSession)();
-      const session = await (options.resolve ?? resolveSession)();
+      // owned active authority without the identity-change broadcast that
+      // disposes this route and aborts its preparation.
+      const session = await (options.resolve ?? resolveSession)({ fetchImpl: fetch });
       input.signal.throwIfAborted();
       if (session === "anonymous" || session.userId !== input.session.userId) throw new CommunityProfilePreparationError("identity_changed");
       if (session.personasUnavailable) throw new CommunityProfilePreparationError("profiles_unavailable");

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AuthenticatedSession, ActivePersonaPublicProjection } from "../../api/session.ts";
+import { clearSessionResolutionCache, onSessionRefreshed, refreshSession, resolveSession, type AuthenticatedSession, type ActivePersonaPublicProjection } from "../../api/session.ts";
+import * as sessionClient from "../../api/client.ts";
 import { createCommunityProfileAttempt, type CommunityProfileLock } from "./community-profile-attempt.ts";
 import { createCommunityProfilePreparation, type CommunityProfilePreparationInput } from "./community-profile-preparation.ts";
 
@@ -17,10 +18,44 @@ function serialLocks(): CommunityProfileLock {
   } };
 }
 const attempt = (prepare: Parameters<typeof createCommunityProfileAttempt>[0]) => async (request: ReturnType<typeof input>) =>
-  createCommunityProfileAttempt(prepare, { resolve: async () => request.session, refresh: vi.fn(), locks: serialLocks() })(request);
+  createCommunityProfileAttempt(prepare, { resolve: async () => request.session, locks: serialLocks() })(request);
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear(); sessionStorage.clear(); });
 
 describe("durable community profile preparation intent", () => {
+  it("prepares through the real session store without unmounting its route or retaining stale profiles", async () => {
+    let bound = false;
+    // SAFETY: the session store projects only these generated response fields.
+    vi.spyOn(sessionClient, "createSessionApiClient").mockReturnValue({
+      get_usersMe: async () => ({ id: "account" }),
+      get_personas: async () => ({ personas: [{ persona_id: "existing", status: "active",
+        community_binding: bound ? { community_id: "community", binding_source: "first_membership" } : null,
+        profile: { display_name: null, avatar_ref: null, primary_public_handle: null } }] }),
+    } as never);
+    clearSessionResolutionCache();
+    const stale = await resolveSession();
+    expect(stale).toMatchObject({ personas: [{ communityBinding: null }] });
+    const controller = new AbortController();
+    // PublicPostRouteView disposes its activity on this real notification.
+    const unsubscribe = onSessionRefreshed(() => controller.abort());
+    const prepare = vi.fn(async () => {
+      bound = true;
+      return { object: "activity_persona_preparation" as const, community_id: "community", persona_id: "existing", persona_status: "active" as const, activity_presentation: null };
+    });
+    try {
+      const run = createCommunityProfileAttempt(createCommunityProfilePreparation({ api: { prepare } }), { locks: serialLocks() });
+      const result = await run({ ...input([profile("existing", null)]), signal: controller.signal });
+      expect(result.personaId).toBe("existing");
+      expect(prepare).toHaveBeenCalledOnce();
+      expect(controller.signal.aborted).toBe(false);
+      expect(await resolveSession()).toMatchObject({ personas: [{ communityBinding: { communityId: "community" } }] });
+      expect(localStorage.length).toBe(0);
+      refreshSession();
+      expect(controller.signal.aborted).toBe(true);
+    } finally {
+      unsubscribe();
+      clearSessionResolutionCache();
+    }
+  });
   it("replays the same identity choice and keys after an uncertain response and tab closure", async () => {
     const first = vi.fn(async (_request: CommunityProfilePreparationInput) => { throw new TypeError("response_lost"); });
     await expect(attempt(first)(input())).rejects.toThrow("response_lost");
@@ -60,8 +95,8 @@ describe("durable community profile preparation intent", () => {
       return { object: "activity_persona_preparation" as const, community_id: "community", persona_id: "created", persona_status: "active" as const, activity_presentation: null };
     });
     const resolve = async () => session;
-    const prepare = createCommunityProfilePreparation({ api: { prepare: mint }, resolve, refresh: vi.fn() });
-    const options = { resolve, refresh: vi.fn(), locks: serialLocks() };
+    const prepare = createCommunityProfilePreparation({ api: { prepare: mint }, resolve, clearCache: vi.fn() });
+    const options = { resolve, locks: serialLocks() };
     const firstTab = createCommunityProfileAttempt(prepare, options);
     const secondTab = createCommunityProfileAttempt(prepare, options);
     expect(await Promise.all([firstTab(request), secondTab(request)])).toEqual([created, created]);
@@ -75,14 +110,14 @@ describe("durable community profile preparation intent", () => {
   });
   it("does not continue an old account's preparation after account replacement", async () => {
     const prepare = vi.fn();
-    const run = createCommunityProfileAttempt(prepare, { resolve: async () => input([], "different").session, refresh: vi.fn(), locks: serialLocks() });
+    const run = createCommunityProfileAttempt(prepare, { resolve: async () => input([], "different").session, locks: serialLocks() });
     await expect(run(input())).rejects.toMatchObject({ reason: "identity_changed" });
     expect(prepare).not.toHaveBeenCalled();
   });
   it("does not silently substitute an uncertain choice for an explicit new selection", async () => {
     const prepare = vi.fn(async () => { throw new Error("response_lost"); });
     const request = input([profile("a", null), profile("b", null)]);
-    const run = createCommunityProfileAttempt(prepare, { resolve: async () => request.session, refresh: vi.fn(), locks: serialLocks() });
+    const run = createCommunityProfileAttempt(prepare, { resolve: async () => request.session, locks: serialLocks() });
     await expect(run({ ...request, choice: { kind: "existing", personaId: "a" } })).rejects.toThrow("response_lost");
     await expect(run({ ...request, choice: { kind: "existing", personaId: "b" } })).rejects.toThrow("profile_attempt_conflict");
     expect(prepare).toHaveBeenCalledOnce();
@@ -92,7 +127,7 @@ describe("durable community profile preparation intent", () => {
     const request = input([profile("chosen", null), profile("other", null)]);
     const originalChoice = { kind: "existing" as const, personaId: "chosen" };
     let fresh = request.session;
-    const options = { resolve: async () => fresh, refresh: vi.fn(), locks: serialLocks() };
+    const options = { resolve: async () => fresh, locks: serialLocks() };
     let originalKey: string | undefined;
     if (mode !== "explicit") {
       const uncertain = vi.fn(async (prepared: CommunityProfilePreparationInput) => { originalKey = prepared.preparationKey; throw new Error("response_lost"); });
@@ -104,7 +139,7 @@ describe("durable community profile preparation intent", () => {
       fresh = { ...fresh, personas: [profile("other", "community"), chosen] };
       return { object: "activity_persona_preparation" as const, community_id: "community", persona_id: "chosen", persona_status: "active" as const, activity_presentation: null };
     });
-    const prepare = createCommunityProfilePreparation({ api: { prepare: bind }, resolve: options.resolve, refresh: vi.fn() });
+    const prepare = createCommunityProfilePreparation({ api: { prepare: bind }, resolve: options.resolve, clearCache: vi.fn() });
     const result = await createCommunityProfileAttempt(prepare, options)({ ...request, ...(mode === "explicit" ? { choice: originalChoice } : {}) });
     expect(result.personaId).toBe("chosen");
     if (mode === "retained-active") expect(bind).not.toHaveBeenCalled();
@@ -118,7 +153,7 @@ describe("durable community profile preparation intent", () => {
   it.each(["chosen", "other"])("reconciles a caller's preferred identity against its retained choice: %s", async preferredPersonaId => {
     const request = input([profile("chosen", null)]);
     let fresh = request.session;
-    const options = { resolve: async () => fresh, refresh: vi.fn(), locks: serialLocks() };
+    const options = { resolve: async () => fresh, locks: serialLocks() };
     const uncertain = vi.fn(async () => { throw new Error("response_lost"); });
     await expect(createCommunityProfileAttempt(uncertain, options)({ ...request, choice: { kind: "existing", personaId: "chosen" } })).rejects.toThrow("response_lost");
     fresh = { ...fresh, personas: [profile("chosen", "community"), profile("other", "community")] };
