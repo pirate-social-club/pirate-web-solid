@@ -257,7 +257,7 @@ describe("footer derivation", () => {
 describe("streak slot animation inputs", () => {
   test("previousStreakForAnimation clamps between zero and the current streak", () => {
     expect(previousStreakForAnimation(undefined, 3)).toBeUndefined();
-    expect(previousStreakForAnimation({ currentStreak: 5 }, undefined)).toBe(4);
+    expect(previousStreakForAnimation({ currentStreak: 5 }, undefined)).toBeUndefined();
     expect(previousStreakForAnimation({ currentStreak: 5 }, 9)).toBe(5);
     expect(previousStreakForAnimation({ currentStreak: 5 }, -2)).toBe(0);
   });

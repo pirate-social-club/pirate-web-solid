@@ -204,6 +204,7 @@ export default defineConfig({
       "src/features/wallet/wallet-receive-sheet-view-model.test.ts",
       "src/features/studying/study-v2-api.test.ts",
       "src/features/studying/study-v2-route-view.test.tsx",
+      "src/features/studying/study-completion-flow.test.tsx",
       "src/features/studying/study-v2-runtime-client.test.ts",
       "src/features/studying/studying-recording-recovery.test.tsx",
       "src/features/studying/studying-browser-recorder.test.ts",

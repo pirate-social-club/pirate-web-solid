@@ -213,7 +213,7 @@ export const Completion: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Legacy story client that reports a qualified streak: this is the future streak page. Production's v2 adapter reports no streak yet, so production always ends on the results page (see QualificationNotAchieved).",
+        story: "Injected legacy client that supplies a streak directly. The production v2 results-then-streak sequence reads exact-attempt completion separately and is covered by Flows/Studying/Completion.",
       },
     },
   },

@@ -45,6 +45,7 @@ import {
 
 export interface StudyingRouteViewProps {
   rewardSlot?: JSX.Element;
+  renderComplete?: (state: Extract<StudyingSurfaceState, { kind: "complete" }>) => JSX.Element;
   postId: string;
   client: StudyingClient;
   /** Mic seam. Absent recorder => the say-it-back card explains it cannot record. */
@@ -429,10 +430,15 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     void props.recorder?.cancel?.();
   });
 
+  const completed = () => {
+    const surface = lesson().surface;
+    return props.renderComplete && surface.kind === "complete" ? surface : undefined;
+  };
+
   return (
     <>
       <Title>{props.payload.title ? `${props.payload.title} · Study` : "Study"}</Title>
-      <StudyingSurface
+      <Show when={completed()} fallback={<StudyingSurface
         lessonProgress={lessonProgressOf(lesson())}
         onExit={props.onExit}
         onKaraoke={props.onKaraoke}
@@ -442,7 +448,9 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         rewardLabel={props.payload.reward_label}
         rewardSlot={props.rewardSlot}
         state={lesson().surface}
-      />
+      />}>
+        {result => props.renderComplete!(result())}
+      </Show>
     </>
   );
 }
