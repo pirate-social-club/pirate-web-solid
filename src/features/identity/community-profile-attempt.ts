@@ -41,8 +41,8 @@ export function createCommunityProfileAttempt(prepare = createCommunityProfilePr
       return prepare({ ...input, accountId: input.session.userId, preparationKey: crypto.randomUUID(), walletKey: crypto.randomUUID() });
     }
     const locks = options.locks ?? (typeof navigator !== "undefined" && navigator.locks !== undefined ? {
-      request: <T>(name: string, signal: AbortSignal, callback: () => Promise<T>): Promise<T> =>
-        navigator.locks.request(name, { signal }, callback),
+      request: async <T>(name: string, signal: AbortSignal, callback: () => Promise<T>): Promise<T> =>
+        await navigator.locks.request(name, { signal }, callback),
     } : undefined);
     if (locks === undefined) throw new Error("profile_coordination_unavailable");
     return locks.request(storageKey, input.signal, async () => {
