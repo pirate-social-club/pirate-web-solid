@@ -98,3 +98,40 @@ test("a late accepted receipt after navigation leaves the original recoverable",
   await vi.waitFor(() => expect(h.api.create).toHaveBeenCalledOnce()); h.select(null); finish(danceReferenceStatus);
   await expect(pending).rejects.toThrow("scope_changed"); expect(JSON.parse(h.entries.get(h.key)!).choreographyId).toBeNull();
 });
+test("an explicit confirmed-failure recovery saves a distinct key and concurrent stale clicks cannot allocate another", async () => {
+  const h = harness();
+  h.api.status.mockImplementation(async (_scope, id) => ({ ...danceReferenceStatus, choreography_id: id, status: id === "choreography" ? "failed" : "pending" }));
+  const c = h.controller(); await c.create(target, "song-persona", signal());
+  const original = h.api.create.mock.calls[0]![1];
+  h.api.create.mockResolvedValueOnce({ ...danceReferenceStatus, choreography_id: "recovered", status: "pending" });
+  const views = await Promise.all([c.prepareAgain("choreography", signal()), h.controller().prepareAgain("choreography", signal())]);
+  expect(h.api.create).toHaveBeenCalledTimes(2);
+  const next = h.api.create.mock.calls[1]![1]; expect(next.idempotency_key).not.toBe(original.idempotency_key);
+  expect(next).toEqual({ ...original, idempotency_key: next.idempotency_key });
+  expect(views.every(v => v.kind === "status" && v.reference.choreography_id === "recovered")).toBe(true);
+  await h.controller().load(signal()); expect(h.api.create).toHaveBeenCalledTimes(2);
+});
+test("an uncertain preparation retry survives reload and resends only its new original key", async () => {
+  const h = harness(); h.api.status.mockResolvedValue({ ...danceReferenceStatus, status: "failed" });
+  await h.controller().create(target, "song-persona", signal());
+  h.api.create.mockRejectedValueOnce(new Error("new_reply_lost"));
+  await expect(h.controller().prepareAgain("choreography", signal())).rejects.toThrow("new_reply_lost");
+  const original = h.api.create.mock.calls[1]![1];
+  expect((await h.controller().load(signal())).kind).toBe("needs_check");
+  expect((await h.controller().prepareAgain("choreography", signal())).kind).toBe("needs_check");
+  expect(h.api.create).toHaveBeenCalledTimes(2);
+  await h.controller().retry(signal()); expect(h.api.create.mock.calls[2]![1]).toEqual(original);
+});
+test("fresh status, target and delivery fences preserve the journal before a new preparation", async () => {
+  for (const status of ["pending", "normalizing", "ready"] as const) {
+    const h = harness(); await h.controller().create(target, "song-persona", signal()); const original = h.entries.get(h.key);
+    h.api.status.mockResolvedValue({ ...danceReferenceStatus, status }); await h.controller().prepareAgain("choreography", signal());
+    expect(h.api.create).toHaveBeenCalledOnce(); expect(h.entries.get(h.key)).toBe(original);
+  }
+  for (const changed of [{ ...target, scope: { ...scope, postId: "changed-song" } }, { ...target, playable: false }]) {
+    const h = harness(); await h.controller().create(target, "song-persona", signal()); const original = h.entries.get(h.key);
+    h.api.status.mockResolvedValue({ ...danceReferenceStatus, status: "failed" }); h.api.target.mockResolvedValue(changed);
+    await expect(h.controller().prepareAgain("choreography", signal())).rejects.toThrow("target_changed");
+    expect(h.api.create).toHaveBeenCalledOnce(); expect(h.entries.get(h.key)).toBe(original);
+  }
+});

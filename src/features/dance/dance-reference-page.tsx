@@ -19,8 +19,8 @@ type State = { readonly phase: "loading" | "anonymous" | "error" }
   | { readonly phase: "ready"; readonly session: AuthenticatedSession; readonly view: DanceReferenceView };
 
 /** Existing public video -> exact song-community profile -> explicit Create.
- * Loading and progress checks use GETs. Explicit recovery replays only the
- * original command. This page records no new video and performs no money action. */
+ * Loading and progress checks use GETs. Uncertain requests replay their saved
+ * command; a confirmed failure has an explicit fresh preparation action. */
 export function DanceReferencePage(props: {
   readonly referencePostId: string;
   readonly api?: DanceReferenceApi;
@@ -61,7 +61,7 @@ export function DanceReferencePage(props: {
       apply(session, view);
     } catch (error) { if (owns(attempt, pending.signal, postId)) fail(error instanceof Error ? error : new Error("dance_reference_unavailable")); }
   };
-  const act = async (kind: "create" | "retry" | "status") => {
+  const act = async (kind: "create" | "retry" | "status" | "prepare_again") => {
     const selected = ready(), writer = controller; if (!selected || !writer || busy()) return;
     const profile = personaId();
     if (kind === "create" && (selected.view.kind !== "draft" || !selected.view.target.playable || !profile || !profiles().some(p => p.personaId === profile))) return;
@@ -69,7 +69,9 @@ export function DanceReferencePage(props: {
     const attempt = generation, postId = props.referencePostId, authority = captureSessionAuthority(), pending = new AbortController(); request = pending;
     try {
       const view = kind === "create" && selected.view.kind === "draft" ? await writer.create(selected.view.target, profile!, pending.signal)
-        : kind === "retry" ? await writer.retry(pending.signal) : await writer.load(pending.signal);
+        : kind === "retry" ? await writer.retry(pending.signal)
+        : kind === "prepare_again" && selected.view.kind === "status" ? await writer.prepareAgain(selected.view.reference.choreography_id, pending.signal)
+        : await writer.load(pending.signal);
       if (!owns(attempt, pending.signal, postId)) return;
       if (captureSessionAuthority() !== authority) { clear(); setState({ phase: "error" }); return; }
       apply(selected.session, view);
@@ -112,6 +114,8 @@ export function DanceReferencePage(props: {
         <Show when={view.reference.status === "ready"} fallback={<>
           <Show when={view.reference.status === "failed"} fallback={<><Type as="h2" variant="h3">Preparing your dance</Type><Button variant="secondary" onClick={() => void act("status")}>Check progress</Button></>}>
             <Type as="h2" variant="h3">This video couldn’t be prepared as a dance.</Type>
+            <p>Try again using this same video.</p>
+            <Button disabled={busy()} onClick={() => void act("prepare_again")}>Try preparation again</Button>
           </Show>
         </>}><Type as="h2" variant="h3">Your dance is prepared</Type><a class={buttonVariants({ variant: "default" })} href={danceSongPath(view.scope.communityId, view.scope.postId)}>View dances</a></Show>
       </>}</Show>

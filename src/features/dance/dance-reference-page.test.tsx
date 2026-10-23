@@ -96,3 +96,14 @@ test("a retained original remains checkable when the current persona list is tem
   const host = mount(() => <DanceReferencePage referencePostId={locator.referencePostId} api={h.api} store={h.store} session={async () => ({ ...session, personas: [], personasUnavailable: true })} />);
   await vi.waitFor(() => expect(host.textContent).toContain("Preparing your dance")); expect(h.create).not.toHaveBeenCalled(); expect(h.read).toHaveBeenCalledOnce();
 });
+test("the failed-reference page prepares the same video again only after an explicit action", async () => {
+  const h = harness();
+  h.read.mockImplementation(async (_scope, id) => ({ ...danceReferenceStatus, choreography_id: id, status: id === "choreography" ? "failed" : "pending" }));
+  h.create.mockResolvedValueOnce({ ...danceReferenceStatus, status: "pending" }).mockResolvedValueOnce({ ...danceReferenceStatus, choreography_id: "recovered", status: "pending" });
+  const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain(target.songTitle)); button(host, "Create dance").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("couldn’t be prepared")); expect(h.create).toHaveBeenCalledOnce();
+  button(host, "Try preparation again").click(); await vi.waitFor(() => expect(host.textContent).toContain("Preparing your dance"));
+  expect(h.create).toHaveBeenCalledTimes(2);
+  expect(h.create.mock.calls[1]![1].reference_post_id).toBe(target.scope.referencePostId);
+  expect(h.create.mock.calls[1]![1].idempotency_key).not.toBe(h.create.mock.calls[0]![1].idempotency_key);
+});
