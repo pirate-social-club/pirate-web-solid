@@ -83,3 +83,15 @@ test("song reward detail SSR does not construct a browser rewards client", () =>
   const html = renderToString(() => <PublicPostRouteView state={activityState("detail")} />);
   expect(html).not.toContain("You’re entered");
 });
+
+test("public choreography credit renders in SSR without a private result or extra fetch",()=>{
+ const state=activityState("detail");if(state.kind!=="content")throw new Error("Expected fixture content");
+ const fetch=vi.fn();vi.stubGlobal("fetch",fetch);
+ const response={...state.response,content:{...state.response.content,post:{...state.response.content.post,post_type:"video" as const},video:{track:"video" as const,caption:null,caption_dir:null,caption_lang:null,
+  soundtrack:{kind:"song_reference" as const,song_reference:{song_post_id:"song-post",song_title:"Song",song_author_persona_id:null},render_mode:"canonical_replace" as const},
+  dance_credit:{choreography_id:"public-choreography",revision:1,reference_video_post_id:"reference-post"},
+  playback:{status:"pending" as const},thumbnail:{status:"pending" as const},data_registration:"registered" as const,capabilities:{can_post_with_song:false}}}};
+ const markup=renderToString(()=><PublicPostRouteView state={{...state,response}}/>);
+ expect(markup).toContain('href="/post/reference-post"');expect(markup).toContain("View choreography reference");
+ expect(markup).not.toMatch(/score_bps|verdict|qualification_ref|review_id/);expect(fetch).not.toHaveBeenCalled();
+});

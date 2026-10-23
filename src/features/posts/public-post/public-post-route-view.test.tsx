@@ -201,6 +201,23 @@ describe("public post route view", () => {
       expect(container.querySelector("video, iframe, img")).toBeNull();
     } else expect(container.querySelector("video")?.getAttribute("src")).toBeNull();
     expect(container.innerHTML).not.toContain("bare-stream-uid"); expect(container.innerHTML).not.toContain("media://");
+    expect(container.querySelector('a[aria-label="Choreography reference"]')).toBeNull();
+  });
+  it("credits only the bound public choreography reference, without exposing private review facts or making another read", () => {
+    const state=contentState(true);
+    if(state.kind!=="content")throw new Error("Expected content fixture");
+    const fetch=vi.fn();vi.stubGlobal("fetch",fetch);
+    const container=render({...state,response:{...state.response,content:{...state.response.content,
+      post:{...state.response.content.post,post_type:"video"},
+      video:{track:"video",caption:null,caption_dir:null,caption_lang:null,
+        soundtrack:{kind:"song_reference",song_reference:{song_post_id:"song",song_title:"Song",song_author_persona_id:null},render_mode:"canonical_replace"},
+        dance_credit:{choreography_id:"public-choreography",revision:2,reference_video_post_id:"reference:community-2"},
+        playback:{status:"pending"},thumbnail:{status:"pending"},data_registration:"registered",capabilities:{can_post_with_song:false}},
+    }}});
+    expect(container.querySelector('a[aria-label="Choreography reference"]')?.getAttribute("href")).toBe("/post/reference%3Acommunity-2");
+    expect(container.textContent).toContain("View choreography reference");
+    expect(container.innerHTML).not.toMatch(/review_id|qualification_ref|score_bps|cue_attestation|private-result/);
+    expect(fetch).not.toHaveBeenCalled();
   });
   it("renders public content with canonical and Open Graph metadata", async () => {
     const container = render(contentState(true));

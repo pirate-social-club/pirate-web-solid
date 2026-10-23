@@ -185,6 +185,9 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
           <Show when={readSongAttribution(props.response.content.video)}>
             {attribution => <div class="mt-2"><SongAttributionChip attribution={attribution()} /></div>}
           </Show>
+          <Show when={props.response.content.video?.dance_credit}>
+            {credit => <a class="mt-2 inline-flex min-h-11 items-center text-sm underline" aria-label="Choreography reference" href={`/post/${encodeURIComponent(credit().reference_video_post_id)}`}>View choreography reference</a>}
+          </Show>
             </>}
           </PublicPostEngagement>
         </Show>
