@@ -441,6 +441,7 @@ export async function createPrivySessionExchange(
   const client = await (dependencies.createPrivy ?? defaultPrivyFactory)(config, storage);
   await client.initialize();
   let terminal = false;
+  let verifiedAccountId: string | undefined;
   let pendingRegistrationToken: string | undefined;
   const walletPreparationKeys = new Map<string, string>();
   // Session issuance and replacement attach the readable double-submit proof
@@ -456,10 +457,11 @@ export async function createPrivySessionExchange(
         privy_access_token: accessToken,
     };
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
-    await createSessionApiClient().post_authSessionExchange(
+    const response = await createSessionApiClient().post_authSessionExchange(
       { body: { proof } },
       { ...csrfRequestOptions(), ...(signal === undefined ? {} : { signal }) },
     );
+    verifiedAccountId = response.user.id;
   });
   const listPersonas = dependencies.listPersonas ?? (async () => {
     return createSessionApiClient().get_personas(undefined);
@@ -598,7 +600,7 @@ export async function createPrivySessionExchange(
   };
   const finishSession = (accessToken: string) => {
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
-    rememberWalletAuthorization(storage, accessToken, config.privyAppId ?? "");
+    rememberWalletAuthorization(storage, accessToken, config.privyAppId ?? "", undefined, Date.now(), verifiedAccountId);
     pendingRegistrationToken = undefined;
     walletPreparationKeys.clear();
     terminal = true;

@@ -7,6 +7,15 @@ const subject = "did:privy:wallet-owner";
 const token = `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
 const otherToken = `header.${btoa(JSON.stringify({ sub: "did:privy:another-account" }))}.signature`;
 const key = "pirate:privy-wallet-authorization:v1";
+test("binds the verified account without changing the original restoration expiry", () => {
+  const tab = tabStorage();
+  const memory = new MemoryOnlyStorage(); memory.put("privy:token", token);
+  rememberWalletAuthorization(memory, token, "app", tab, 1000, "account");
+  const before = tab.getItem(key);
+  expect(restoreWalletAuthorization(new MemoryOnlyStorage(), "app", tab, 1001)).toEqual({ subject, accountId: "account", expiresAt: 3601000 });
+  expect(tab.getItem(key)).toBe(before);
+  expect(restoreWalletAuthorization(new MemoryOnlyStorage(), "app", tab, 3601000)).toBeUndefined();
+});
 afterEach(() => vi.unstubAllGlobals());
 function tabStorage() {
   const values = new Map<string, string>();

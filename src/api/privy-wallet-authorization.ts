@@ -11,6 +11,7 @@ type Snapshot = Readonly<{
   subject: string;
   mode: "single" | "multi";
   savedAt: number;
+  accountId?: string;
   entries: readonly (readonly [string, unknown])[];
 }>;
 
@@ -45,6 +46,7 @@ export function rememberWalletAuthorization(
   appId: string,
   tab: TabStorage | undefined = browserStorage(),
   now = Date.now(),
+  accountId?: string,
 ): boolean {
   const subject = privyAccessTokenSubject(token);
   if (!tab || !subject) return false;
@@ -61,7 +63,8 @@ export function rememberWalletAuthorization(
     entries.push(["privy:saved-users", JSON.stringify([subject])]);
   }
   try {
-    tab.setItem(KEY, JSON.stringify({ version: 1, appId, subject, mode, savedAt: now, entries } satisfies Snapshot));
+    const binding = typeof accountId === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(accountId) ? { accountId } : {};
+    tab.setItem(KEY, JSON.stringify({ version: 1, appId, subject, mode, savedAt: now, entries, ...binding } satisfies Snapshot));
     return true;
   } catch {
     clearWalletAuthorization(tab);
@@ -75,7 +78,7 @@ export function restoreWalletAuthorization(
   appId: string,
   tab: TabStorage | undefined = browserStorage(),
   now = Date.now(),
-): Readonly<{ subject: string; expiresAt: number }> | undefined {
+): Readonly<{ subject: string; expiresAt: number; accountId?: string }> | undefined {
   if (!tab) return undefined;
   try {
     const raw = tab.getItem(KEY);
@@ -110,7 +113,8 @@ export function restoreWalletAuthorization(
       }
     }
     for (const [key, item] of snapshot.entries) storage.put(key, item);
-    return { subject: snapshot.subject, expiresAt: snapshot.savedAt + LIFETIME_MS };
+    const binding = typeof snapshot.accountId === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(snapshot.accountId) ? { accountId: snapshot.accountId } : {};
+    return { subject: snapshot.subject, expiresAt: snapshot.savedAt + LIFETIME_MS, ...binding };
   } catch {
     clearWalletAuthorization(tab);
     storage.clear();
