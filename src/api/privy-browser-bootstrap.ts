@@ -1,11 +1,12 @@
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import type { BrowserIdentitySession } from "./browser-identity-session.ts";
 import { defaultPrivyFactory, MemoryOnlyStorage, type PrivyAuthClient, type PrivyFactory } from "./privy-session.ts";
-import { privyAccessTokenSubject, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
+import { hasBoundWalletAuthorization, privyAccessTokenSubject, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
 import { fetchVerificationConfig, type VerificationPublicConfig } from "./verification-config.ts";
 import { captureSessionAuthority, isCurrentSessionAuthority } from "./browser-session-events.ts";
 
 interface BootstrapDependencies {
+  hasSnapshot(accountId: string): boolean;
   config(signal: AbortSignal): Promise<VerificationPublicConfig>;
   createPrivy: PrivyFactory;
   restore: typeof restoreWalletAuthorization;
@@ -37,6 +38,7 @@ export async function restoreBrowserIdentitySession(
   overrides: Partial<BootstrapDependencies> = {},
 ): Promise<BrowserIdentitySession | undefined> {
   const dependencies: BootstrapDependencies = {
+    hasSnapshot: hasBoundWalletAuthorization,
     config: value => fetchVerificationConfig((input, init) => fetch(input, { ...init, signal: value })),
     createPrivy: defaultPrivyFactory,
     restore: restoreWalletAuthorization,
@@ -69,7 +71,7 @@ export async function restoreBrowserIdentitySession(
   const alive = () => live() && dependencies.current();
   signal.addEventListener("abort", clear, { once: true });
   try {
-    if (!alive()) return undefined;
+    if (!alive() || !dependencies.hasSnapshot(accountId)) return undefined;
     const config = await dependencies.config(signal);
     if (!alive()) return undefined;
     const binding = dependencies.restore(storage, config.privyAppId);

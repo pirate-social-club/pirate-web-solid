@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { restoreBrowserIdentitySession } from "./privy-browser-bootstrap.ts";
 import type { PrivyAuthClient } from "./privy-session.ts";
 import { createBrowserIdentitySessionStore } from "./browser-identity-session.ts";
 import { captureSessionAuthority, establishSessionAuthority, isCurrentSessionAuthority } from "./browser-session-events.ts";
 import { refreshSession } from "./session.ts";
+import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
+
+afterEach(() => { clearWalletAuthorization(); vi.unstubAllGlobals(); });
 
 const subject = "did:privy:bootstrap-test";
 const token = `header.${btoa(JSON.stringify({ sub: subject }))}.signature`;
@@ -19,6 +22,7 @@ function fixture() {
     dispose,
   };
   const dependencies = {
+    hasSnapshot: vi.fn(() => true),
     config: vi.fn(async () => ({ enabled: true as const, privyAppId: "app" })),
     restore: vi.fn(() => ({ subject, accountId: "account", expiresAt: 2000 })),
     createPrivy: vi.fn(async () => provider),
@@ -33,6 +37,13 @@ function fixture() {
 }
 
 describe("same-account browser identity bootstrap", () => {
+  test("does not make configuration or account requests without a saved binding", async () => {
+    clearWalletAuthorization();
+    const network = vi.fn(async () => { throw new Error("Unexpected network request"); });
+    vi.stubGlobal("fetch", network);
+    expect(await restoreBrowserIdentitySession("account", new AbortController().signal, () => true)).toBeUndefined();
+    expect(network).not.toHaveBeenCalled();
+  });
   test("renews the same account after an ordinary store refresh and later cookie expiry", async () => {
     const f = fixture();
     establishSessionAuthority();

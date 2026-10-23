@@ -39,6 +39,25 @@ export function clearWalletAuthorization(tab: TabStorage | undefined = browserSt
   catch { /* A storage refusal leaves wallet restoration unavailable. */ }
 }
 
+/** A local hint to avoid configuration requests without a usable account binding.
+ * This grants no authority; restoration still validates the app and every entry. */
+export function hasBoundWalletAuthorization(
+  accountId: string,
+  tab: TabStorage | undefined = browserStorage(),
+  now = Date.now(),
+): boolean {
+  try {
+    const raw = tab?.getItem(KEY);
+    if (raw === null || raw === undefined) return false;
+    const value: unknown = JSON.parse(raw);
+    return value !== null && typeof value === "object" && !Array.isArray(value) &&
+      "version" in value && value.version === 1 &&
+      "accountId" in value && value.accountId === accountId &&
+      "savedAt" in value && typeof value.savedAt === "number" && Number.isFinite(value.savedAt) &&
+      value.savedAt <= now && now - value.savedAt < LIFETIME_MS;
+  } catch { return false; }
+}
+
 /** Save only the SDK's single-user auth keys, after Pirate sign-in succeeds. */
 export function rememberWalletAuthorization(
   storage: MemoryOnlyStorage,
