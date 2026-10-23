@@ -16,6 +16,7 @@ import { createRewardClaimData } from "../../api/reward-claim.ts";
 import { WalletWinnings } from "../rewards/wallet-winnings.tsx";
 import { WalletSponsoredSendSheet } from "./wallet-sponsored-send-sheet.tsx";
 import { forgetWalletSend, readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
+import { servedSponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
 /** A claim to resume after returning from the palm scan (browser only). */
 function resumeClaimId(): string | undefined {
@@ -51,8 +52,11 @@ export function WalletRouteView() {
   createEffect(() => [account(), accountPending(), walletOwner(), wallets()] as const, () => {
     const session = account();
     setSendReturn(undefined);
-    if (typeof window === "undefined" || accountPending() || typeof session !== "object" || walletOwner() !== session.userId
-      || (!networkHost.switchable && networkHost.defaultMode !== "testnet")) return;
+    if (typeof window === "undefined" || accountPending() || typeof session !== "object" || walletOwner() !== session.userId) return;
+    // A send resumes wherever the deployment that served this page sponsors one, HNS
+    // hosts included; the address bar does not decide it.
+    const network = servedSponsoredSendNetwork();
+    if (network === undefined) return;
     const key = new URL(window.location.href).searchParams.get("send_return");
     if (key === null) return;
     setSendReturnUnavailable(true);
@@ -61,7 +65,8 @@ export function WalletRouteView() {
       const wallet = draft === undefined ? undefined : wallets().find(item => item.personaId === draft.personaId
         && item.address?.toLowerCase() === draft.walletAddress.toLowerCase());
       if (draft !== undefined && wallet !== undefined) {
-        profiles?.select(wallet.personaId); setNetworkMode("testnet"); setSendReturn(draft); setSendReturnUnavailable(false);
+        profiles?.select(wallet.personaId); setNetworkMode(network.chainId === 8453 ? "mainnet" : "testnet");
+        setSendReturn(draft); setSendReturnUnavailable(false);
       }
     } catch { /* Storage failure cannot resume a send or grant authority. */ }
   });

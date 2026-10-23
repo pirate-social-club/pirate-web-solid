@@ -4,11 +4,14 @@ import { afterEach, expect, test, vi } from "vitest";
 import { ApiClientError, ApiClientProtocolError, ApiClientResponseValidationError } from "@pirate/api-client";
 import { readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
-import { BASE_SEPOLIA_SPONSORED_SEND, BASE_SPONSORED_SEND, sponsoredSendNetwork, type SponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
-import { WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
+import { BASE_SEPOLIA_SPONSORED_SEND, BASE_SPONSORED_SEND, type SponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
+import { browserWalletSponsoredSend, WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); sessionStorage.clear(); });
+afterEach(() => {
+  disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); sessionStorage.clear();
+  delete document.documentElement.dataset.publicAppCanonicalOrigin; vi.unstubAllGlobals();
+});
 const sender = "0x1111111111111111111111111111111111111111";
 const recipient = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
 const token = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
@@ -83,6 +86,7 @@ async function review() {
 
 test("an ordinary persona wallet reserves before signing without any reward credit", async () => {
   const f = fixture(); mount(f.dependencies); await review();
+  expect(text()).toContain("NetworkBase Sepolia");
   button("Authorize send").click();
   await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());
   expect(f.data.reserve).toHaveBeenCalledWith("persona_1", expect.any(String), "1000000", expect.any(String));
@@ -92,11 +96,35 @@ test("an ordinary persona wallet reserves before signing without any reward cred
   );
 });
 
-test("production sends Base USDC on Base, and staging and local hosts Base Sepolia USDC", async () => {
-  expect(sponsoredSendNetwork("pirate.sc")).toBe(BASE_SPONSORED_SEND);
-  expect(sponsoredSendNetwork("web-next-staging.pirate.sc")).toBe(BASE_SEPOLIA_SPONSORED_SEND);
-  expect(sponsoredSendNetwork("localhost")).toBe(BASE_SEPOLIA_SPONSORED_SEND);
+const STAGING = "https://web-next-staging.pirate.sc";
+const PRODUCTION = "https://pirate.sc";
+test.each([
+  ["ordinary staging", "web-next-staging.pirate.sc", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS community app", "app.8s28", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS handle host", "membertest.8s28", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS community app", "app.a18n", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["ordinary production", "pirate.sc", PRODUCTION, BASE_SPONSORED_SEND],
+  ["production HNS host", "app.examplehns", PRODUCTION, BASE_SPONSORED_SEND],
+  ["local development", "localhost", "http://127.0.0.1:8787", BASE_SEPOLIA_SPONSORED_SEND],
+] as const)("%s host %s sends on its served deployment's network", (_kind, host, served, network) => {
+  vi.stubGlobal("location", new URL(`https://${host}/wallet`));
+  document.documentElement.dataset.publicAppCanonicalOrigin = served;
+  expect(browserWalletSponsoredSend()?.data.network).toBe(network);
+});
+
+test("a page that names no deployment offers no Send and reads nothing", async () => {
+  vi.stubGlobal("location", new URL("https://app.8s28/wallet"));
+  expect(browserWalletSponsoredSend()).toBeUndefined();
+  const element = document.createElement("div"); document.body.appendChild(element);
+  disposers.push(render(() => <WalletSponsoredSendSheet accountId="account_1" personaId="persona_1" walletAddress={sender} onClose={vi.fn()} />, element));
+  await vi.waitFor(() => expect(text()).toContain("Send is not available here."));
+  expect(text()).not.toContain("Wallet balance");
+});
+
+test("production sends Base USDC on Base and labels it Base", async () => {
   const f = fixture({ network: BASE_SPONSORED_SEND }); mount(f.dependencies); await review();
+  expect(text()).toContain("NetworkBase");
+  expect(text()).not.toContain("Base Sepolia");
   expect(f.data.tokenBalance).toHaveBeenCalledWith(BASE_SPONSORED_SEND.usdc, sender);
   button("Authorize send").click();
   await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());

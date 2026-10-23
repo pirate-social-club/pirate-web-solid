@@ -12,7 +12,7 @@ import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import { defaultPrivyFactory } from "../../api/privy-session.ts";
 import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host.tsx";
 import { checkRecipient, explorerTransactionUrl } from "../rewards/winnings-send-model.ts";
-import { sponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
+import { servedSponsoredSendNetwork, type SponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
 const DECIMALS = 6;
 type Sender = Readonly<{ address: string; walletIndex: number }>;
@@ -26,15 +26,22 @@ export type WalletSponsoredSendDependencies = Readonly<{
   reload?: () => void;
 }>;
 
-export function browserWalletSponsoredSend(): WalletSponsoredSendDependencies {
+/**
+ * The served deployment's Send, or nothing when the page does not name one. SSR records
+ * its deployment's canonical origin on the document for every host, HNS ingress hosts
+ * included, so the network never follows the address bar.
+ */
+export function browserWalletSponsoredSend(
+  network: SponsoredSendNetwork | undefined = servedSponsoredSendNetwork(),
+): WalletSponsoredSendDependencies | undefined {
+  if (network === undefined) return undefined;
   return {
-    data: createWalletSponsoredSendData(undefined, undefined, sponsoredSendNetwork(globalThis.location?.hostname ?? "")),
+    data: createWalletSponsoredSendData(undefined, undefined, network),
     openWallet: async () => createRewardWalletSession(await fetchVerificationConfig(), defaultPrivyFactory, { restoreSaved: true }),
   };
 }
 
-/** The ordinary Wallet USDC send; tokens need not come from a reward. */
-export function WalletSponsoredSendSheet(props: Readonly<{
+type WalletSponsoredSendSheetProps = Readonly<{
   accountId: string;
   personaId: string;
   walletAddress: string;
@@ -42,8 +49,29 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   onConfirmed?: () => void;
   dependencies?: WalletSponsoredSendDependencies;
   resumeDraft?: WalletSendDraft;
-}>) {
+}>;
+
+/** The ordinary Wallet USDC send; tokens need not come from a reward. */
+export function WalletSponsoredSendSheet(props: WalletSponsoredSendSheetProps) {
   const dependencies = props.dependencies ?? browserWalletSponsoredSend();
+  return dependencies === undefined
+    ? <SponsoredSendUnavailable onClose={props.onClose} />
+    : <SponsoredSendSheet {...props} dependencies={dependencies} />;
+}
+
+/** No deployment named: nothing is read, reserved or signed. */
+function SponsoredSendUnavailable(props: Readonly<{ onClose: () => void }>) {
+  return <Modal open onOpenChange={open => { if (!open) props.onClose(); }}>
+    <ModalContent class="flex w-full flex-col gap-4 px-5 pb-5 pt-4 md:max-w-[32rem] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
+      <ModalHeader class="text-start"><ModalTitle>Send USDC</ModalTitle></ModalHeader>
+      <Type role="alert">Send is not available here.</Type>
+      <Button onClick={props.onClose}>Close</Button>
+    </ModalContent>
+  </Modal>;
+}
+
+function SponsoredSendSheet(props: WalletSponsoredSendSheetProps & Readonly<{ dependencies: WalletSponsoredSendDependencies }>) {
+  const dependencies = props.dependencies;
   const network = dependencies.data.network;
   const USDC = network.usdc;
   const [step, setStep] = createSignal<Step>("loading");
@@ -293,7 +321,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
             <dt>Amount</dt><dd>{(() => { const check = amountCheck(); return check.ok ? format(check.atomic) : "Invalid"; })()}</dd>
             <dt>To</dt><dd class="break-all">{recipient()}</dd>
             <dt>From</dt><dd class="break-all">{sender()?.address}</dd>
-            <dt>Network</dt><dd>Base Sepolia</dd><dt>Network fee</dt><dd>Covered by Pirate</dd>
+            <dt>Network</dt><dd>{network.chainId === 8453 ? "Base" : "Base Sepolia"}</dd><dt>Network fee</dt><dd>Covered by Pirate</dd>
           </dl>
           <Button disabled={busy()} onClick={() => void confirm()}>Authorize send</Button>
           <Button variant="ghost" disabled={busy()} onClick={() => setStep("details")}>Change details</Button>

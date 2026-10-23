@@ -1,6 +1,6 @@
 import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/web";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import type {} from "vitest/jsdom";
 import { WalletPortfolio } from "./wallet-portfolio.tsx";
 import { walletReceiveNetworks, type PersonaWallet } from "./wallet-portfolio-model.ts";
@@ -11,6 +11,9 @@ import * as balanceReader from "./wallet-balance-reader.ts";
 import { WalletRouteView } from "./wallet-route.tsx";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../shell/application-session.tsx";
 import { ApplicationPersonasContext } from "../shell/application-personas.tsx";
+import { rememberWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
+import * as sponsoredSendData from "../../api/wallet-sponsored-send.ts";
+import { BASE_SEPOLIA_SPONSORED_SEND, BASE_SPONSORED_SEND } from "../../api/sponsored-send-network.ts";
 
 const disposers: (() => void)[] = [];
 const initialBrowserUrl = window.location.href;
@@ -139,4 +142,77 @@ test("the actual route hides cached wallets while account authority is pending a
   await vi.waitFor(() => expect(element.textContent).toContain(nextWallet.address));
   expect(element.textContent).not.toContain(oldWallet.address);
   expect(read).toHaveBeenCalledWith(nextWallet.address, "mainnet", expect.any(AbortSignal));
+});
+
+describe("a Palm return resumes the saved send where the serving deployment sponsors one", () => {
+  const account = "account-return";
+  const walletAddress = "0x3333333333333333333333333333333333333333";
+  const wallet: PersonaWallet = { personaId: "profile", displayName: "Profile", publicHandle: null, avatarSrc: null,
+    address: walletAddress };
+  const recipient = "0x4444444444444444444444444444444444444444";
+  const STAGING = "https://web-next-staging.pirate.sc";
+  const PRODUCTION = "https://pirate.sc";
+  afterEach(() => { delete document.documentElement.dataset.publicAppCanonicalOrigin; sessionStorage.clear(); });
+
+  /** The actual route on `url`, served by `served`, with a draft saved before the Palm scan. */
+  async function returnTo(url: string, served: string | undefined, draft: Partial<WalletSendDraft> = {}) {
+    const key = crypto.randomUUID();
+    rememberWalletSend({ accountId: account, personaId: wallet.personaId, walletAddress, recipient,
+      amount: "0.5", idempotencyKey: key, sendId: null, ...draft });
+    jsdom.reconfigure({ url: `${url}/wallet?send_return=${key}` });
+    if (served !== undefined) document.documentElement.dataset.publicAppCanonicalOrigin = served;
+    vi.spyOn(portfolioModel, "loadPersonaWallets").mockResolvedValue([wallet]);
+    const read = vi.spyOn(balanceReader, "readWalletBalances").mockImplementation(async (address, mode) => walletAssetSections(address, mode, "25"));
+    const data = vi.spyOn(sponsoredSendData, "createWalletSponsoredSendData").mockImplementation((_client, _csrf, network) => ({
+      network: network!,
+      sender: vi.fn(async () => ({ address: walletAddress, walletIndex: 0 })),
+      tokenBalance: vi.fn(async () => 1_000_000n),
+      read: vi.fn(async () => null),
+      reserve: vi.fn(async () => { throw new Error("must not reserve on return"); }),
+      submit: vi.fn(async () => { throw new Error("must not submit on return"); }),
+      issueVerificationIntent: vi.fn(async () => "intent"),
+    }));
+    const select = vi.fn();
+    const element = document.createElement("div"); document.body.appendChild(element);
+    disposers.push(render(() => <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: account })} pending={() => false}>
+      <ApplicationPersonasContext value={{ personas: () => [], selected: () => ({ personaId: wallet.personaId, displayName: "Profile" }),
+        loading: () => false, unavailable: () => false, pickerOpen: () => false, setPickerOpen: () => {}, select, retry: () => {} }}>
+        <WalletRouteView />
+      </ApplicationPersonasContext>
+    </ApplicationSessionProvider>, element));
+    await vi.waitFor(() => expect(element.textContent).toContain(walletAddress));
+    return { element, data, read, select };
+  }
+
+  test.each([
+    ["production", "https://pirate.sc", PRODUCTION, BASE_SPONSORED_SEND, "mainnet"],
+    ["ordinary staging", "https://web-next-staging.pirate.sc", STAGING, BASE_SEPOLIA_SPONSORED_SEND, "testnet"],
+    ["staging HNS community app", "https://app.8s28", STAGING, BASE_SEPOLIA_SPONSORED_SEND, "testnet"],
+    ["staging HNS community app", "https://app.a18n", STAGING, BASE_SEPOLIA_SPONSORED_SEND, "testnet"],
+  ] as const)("%s at %s resumes the saved form for review on the served network", async (_kind, url, served, network, mode) => {
+    const route = await returnTo(url, served);
+    await vi.waitFor(() => expect(route.element.ownerDocument.body.textContent).toContain("Wallet balance: 1 USDC"));
+    expect(route.data).toHaveBeenCalledWith(undefined, undefined, network);
+    expect(route.select).toHaveBeenCalledWith(wallet.personaId);
+    expect(route.read).toHaveBeenLastCalledWith(walletAddress, mode, expect.any(AbortSignal));
+    // The saved recipient and amount are back in the form, to be reviewed before any signing.
+    const inputs = [...document.body.querySelectorAll("input")].map(input => input.value);
+    expect(inputs).toEqual(expect.arrayContaining([recipient, "0.5"]));
+    expect(document.body.textContent).not.toContain("could not be resumed");
+  });
+
+  test("a page that names no serving deployment resumes nothing", async () => {
+    const route = await returnTo("https://app.8s28", undefined);
+    expect(route.data).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("Wallet balance");
+  });
+
+  test("a draft saved by another account or for another wallet is not resumed", async () => {
+    for (const draft of [{ accountId: "account-other" }, { walletAddress: "0x5555555555555555555555555555555555555555" }]) {
+      const route = await returnTo("https://pirate.sc", PRODUCTION, draft);
+      await vi.waitFor(() => expect(route.element.textContent).toContain("Your saved send could not be resumed."));
+      expect(route.data).not.toHaveBeenCalled();
+      disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.restoreAllMocks();
+    }
+  });
 });
