@@ -224,19 +224,19 @@ export const ProfilesUnavailable: Story = {
   },
 };
 
-/** An account without a persona in this community prepares one instead of joining. */
+/** New community entry prepares a profile and opens the exercise directly. */
 export const PersonaPreparation: Story = {
-  name: "Persona preparation",
+  name: "Direct entry after profile preparation",
   args: {
     api: studyApi(),
+    startCoordinator: storyCoordinator(studyApi()),
+    prepareProfile: async () => learner("persona-learner", "Learner"),
     resolveSession: authenticated([learner("persona-elsewhere", "Elsewhere", "community-other")]),
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() =>
-      expect(canvas.getByRole("heading", { name: "Set up Study" })).toBeInTheDocument(),
-    );
-    expect(canvas.queryByText("Join this community or create a persona there before starting Study.")).not.toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
+    expect(canvas.queryByRole("heading", { name: "Set up Study" })).toBeNull();
   },
 };
 

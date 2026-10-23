@@ -56,4 +56,10 @@ describe("community profile preparation", () => {
     const run = createCommunityProfilePreparation({ api: { prepare: async () => prepared() }, activateWallet: async () => { controller.abort(); return true; }, resolve });
     await expect(run({ ...input([]), signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" }); expect(resolve).not.toHaveBeenCalled();
   });
+  it("requires an explicit choice between unbound profiles before creating anything", async () => {
+    const prepare = vi.fn();
+    await expect(createCommunityProfilePreparation({ api: { prepare } })(input([profile("a", null), profile("b", null)]))).rejects.toMatchObject({ reason: "profile_selection_required" });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
 });

@@ -1,3 +1,5 @@
+import type { createCommunityProfileAttempt } from "../identity/community-profile-attempt.ts";
+import { CommunityProfilePreparationError } from "../identity/community-profile-preparation.ts";
 import { completionFixture } from "../activity/activity-contract-fixtures.ts";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
@@ -96,6 +98,9 @@ afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
   document.head.replaceChildren();
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 
@@ -247,185 +252,65 @@ describe("Study v2 production route", () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
-  test("an account without a community persona prepares one instead of joining", async () => {
+  test("enters Study through shared profile preparation without a setup screen", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const prepare = vi.fn(async () => ({
-      activity_presentation: null,
-      community_id: "community-1",
-      object: "activity_persona_preparation" as const,
-      persona_id: "persona-new",
-      persona_status: "pending_wallet" as const,
+    const prepareProfile = vi.fn<ReturnType<typeof createCommunityProfileAttempt>>(async () => ({
+      personaId: "prepared", displayName: null, avatarRef: null, primaryPublicHandle: null,
+      communityBinding: { communityId: "community-1", bindingSource: "activity_participation" },
     }));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
-      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
-        personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
-      }] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    expect(container.textContent).not.toContain("Join this community");
-    expect(createSession).not.toHaveBeenCalled();
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
-    await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
-      choice: { kind: "create_new" },
-      communityId: "community-1",
-    })));
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm this profile's wallet to start Study."));
-    expect(createSession).not.toHaveBeenCalled();
-  });
-
-  test("a pending wallet offers an actionable confirmation without joining", async () => {
-    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    let confirmed = false;
-    const prepare = vi.fn(async () => ({
-      activity_presentation: null,
-      community_id: "community-1",
-      object: "activity_persona_preparation" as const,
-      persona_id: "persona-new",
-      persona_status: "pending_wallet" as const,
-    }));
-    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
-      window.addEventListener("pirate:connect", event => {
-        // SAFETY: the sign-in host is the only dispatcher of this event, and its
-        // detail always carries the completion callback this regression drives.
-        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
-      }, { once: true });
-    });
     const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
-      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
-        personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: confirmed
-          ? { communityId: "community-1", bindingSource: "activity_participation" as const }
-          : null,
-      }] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm wallet and continue"));
-    confirmed = true;
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
-    (await completion).complete(true);
-    // The prepared single persona continues straight into the session.
+    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} prepareProfile={prepareProfile} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} />);
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
-      communityId: "community-1",
-      personaId: "persona-new",
-    }));
-  });
-
-  test("a cancelled wallet confirmation keeps the actionable control without side effects", async () => {
-    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const prepare = vi.fn(async () => ({
-      activity_presentation: null,
-      community_id: "community-1",
-      object: "activity_persona_preparation" as const,
-      persona_id: "persona-new",
-      persona_status: "pending_wallet" as const,
-    }));
-    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
-      window.addEventListener("pirate:connect", event => {
-        // SAFETY: the sign-in host is the only dispatcher of this event, and its
-        // detail always carries the completion callback this regression drives.
-        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
-      }, { once: true });
-    });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
-      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
-        personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: null,
-      }] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm wallet and continue"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
-    (await completion).complete(false);
-    await vi.waitFor(() => expect(container.textContent).toContain("Wallet confirmation was cancelled"));
-    expect(container.textContent).toContain("Confirm wallet and continue");
-    expect(container.textContent).toContain("Set up Study");
-    expect(createSession).not.toHaveBeenCalled();
-  });
-
-  test("a confirmation that does not activate the persona returns to setup without joining", async () => {
-    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const prepare = vi.fn(async () => ({
-      activity_presentation: null,
-      community_id: "community-1",
-      object: "activity_persona_preparation" as const,
-      persona_id: "persona-new",
-      persona_status: "pending_wallet" as const,
-    }));
-    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
-      window.addEventListener("pirate:connect", event => {
-        // SAFETY: the sign-in host is the only dispatcher of this event, and its
-        // detail always carries the completion callback this regression drives.
-        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
-      }, { once: true });
-    });
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
-      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
-        personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: null,
-      }] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm wallet and continue"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
-    (await completion).complete(true);
-    // The completion is authenticated, but the persona still has no community
-    // binding, so the route returns to setup instead of inventing a join.
-    await vi.waitFor(() => expect(container.textContent).not.toContain("Confirm wallet and continue"));
-    expect(container.textContent).toContain("Set up Study");
+    expect(prepareProfile).toHaveBeenCalledOnce();
+    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "prepared" }));
+    expect(container.textContent).not.toContain("Set up Study");
     expect(container.textContent).not.toContain("Join this community");
-    expect(createSession).not.toHaveBeenCalled();
+    expect(container.querySelector("button")).toBeNull();
   });
 
-  test("a confirmation under a changed account selects that account's activated persona", async () => {
+  test("asks for a profile only when several unbound profiles need a choice", async () => {
+    const prepareProfile = vi.fn<ReturnType<typeof createCommunityProfileAttempt>>();
+    const container = render(() => <StudyV2RouteView api={studyApi()} prepareProfile={prepareProfile} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: ["first", "second"].map(personaId => ({
+        personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null, communityBinding: null,
+      })) })} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a profile"));
+    expect(prepareProfile).not.toHaveBeenCalled();
+    expect([...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.disabled).toBe(true);
+  });
+
+  test("cancelled identity recovery offers retry without starting Study", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const prepare = vi.fn(async () => ({
-      activity_presentation: null,
-      community_id: "community-1",
-      object: "activity_persona_preparation" as const,
-      persona_id: "persona-new",
-      persona_status: "pending_wallet" as const,
-    }));
-    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
-      window.addEventListener("pirate:connect", event => {
-        // SAFETY: the sign-in host is the only dispatcher of this event, and its
-        // detail always carries the completion callback this regression drives.
-        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
-      }, { once: true });
-    });
-    let activeAccount = "user-1";
-    let activated = false;
-    const api = studyApi(createSession);
-    const container = render(() => <StudyV2RouteView api={api} startCoordinator={testCoordinator(api)} preparationApi={{ prepare }} postId="post-1"
-      resolveSession={async () => ({ status: "authenticated", userId: activeAccount, personas: activated ? [{
-        personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: { communityId: "community-1", bindingSource: "activity_participation" as const },
-      }] : [{
-        personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
-        communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
-      }] })}
-    />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm wallet and continue"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
-    activeAccount = "user-2";
-    activated = true;
-    (await completion).complete(true);
-    // The activated account's single bound persona continues into the session.
-    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
-      communityId: "community-1",
-      personaId: "persona-new",
-    }));
+    const prepareProfile = vi.fn<ReturnType<typeof createCommunityProfileAttempt>>(async () => { throw new CommunityProfilePreparationError("activation_required"); });
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} prepareProfile={prepareProfile} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to continue Study."));
+    expect(container.textContent).not.toContain("Set up Study");
+    expect(createSession).not.toHaveBeenCalled();
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try Again")!.click();
+    await vi.waitFor(() => expect(prepareProfile).toHaveBeenCalledTimes(2));
+  });
+
+  test("leaving during profile preparation aborts it and ignores its late result", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    let finish!: (profile: Awaited<ReturnType<ReturnType<typeof createCommunityProfileAttempt>>>) => void;
+    const prepareProfile = vi.fn<ReturnType<typeof createCommunityProfileAttempt>>(() => new Promise(resolve => { finish = resolve; }));
+    render(() => <StudyV2RouteView api={studyApi(createSession)} prepareProfile={prepareProfile} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} />);
+    await vi.waitFor(() => expect(prepareProfile).toHaveBeenCalledOnce());
+    disposers.pop()!();
+    expect(prepareProfile.mock.calls[0]![0].signal.aborted).toBe(true);
+    finish({ personaId: "prepared", displayName: null, avatarRef: null, primaryPublicHandle: null,
+      communityBinding: { communityId: "community-1", bindingSource: "activity_participation" } });
+    await Promise.resolve();
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   test("binds the single unbound persona and continues into Study", async () => {
+  vi.stubGlobal("navigator", Object.create(navigator, { locks: { value: {
+    request: async <T,>(_name: string, _options: LockOptions, callback: () => Promise<T>) => callback(),
+  } } }));
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
     let bound = false;
     const prepare = vi.fn(async () => {
@@ -447,8 +332,7 @@ describe("Study v2 production route", () => {
           : null,
       }] })}
     />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
-    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
+    expect(container.textContent).not.toContain("Set up Study");
     await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
       choice: { kind: "existing", personaId: "unbound" },
     })));
