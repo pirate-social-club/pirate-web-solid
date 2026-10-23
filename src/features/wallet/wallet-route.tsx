@@ -16,7 +16,7 @@ import { createRewardClaimData } from "../../api/reward-claim.ts";
 import { WalletWinnings } from "../rewards/wallet-winnings.tsx";
 import { WalletSponsoredSendSheet } from "./wallet-sponsored-send-sheet.tsx";
 import { forgetWalletSend, readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
-import { servedSponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
+import { sponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
 /** A claim to resume after returning from the palm scan (browser only). */
 function resumeClaimId(): string | undefined {
@@ -25,11 +25,19 @@ function resumeClaimId(): string | undefined {
   return value !== null && value.length > 0 && value.length <= 128 ? value : undefined;
 }
 
-/** The serving host, from the request on the server and the location in the browser. */
-function servingHostname(): string {
+/**
+ * The serving deployment's canonical origin: the request-local value SSR binds on the
+ * server, and the one it records on the document in the browser.
+ */
+function servedCanonicalOrigin(): string | undefined {
   const event = getRequestEvent();
-  if (event) return new URL(event.request.url).hostname;
-  return typeof window === "undefined" ? "" : window.location.hostname;
+  if (event) {
+    // SAFETY: entry-server is the sole writer of this request-local key and stores only
+    // the optional canonical-origin string from the Worker render context.
+    const locals = event.locals as typeof event.locals & { publicAppCanonicalOrigin?: string };
+    return locals.publicAppCanonicalOrigin;
+  }
+  return typeof document === "undefined" ? undefined : document.documentElement.dataset.publicAppCanonicalOrigin;
 }
 
 function dropResumeClaim() {
@@ -45,7 +53,9 @@ export function WalletRouteView() {
   const [wallets, setWallets] = createSignal<readonly PersonaWallet[]>([]);
   const [walletOwner, setWalletOwner] = createSignal<string>();
   const ownedWallets = () => { const session = account(); return !accountPending() && typeof session === "object" && walletOwner() === session.userId ? wallets() : []; };
-  const networkHost = walletNetworkHost(servingHostname());
+  const served = servedCanonicalOrigin();
+  const networkHost = walletNetworkHost(served);
+  const sendNetwork = sponsoredSendNetwork(served);
   const [networkMode, setNetworkMode] = createSignal<WalletNetworkMode>(networkHost.defaultMode);
   const [sendReturn, setSendReturn] = createSignal<WalletSendDraft>();
   const [sendReturnUnavailable, setSendReturnUnavailable] = createSignal(false);
@@ -55,8 +65,8 @@ export function WalletRouteView() {
     if (typeof window === "undefined" || accountPending() || typeof session !== "object" || walletOwner() !== session.userId) return;
     // A send resumes wherever the deployment that served this page sponsors one, HNS
     // hosts included; the address bar does not decide it.
-    const network = servedSponsoredSendNetwork();
-    if (network === undefined) return;
+    const actionMode = networkHost.actionMode;
+    if (actionMode === undefined) return;
     const key = new URL(window.location.href).searchParams.get("send_return");
     if (key === null) return;
     setSendReturnUnavailable(true);
@@ -65,7 +75,7 @@ export function WalletRouteView() {
       const wallet = draft === undefined ? undefined : wallets().find(item => item.personaId === draft.personaId
         && item.address?.toLowerCase() === draft.walletAddress.toLowerCase());
       if (draft !== undefined && wallet !== undefined) {
-        profiles?.select(wallet.personaId); setNetworkMode(network.chainId === 8453 ? "mainnet" : "testnet");
+        profiles?.select(wallet.personaId); setNetworkMode(actionMode);
         setSendReturn(draft); setSendReturnUnavailable(false);
       }
     } catch { /* Storage failure cannot resume a send or grant authority. */ }
@@ -124,7 +134,7 @@ export function WalletRouteView() {
       <Show when={sendReturnUnavailable()}><Type role="status">Your saved send could not be resumed. Open Send to check its recorded status.</Type></Show>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
-      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={networkHost.switchable ? setNetworkMode : undefined} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => {
+      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={networkHost.switchable ? setNetworkMode : undefined} actionMode={networkHost.actionMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} chainId={sendNetwork?.chainId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => {
         const onConfirmed = balances.captureReload();
         return controls.open && wallet.address
           ? <WalletSponsoredSendSheet accountId={walletOwner()!} personaId={wallet.personaId} walletAddress={wallet.address} onConfirmed={onConfirmed} onClose={() => controls.onOpenChange(false)} /> : null;

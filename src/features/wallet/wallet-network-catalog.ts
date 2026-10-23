@@ -1,23 +1,31 @@
 import { mainnet, sepolia, base, baseSepolia, story, storyAeneid } from "viem/chains";
 import type { Address, Chain } from "viem";
 import type { WalletHubChainId, WalletHubChainSection } from "./wallet-hub.types";
+import { sponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
 export type WalletNetworkMode = "mainnet" | "testnet";
 
 export interface WalletNetworkHost {
   readonly defaultMode: WalletNetworkMode;
   readonly switchable: boolean;
+  /** The network whose Base USDC row offers Claim and Send; none on an unknown deployment. */
+  readonly actionMode: WalletNetworkMode | undefined;
 }
 
 /**
- * Testnet exists only on staging and local development hosts, where it is
- * offered beside mainnet. Production has no network switch and stays on
- * mainnet, so testnet Send cannot be reached there.
+ * The networks offered by the deployment that served the page, named by the canonical
+ * origin its SSR records on every host, HNS ingress hosts included; the address bar
+ * never decides. Production has no network switch and stays on mainnet, where its Claim
+ * and Send run on Base. Staging and local development add testnet, open on it, and run
+ * Claim and Send on Base Sepolia. An unknown deployment shows mainnet only, without
+ * Claim or Send.
  */
-export function walletNetworkHost(hostname: string): WalletNetworkHost {
-  const staging = hostname.endsWith("-staging.pirate.sc");
-  const local = hostname === "localhost" || hostname === "127.0.0.1";
-  return { defaultMode: staging ? "testnet" : "mainnet", switchable: staging || local };
+export function walletNetworkHost(servedCanonicalOrigin: string | undefined): WalletNetworkHost {
+  const network = sponsoredSendNetwork(servedCanonicalOrigin);
+  if (network === undefined) return { defaultMode: "mainnet", switchable: false, actionMode: undefined };
+  return network.chainId === 8453
+    ? { defaultMode: "mainnet", switchable: false, actionMode: "mainnet" }
+    : { defaultMode: "testnet", switchable: true, actionMode: "testnet" };
 }
 
 export interface WalletAssetDefinition {

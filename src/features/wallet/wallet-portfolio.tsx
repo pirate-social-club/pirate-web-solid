@@ -15,6 +15,8 @@ export interface WalletPortfolioProps {
   onRefresh?: () => void;
   networkMode?: WalletNetworkMode;
   onNetworkModeChange?: (mode: WalletNetworkMode) => void;
+  /** The network whose Base USDC row offers winnings and Send; without one, neither. */
+  actionMode?: WalletNetworkMode;
   wallets: readonly PersonaWallet[];
   selectedPersonaId?: string;
   onSelect: (personaId: string) => void;
@@ -27,6 +29,7 @@ export interface WalletPortfolioProps {
 export function WalletPortfolio(props: WalletPortfolioProps) {
   const selected = () => props.wallets.find(wallet => wallet.personaId === props.selectedPersonaId);
   const sections = () => props.chainSections ?? walletAssetSections(selected()?.address ?? null, props.networkMode ?? "mainnet");
+  const actions = () => props.actionMode !== undefined && (props.networkMode ?? "mainnet") === props.actionMode;
   return <div class="mx-auto flex w-full max-w-[640px] flex-col gap-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
       {/* Only hosts that have Testnet pass a handler; production shows no switch. */}
@@ -40,10 +43,10 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
       {(wallet) => <WalletHub walletLabel={wallet().displayName} walletAddress={wallet().address}
         assetsUnavailable totalBalanceUsd={null} showChangeWalletAction={false}
         chainSections={sections()}
-        renderAssetSupplement={(chainId, token) => props.networkMode === "testnet" && chainId === "base" && token.id === "usdc"
+        renderAssetSupplement={(chainId, token) => actions() && chainId === "base" && token.id === "usdc"
           ? props.renderBaseUsdc?.(wallet()) : undefined}
         renderReceiveSheet={wallet().address ? controls => <WalletReceiveSheet {...controls} chainSections={sections()} walletAddress={wallet().address} /> : undefined}
-        renderSendSheet={props.networkMode === "testnet" && wallet().address && props.renderSendSheet
+        renderSendSheet={actions() && wallet().address && props.renderSendSheet
           ? controls => props.renderSendSheet?.(wallet(), controls) : undefined}
       />}
     </Show>

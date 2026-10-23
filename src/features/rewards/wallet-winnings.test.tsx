@@ -100,3 +100,15 @@ test("shows nothing when the account has no pool winnings", async () => {
   await vi.waitFor(() => expect(data.credits).toHaveBeenCalled());
   expect(element.textContent).toBe("");
 });
+
+test("shows only the winnings on its own row's chain", async () => {
+  const data = {
+    credits: vi.fn(async () => ({ object: "reward_credit_list" as const, next_cursor: null, items: [
+      held, { ...held, credit_id: "credit_base", chain_id: 8453, amount_atomic: "5000000" },
+    ] })),
+    claim: vi.fn(),
+  };
+  const element = mount({ data, chainId: 8453 });
+  await vi.waitFor(() => expect(element.textContent).toContain("5 USDC"));
+  expect(element.textContent).not.toContain("2 USDC");
+});

@@ -12,6 +12,8 @@ export type WalletWinningsProps = Readonly<{
   onResumeConsumed?: () => void;
   /** Show only winnings belonging to the selected wallet persona. */
   personaId?: string;
+  /** Show only winnings on this chain, the row's own. */
+  chainId?: number;
 }>;
 
 /** Spec 015 §5.2a: held pool winnings and the verify-to-claim action. */
@@ -77,7 +79,8 @@ export function WalletWinnings(props: WalletWinningsProps) {
   });
 
   const views = () => winningViews((credits() ?? []).filter(credit =>
-    props.personaId === undefined || credit.payout_persona_id === props.personaId));
+    (props.personaId === undefined || credit.payout_persona_id === props.personaId)
+    && (props.chainId === undefined || credit.chain_id === props.chainId)));
   return (
     <Show when={failed() || views().length > 0 || notice().length > 0}>
       <div role="group" aria-label="Pool winnings" class="flex flex-col gap-3 border-t border-border-soft pt-3">
