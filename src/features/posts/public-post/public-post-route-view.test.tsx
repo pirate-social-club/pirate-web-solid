@@ -201,7 +201,7 @@ describe("public post route view", () => {
       expect(container.querySelector("video, iframe, img")).toBeNull();
     } else expect(container.querySelector("video")?.getAttribute("src")).toBeNull();
     expect(container.innerHTML).not.toContain("bare-stream-uid"); expect(container.innerHTML).not.toContain("media://");
-    expect(container.querySelector('a[aria-label="Choreography reference"]')).toBeNull();
+    expect(container.textContent).not.toContain("View choreography reference");
   });
   it("credits only the bound public choreography reference, without exposing private review facts or making another read", () => {
     const state=contentState(true);
@@ -214,7 +214,7 @@ describe("public post route view", () => {
         dance_credit:{choreography_id:"public-choreography",revision:2,reference_video_post_id:"reference:community-2"},
         playback:{status:"pending"},thumbnail:{status:"pending"},data_registration:"registered",capabilities:{can_post_with_song:false}},
     }}});
-    expect(container.querySelector('a[aria-label="Choreography reference"]')?.getAttribute("href")).toBe("/post/reference%3Acommunity-2");
+    expect(Array.from(container.querySelectorAll("a")).find(link => link.textContent === "View choreography reference")?.getAttribute("href")).toBe("/post/reference%3Acommunity-2");
     expect(container.textContent).toContain("View choreography reference");
     expect(container.innerHTML).not.toMatch(/review_id|qualification_ref|score_bps|cue_attestation|private-result/);
     expect(fetch).not.toHaveBeenCalled();

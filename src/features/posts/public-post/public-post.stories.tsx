@@ -413,5 +413,5 @@ export const VideoWithChoreographyCredit: Story = {
         playback:{status:"pending" as const},thumbnail:{status:"pending" as const},data_registration:"registered" as const,capabilities:{can_post_with_song:false}},
     }}};
   })() },
-  play: async ({canvasElement}) => { const canvas=within(canvasElement);await expect(canvas.getByRole("link",{name:"Choreography reference"})).toHaveAttribute("href","/post/reference-post"); },
+  play: async ({canvasElement}) => { const canvas=within(canvasElement);await expect(canvas.getByRole("link",{name:"View choreography reference"})).toHaveAttribute("href","/post/reference-post"); },
 };
