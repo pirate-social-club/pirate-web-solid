@@ -400,3 +400,18 @@ export const PostPageCommentAndReport: Story = {
     await expect(reportComment).toHaveBeenCalledTimes(1);
   },
 };
+
+/** A separately published public reference, never a private attempt or verdict. */
+export const VideoWithChoreographyCredit: Story = {
+  args: { state: (() => {
+    const state=contentState(true);if(state.kind!=="content")throw new Error("Expected content fixture");
+    return {...state,response:{...state.response,content:{...state.response.content,
+      post:{...state.response.content.post,post_type:"video" as const,title:"A dance video",body:null},
+      video:{track:"video" as const,caption:null,caption_dir:null,caption_lang:null,
+        soundtrack:{kind:"song_reference" as const,song_reference:{song_post_id:"song-post",song_title:"Song",song_author_persona_id:null},render_mode:"canonical_replace" as const},
+        dance_credit:{choreography_id:"public-choreography",revision:1,reference_video_post_id:"reference-post"},
+        playback:{status:"pending" as const},thumbnail:{status:"pending" as const},data_registration:"registered" as const,capabilities:{can_post_with_song:false}},
+    }}};
+  })() },
+  play: async ({canvasElement}) => { const canvas=within(canvasElement);await expect(canvas.getByRole("link",{name:"View choreography reference"})).toHaveAttribute("href","/post/reference-post"); },
+};

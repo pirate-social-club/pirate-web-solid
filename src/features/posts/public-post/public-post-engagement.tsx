@@ -38,7 +38,7 @@ export function PublicPostEngagement(props: {
   /** Inline only: a signed-in visitor who is not a member joins here to comment. */
   joinHref?: string;
   target?: CommentNavigation;
-  children: (controls?: JSX.Element, menuActions?: readonly ContentAction[]) => JSX.Element;
+  children: (controls?: JSX.Element, menuActions?: readonly ContentAction[], viewer?: AuthenticatedSession) => JSX.Element;
 }) {
   const inline = () => props.presentation === "inline";
   const targetedPersona = useTargetedPersona();
@@ -83,7 +83,7 @@ export function PublicPostEngagement(props: {
             // The comment box opens with who the viewer comments as; with
             // several profiles here, tapping it opens the same picker.
             composerIdentity={<OperationPersonaControl appearance="avatar" class="shrink-0" label="Commenting as" placeholder="Choose a profile to comment as" personas={toOperationPersonas(personas())} selectedPersonaId={personaId()} onSelect={id => { setPersonaId(id); targetedPersona?.select(id); }} />}>
-            {(controls, menuActions) => props.children(controls, menuActions)}
+            {(controls, menuActions) => props.children(controls, menuActions, viewer())}
           </PostEngagement>
         )}</Show>
         <Show when={!inline() && personas().length > 1}>

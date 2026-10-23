@@ -4,6 +4,7 @@ import { onSessionRefreshed, resolveSession, type SessionResolution } from "../.
 import { createNotificationsApi, type NotificationsApi } from "./notifications-api.ts";
 import { createNotificationsController } from "./notifications-controller.ts";
 import { bindPrivatePageLifecycle } from "./private-page-lifecycle.ts";
+import { notificationHref, notificationLabel } from "./notification-entry.ts";
 
 export function NotificationsInbox(props: { readonly api?: NotificationsApi; readonly session?: () => Promise<SessionResolution> }) {
   const controller = createNotificationsController(untrack(() => props.api ?? createNotificationsApi()), value => setState(value));
@@ -33,7 +34,7 @@ export function NotificationsInbox(props: { readonly api?: NotificationsApi; rea
       <Button onClick={() => void controller.refresh()} variant="ghost" class="self-start">Refresh notifications</Button>
       <Show when={state().items.length > 0} fallback={<p>No notifications yet.</p>}>
         <ul class="divide-y divide-border-soft"><For each={state().items}>{item => <li class="flex flex-wrap items-center gap-3 py-4" data-notification-id={item.notification_id}>
-          <div class="min-w-0 flex-1"><a class="font-medium hover:underline" href={`/comments/${encodeURIComponent(item.target.comment_id)}`}>{item.kind === "reply_published" ? "A reply was published" : "A comment was published"}</a>
+          <div class="min-w-0 flex-1"><a class="font-medium hover:underline" href={notificationHref(item)}>{notificationLabel(item)}</a>
             <p class="text-sm text-muted-foreground"><time datetime={item.occurred_at}>{item.occurred_at}</time> · {item.read_at === null ? "Unread" : "Read"}</p></div>
           <Show when={item.read_at === null}><Button disabled={state().reading !== undefined} onClick={() => void controller.markRead(item.notification_id)} size="sm" variant="secondary">{state().reading === item.notification_id ? "Marking read…" : state().readIssue === item.notification_id ? "Retry marking read" : "Mark read"}</Button></Show>
           <Show when={state().readIssue === item.notification_id}><p role="alert" class="w-full">Read status could not be confirmed. Retry explicitly or refresh.</p></Show>

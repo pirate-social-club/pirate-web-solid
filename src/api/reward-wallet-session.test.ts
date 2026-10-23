@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { decodeFunctionData, erc20Abi } from "viem";
 import type { Storage } from "@privy-io/js-sdk-core";
-import { createRewardWalletSession, fundingTransfer, rewardTransfer, RewardFundingNotBroadcastError } from "./reward-wallet-session.ts";
+import { createRewardWalletSession, fundingTransfer, rewardTransfer, tokenTransfer, RewardFundingNotBroadcastError } from "./reward-wallet-session.ts";
 import type { EthereumProvider, PrivyAuthClient } from "./privy-session.ts";
 import { createRewardFundingController } from "./reward-funding-controller.ts";
 import type { RewardFundingReceipt } from "./reward-funding-recovery.ts";
@@ -208,6 +208,24 @@ describe("explicit persona wallet authorization", () => {
       .rejects.toThrow("wallet_reserved_nonce_mismatch");
     expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
   });
+  it("preserves a 63-bit reserved nonce on the explicitly bound chain", async () => {
+    const h = harness(), session = await h.create(); await session.loginWithCode("a", "b");
+    const nonce = 2n ** 63n - 1n;
+    h.responses.set("eth_getTransactionCount", `0x${nonce.toString(16)}`);
+    h.responses.set("eth_chainId", "0x2105");
+    const transfer = { ...fundingTransfer(context()), chainId: 8453 as const, nonce };
+    await session.sendTransfer(transfer, fee, async () => undefined);
+    expect(h.requests.find(item => item.method === "wallet_switchEthereumChain")?.params).toEqual([{ chainId: "0x2105" }]);
+    expect(h.requests.find(item => item.method === "eth_sendTransaction")?.params?.[0]).toMatchObject({ chainId: "0x2105", nonce: "0x7fffffffffffffff" });
+  });
+  it.each([-1n, 2n ** 63n, Number.MAX_SAFE_INTEGER + 1, 1.1])("refuses an invalid reserved nonce %s", nonce => {
+    expect(() => tokenTransfer({ ...fundingTransfer(context()), nonce })).toThrow("wallet_reserved_nonce_invalid");
+  });
+  it("refuses a provider that ignores the explicit instruction chain", async () => {
+    const h = harness(), session = await h.create(); await session.loginWithCode("a", "b");
+    await expect(session.sendTransfer({ ...fundingTransfer(context()), chainId: 8453, nonce: 7n }, fee, async () => undefined)).rejects.toThrow("wallet_wrong_chain");
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+  });
   it("permits a same-nonce replacement while the earlier transaction is pending", async () => {
     const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
     const original = h.provider.request;
@@ -224,7 +242,7 @@ describe("explicit persona wallet authorization", () => {
     expect(await session.estimateCancellation(transfer)).toEqual(fee);
     await session.sendCancellation(transfer, fee, async () => undefined);
     expect(h.requests.find(item => item.method === "eth_sendTransaction")?.params).toEqual([{
-      from: sender, to: sender, value: "0x0", chainId: "0x14a34", nonce: "0x7", gas: "0xea60", gasPrice: "0x2",
+      from: sender, to: sender, value: "0x0", data: "0x", chainId: "0x14a34", nonce: "0x7", gas: "0xea60", gasPrice: "0x2",
     }]);
   });
 

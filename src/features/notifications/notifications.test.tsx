@@ -91,3 +91,22 @@ test("rendered inbox navigation never marks read; only the explicit button sends
   await vi.waitFor(() => expect(host.textContent).toContain("0 unread"));
   expect(api.markRead).toHaveBeenCalledTimes(1);
 });
+
+
+test.each([
+  ["passed", "Your dance passed review"],
+  ["not_passed", "Your dance was not passed"],
+  ["review_expired", "Your dance was not reviewed"],
+] as const)("a genuine %s Dance notification opens its private result without a read mutation", async (outcome, label) => {
+  const mixed: NotificationPage = { ...page(), items: [...page().items, { notification_id: "00000000-0000-4000-8000-000000000002", kind: "dance_review_result", outcome, occurred_at: "2026-10-16T13:00:00Z", read_at: null, target: { kind: "private_dance_result", community_id: "community", review_id: "review" } }], unread_count: 2 };
+  const fetchImpl = vi.fn(async () => Response.json(mixed));
+  const api = createNotificationsApi(createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }));
+  const host = document.createElement("div"); document.body.appendChild(host);
+  createRoot(dispose => { cleanups.push(dispose); renderDom(() => <NotificationsInbox api={api} session={async () => ({ status: "authenticated", userId: "participant", personas: [] })} />, host); });
+  await vi.waitFor(() => expect(host.textContent).toContain(label));
+  expect(host.querySelector('a[href="/comments/reply"]')?.textContent).toBe("A reply was published");
+  const resultLink = host.querySelector<HTMLAnchorElement>('a[href="/dance/community/reviews/review"]')!;
+  resultLink.addEventListener("click", event => event.preventDefault()); resultLink.click();
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(host.textContent).not.toMatch(/score|10000|private_dance_result/u);
+});

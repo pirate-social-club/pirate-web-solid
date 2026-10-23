@@ -1,4 +1,5 @@
 import { MegapotShareStatus } from "../rewards/megapot-participant.tsx";
+import { SharedSongParticipationStatus } from "../rewards/shared-song-participation.tsx";
 import { ActivityCompletion } from "../activity/activity-completion.tsx";
 import type { CompletionTarget } from "../activity/activity-private-api.ts";
 import { ActivityLeaderboard } from "../activity/activity-leaderboard.tsx";
@@ -241,7 +242,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     >
       <Title>{props.payload.title ? `${props.payload.title} · Karaoke` : "Karaoke"}</Title>
       <KaraokePracticeSurface
-        rewardSlot={<Show when={communityId}><div class="space-y-4"><Show when={scoring.state()?.status === "ended" && completionTarget()}>{target => <ActivityCompletion {...target()} dependencies={{ resolveSession: props.resolveSession }} />}</Show><MegapotShareStatus communityId={communityId} postId={props.postId} /><ActivityLeaderboard communityId={communityId} postId={props.postId} /></div></Show>}
+        rewardSlot={<Show when={communityId}><div class="space-y-4"><Show when={scoring.state()?.status === "ended" && completionTarget()}>{target => <ActivityCompletion {...target()} dependencies={{ resolveSession: props.resolveSession }} />}</Show><MegapotShareStatus communityId={communityId} postId={props.postId} /><SharedSongParticipationStatus communityId={communityId} postId={props.postId} /><ActivityLeaderboard communityId={communityId} postId={props.postId} /></div></Show>}
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
         playbackAccess={props.payload.playback_access ? {

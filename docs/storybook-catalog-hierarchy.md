@@ -11,6 +11,26 @@ sorts titles in this order:
 stories in isolation, with app code out of the Vite graph. It is a narrower
 view for working on primitives, not a second source of truth.
 
+## CI coverage
+
+Pull requests run the existing accessibility and interaction assertions only
+for app stories that import changed modules, including indirect local imports.
+The selector reuses the production-parity import reader. It compares the whole
+PR against its base, so earlier changes on the branch stay covered. Changes to
+shared UI, global CSS/locale providers, locale dictionaries, public assets,
+patches or Storybook/Vite configuration
+run the full catalog. A change with no app-story dependency skips browser
+installation and the Storybook build. The job summary and scope artifact say
+which coverage ran; a skipped browser sweep is not a full-catalog pass.
+
+Main and manual CI runs keep the full catalog, including dependency-only
+effects outside the local import graph. Complete that gate before releasing
+from main. Ordinary PRs still run Verify, including the API, application, SSR,
+session, provenance and production browser checks. For a small local change,
+run the focused tests and affected stories first. Financial recovery,
+permissions, mixed-version migration rehearsal and physical-phone acceptance
+remain separate release requirements.
+
 The top segment says what the story *is*, not which feature it belongs to. The
 feature is always the second segment, so `Flows/Community/Create` and
 `Parts/Community/Sidebar` sit in different tiers of the same domain.

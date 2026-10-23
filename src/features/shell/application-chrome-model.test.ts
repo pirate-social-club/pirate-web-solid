@@ -51,6 +51,11 @@ describe("application chrome policy", () => {
     expect(resolveApplicationChrome("/karaoke")).toMatchObject({ activeItemId: "songs", mobileTitle: "Your songs" });
   });
 
+  test("Dance entry owns its header and capture viewport", () => {
+    expect(resolveApplicationChrome("/dance/community/songs/song")).toMatchObject({ mode: "bare", activeItemId: "songs", mobileTitle: "Dance" });
+    expect(resolveApplicationChrome("/dance/community/songs/song/").mode).toBe("bare");
+  });
+
   test("separates the membership index from community creation", () => {
     expect(resolveApplicationChrome("/communities")).toMatchObject({ activeItemId: "your-communities", mobileTitle: "Your communities" });
     expect(resolveApplicationChrome("/communities/new")).toMatchObject({ mode: "bare", activeItemId: "create-community", mobileTitle: "Create community" });

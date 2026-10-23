@@ -27,6 +27,20 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API, and
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
+      "src/features/dance/dance-result.test.tsx",
+      "src/features/dance/dance-reference*.test.ts",
+      "src/features/dance/dance-reference-page.test.tsx",
+      "src/features/dance/dance-publication.test.tsx",
+      "src/features/dance/dance-preparation*.test.ts",
+      "src/features/dance/dance-capture*.test.ts",
+      "src/features/dance/dance-recording*.test.ts",
+      "src/features/dance/dance-upload*.test.ts",
+      "src/features/dance/dance-review*.test.ts",
+      "src/features/dance/dance-review-page.test.tsx",
+      "src/features/dance/dance-recorder.test.ts",
+      "src/features/dance/dance-song-page.test.tsx",
+      "src/features/dance/dance-owner*.test.ts",
+      "src/features/dance/dance-owner-page.test.tsx",
       "src/features/notifications/notifications.test.tsx",
       "src/features/shell/spaces-requests-navigation.test.tsx",
       "src/features/notifications/comment-navigation.test.tsx",

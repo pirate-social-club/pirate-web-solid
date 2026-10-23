@@ -24,6 +24,7 @@ import {
 import { visibleOwnerSettingsGroups } from "./owner-settings-model";
 import { settledBotAccess, type OwnerSettingsBotAccess } from "./owner-settings-route-model";
 import { createCommunityTelegramSettingsApi } from "./community-telegram-settings-api";
+import { danceOwnerPath } from "../../dance/dance-owner-path";
 
 export interface OwnerSettingsRouteViewProps {
   /** The deferred bot probe needs only this read, so it is injected narrowly. */
@@ -247,6 +248,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 />
               </Show>
               <Show when={section() === "moderation_queue" || section() === "content_policy"}>
+                <Show when={section() === "moderation_queue"}><a class="mb-5 inline-block underline" href={danceOwnerPath(state().communityId)}>Review Dance recordings</a></Show>
                 <CommunityModerationSettingsController
                   api={props.moderationApi}
                   capabilities={state().moderationCapabilities}

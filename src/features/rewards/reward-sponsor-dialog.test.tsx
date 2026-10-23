@@ -25,6 +25,20 @@ function fill(label: string, value: string) {
   input.value = value; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 describe("composed sponsor journey", () => {
+  it.each([false, true])("the restricted saved-payment entry never offers new activity or reward creation: %s", async uncertain => {
+    const dependencies = await rewardSponsorExpiredFixture(uncertain);
+    const root = document.createElement("div"); document.body.appendChild(root);
+    createRoot(dispose => { disposers.push(dispose); render(() => <RewardSponsorDialog recoveryOnly initialPersonaId="persona" communityId="community" postId="song" songTitle="Fixture song" dependencies={dependencies} onClose={() => {}} />, root); });
+    await vi.waitFor(() => expect(document.body.textContent).toContain(uncertain ? "Check saved transfer" : "Reopen the song pot"));
+    expect(document.querySelector('[role="radio"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Review terms");
+    expect(document.body.textContent).not.toContain("Add another reward");
+    if (uncertain) {
+      button("Check saved transfer").click();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("wallet may have sent"));
+      expect(document.body.textContent).not.toContain("Confirm transfer");
+    }
+  });
   it.each([false, true])("retires expired unsubmitted attempts but keeps uncertain wallet evidence: %s", async uncertain => {
     const dependencies = await rewardSponsorExpiredFixture(uncertain);
     const constructWallet = vi.fn(dependencies.funding);

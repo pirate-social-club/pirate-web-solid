@@ -19,7 +19,7 @@ export interface RewardWallet {
   dispose(): void;
 }
 /**
- * One ERC-20 transfer on Base Sepolia from a persona's embedded wallet. The
+ * One ERC-20 transfer from a persona's embedded wallet on its bound chain. The
  * funding flow and the winnings send both describe their transfer this way,
  * so they share one signing path.
  */
@@ -29,8 +29,10 @@ export interface RewardTokenTransfer {
   readonly recipient: string;
   readonly amountAtomic: string;
   readonly walletIndex: number;
-  /** Reserved by api-next before a winner signs. Funding has no reserved nonce. */
-  readonly nonce?: number;
+  /** Older testnet callers omit this; new instructions supply their exact chain. */
+  readonly chainId?: 84532 | 8453;
+  /** Preserve the full server-reserved 63-bit nonce without Number conversion. */
+  readonly nonce?: number | bigint;
   readonly allowReplacement?: boolean;
 }
 export interface RewardTransferWallet {
@@ -65,6 +67,19 @@ export class RewardFundingNotBroadcastError extends Error {
 export function isWalletRefusal(error: unknown): boolean {
   return error !== null && typeof error === "object" && "code" in error && error.code === 4001;
 }
+function transferChain(transfer: RewardTokenTransfer): 84532 | 8453 {
+  const chain = transfer.chainId ?? 84532;
+  if (chain !== 84532 && chain !== 8453) throw new Error("wallet_wrong_chain");
+  return chain;
+}
+function reservedNonce(transfer: RewardTokenTransfer): bigint | undefined {
+  const nonce = transfer.nonce;
+  if (nonce === undefined) return undefined;
+  if (typeof nonce === "number" && (!Number.isSafeInteger(nonce) || nonce < 0)) throw new Error("wallet_reserved_nonce_invalid");
+  const value = BigInt(nonce);
+  if (value < 0n || value >= 2n ** 63n) throw new Error("wallet_reserved_nonce_invalid");
+  return value;
+}
 function rpcInteger(value: unknown): bigint {
   // Privy's embedded provider may normalize JSON-RPC integer results to bigint.
   if (typeof value === "bigint") {
@@ -90,9 +105,9 @@ export function tokenTransfer(transfer: RewardTokenTransfer) {
   if (amount >= 2n ** 256n) throw new Error("transfer_invalid_amount");
   return {
     from: getAddress(transfer.sender), to: getAddress(transfer.token),
-    value: "0x0" as const, chainId: toHex(84532),
+    value: "0x0" as const, chainId: toHex(transferChain(transfer)),
     data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(transfer.recipient), amount] }),
-    ...(transfer.nonce === undefined ? {} : { nonce: toHex(transfer.nonce) }),
+    ...(transfer.nonce === undefined ? {} : { nonce: toHex(reservedNonce(transfer)!) }),
   };
 }
 export function rewardTransfer(context: RewardFundingContext) {
@@ -143,9 +158,9 @@ export async function createRewardWalletSession(
     const provider = await client.getEmbeddedEthereumProvider(transfer.walletIndex, transfer.sender);
     authorized();
     // Each embedded provider starts on the SDK's default chain, and a switch does
-    // not carry over to the next provider, so every one is moved to Base Sepolia.
+    // not carry over to the next provider, so each uses the instruction's chain.
     // verifyProvider still refuses a wallet that ignores the switch.
-    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: toHex(84532) }] });
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: toHex(transferChain(transfer)) }] });
     authorized();
     return provider;
   };
@@ -156,7 +171,7 @@ export async function createRewardWalletSession(
         getAddress(accounts[0]) !== getAddress(transfer.sender)) throw new Error("wallet_assignment_mismatch");
     const chain = rpcInteger(await provider.request({ method: "eth_chainId" }));
     authorized();
-    if (chain !== 84532n) throw new Error("wallet_wrong_chain");
+    if (chain !== BigInt(transferChain(transfer))) throw new Error("wallet_wrong_chain");
   };
   const estimateWith = async (provider: EthereumProvider, transfer: RewardTokenTransfer, minimumGasPriceAtomic = 0n) => {
     await verifyProvider(provider, transfer);
@@ -178,14 +193,13 @@ export async function createRewardWalletSession(
   };
   const assertReservedNonce = async (provider: EthereumProvider, transfer: RewardTokenTransfer) => {
     if (transfer.nonce === undefined) return;
-    if (!Number.isSafeInteger(transfer.nonce) || transfer.nonce < 0) throw new Error("wallet_reserved_nonce_invalid");
+    const reserved = reservedNonce(transfer)!;
     const from = getAddress(transfer.sender);
     const [latest, pending] = await Promise.all([
       provider.request({ method: "eth_getTransactionCount", params: [from, "latest"] }),
       provider.request({ method: "eth_getTransactionCount", params: [from, "pending"] }),
     ]);
     authorized();
-    const reserved = BigInt(transfer.nonce);
     if (rpcInteger(latest) > reserved ||
         (transfer.allowReplacement ? rpcInteger(pending) < reserved : rpcInteger(pending) !== reserved)) {
       throw new Error("wallet_reserved_nonce_mismatch");
@@ -300,7 +314,8 @@ export async function createRewardWalletSession(
     if (transfer.nonce === undefined) throw new Error("wallet_reserved_nonce_invalid");
     const provider = await providerFor(transfer);
     await verifyProvider(provider, transfer);
-    const tx = { from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(84532) };
+    reservedNonce(transfer);
+    const tx = { from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(transferChain(transfer)), data: "0x" };
     const gas = rpcInteger(await provider.request({ method: "eth_estimateGas", params: [tx] }));
     const suggestedPrice = rpcInteger(await provider.request({ method: "eth_gasPrice" }));
     const price = suggestedPrice > minimumGasPriceAtomic ? suggestedPrice : minimumGasPriceAtomic;
@@ -323,8 +338,8 @@ export async function createRewardWalletSession(
     await beforeBroadcast();
     authorized();
     const transaction = {
-      from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(84532),
-      nonce: toHex(transfer.nonce), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)),
+      from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(transferChain(transfer)), data: "0x",
+      nonce: toHex(reservedNonce(transfer)!), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)),
     };
     const result = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
     if (typeof result !== "string" || !/^0x[0-9a-f]{64}$/iu.test(result)) throw new Error("wallet_submission_uncertain");

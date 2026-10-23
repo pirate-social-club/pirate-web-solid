@@ -201,6 +201,23 @@ describe("public post route view", () => {
       expect(container.querySelector("video, iframe, img")).toBeNull();
     } else expect(container.querySelector("video")?.getAttribute("src")).toBeNull();
     expect(container.innerHTML).not.toContain("bare-stream-uid"); expect(container.innerHTML).not.toContain("media://");
+    expect(container.textContent).not.toContain("View choreography reference");
+  });
+  it("credits only the bound public choreography reference, without exposing private review facts or making another read", () => {
+    const state=contentState(true);
+    if(state.kind!=="content")throw new Error("Expected content fixture");
+    const fetch=vi.fn();vi.stubGlobal("fetch",fetch);
+    const container=render({...state,response:{...state.response,content:{...state.response.content,
+      post:{...state.response.content.post,post_type:"video"},
+      video:{track:"video",caption:null,caption_dir:null,caption_lang:null,
+        soundtrack:{kind:"song_reference",song_reference:{song_post_id:"song",song_title:"Song",song_author_persona_id:null},render_mode:"canonical_replace"},
+        dance_credit:{choreography_id:"public-choreography",revision:2,reference_video_post_id:"reference:community-2"},
+        playback:{status:"pending"},thumbnail:{status:"pending"},data_registration:"registered",capabilities:{can_post_with_song:false}},
+    }}});
+    expect(Array.from(container.querySelectorAll("a")).find(link => link.textContent === "View choreography reference")?.getAttribute("href")).toBe("/post/reference%3Acommunity-2");
+    expect(container.textContent).toContain("View choreography reference");
+    expect(container.innerHTML).not.toMatch(/review_id|qualification_ref|score_bps|cue_attestation|private-result/);
+    expect(fetch).not.toHaveBeenCalled();
   });
   it("renders public content with canonical and Open Graph metadata", async () => {
     const container = render(contentState(true));
@@ -500,4 +517,22 @@ it("preserves the public video reader while checking the session for inline comm
   await vi.waitFor(() => expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull());
   await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledOnce());
   expect(container.querySelector("[data-public-post-state='content']")).not.toBeNull();
+});
+
+
+it.each([true, false])("song-reference authoring entry uses the already-resolved viewer ownership (%s)", async owned => {
+  const state = contentState(true); if(state.kind!=="content")throw new Error("Expected content fixture");
+  const current = { ...state, response: { ...state.response, content: { ...state.response.content,
+    post: { ...state.response.content.post, post_type: "video" as const, community: "video-community", created: 1790000000,
+      author_persona: { object: "persona" as const, persona_id: "video-author-persona", display_name: "Video profile", avatar_ref: null, primary_public_handle: null } },
+    video: { track: "video" as const, caption: null, caption_dir: null, caption_lang: null,
+      soundtrack: { kind: "song_reference" as const, render_mode: "canonical_replace" as const, song_reference: { song_post_id: "song", song_title: "Song", song_author_persona_id: null } },
+      playback: { status: "pending" as const }, thumbnail: { status: "pending" as const }, data_registration: "registered" as const, capabilities: { can_post_with_song: false } },
+  } } };
+  const identity = vi.fn(async () => ({ status: "authenticated" as const, userId: "account", personas: [{ personaId: owned ? "video-author-persona" : "someone-else", displayName: "Profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "video-community", bindingSource: "persona_creation" as const } }] }));
+  const container = render(current, undefined, { resolveSession: identity, readViewerVote: async () => null,
+    readComments: async () => ({ items: [], next_cursor: null }), pendingStorage: createMemoryPendingEngagementStorage(), transport: noTransport() });
+  await vi.waitFor(() => expect(identity).toHaveBeenCalledOnce()); await new Promise(resolve => setTimeout(resolve, 20));
+  const entry = [...container.querySelectorAll("a")].find(link => link.textContent === "Make this a Dance");
+  expect(entry?.getAttribute("href")).toBe(owned ? "/dance/new/post-1" : undefined);
 });

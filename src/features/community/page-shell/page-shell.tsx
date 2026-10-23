@@ -8,7 +8,7 @@ import { ContentOverflowMenu, type ContentAction } from "../../posts/shared-enga
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
-import { RewardSponsorDialog } from "../../rewards/reward-sponsor-dialog.tsx";
+import { SongContributionDialog } from "../../rewards/song-contribution-dialog.tsx";
 import { useRewardServiceAvailability } from "../../rewards/reward-service-availability.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
@@ -221,7 +221,7 @@ export function CommunityPostCard(props: {
         <div class="relative z-10 ml-auto flex shrink-0 items-center"><ContentOverflowMenu inline label="Post options" actions={menuActions()} /></div>
       </div>
       <Show when={rewardsAvailable() && boosting() && props.communityId}>
-        {communityId => <RewardSponsorDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={closeBoost} />}
+        {communityId => <SongContributionDialog communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} onClose={closeBoost} />}
       </Show>
       <Show when={props.post.kind === "video"}>
         <Show when={props.post.body.trim()}>

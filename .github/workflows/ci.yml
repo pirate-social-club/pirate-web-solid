@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
@@ -53,39 +54,64 @@ jobs:
 
   storybook-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Full catalog on main/manual/shared UI changes; affected app stories on PRs.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24.14.0
+      - name: Select affected Storybook coverage
+        id: scope
+        env:
+          STORYBOOK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          node --test scripts/storybook-audit-scope.test.mjs
+          node scripts/storybook-audit-scope.mjs
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: steps.scope.outputs.scope != 'none'
         with:
           bun-version: 1.4.0
-      - run: bun install --frozen-lockfile
+      - if: steps.scope.outputs.scope != 'none'
+        run: bun install --frozen-lockfile
       - name: Read Playwright version
+        if: steps.scope.outputs.scope != 'none'
         id: playwright
         run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
+        if: steps.scope.outputs.scope != 'none'
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ steps.playwright.outputs.version }}
       # The cache stores browsers, not Linux system dependencies.
       - name: Install Chromium for Storybook audit
+        if: steps.scope.outputs.scope != 'none'
         run: bunx playwright install --with-deps chromium
       - name: Build Storybook
+        if: steps.scope.outputs.scope != 'none'
         run: bun run build-storybook
       - name: Check story-to-production parity
+        if: steps.scope.outputs.scope != 'none'
         run: bun run check:story-parity
       - name: Audit Storybook accessibility and interactions
+        if: steps.scope.outputs.scope != 'none'
+        env:
+          STORYBOOK_SCOPE: ${{ steps.scope.outputs.scope }}
+          STORYBOOK_FILTER: ${{ steps.scope.outputs.filter }}
         run: |
           python3 -m http.server 6006 --directory storybook-static > "$RUNNER_TEMP/storybook-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 1
           curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:6006/index.json > /dev/null
-          bun run storybook:a11y
+          if [ "$STORYBOOK_SCOPE" = full ]; then
+            bun run storybook:a11y
+          else
+            bun run storybook:a11y --filter "$STORYBOOK_FILTER"
+          fi
       - name: Upload Storybook audit evidence
         if: always()
         uses: actions/upload-artifact@v4

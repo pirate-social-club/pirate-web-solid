@@ -1,3 +1,4 @@
+import { SharedSongParticipationStatus } from "../../rewards/shared-song-participation.tsx";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import { publicProfileHref, publicProfileLabel } from "../../identity/public-profile-label.ts";
@@ -15,6 +16,8 @@ import type { PublicPostContentResponse, PublicPostRouteState } from "./public-p
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
 import { SongVideoEntry } from "./song-video-entry.tsx";
+import { danceSongPath } from "../../dance/dance-song-path";
+import { danceReferencePath } from "../../dance/dance-reference-api";
 import { ActivityLeaderboard } from "../../activity/activity-leaderboard.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
@@ -176,12 +179,19 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
         </Show>
         <Show when={postType() === "video"}>
           <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community} joinHref={joinHref()} post={engagementPost()} presentation="inline" newestFirstRoots target={props.target}>
-            {() => <>
+            {(_controls, _actions, viewer) => <>
           <div class="mt-6"><Show when={!props.target || videoState().playback !== "ready" || videoRequested()} fallback={<Button onClick={() => setVideoRequested(true)} variant="secondary">Play video</Button>}>
             <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={videoState()} />
           </Show></div>
           <Show when={readSongAttribution(props.response.content.video)}>
             {attribution => <div class="mt-2"><SongAttributionChip attribution={attribution()} /></div>}
+          </Show>
+          <Show when={props.response.content.video?.dance_credit}>
+            {credit => <a class="mt-2 inline-flex min-h-11 items-center text-sm underline" href={`/post/${encodeURIComponent(credit().reference_video_post_id)}`}>View choreography reference</a>}
+          </Show>
+          <Show when={props.response.content.video?.soundtrack?.kind === "song_reference" && !viewer?.personasUnavailable
+            && viewer?.personas.some(p => p.personaId === props.response.content.post.author_persona?.persona_id && p.communityBinding?.communityId === props.response.content.post.community)}>
+            <a class="mt-2 inline-flex min-h-11 items-center text-sm underline" href={danceReferencePath(props.response.post_id)}>Make this a Dance</a>
           </Show>
             </>}
           </PublicPostEngagement>
@@ -205,13 +215,15 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
                 <h1 class="sr-only">{title()}</h1>
                 <CommunityPostCard flush post={cardPost("song")} actions={controls} menuActions={menuActions} isolatePlayback={props.target !== undefined} />
                 <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <SharedSongParticipationStatus communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <ActivityLeaderboard communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <Show when={route()}>
                   {(songRoute) => (
-                    <nav aria-label="Song activities" class="grid grid-cols-2 gap-3">
+                    <nav aria-label="Song activities" class="grid grid-cols-3 gap-3">
                       <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.study}>Study</a>
                       <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
+                      <a class={buttonVariants({ variant: "secondary", class: "min-w-0 justify-center" })} href={danceSongPath(props.response.content.post.community, props.response.post_id)}>Dance</a>
                     </nav>
                   )}
                 </Show>

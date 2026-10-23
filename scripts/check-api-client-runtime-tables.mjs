@@ -8,11 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.125.0 adds required current_availability to public Spaces offerings.
-// Of 324 protected rows, only that discovery response changes from 0.124.0.
-// All 108 operations, HNS branches, success statuses and errors are retained.
-// See docs/spaces-discovery-client-intake.md for the exact schema comparison.
-const expectedDigest = "8009db1545daf87e83664e8f0faeaf4fa198ee387fb7166590a88cea5f7c5003";
+// Client133 protects138operations/414rows. The genuine131 comparison admits
+// only the transferred enum and optional public Dance reference credit.
+// Exact retained-row evidence is in docs/shared-song-contribution-client-intake.md.
+const expectedDigest = "9fc88d30d4d8680c84621bb3e99ddaedc3754b0c83b25e9fc262918c4e42cbd5";
 
 const operations = [
   "get_meNotifications",
@@ -124,6 +123,36 @@ const operations = [
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
   "get_assetBonusLegsLegIdFundingFundingEffectId",
   "get_publicPersonasPersonaIdActivity",
+  "get_communitiesCommunityIdPostsPostIdMegapotFundingContext",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributions",
+  "get_communitiesCommunityIdPostsPostIdMegapotContributionsContributionId",
+  "get_communitiesCommunityIdPostsPostIdMegapotContributionCommandsOperationIdempotencyKey",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdSubmissionClaims",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdObservations",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdRecoveries",
+  "post_communitiesCommunityIdPostsPostIdMegapotContributionsContributionIdCancellationPreparations",
+  "get_communitiesCommunityIdDanceReviewsReviewIdResult",
+  "get_communitiesCommunityIdPostsPostIdMegapotParticipation",
+  "get_communitiesCommunityIdDanceModeratedSessionsSessionIdCaptureContext",
+  "get_communitiesCommunityIdDanceOwnerReviewsReviewIdRubric",
+  "post_communitiesCommunityIdDanceReviewsReviewIdSubmit",
+  "post_communitiesCommunityIdDanceReviewsReviewIdVisibility",
+  "post_communitiesCommunityIdDanceReviewsReviewIdWithdraw",
+  "post_communitiesCommunityIdDanceReviewsReviewIdVerdict",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedChoreographiesChoreographyIdRevisionsRevisionLatestReview",
+  "get_communitiesCommunityIdDanceOwnerReviews",
+  "get_communitiesCommunityIdDanceOwnerReviewsReviewId",
+  "post_communitiesCommunityIdDanceModeratedSessions",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdConsent",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdUpload",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdFinalizeUpload",
+  "get_communitiesCommunityIdDanceModeratedSessionsSessionId",
+  "post_communitiesCommunityIdDanceModeratedSessionsSessionIdUploadAccess",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedOptions",
+  "get_communitiesCommunityIdPostsPostIdDanceModeratedReferencesChoreographyId",
+  "post_communitiesCommunityIdPostsPostIdDanceModeratedReferences",
+  "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
+  "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
 ];
 
 const tables = [

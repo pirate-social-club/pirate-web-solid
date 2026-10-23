@@ -1,5 +1,6 @@
 import { ALL_FORMATS, BlobSource, BufferTarget, canEncodeAudio, canEncodeVideo, Input,
-  MediaStreamAudioTrackSource, MediaStreamVideoTrackSource, Mp4OutputFormat, Output, Quality } from "mediabunny";
+  MediaStreamAudioTrackSource, MediaStreamVideoTrackSource, Mp4OutputFormat, Output, Quality,
+  type AudioEncodingConfig, type VideoEncodingConfig } from "mediabunny";
 
 import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 import { createCaptureFailureBoundary, VideoCaptureError, videoAdmissionProblem } from "./capture-failure";
@@ -94,6 +95,10 @@ export interface OriginalVideoCaptureInput {
   /** A live camera stream already shown as the preview. The recording takes
    * ownership of it and stops its tracks when the take ends. */
   readonly stream?: MediaStream;
+  /** Optional observation before encoder initialization. Both tracks keep
+   * their shared synced-zero timestamps. This reports source arrival, not
+   * camera exposure, audible output or encoded-packet acknowledgement. */
+  readonly onSourceSample?: (sample: { readonly kind: "video" | "audio"; readonly timestampMs: number; readonly durationMs: number; readonly originMs: number }) => void;
 }
 
 async function assertRecordingCapability(): Promise<void> {
@@ -201,6 +206,12 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
   let orientationLocked = false;
   let timer: ReturnType<typeof setInterval> | undefined;
   let portraitTrack: Awaited<ReturnType<typeof portraitEncodingTrack>> | undefined;
+  let sourceOriginMs: number | undefined;
+  const observe = <T extends { readonly timestamp: number; readonly duration: number }>(kind: "video" | "audio", sample: T): T => {
+    sourceOriginMs ??= performance.now() - sample.timestamp * 1000;
+    input.onSourceSample?.({ kind, timestampMs: sample.timestamp * 1000, durationMs: sample.duration * 1000, originMs: sourceOriginMs });
+    return sample;
+  };
   const tracks = stream.getTracks();
   const orientation = globalThis.screen?.orientation;
   const release = () => {
@@ -242,10 +253,15 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
       || !await canEncodeAudio("aac", { numberOfChannels: sound.channelCount ?? 1, sampleRate: sound.sampleRate ?? 48_000, quality: audioQuality })) {
       throw new VideoCaptureError("capability_unavailable", "This browser can’t record with this phone’s camera and microphone.");
     }
-    const videoSource = new MediaStreamVideoTrackSource(portraitTrack.track, { codec: "avc", quality: videoQuality,
-      fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" },
-    { frameRate: 30 });
-    const audioSource = new MediaStreamAudioTrackSource(audio, { codec: "aac", quality: audioQuality });
+    const videoConfig: VideoEncodingConfig = { codec: "avc", quality: videoQuality,
+      fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" };
+    const audioConfig: AudioEncodingConfig = { codec: "aac", quality: audioQuality };
+    if (input.onSourceSample) {
+      videoConfig.transform = { process: sample => observe("video", sample) };
+      audioConfig.transform = { process: sample => observe("audio", sample) };
+    }
+    const videoSource = new MediaStreamVideoTrackSource(portraitTrack.track, videoConfig, { frameRate: 30 });
+    const audioSource = new MediaStreamAudioTrackSource(audio, audioConfig);
     dimensionsChanged = () => {
       const current = video.getSettings();
       return current.width !== settings.width || current.height !== settings.height;
