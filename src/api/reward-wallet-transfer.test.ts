@@ -5,6 +5,7 @@ import {
   RewardFundingNotBroadcastError, type RewardTokenTransfer,
 } from "./reward-wallet-session.ts";
 import type { EthereumProvider, PrivyAuthClient } from "./privy-session.ts";
+import type { RewardFundingContext } from "./reward-funding-client.ts";
 import { context, fee, recipient, sender, token, transactionHash } from "../../test/fixtures/reward-funding.ts";
 
 const payee = "0x4444444444444444444444444444444444444444";
@@ -33,8 +34,19 @@ function harness() {
 
 describe("generalised token transfer", () => {
   it("describes the funding instruction exactly as before", () => {
-    expect(fundingTransfer(context())).toEqual({ sender, token, recipient, amountAtomic: "1000000", walletIndex: 3 });
+    expect(fundingTransfer(context())).toEqual({ sender, token, recipient, amountAtomic: "1000000", walletIndex: 3, chainId: 84532 });
     expect(rewardTransfer(context())).toEqual(tokenTransfer(fundingTransfer(context())));
+  });
+  it("funds a Base pool on Base and keeps asset bonuses on Base Sepolia", () => {
+    const pool = context("megapot_pool");
+    if (pool.funding.object !== "megapot_pool_funding") throw new Error("pool fixture");
+    const basePool: RewardFundingContext = { ...pool, funding: { ...pool.funding, chain_id: 8453 } };
+    expect(fundingTransfer(basePool)).toMatchObject({ chainId: 8453, amountAtomic: "1000000" });
+    expect(tokenTransfer(fundingTransfer(basePool)).chainId).toBe("0x2105");
+    const bonus = context("asset_bonus");
+    // The generated types forbid an asset bonus on Base; an untyped copy proves the runtime check refuses one anyway.
+    const baseBonus: RewardFundingContext = JSON.parse(JSON.stringify({ ...bonus, funding: { ...bonus.funding, chain_id: 8453 } }));
+    expect(() => fundingTransfer(baseBonus)).toThrow("funding_instruction_mismatch");
   });
   it("encodes only a USDC transfer to the chosen recipient", () => {
     const tx = tokenTransfer(winnings);

@@ -25,7 +25,7 @@ export function RewardFundingPanel(props: RewardFundingPanelProps) {
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt>From</dt><dd>{props.personaLabel}</dd>
           <dt>Wallet</dt><dd class="break-all">{state().review.context.funding.sender_address}</dd>
-          <dt>Network</dt><dd>Base Sepolia · testnet</dd>
+          <dt>Network</dt><dd>{state().review.context.funding.chain_id === 8453 ? "Base" : "Base Sepolia · testnet"}</dd>
           <dt>Amount</dt><dd>{formatUnits(BigInt(state().review.context.funding.expected_amount_atomic), state().review.context.funding.token_decimals)} {props.tokenSymbol}</dd>
           <dt>Estimated execution fee</dt><dd>{formatUnits(BigInt(state().review.fee.executionFeeAtomic), 18)} ETH</dd>
         </dl>

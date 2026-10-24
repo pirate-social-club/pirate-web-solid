@@ -4,10 +4,14 @@ import { afterEach, expect, test, vi } from "vitest";
 import { ApiClientError, ApiClientProtocolError, ApiClientResponseValidationError } from "@pirate/api-client";
 import { readWalletSend, type WalletSendDraft } from "./wallet-send-continuation.ts";
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
-import { WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
+import { BASE_SEPOLIA_SPONSORED_SEND, BASE_SPONSORED_SEND, type SponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
+import { browserWalletSponsoredSend, WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); sessionStorage.clear(); });
+afterEach(() => {
+  disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); sessionStorage.clear();
+  delete document.documentElement.dataset.publicAppCanonicalOrigin; vi.unstubAllGlobals();
+});
 const sender = "0x1111111111111111111111111111111111111111";
 const recipient = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
 const token = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
@@ -19,21 +23,26 @@ const reserved: WalletSponsoredSendRecord = {
   authorization: { wallet_id: "wallet_1", payload_base64: "cGF5bG9hZA==" },
 };
 
-function fixture(options: { reserveFails?: boolean; submitFails?: boolean; changed?: boolean } = {}) {
+function fixture(options: { reserveFails?: boolean; submitFails?: boolean; changed?: boolean; network?: SponsoredSendNetwork; recordedChain?: 8453 | 84532 } = {}) {
   let current: WalletSponsoredSendRecord | null = null;
+  const network = options.network ?? BASE_SEPOLIA_SPONSORED_SEND;
   const wallet = {
     restoreAuthorization: vi.fn(async () => true),
     signSponsoredRequest: vi.fn(async () => "c2lnbmF0dXJl"),
     dispose: vi.fn(),
   };
   const data: WalletSponsoredSendDependencies["data"] = {
+    network,
     sender: vi.fn(async () => ({ address: sender, walletIndex: 2 })),
     tokenBalance: vi.fn(async () => 1_000_000n),
     read: vi.fn(async () => current !== null && options.changed
       ? { ...current, recipient_address: "0x2222222222222222222222222222222222222222" }
       : current),
     reserve: vi.fn(async (_personaId, to, amount) => {
-      current = { ...reserved, recipient_address: to.toLowerCase(), amount_atomic: amount };
+      current = {
+        ...reserved, recipient_address: to.toLowerCase(), amount_atomic: amount,
+        chain_id: options.recordedChain ?? network.chainId, token_address: network.usdc.toLowerCase(),
+      };
       if (options.reserveFails) throw new Error("response_lost");
       return current;
     }),
@@ -77,6 +86,7 @@ async function review() {
 
 test("an ordinary persona wallet reserves before signing without any reward credit", async () => {
   const f = fixture(); mount(f.dependencies); await review();
+  expect(text()).toContain("NetworkBase Sepolia");
   button("Authorize send").click();
   await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());
   expect(f.data.reserve).toHaveBeenCalledWith("persona_1", expect.any(String), "1000000", expect.any(String));
@@ -84,6 +94,51 @@ test("an ordinary persona wallet reserves before signing without any reward cred
     expect.objectContaining({ sender, amountAtomic: "1000000", walletIndex: 2 }),
     "wallet_1", "cGF5bG9hZA==",
   );
+});
+
+const STAGING = "https://web-next-staging.pirate.sc";
+const PRODUCTION = "https://pirate.sc";
+test.each([
+  ["ordinary staging", "web-next-staging.pirate.sc", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS community app", "app.8s28", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS handle host", "membertest.8s28", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["staging HNS community app", "app.a18n", STAGING, BASE_SEPOLIA_SPONSORED_SEND],
+  ["ordinary production", "pirate.sc", PRODUCTION, BASE_SPONSORED_SEND],
+  ["production HNS host", "app.examplehns", PRODUCTION, BASE_SPONSORED_SEND],
+  ["local development", "localhost", "http://127.0.0.1:8787", BASE_SEPOLIA_SPONSORED_SEND],
+] as const)("%s host %s sends on its served deployment's network", (_kind, host, served, network) => {
+  vi.stubGlobal("location", new URL(`https://${host}/wallet`));
+  document.documentElement.dataset.publicAppCanonicalOrigin = served;
+  expect(browserWalletSponsoredSend()?.data.network).toBe(network);
+});
+
+test("a page that names no deployment offers no Send and reads nothing", async () => {
+  vi.stubGlobal("location", new URL("https://app.8s28/wallet"));
+  expect(browserWalletSponsoredSend()).toBeUndefined();
+  const element = document.createElement("div"); document.body.appendChild(element);
+  disposers.push(render(() => <WalletSponsoredSendSheet accountId="account_1" personaId="persona_1" walletAddress={sender} onClose={vi.fn()} />, element));
+  await vi.waitFor(() => expect(text()).toContain("Send is not available here."));
+  expect(text()).not.toContain("Wallet balance");
+});
+
+test("production sends Base USDC on Base and labels it Base", async () => {
+  const f = fixture({ network: BASE_SPONSORED_SEND }); mount(f.dependencies); await review();
+  expect(text()).toContain("NetworkBase");
+  expect(text()).not.toContain("Base Sepolia");
+  expect(f.data.tokenBalance).toHaveBeenCalledWith(BASE_SPONSORED_SEND.usdc, sender);
+  button("Authorize send").click();
+  await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());
+  expect(f.wallet.signSponsoredRequest).toHaveBeenCalledWith(
+    expect.objectContaining({ token: BASE_SPONSORED_SEND.usdc, chainId: 8453 }),
+    "wallet_1", "cGF5bG9hZA==",
+  );
+});
+
+test("a send recorded on another chain than the host's is never signed", async () => {
+  const f = fixture({ network: BASE_SPONSORED_SEND, recordedChain: 84532 }); mount(f.dependencies); await review();
+  button("Authorize send").click();
+  await vi.waitFor(() => expect(text()).toContain("Nothing was signed"));
+  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
 });
 
 test("lost reservation response signs nothing", async () => {

@@ -134,7 +134,7 @@ export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_u
       async add(request) {
         const nextEffect = funding.funding_effect_id === "effect" ? "effect-2" : "effect-3";
         const nextLeg = funding.leg_id === "leg" ? "leg-2" : "leg-3";
-        if (request.kind === "asset_bonus") funding = { ...funding, object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: request.input.body.token_decimals, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
+        if (request.kind === "asset_bonus") funding = { ...funding, object: "asset_bonus_funding", action: "fund_with_asset", chain_id: 84532, funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: request.input.body.token_decimals, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
         else funding = { ...funding, object: "megapot_pool_funding", action: "fund_with_usdc", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: 6, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
         if (options.afterCreationStatus) funding = { ...funding, status: options.afterCreationStatus };
         return { kind: request.kind, legId: funding.leg_id, fundingEffectId: funding.funding_effect_id };

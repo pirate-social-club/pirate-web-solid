@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { ApiClientError, ApiClientProtocolError, ApiClientResponseValidationError, ApiClientUnexpectedError } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import { createWalletSponsoredSendData, walletSendVerificationRequired } from "./wallet-sponsored-send.ts";
+import { BASE_SPONSORED_SEND } from "./sponsored-send-network.ts";
 
 test("the generated persona-bound Send intent uses the owned proxy and CSRF", async () => {
   const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ intent_id: "wallet-send_1", persona_id: "persona_1", provider_id: "very.web", purpose: "wallet_send" }));
@@ -55,4 +56,13 @@ test.each([
   const fetchImpl = vi.fn(async () => new Response(body, { status: 404, headers: { "content-type": "application/json" } }));
   const data = createWalletSponsoredSendData(createSessionApiClient({ origin: "https://app.test", fetchImpl }));
   return expect(data.read("persona_1")).rejects.toBeInstanceOf(error);
+});
+
+test("a Base host reserves its Send on chain 8453", async () => {
+  const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 503 }));
+  const data = createWalletSponsoredSendData(createSessionApiClient({ origin: "https://app.test", fetchImpl }), () => "csrf", BASE_SPONSORED_SEND);
+  expect(data.network).toBe(BASE_SPONSORED_SEND);
+  await data.reserve("persona_1", `0x${"3".repeat(40)}`, "1000000", "send_key").catch(() => undefined);
+  const [, init] = fetchImpl.mock.calls[0];
+  expect(JSON.parse(String(init?.body))).toMatchObject({ chain_id: 8453, amount_atomic: "1000000" });
 });

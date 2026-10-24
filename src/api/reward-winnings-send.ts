@@ -1,5 +1,5 @@
 import { createPublicClient, erc20Abi, getAddress, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
 import type { GetRewardsGasTopupsTopupIdResponse, PostRewardsGasTopupsResponse, GetRewardsCreditsCreditIdSendResponse } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions, type PirateApiClient } from "./client.ts";
 import type { RewardCredit } from "./reward-claim.ts";
@@ -90,24 +90,30 @@ export function createWinningsSendData(
 }
 
 /** Browser-only chain reads; cookies, sessions and persona identifiers never reach the RPC provider. */
-async function baseSepoliaClient() {
-  const client = createPublicClient({ chain: baseSepolia, transport: http(baseSepolia.rpcUrls.default.http[0], {
+async function chainClient(chainId: 8453 | 84532) {
+  const chain = chainId === 8453 ? base : baseSepolia;
+  const client = createPublicClient({ chain, transport: http(chain.rpcUrls.default.http[0], {
     retryCount: 0, timeout: 8_000,
     fetchOptions: { credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" },
   }) });
-  if (await client.getChainId() !== baseSepolia.id) throw new Error("wallet_network_mismatch");
+  if (await client.getChainId() !== chain.id) throw new Error("wallet_network_mismatch");
   return client;
 }
 
-export const baseSepoliaReads: WinningsChainReads = {
-  async tokenBalance(token, owner) {
-    const client = await baseSepoliaClient();
+/** USDC balance reads on Base or Base Sepolia. */
+export function tokenBalanceReader(chainId: 8453 | 84532): WinningsChainReads["tokenBalance"] {
+  return async (token, owner) => {
+    const client = await chainClient(chainId);
     return client.readContract({ address: getAddress(token), abi: erc20Abi, functionName: "balanceOf", args: [getAddress(owner)] });
-  },
+  };
+}
+
+export const baseSepoliaReads: WinningsChainReads = {
+  tokenBalance: tokenBalanceReader(84532),
   async replacementGasPrice(record) {
     const hashes = [...record.transaction_hashes, ...record.cancellation_hashes];
     if (hashes.length === 0) throw new Error("replacement_hash_missing");
-    const client = await baseSepoliaClient();
+    const client = await chainClient(84532);
     const prices = await Promise.all(hashes.map(async hash => {
       if (!/^0x[0-9a-f]{64}$/iu.test(hash)) throw new Error("replacement_hash_invalid");
       // SAFETY: the preceding pattern check proves this is a 0x-prefixed transaction hash.

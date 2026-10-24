@@ -33,6 +33,12 @@ it("labels the gross prize and exposes qualification, count, cutoff and claim te
   expect(host.textContent).toContain("85% coverage");
   expect(host.textContent).not.toContain("Ticket purchased");
 });
+it("labels a Base pool's prize in USDC and drops the test label", async () => {
+  const host = mount(() => <MegapotPoolView pool={{ ...pool, chain_id: 8453 }} />);
+  await vi.waitFor(() => expect(host.textContent).toContain("Gross prize pool: 150 USDC"));
+  expect(host.textContent).toContain("Megapot pool ·");
+  expect(host.textContent).not.toContain("test");
+});
 it("confirms a server-held share and never equates sponsor fallback with a participant share", async () => {
   const host = mount(() => <MegapotShareStatus communityId="community-1" postId="post-1" data={data()} />);
   await vi.waitFor(() => expect(host.textContent).toContain("You’re entered."));

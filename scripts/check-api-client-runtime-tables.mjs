@@ -8,10 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client133 protects138operations/414rows. The genuine131 comparison admits
-// only the transferred enum and optional public Dance reference credit.
-// Exact retained-row evidence is in docs/shared-song-contribution-client-intake.md.
-const expectedDigest = "9fc88d30d4d8680c84621bb3e99ddaedc3754b0c83b25e9fc262918c4e42cbd5";
+// Client134 protects138operations/414rows. Against genuine133 only four response
+// schemas change, each admitting chain 8453 beside 84532 on Megapot pool legs,
+// pool funding or the song pool projection. Evidence is in
+// docs/shared-song-contribution-client-intake.md.
+const expectedDigest = "f9ff1204df5fe1b7b121ee5d849d033a1c046978de0e7a38338f189c4226f323";
 
 const operations = [
   "get_meNotifications",

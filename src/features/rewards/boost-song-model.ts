@@ -109,7 +109,7 @@ export function failureTitle(failure: BoostFailure): string {
 
 export function failureLine(failure: BoostFailure): string {
   switch (failure) {
-    case "wrong_chain": return "Switch your wallet to Base Sepolia. Nothing was sent.";
+    case "wrong_chain": return "Switch your wallet to this reward's network. Nothing was sent.";
     case "assignment_mismatch": return "Fund from this persona's wallet. Nothing was sent.";
     case "insufficient_token_balance": return "Top up this wallet and try again. Nothing was sent.";
     case "insufficient_gas_balance": return "You need a little ETH for the fee. Nothing was sent.";

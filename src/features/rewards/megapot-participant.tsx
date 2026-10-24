@@ -14,7 +14,7 @@ const addressable = (scope: ParticipantScope) => Boolean(scope.communityId) && B
 
 export function MegapotPoolView(props: { readonly pool: ParticipantPool; readonly compact?: boolean; readonly now?: number }) {
   return <section aria-label="Song reward" class="rounded-xl border border-border-soft bg-card p-3 text-sm space-y-2" data-megapot-pool>
-    <p class="font-semibold">Megapot test pool · {poolStatus(props.pool, props.now)}</p>
+    <p class="font-semibold">Megapot {props.pool.chain_id === 8453 ? "pool" : "test pool"} · {poolStatus(props.pool, props.now)}</p>
     <p>Eligible activities: {props.pool.eligible_activities.map(activity => activity === "study" ? "Study" : "Karaoke").join(" or ")}. Qualifying accounts share net winnings equally.</p>
     <Show when={props.pool.drawing}>{drawing => <p>{drawing().beneficiary_count} qualifying {drawing().beneficiary_count === 1 ? "account" : "accounts"} · drawing {drawing().drawing_id}</p>}</Show>
     <Show when={!props.compact}>
@@ -24,7 +24,7 @@ export function MegapotPoolView(props: { readonly pool: ParticipantPool; readonl
       <Show when={!props.pool.qualification_policies}><p>Full qualification terms are unavailable.</p></Show>
       <Show when={props.pool.drawing?.entry_cutoff_at}>{cutoff => <p>Entry cutoff: <time datetime={cutoff()}>{rewardTime(cutoff())}</time></p>}</Show>
       <Show when={props.pool.drawing?.gross_prize_pool_atomic != null && props.pool.drawing?.prize_pool_observed_at}>{observed => <p>
-        Gross prize pool: {formatUnits(BigInt(props.pool.drawing!.gross_prize_pool_atomic!), 6)} test USDC, before referral share. Last observed <time datetime={observed()}>{rewardTime(observed())}</time>. This is the drawing’s total prize pool, not your winnings.
+        Gross prize pool: {formatUnits(BigInt(props.pool.drawing!.gross_prize_pool_atomic!), 6)} {props.pool.chain_id === 8453 ? "USDC" : "test USDC"}, before referral share. Last observed <time datetime={observed()}>{rewardTime(observed())}</time>. This is the drawing’s total prize pool, not your winnings.
       </p>}</Show>
       <p>If the pool wins, your amount is held until you verify to claim it.</p>
       <Show when={props.pool.fallback_disclosure}>{disclosure => <p>{disclosure()}</p>}</Show>

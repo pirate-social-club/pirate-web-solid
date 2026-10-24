@@ -27,3 +27,16 @@ Before extending protection, the unchanged118-operation comparator verifies all3
 October23 publication successor. Genuine133 has artifact SHA2564fb8f710fb40f6d51bdea6becb6ce96a28198a2f98eb7ccd3b01ae09c8da0676. The comparison verifies every old runtime-table row and no removed operation. It admits only seven optional public Dance reference-credit fields and six transferred enum additions, plus one new private publication read. All old success/error rows are unchanged. Of the411previously protected rows,398remain exact and13have only those named additions. The expanded guard protects138operations/414rows with digest9fc88d30d4d8680c84621bb3e99ddaedc3754b0c83b25e9fc262918c4e42cbd5. The parser, missing-operation refusal and exact digest check remain intact. Previous vendor archives remain immutable.
 
 The private status consumer reads the actual adopted submission link and then its ordinary video state. Sent for publication never means published. Refreshes are explicit GETs with a final account check; route/session/page lifecycle changes clear private state and abort pending reads. No handoff, upload, processing retry or financial command is issued by this view. Real provider/phone acceptance, public credit presentation, cross-community authoring and release remain separate gates.
+
+October 23 Safe pool pilot successor. Genuine134 has artifact SHA256
+e1309b8141a6c5c329538491a7a9a13e03c1c94818a0d665f86fdc7d1e35ff6e from api-next
+c7e65cf4 (PR656, hosted run 39988905920). Comparing all 867 runtime-table rows
+with genuine133, exactly four response schemas change:
+post_rewardOffersOfferIdMegapotPoolLegs,
+post_rewardOfferLegsLegIdFundingFundingEffectIdObservations,
+get_rewardOfferLegsLegIdFundingFundingEffectId and
+get_communitiesCommunityIdPostsPostIdRewardsMegapotPool, each admitting chain_id
+8453 beside 84532. No success status, error definition or other operation changes.
+The guard keeps 138 operations/414 rows with digest
+f9ff1204df5fe1b7b121ee5d849d033a1c046978de0e7a38338f189c4226f323. Previous vendor
+archives remain immutable.

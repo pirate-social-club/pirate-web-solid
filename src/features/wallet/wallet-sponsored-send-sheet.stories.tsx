@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
+import { BASE_SEPOLIA_SPONSORED_SEND } from "../../api/sponsored-send-network.ts";
 import { WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
 
 const sender = "0x1111111111111111111111111111111111111111";
@@ -25,6 +26,7 @@ const confirmed: WalletSponsoredSendRecord = {
 function storyDependencies(existing: WalletSponsoredSendRecord | null = null): WalletSponsoredSendDependencies {
   return {
     data: {
+      network: BASE_SEPOLIA_SPONSORED_SEND,
       sender: async () => ({ address: sender, walletIndex: 0 }),
       tokenBalance: async () => 12_400_000n,
       read: async () => existing,

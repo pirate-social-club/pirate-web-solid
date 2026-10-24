@@ -12,8 +12,8 @@ import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import { defaultPrivyFactory } from "../../api/privy-session.ts";
 import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host.tsx";
 import { checkRecipient, explorerTransactionUrl } from "../rewards/winnings-send-model.ts";
+import { servedSponsoredSendNetwork, type SponsoredSendNetwork } from "../../api/sponsored-send-network.ts";
 
-const USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const DECIMALS = 6;
 type Sender = Readonly<{ address: string; walletIndex: number }>;
 type Step = "loading" | "unavailable" | "details" | "authorization" | "verification" | "review" | "status";
@@ -26,15 +26,22 @@ export type WalletSponsoredSendDependencies = Readonly<{
   reload?: () => void;
 }>;
 
-export function browserWalletSponsoredSend(): WalletSponsoredSendDependencies {
+/**
+ * The served deployment's Send, or nothing when the page does not name one. SSR records
+ * its deployment's canonical origin on the document for every host, HNS ingress hosts
+ * included, so the network never follows the address bar.
+ */
+export function browserWalletSponsoredSend(
+  network: SponsoredSendNetwork | undefined = servedSponsoredSendNetwork(),
+): WalletSponsoredSendDependencies | undefined {
+  if (network === undefined) return undefined;
   return {
-    data: createWalletSponsoredSendData(),
+    data: createWalletSponsoredSendData(undefined, undefined, network),
     openWallet: async () => createRewardWalletSession(await fetchVerificationConfig(), defaultPrivyFactory, { restoreSaved: true }),
   };
 }
 
-/** The ordinary Wallet USDC send; tokens need not come from a reward. */
-export function WalletSponsoredSendSheet(props: Readonly<{
+type WalletSponsoredSendSheetProps = Readonly<{
   accountId: string;
   personaId: string;
   walletAddress: string;
@@ -42,8 +49,31 @@ export function WalletSponsoredSendSheet(props: Readonly<{
   onConfirmed?: () => void;
   dependencies?: WalletSponsoredSendDependencies;
   resumeDraft?: WalletSendDraft;
-}>) {
+}>;
+
+/** The ordinary Wallet USDC send; tokens need not come from a reward. */
+export function WalletSponsoredSendSheet(props: WalletSponsoredSendSheetProps) {
   const dependencies = props.dependencies ?? browserWalletSponsoredSend();
+  return dependencies === undefined
+    ? <SponsoredSendUnavailable onClose={props.onClose} />
+    : <SponsoredSendSheet {...props} dependencies={dependencies} />;
+}
+
+/** No deployment named: nothing is read, reserved or signed. */
+function SponsoredSendUnavailable(props: Readonly<{ onClose: () => void }>) {
+  return <Modal open onOpenChange={open => { if (!open) props.onClose(); }}>
+    <ModalContent class="flex w-full flex-col gap-4 px-5 pb-5 pt-4 md:max-w-[32rem] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
+      <ModalHeader class="text-start"><ModalTitle>Send USDC</ModalTitle></ModalHeader>
+      <Type role="alert">Send is not available here.</Type>
+      <Button onClick={props.onClose}>Close</Button>
+    </ModalContent>
+  </Modal>;
+}
+
+function SponsoredSendSheet(props: WalletSponsoredSendSheetProps & Readonly<{ dependencies: WalletSponsoredSendDependencies }>) {
+  const dependencies = props.dependencies;
+  const network = dependencies.data.network;
+  const USDC = network.usdc;
   const [step, setStep] = createSignal<Step>("loading");
   const [sender, setSender] = createSignal<Sender>();
   const [balance, setBalance] = createSignal<bigint>();
@@ -167,11 +197,11 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (assigned === undefined) throw new Error("wallet_sender_unavailable");
     return {
       sender: assigned.address, token: USDC, recipient: current.recipient_address,
-      amountAtomic: current.amount_atomic, walletIndex: assigned.walletIndex,
+      amountAtomic: current.amount_atomic, walletIndex: assigned.walletIndex, chainId: network.chainId,
     };
   };
   const matches = (current: WalletSponsoredSendRecord, intended: RewardTokenTransfer) =>
-    current.persona_id === props.personaId && current.chain_id === 84_532 &&
+    current.persona_id === props.personaId && current.chain_id === network.chainId &&
     getAddress(current.sender_address) === getAddress(intended.sender) &&
     getAddress(current.token_address) === getAddress(intended.token) &&
     getAddress(current.recipient_address) === getAddress(intended.recipient) &&
@@ -250,7 +280,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
     if (reserved.status === "reserved" && reserved.verification_required) { requireVerification(); return; }
     const intended: RewardTokenTransfer = {
       sender: assigned.address, token: USDC, recipient: to.address,
-      amountAtomic: value.atomic.toString(), walletIndex: assigned.walletIndex,
+      amountAtomic: value.atomic.toString(), walletIndex: assigned.walletIndex, chainId: network.chainId,
     };
     if (!matches(reserved, intended) || reserved.status !== "reserved" || reserved.authorization === null) {
       setError("The recorded send differs from this form. Nothing was signed."); return;
@@ -291,7 +321,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
             <dt>Amount</dt><dd>{(() => { const check = amountCheck(); return check.ok ? format(check.atomic) : "Invalid"; })()}</dd>
             <dt>To</dt><dd class="break-all">{recipient()}</dd>
             <dt>From</dt><dd class="break-all">{sender()?.address}</dd>
-            <dt>Network</dt><dd>Base Sepolia</dd><dt>Network fee</dt><dd>Covered by Pirate</dd>
+            <dt>Network</dt><dd>{network.chainId === 8453 ? "Base" : "Base Sepolia"}</dd><dt>Network fee</dt><dd>Covered by Pirate</dd>
           </dl>
           <Button disabled={busy()} onClick={() => void confirm()}>Authorize send</Button>
           <Button variant="ghost" disabled={busy()} onClick={() => setStep("details")}>Change details</Button>
@@ -300,7 +330,7 @@ export function WalletSponsoredSendSheet(props: Readonly<{
           <Show when={record()}>{current => <>
             <Type class="text-sm">Recorded amount: {format(BigInt(current().amount_atomic))}</Type>
             <Type class="text-sm break-all">To: {current().recipient_address}</Type>
-            <Show when={current().transaction_hash}>{hash => <a class="break-all text-sm underline" href={explorerTransactionUrl(hash())} target="_blank" rel="noopener noreferrer">View transfer</a>}</Show>
+            <Show when={current().transaction_hash}>{hash => <a class="break-all text-sm underline" href={explorerTransactionUrl(hash(), network.chainId)} target="_blank" rel="noopener noreferrer">View transfer</a>}</Show>
             <Switch>
               <Match when={current().status === "confirmed"}><Type role="status">This send is confirmed. The USDC arrived at the recipient.</Type></Match>
               <Match when={current().status === "reverted"}><Type role="status">This transaction failed. Its token transfer did not happen.</Type></Match>

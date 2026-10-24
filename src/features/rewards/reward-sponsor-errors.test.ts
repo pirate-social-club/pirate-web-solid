@@ -14,4 +14,8 @@ describe("sponsor error copy", () => {
     expect(sponsorFailure(cause)).not.toContain("Rewards are paused");
     expect(sponsorFailure(cause)).toContain("Keep your saved attempt");
   });
+  it("names no testnet for a wrong network or a short fee balance, whichever chain funds", () => {
+    expect(sponsorFailure(new Error("wallet_wrong_chain"))).toBe("The assigned wallet is on the wrong network for this funding.");
+    expect(sponsorFailure(new Error("wallet_insufficient_gas_balance"))).toBe("This persona's wallet needs more ETH for the network fee.");
+  });
 });
