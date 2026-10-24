@@ -49,6 +49,7 @@
     "song-feed-playback-check": "node scripts/song-feed-playback-check.mjs",
     "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
+    "verify:wrangler-fetch": "node scripts/verify-wrangler-fetch.mjs",
     "check-api-client-provenance": "node scripts/check-api-client-provenance.mjs",
     "check:api-client-runtime-tables": "node scripts/check-api-client-runtime-tables.mjs",
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
@@ -121,7 +122,8 @@
   },
   "patchedDependencies": {
     "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch",
-    "@veryai/widget@1.0.22": "patches/@veryai%2Fwidget@1.0.22.patch"
+    "@veryai/widget@1.0.22": "patches/@veryai%2Fwidget@1.0.22.patch",
+    "wrangler@4.123.0": "patches/wrangler@4.123.0.patch"
   },
   "overrides": {
     "@storybook/builder-vite": "10.6.0",
