@@ -403,7 +403,7 @@ describe("CommunityPage", () => {
     expect(document.body.querySelector('[role="dialog"]')?.getAttribute("aria-label") ?? document.body.querySelector('[role="dialog"]')?.textContent).toContain("Profile in this community");
     document.body.querySelector<HTMLInputElement>("input[value='persona-two']")!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-community-profile-control]")?.getAttribute("title")).toBe("Posting as Persona Two"));
-    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    await vi.waitFor(() => expect(document.body.querySelector('[role="dialog"]')).toBeNull());
     container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
     await vi.waitFor(() => expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")?.disabled).toBe(false));
   });

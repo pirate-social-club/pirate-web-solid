@@ -4,6 +4,9 @@ import type { SwitchablePersona } from "../identity/persona-switcher-sheet/perso
 import type { ApplicationSessionState } from "./application-session.tsx";
 
 export interface ApplicationPersonas {
+  /** Account whose successful private read owns these identities. A navigation
+   * fixture without this authority cannot offer author operations. */
+  ownerAccountId?: Accessor<string | undefined>;
   personas: Accessor<readonly SwitchablePersona[]>;
   selected: Accessor<SwitchablePersona | undefined>;
   loading: Accessor<boolean>;
@@ -71,6 +74,11 @@ export function createApplicationPersonas(
   createEffect(account, update);
   onCleanup(() => { active = false; epoch++; });
   return {
+    ownerAccountId: () => {
+      const current = account();
+      return typeof current === "object" && current.userId === owner && !loading() && !unavailable()
+        ? current.userId : undefined;
+    },
     personas, selected, loading, unavailable, pickerOpen, setPickerOpen,
     select: personaId => {
       if (!personas().some(persona => persona.personaId === personaId)) return;

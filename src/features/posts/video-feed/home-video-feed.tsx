@@ -36,6 +36,9 @@ import { signedStreamSource } from "./signed-stream-source.ts";
 import { makeStudyAvailabilityLookup, type StudyAvailabilityLookup } from "./home-feed-study.ts";
 import { resolveSongActivities, type HomeSongActivity } from "./home-feed-song-activities.ts";
 import { createStudyV2Api } from "../../studying/study-v2-api.ts";
+import { captureSessionAuthority } from "../../../api/browser-session-events.ts";
+import { VideoFeedDelete } from "./video-feed-delete.tsx";
+import { deleteVideoPost, removeVideoPost, type DeleteVideoPost } from "./video-post-deletion.ts";
 
 /** One canonical-link cache for the whole feed: a song reused across videos
  * resolves its route once. */
@@ -69,6 +72,10 @@ export interface HomeVideoFeedProps {
    * so the phone More button is left out.
    */
   readonly principalId?: string;
+  /** Identities from a successful private read for this exact account. The
+   * server independently enforces author ownership on every DELETE. */
+  readonly authorPersonas?: Readonly<{ accountId: string; personaIds: readonly string[] }>;
+  readonly deleteVideo?: DeleteVideoPost;
   /**
    * Whether the API accepts reports on video posts. It does not yet: api-next
    * resolves a post report through its text submission, so a video report is
@@ -185,7 +192,11 @@ function FeedContinuation(props: {
 
 export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [state, setState] = createSignal<LoadState>({ kind: "loading" });
-  const [posts, setPosts] = createSignal<readonly HomeFeedRow[]>([]);
+  const [loadedPosts, setPosts] = createSignal<readonly HomeFeedRow[]>([]);
+  const [deletedPosts, setDeletedPosts] = createSignal<ReadonlySet<string>>(new Set());
+  const deletionKey = (accountId: string | undefined, postId: string) => JSON.stringify([accountId, postId]);
+  // An older in-flight feed read cannot resurrect a confirmed removal.
+  const posts = () => loadedPosts().filter(post => !deletedPosts().has(deletionKey(props.principalId, post.id)));
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [processingCount, setProcessingCount] = createSignal(0);
@@ -454,10 +465,62 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       if (active) setReportBusy(false);
     }
   };
-  const moreActions = (postId: string): readonly MediaMoreAction[] | undefined =>
-    props.videoReportsSupported === true && props.principalId && mediaPost(postId)?.viewerIsMember
-      ? [{ id: "report", label: "Report", onSelect: () => openReport(postId) }]
-      : undefined;
+  const canDelete = (postId: string) => {
+    const author = mediaPost(postId)?.authorPersonaId;
+    return Boolean(props.principalId && props.authorPersonas?.accountId === props.principalId
+      && author && props.authorPersonas.personaIds.includes(author));
+  };
+  type DeletionTarget = Readonly<{ accountId: string; postId: string; sourceIdentity: string | undefined; authority: number | undefined }>;
+  const [deletionTarget, setDeletionTarget] = createSignal<DeletionTarget>();
+  const [deleteBusy, setDeleteBusy] = createSignal(false);
+  const [deleteError, setDeleteError] = createSignal<string>();
+  const [deleteAnnouncement, setDeleteAnnouncement] = createSignal<Readonly<{ accountId: string; message: string }>>();
+  let deleteInFlight = false;
+  let focusFeedAfterDelete = false;
+  let feedRoot: HTMLElement | undefined;
+  const deletionCurrent = (target: DeletionTarget) => active && target.accountId === props.principalId
+    && target.sourceIdentity === props.sourceIdentity && target.authority === captureSessionAuthority()
+    && canDelete(target.postId);
+  const openDelete = (postId: string) => {
+    if (!props.principalId || !canDelete(postId) || deleteInFlight) return;
+    setDeleteError(undefined);
+    setDeleteAnnouncement(undefined);
+    setDeletionTarget({ accountId: props.principalId, postId, sourceIdentity: props.sourceIdentity, authority: captureSessionAuthority() });
+  };
+  const confirmDelete = async () => {
+    const target = deletionTarget();
+    if (!target || deleteInFlight || !deletionCurrent(target)) return;
+    deleteInFlight = true;
+    setDeleteBusy(true);
+    setDeleteError(undefined);
+    try {
+      const outcome = await removeVideoPost({
+        ...target,
+        remove: props.deleteVideo ?? deleteVideoPost,
+        isCurrent: () => deletionCurrent(target),
+      });
+      if (!deletionCurrent(target) || outcome.kind === "superseded") return;
+      if (outcome.kind === "deleted") {
+        focusFeedAfterDelete = true;
+        setDeletedPosts(current => new Set([...current, deletionKey(target.accountId, target.postId)]));
+        setDeletionTarget(undefined);
+        setDeleteAnnouncement({ accountId: target.accountId, message: "Video deleted." });
+      } else {
+        setDeleteError("Deletion couldn't be confirmed. Retry for this same video.");
+      }
+    } finally {
+      deleteInFlight = false;
+      if (active) setDeleteBusy(false);
+    }
+  };
+  const moreActions = (postId: string): readonly MediaMoreAction[] | undefined => {
+    const actions: MediaMoreAction[] = [];
+    if (props.videoReportsSupported === true && props.principalId && mediaPost(postId)?.viewerIsMember)
+      actions.push({ id: "report", label: "Report", onSelect: () => openReport(postId) });
+    if (canDelete(postId)) actions.push({ id: "delete", label: "Delete video", onSelect: () => openDelete(postId) });
+    return actions.length ? actions : undefined;
+  };
+  const deleteOpen = () => { const target = deletionTarget(); return target ? deletionCurrent(target) : false; };
 
   const sharePost = (postId: string) => {
     const href = mediaPost(postId)?.communityDestination;
@@ -471,7 +534,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   };
 
   return (
-    <main class="h-[100dvh] bg-background md:h-screen" data-video-feed-state={state().kind}>
+    <main ref={feedRoot} tabindex={-1} class="h-[100dvh] bg-background md:h-screen" data-video-feed-state={state().kind}>
       <Title>Videos for you</Title>
       <Show when={state().kind !== "loading"} fallback={<div class="grid h-full place-items-center"><FeedLoadingRing /></div>}>
         <Show
@@ -557,6 +620,20 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         onChoose={(reason) => { void sendReport(reason); }}
       />
       <span aria-live="polite" class="sr-only">{reportAnnouncement()}</span>
+      <VideoFeedDelete
+        open={deleteOpen()}
+        busy={deleteBusy()}
+        error={deleteError()}
+        onOpenChange={open => { if (!open && !deleteInFlight) setDeletionTarget(undefined); }}
+        onDelete={() => { void confirmDelete(); }}
+        onCloseAutoFocus={event => {
+          if (!focusFeedAfterDelete) return;
+          event.preventDefault();
+          focusFeedAfterDelete = false;
+          queueMicrotask(() => { if (active) feedRoot?.focus(); });
+        }}
+      />
+      <span aria-live="polite" class="sr-only">{deleteAnnouncement()?.accountId === props.principalId ? deleteAnnouncement()?.message : ""}</span>
     </main>
   );
 }

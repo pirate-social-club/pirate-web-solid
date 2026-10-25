@@ -444,3 +444,68 @@ export const AdultViewing: Story = {
 
 /** Manual browser review of the same in-place flow before proof. */
 export const AdultLocked: Story = { args: AdultViewing.args };
+
+
+const authorVideo: PublicFeedItem = { ...playableLinked, identityMode: "public", authorPersonaId: "story-author-persona" };
+const authorDeletionArgs = () => {
+  return {
+    data: oneVideo(authorVideo),
+    principalId: "story-author-account",
+    sourceIdentity: "user:story-author-account",
+    authorPersonas: { accountId: "story-author-account", personaIds: ["story-author-persona"] },
+    videoReportsSupported: false,
+    deleteVideo: fn(async () => ({ object: "video_post_deletion" as const, community_id: authorVideo.communityId, post_id: authorVideo.id, status: "deleted" as const })),
+  };
+};
+
+export const DesktopDeleteConfirmation: Story = {
+  args: authorDeletionArgs(),
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await userEvent.click(await page(canvasElement).findByRole("menuitem", { name: "Delete video" }));
+    const dialog = await page(canvasElement).findByRole("dialog", { name: "Delete your video?" });
+    await expect(within(dialog).getByRole("button", { name: "Keep video" })).toBeVisible();
+    await expect(within(dialog).getByRole("button", { name: "Delete video" })).toBeVisible();
+  },
+};
+
+export const MobileDeleteConfirmation: Story = {
+  globals: phone,
+  args: authorDeletionArgs(),
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "phone"));
+    const menu = await page(canvasElement).findByRole("dialog", { name: "More options" });
+    await userEvent.click(within(menu).getByRole("button", { name: "Delete video" }));
+    const dialog = await page(canvasElement).findByRole("dialog", { name: "Delete your video?" });
+    await expect(within(dialog).getByRole("button", { name: "Close" })).toBeVisible();
+    await expect(within(dialog).getByRole("button", { name: "Delete video" })).toBeVisible();
+  },
+};
+
+export const DeleteRecoversLostReply: Story = {
+  args: authorDeletionArgs(),
+  // Storybook restores mock implementations before a story. Keep the simulated
+  // remote outcome sequence inside this mount, rather than on a reset spy.
+  render: args => {
+    let attempts = 0;
+    const remove = async (postId: string) => {
+      attempts++;
+      if (attempts === 1) throw new Error("reply lost");
+      return { object: "video_post_deletion" as const, community_id: authorVideo.communityId, post_id: postId, status: "deleted" as const };
+    };
+    return <HomeVideoFeed {...args} deleteVideo={remove} />;
+  },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await userEvent.click(await moreTrigger(canvasElement, "desktop"));
+    await userEvent.click(await page(canvasElement).findByRole("menuitem", { name: "Delete video" }));
+    const dialog = await page(canvasElement).findByRole("dialog", { name: "Delete your video?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete video" }));
+    await expect(await within(dialog).findByRole("alert")).toHaveTextContent("Deletion couldn't be confirmed");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Retry deletion" }));
+    await waitFor(() => expect(canvasElement).toHaveTextContent("Video deleted."));
+    await expect(canvasElement.querySelector("video")).toBeNull();
+  },
+};
