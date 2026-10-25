@@ -390,7 +390,7 @@ function Harness(props: {
       <VideoComposerRuntime
         cameraCapture={props.cameraCapture ?? true}
         communityId="community"
-        prepareGuideSource={async () => ({url: "blob:https://example.test/guide", release() {}})}
+        prepareGuideSource={async () => ({url: "blob:https://example.test/guide", blob: new Blob(), release() {}})}
         createGuideAudio={() => storyGuide({ blocked: props.guideBlocked })}
         fetchImpl={props.fetchImpl ?? storyFetch()}
         initialSong={props.noInitialSong ? undefined : { postId: "song-post" }}

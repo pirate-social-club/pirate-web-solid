@@ -465,7 +465,7 @@ describe("mounted song-first video flow", () => {
       measureDuration={options.measureDuration ?? (async () => options.clipDurationMs ?? null)}
       startCapture={startCapture}
       openPreview={openPreview}
-      prepareGuideSource={options.prepareGuideSource ?? (async () => ({url: "blob:https://example.test/guide", release() {}}))}
+      prepareGuideSource={options.prepareGuideSource ?? (async () => ({url: "blob:https://example.test/guide", blob: new Blob(), release() {}}))}
       createGuideAudio={url => {
         if (options.mobile && guideCreation++ === 0) return options.playbackCheck ?? guideSpy().audio;
         return options.createGuideAudio?.(url) ?? guideSpy().audio;
@@ -898,15 +898,15 @@ describe("mounted song-first video flow", () => {
   test("the complete local guide precedes capture and is released on stop", async () => {
     const guide = guideSpy();
     const release = vi.fn();
-    let complete!: (source: {url: string; release: () => void}) => void;
-    const prepare = vi.fn(() => new Promise<{url: string; release: () => void}>(resolve => {complete = resolve;}));
+    let complete!: (source: {url: string; blob: Blob; release: () => void}) => void;
+    const prepare = vi.fn(() => new Promise<{url: string; blob: Blob; release: () => void}>(resolve => {complete = resolve;}));
     const createAudio = vi.fn(() => guide.audio);
     nextSession = () => fakeSession(() => {});
     songSetup({preflight: "accepted", mobile: true, createGuideAudio: createAudio, prepareGuideSource: prepare});
     await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
     await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
     expect(startCapture).not.toHaveBeenCalled(); expect(createAudio).not.toHaveBeenCalled();
-    complete({url: "blob:https://example.test/complete-guide", release});
+    complete({url: "blob:https://example.test/complete-guide", blob: new Blob(), release});
     await vi.waitFor(() => expect(startCapture).toHaveBeenCalledOnce());
     expect(createAudio).toHaveBeenCalledWith("blob:https://example.test/complete-guide");
     await stopRecording(); await vi.waitFor(() => expect(release).toHaveBeenCalledOnce());

@@ -27,7 +27,7 @@ function fixture(overrides: Partial<ComposerMediaOptions> = {}) {
   const createGuideAudio = vi.fn(() => audio);
   const media = new VideoComposerMedia({
     canCapture: () => true,
-    createGuideAudio, prepareGuideSource: async () => ({ url: "blob:guide", release }),
+    createGuideAudio, prepareGuideSource: async () => ({ url: "blob:guide", blob: new Blob(), release }),
     onStream, onOriginalTake: vi.fn(), onFailure: vi.fn(), onLimit: vi.fn(), onInterrupted: vi.fn(),
     ...overrides,
   });
@@ -58,7 +58,7 @@ describe.each(["abort", "dispose"] as const)("late media completion after %s", c
   });
 
   test("a late guide source is released without creating playable audio", async () => {
-    const source = deferred<{ url: string; release: () => void }>();
+    const source = deferred<{ url: string; blob: Blob; release: () => void }>();
     const prepareGuideSource = vi.fn(() => source.promise);
     const { media, createGuideAudio } = fixture({ prepareGuideSource });
     const controller = new AbortController();
@@ -67,7 +67,7 @@ describe.each(["abort", "dispose"] as const)("late media completion after %s", c
     if (cancellation === "abort") controller.abort();
     else media.dispose();
     const release = vi.fn();
-    source.resolve({ url: "blob:late-guide", release });
+    source.resolve({ url: "blob:late-guide", blob: new Blob(), release });
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(release).toHaveBeenCalledTimes(1);
     expect(createGuideAudio).not.toHaveBeenCalled();
