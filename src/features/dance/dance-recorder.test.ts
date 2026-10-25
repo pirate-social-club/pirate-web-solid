@@ -26,7 +26,7 @@ function harness() {
   const preparationApi = {
     latest: vi.fn(async () => ({ object: "latest_moderated_dance_review" as const, latest_submitted: null, active_session_id: null })),
     create: vi.fn(async () => { events.push("create"); return receipt("create"); }),
-    consent: vi.fn(async () => { events.push("consent"); session = { ...session, state: "consented" }; return receipt("consent"); }),
+    consent: vi.fn<NonNullable<Options["preparationApi"]>["consent"]>(async () => { events.push("consent"); session = { ...session, state: "consented" }; return receipt("consent"); }),
     session: vi.fn(async () => session), context: vi.fn(async () => context()),
   } satisfies NonNullable<Options["preparationApi"]>;
   const storage: DanceRecordingStorage = { exclusive: async (_key, use) => use(), load: async id => files.get(id) ?? null,
@@ -137,9 +137,19 @@ test("scope changes cannot upload another persona's saved recording", async () =
   await expect(recorder.recover("unused", signal(), () => {})).rejects.toThrow("scope_changed"); expect(h.uploadApi.reserve).toHaveBeenCalledTimes(1); recorder.dispose();
 });
 
-test("a captured funded snapshot cannot silently become practice with Rewards off", async () => {
+test("captured funded objectives wait for exact-hash acceptance with Rewards off", async () => {
   const h = harness(); h.setFunded(); const recorder = h.controller();
-  await expect(recorder.prepare(dancePreparationFixture.session.policy_hash, signal())).rejects.toThrow("funded_unavailable"); expect(h.preparationApi.consent).not.toHaveBeenCalled(); expect(h.openCamera).not.toHaveBeenCalled(); recorder.dispose();
+  const prepared = await recorder.prepare(dancePreparationFixture.session.policy_hash, signal());
+  expect(prepared.kind).toBe("objectives");
+  if (prepared.kind !== "objectives") throw new Error("expected captured objectives");
+  expect(prepared.context.objectives).toEqual(dancePreparationFixture.objectives);
+  expect(prepared.context.reward_mode).toBe("reward_eligible");
+  expect(h.preparationApi.consent).not.toHaveBeenCalled(); expect(h.openCamera).not.toHaveBeenCalled();
+  await expect(recorder.enter("different-terms", signal())).rejects.toThrow("objectives_changed");
+  expect(h.preparationApi.consent).not.toHaveBeenCalled(); expect(h.openCamera).not.toHaveBeenCalled();
+  await expect(recorder.enter(prepared.session.terms_hash, signal())).resolves.toMatchObject({ kind: "camera", ready: { context: { reward_mode: "reward_eligible" } } });
+  expect(h.preparationApi.consent).toHaveBeenCalledTimes(1); expect(h.openCamera).toHaveBeenCalledTimes(1);
+  recorder.dispose();
 });
 
 test("an unfinished session cannot be discarded to mint another attempt", async () => {
@@ -152,4 +162,35 @@ test("a second Record intent while capture is active cannot start another guide 
   h.capture.mockReturnValueOnce({ result: new Promise(done => { finish = done; }), cancel: h.cancel });
   const pending = recorder.record(signal(), () => {}, () => {}); await vi.waitFor(() => expect(h.capture).toHaveBeenCalledTimes(1));
   await expect(recorder.record(signal(), () => {}, () => {})).rejects.toThrow("busy"); finish(h.take); await pending; expect(h.prepareGuide).toHaveBeenCalledTimes(1); recorder.dispose();
+});
+
+
+test.each(["practice-objective", "missing-objective", "streak-only", "foreign-song", "wrong-policy", "changed-binding"] as const)("%s cannot authorize a funded camera", async issue => {
+  const h = harness(); h.setFunded(); const recorder = h.controller();
+  const context: DanceCaptureContext = structuredClone(dancePreparationFixture);
+  const objective = context.objectives[0]!;
+  const invalid: DanceCaptureContext = issue === "practice-objective" ? { ...context, reward_mode: "practice" }
+    : issue === "missing-objective" ? { ...context, objectives: [] }
+    : issue === "streak-only" ? { ...context, captured_policy: { ...context.captured_policy, admission: "streak_admitted" } }
+    : issue === "foreign-song" ? { ...context, objectives: [{ ...objective, target: { ...objective.target, post_id: "foreign-song" } }] }
+    : issue === "wrong-policy" ? { ...context, captured_policy: { ...context.captured_policy, qualification_policy_hash: "f".repeat(64) } }
+    : { ...context, objectives: [{ ...objective, binding: { ...objective.binding, binding_id: "not-in-captured-terms" } }] };
+  h.preparationApi.context.mockResolvedValue(invalid);
+  await expect(recorder.prepare(context.session.policy_hash, signal())).rejects.toThrow("funded_unavailable");
+  expect(h.preparationApi.consent).not.toHaveBeenCalled(); expect(h.openCamera).not.toHaveBeenCalled(); recorder.dispose();
+});
+
+test("funded consent uncertainty retains and replays the exact original acceptance", async () => {
+  const h = harness(); h.setFunded(); const recorder = h.controller();
+  const prepared = await recorder.prepare(dancePreparationFixture.session.policy_hash, signal());
+  if (prepared.kind !== "objectives") throw new Error("expected captured objectives");
+  h.preparationApi.consent.mockImplementationOnce(async () => { h.setSession({ state: "consented" }); throw new Error("reply_lost"); });
+  await expect(recorder.enter(prepared.session.terms_hash, signal())).rejects.toThrow("reply_lost");
+  expect(h.openCamera).not.toHaveBeenCalled();
+  const recovered = await recorder.recover(dancePreparationFixture.session.policy_hash, signal(), () => {});
+  expect(recovered).toMatchObject({ kind: "objectives", consentRequested: true });
+  if (recovered.kind !== "objectives") throw new Error("expected original consent recovery");
+  await expect(recorder.enter(recovered.session.terms_hash, signal())).resolves.toMatchObject({ kind: "camera" });
+  expect(h.preparationApi.consent.mock.calls[1]![1]).toEqual(h.preparationApi.consent.mock.calls[0]![1]);
+  expect(h.openCamera).toHaveBeenCalledTimes(1); recorder.dispose();
 });

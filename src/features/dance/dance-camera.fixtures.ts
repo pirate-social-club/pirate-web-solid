@@ -9,6 +9,7 @@ import type { createDanceRecorder } from "./dance-recorder";
 // a producer admission, real recording, provider, Post or financial effect.
 export const danceCameraContext: DanceCaptureContext = { ...dancePreparationFixture,
   reward_mode: "practice", rewards_enabled: false, objectives: [], session: { ...dancePreparationFixture.session, expires_at_ms: 4070908800000 } };
+export const danceFundedCameraContext: DanceCaptureContext = { ...dancePreparationFixture, session: danceCameraContext.session };
 export const danceCameraScope = { accountId: "participant", communityId: "test-community", postId: "test-song", personaId: "persona", choreographyId: "dance", choreographyRevision: 1 };
 export const danceCameraSession: AuthenticatedSession = { status: "authenticated", userId: "participant", personas: [
   { personaId: "persona", displayName: "Dancer", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "test-community", bindingSource: "activity_participation" } },
@@ -25,8 +26,7 @@ export function danceCameraResult(state: "awaiting" | "passed" | "withdrawn"): D
   return { ...result, community_id: "test-community", song_post_id: "test-song", review_id: danceCameraContext.session.review_id,
     session_id: danceCameraContext.session.session_id, attempt_id: danceCameraContext.session.attempt_id, session_terms_hash: danceCameraContext.session.terms_hash, review_deadline: "2099-01-08T00:00:00.000Z" };
 }
-export function createDanceCameraFixtureApi(): ReturnType<typeof createDancePreparationApi> {
-  const context = danceCameraContext;
+export function createDanceCameraFixtureApi(context: DanceCaptureContext = danceCameraContext): ReturnType<typeof createDancePreparationApi> {
   return { owner: async () => false, options: async () => danceCameraOptions,
     latest: async () => ({ object: "latest_moderated_dance_review", latest_submitted: null, active_session_id: null }),
     session: async () => context.session, context: async () => context,
@@ -34,13 +34,13 @@ export function createDanceCameraFixtureApi(): ReturnType<typeof createDancePrep
     consent: async () => ({ version: "dance-moderated-intake-receipt-v1", receipt_id: "consent-receipt", operation: "consent", session: { ...context.session, state: "consented" } }),
     preparePersona: async () => ({ object: "activity_persona_preparation", community_id: "test-community", persona_id: "persona", persona_status: "active", activity_presentation: null }) };
 }
-export function createDanceCameraFixtureRecorder(_options: Parameters<typeof createDanceRecorder>[0]): ReturnType<typeof createDanceRecorder> {
+export function createDanceCameraFixtureRecorder(_options: Parameters<typeof createDanceRecorder>[0], context: DanceCaptureContext = danceCameraContext): ReturnType<typeof createDanceRecorder> {
   let stream: MediaStream | undefined;
-  const ready = { kind: "capture_ready" as const, session: { ...danceCameraContext.session, state: "consented" as const },
-    context: { ...danceCameraContext, session: { ...danceCameraContext.session, state: "consented" as const } }, assertCurrent: () => {} };
+  const ready = { kind: "capture_ready" as const, session: { ...context.session, state: "consented" as const },
+    context: { ...context, session: { ...context.session, state: "consented" as const } }, assertCurrent: () => {} };
   const dispose = () => { for (const track of stream?.getTracks() ?? []) track.stop(); };
   return {
-    prepare: async () => ({ kind: "objectives", session: danceCameraContext.session, context: danceCameraContext }),
+    prepare: async () => ({ kind: "objectives", session: context.session, context }),
     enter: async () => {
       const canvas = document.createElement("canvas"); canvas.width = 180; canvas.height = 320;
       const context = canvas.getContext("2d"); if (context) { context.fillStyle = "#243048"; context.fillRect(0, 0, 180, 320); }
@@ -54,6 +54,6 @@ export function createDanceCameraFixtureRecorder(_options: Parameters<typeof cre
     },
     recover: async () => ({ kind: "upload", upload: { kind: "review", session: { ...ready.session, state: "uploaded", upload_state: "sealed", upload_id: "upload" } } }),
     resume: async () => ({ kind: "upload", upload: { kind: "processing", session: { ...ready.session, state: "awaiting_upload", upload_id: "upload", upload_state: "sealing" } } }),
-    newAttempt: async () => ({ kind: "objectives", session: danceCameraContext.session, context: danceCameraContext }), dispose,
+    newAttempt: async () => ({ kind: "objectives", session: context.session, context }), dispose,
   };
 }

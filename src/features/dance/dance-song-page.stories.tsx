@@ -5,7 +5,7 @@ import { VideoCaptureError } from "../posts/video-submission/capture-failure";
 import { VideoPlaybackSeamsContext } from "../posts/video-submission/video-playback-seams";
 import { reviewPlaybackMint, reviewPosterPath } from "../posts/feed/public-feed-fixtures";
 import { createDanceReviewFixtureStore } from "./dance-review.fixtures";
-import { createDanceCameraFixtureApi, createDanceCameraFixtureRecorder, danceCameraContext, danceCameraSession, danceCameraResult } from "./dance-camera.fixtures";
+import { createDanceCameraFixtureApi, createDanceCameraFixtureRecorder, danceCameraContext, danceFundedCameraContext, danceCameraSession, danceCameraResult } from "./dance-camera.fixtures";
 import { DanceSongPage } from "./dance-song-page";
 import type { createDanceRecorder } from "./dance-recorder";
 
@@ -13,13 +13,14 @@ const meta = { title: "Flows/Dance/Recording", parameters: { layout: "fullscreen
   docs: { description: { component: "Production entry and recording screens with fictional API/recorder responses and a canvas preview. This does not exercise real camera, persistence, uploads or provider acceptance." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
-function fixture(mode: "camera" | "saved" | "pending" | "owner" | "denied" = "camera") {
-  const api = createDanceCameraFixtureApi(), { store } = createDanceReviewFixtureStore();
+function fixture(mode: "camera" | "saved" | "pending" | "owner" | "denied" | "funded" = "camera") {
+  const captured = mode === "funded" ? danceFundedCameraContext : danceCameraContext;
+  const api = createDanceCameraFixtureApi(captured), { store } = createDanceReviewFixtureStore();
   if (mode === "owner") api.owner = async () => true;
   if (mode === "pending") api.latest = async () => ({ object: "latest_moderated_dance_review", latest_submitted: danceCameraResult("awaiting"), active_session_id: danceCameraContext.session.session_id });
   let refused = false;
   const recorder: typeof createDanceRecorder = options => {
-    const base = createDanceCameraFixtureRecorder(options);
+    const base = createDanceCameraFixtureRecorder(options, captured);
     if (mode === "saved") return { ...base, prepare: async () => ({ kind: "recovery", session: danceCameraContext.session }) };
     if (mode === "denied") return { ...base, enter: async (...input) => { if (!refused) { refused = true; throw new VideoCaptureError("camera_denied", "Fictional permission refusal"); } return base.enter(...input); }, recover: base.prepare };
     return base;
@@ -67,5 +68,19 @@ export const PermissionRefused: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Open dance 1" })); await userEvent.click(await canvas.findByRole("button", { name: "Do this dance" }));
     await canvas.findByText(/Camera or microphone access is off/); await userEvent.click(await canvas.findByRole("button", { name: "Check recording" })); await canvas.findByRole("button", { name: "Record" });
+  },
+};
+
+export const FundedObjectiveAcceptance: Story = {
+  render: () => fixture("funded"),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Open dance 1" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Do this dance" }));
+    await canvas.findByRole("heading", { name: "Funded Dance" });
+    await expect(canvas.queryByRole("button", { name: "Record" })).toBeNull();
+    await expect(canvas.getByText("Base Sepolia · test USDC has no spendable value.")).toBeVisible();
+    await userEvent.click(await canvas.findByRole("button", { name: "Accept and continue" }));
+    await canvas.findByRole("button", { name: "Record" });
   },
 };

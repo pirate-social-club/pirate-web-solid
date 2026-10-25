@@ -48,9 +48,24 @@ export function createDanceRecorder(options: {
     try { return await work(); } finally { busy = false; }
   };
   const supported = (view: DancePreparationView) => {
-    if (view.context && (view.context.rewards_enabled || view.context.reward_mode !== "practice" || view.context.objectives.length > 0)) throw new Error("dance_recorder_funded_unavailable");
-    // The separate fixed-bonus contract is not deployed. Never downgrade or
-    // enter a captured lottery objective through the Rewards-off release.
+    const context = view.context;
+    if (!context) return;
+    if (context.reward_mode === "practice" && context.objectives.length === 0) return;
+    const objective = context.objectives[0], policy = context.captured_policy;
+    if (context.reward_mode !== "reward_eligible" || context.objectives.length !== 1 || !objective
+      || policy.admission !== "money_admitted" || objective.binding.activity !== "dance"
+      || objective.binding.grading_family !== "moderator_verdict" || objective.binding.numeric_floor_bps !== null
+      || objective.target.community_id !== scope.communityId || objective.target.post_id !== scope.postId
+      || objective.target.canonical_song_id !== scope.postId || objective.target.audio_revision !== context.audio_revision
+      || objective.binding.offer_id !== objective.target.offer_id || objective.binding.leg_id !== objective.target.pool_leg_id
+      || objective.binding.qualification_policy_id !== policy.qualification_policy_version_id
+      || objective.binding.qualification_policy_hash !== policy.qualification_policy_hash
+      || objective.binding.admission_id !== policy.admission_version || objective.binding.admission_hash !== policy.admission_hash
+      || objective.terms.qualification_bindings.filter(binding => Object.entries(objective.binding).every(([key, value]) =>
+        Object.entries(binding).some(([candidate, actual]) => candidate === key && actual === value),
+      )).length !== 1) throw new Error("dance_recorder_funded_unavailable");
+    // The captured context, not the current runtime switch, owns eligibility.
+    // Never drop its objective or reinterpret it as practice during recovery.
   };
   const recoverUpload = async (signal: AbortSignal): Promise<DanceRecorderView> => {
     if (!uploadSession) throw new Error("dance_recorder_original_required");
