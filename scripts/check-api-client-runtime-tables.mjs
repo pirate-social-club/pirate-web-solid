@@ -8,11 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client134 protects138operations/414rows. Against genuine133 only four response
-// schemas change, each admitting chain 8453 beside 84532 on Megapot pool legs,
-// pool funding or the song pool projection. Evidence is in
-// docs/shared-song-contribution-client-intake.md.
-const expectedDigest = "f9ff1204df5fe1b7b121ee5d849d033a1c046978de0e7a38338f189c4226f323";
+// Genuine135 protects139operations/417rows. Its only addition is the author
+// video DELETE receipt; the existing138 guarded operations retain their134
+// runtime tables byte for byte. See docs/video-post-deletion-client-intake.md.
+const expectedDigest = "bc7339452d2e5584eb89756d22a18d5a66a9357a081c02592dc98181e92249a9";
 
 const operations = [
   "get_meNotifications",
@@ -37,6 +36,7 @@ const operations = [
   "post_personasPersonaIdWalletsSpacesTaprootConfirm",
   "post_postsPostIdVideoPlaybackAccess",
   "get_postsPostIdVideoPoster",
+  "delete_postsPostIdVideo",
   "get_personas",
   "post_personas",
   "post_personasPersonaIdRetire",

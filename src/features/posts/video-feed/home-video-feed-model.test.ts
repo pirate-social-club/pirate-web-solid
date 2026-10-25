@@ -63,6 +63,7 @@ describe("home video feed projection", () => {
   test("maps a reviewed playable reference into the vertical-feed shape", () => {
     expect(toHomeVideoPost(item())).toEqual({
       id: "video-1",
+      authorPersonaId: "persona-1",
       videoUrl: "https://media.pirate.test/video-1.mp4",
       posterUrl: "/media/video-1.webp",
       authorName: "captain-one.pirate",

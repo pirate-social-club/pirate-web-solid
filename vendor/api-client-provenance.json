@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.134.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.134.0-e1309b81.tgz",
-  "sha256": "e1309b8141a6c5c329538491a7a9a13e03c1c94818a0d665f86fdc7d1e35ff6e",
-  "source": "api-next-contracts@02a5dcb37bed391a2e5f19aa5013fa1a5fe717c78e340452d15bfe472cd31810",
-  "openapiSha256": "02a5dcb37bed391a2e5f19aa5013fa1a5fe717c78e340452d15bfe472cd31810",
-  "clientSha256": "76109ed3a2d777c530a848acc27763601cfe6cb8a4aaa9ed08377abb3cdf823b",
+  "version": "0.135.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.135.0-a4b7e628.tgz",
+  "sha256": "a4b7e6283b1faa576a06c5579aee8c643e7090ccdbccfdf906a2075211c5fe6c",
+  "source": "api-next-contracts@a98509cee4753d46da8e6efc05288f52da4ca99e5b6f8ee1227ad52cc2c02a74",
+  "openapiSha256": "a98509cee4753d46da8e6efc05288f52da4ca99e5b6f8ee1227ad52cc2c02a74",
+  "clientSha256": "1eb9719b292787ec8a72a88c9c26f6cce4d90754392676f0b07d61b419c82abf",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -173,10 +173,11 @@
     "get_communitiesCommunityIdPostsPostIdDanceModeratedReferencesChoreographyId",
     "post_communitiesCommunityIdPostsPostIdDanceModeratedReferences",
     "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
-    "get_communitiesCommunityIdDanceReviewsReviewIdPublication"
+    "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
+    "delete_postsPostIdVideo"
   ],
-  "validatedSourceCommit": "c7e65cf4773ebbc7a574b3f03c323fee03a47213",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/656",
-  "intakeStatus": "Genuine immutable134 at api-next c7e65cf4 (PR656, hosted run 39988905920 green). Adds chain 8453 beside 84532 on Megapot pool legs, pool funding and the song pool projection for the owner-executed Safe pool pilot; nothing else changes. Owner audit and staging rehearsal remain separate gates. No deployment or operational admission.",
-  "sourceBase": "3e0e079027a616da5ec718a7feef9d8faec5e5fe"
+  "validatedSourceCommit": "875ce9cc6cec77a89d17cde7925980c85c3a2e78",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/666",
+  "intakeStatus": "Genuine immutable135 from API666 at875ce9cc. Retains134 and adds author-only browser-session DeleteVideoPost. API local check/test, restricted-write PostgreSQL and package checks pass; protected source acceptance and deployment are pending. No runtime or financial admission.",
+  "sourceBase": "becda5f11be5a068e8805e078b2972c5a8f9a710"
 }

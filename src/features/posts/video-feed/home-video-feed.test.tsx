@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
 import type { FeedPageLoader } from "../feed/public-feed-adapter.ts";
-import { HomeVideoFeed } from "./home-video-feed.tsx";
+import { HomeVideoFeed, type HomeVideoFeedProps } from "./home-video-feed.tsx";
 import { makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
 import {
@@ -480,6 +480,10 @@ function streamedFeed(options: {
   readonly membership?: PublicFeedItem["viewerMembershipStatus"];
   readonly reportPost?: PostEngagementTransport["reportPost"];
   readonly pendingStorage?: PendingEngagementStorage;
+  readonly authorPersonaId?: string;
+  readonly authorPersonas?: HomeVideoFeedProps["authorPersonas"];
+  readonly deleteVideo?: HomeVideoFeedProps["deleteVideo"];
+  readonly deletionStorage?: HomeVideoFeedProps["deletionStorage"];
 } = {}) {
   const item: PublicFeedItem = {
     ...video([]),
@@ -488,6 +492,7 @@ function streamedFeed(options: {
     videoDelivery: delivered,
     songPostId: "post_song",
     songTitle: options.songTitle ?? "Harbor song",
+    ...(options.authorPersonaId ? { identityMode: "public", authorPersonaId: options.authorPersonaId } as const : {}),
     ...(options.membership !== undefined ? { viewerMembershipStatus: options.membership } : {}),
   };
   let mints = 0;
@@ -517,6 +522,9 @@ function streamedFeed(options: {
       {...(options.reportPost ? { reportTransport: { reportPost: options.reportPost } } : {})}
       pendingStorage={options.pendingStorage ?? createMemoryPendingEngagementStorage()}
       generateIdempotencyKey={() => "feed-report-key"}
+      authorPersonas={options.authorPersonas}
+      deleteVideo={options.deleteVideo}
+      deletionStorage={options.deletionStorage}
     />
   ));
   return { container, mints: () => mints, attached };
@@ -784,5 +792,108 @@ describe("sign-in continuity", () => {
     feed.setIdentity("user:two");
     await vi.waitFor(() => expect(feed.mints()).toBe(2));
     expect(row(feed.container, "video-kept")).not.toBe(signedIn);
+  });
+});
+
+
+describe("Author deletion in the feed", () => {
+  const receipt = { object: "video_post_deletion", community_id: "community-1", post_id: "video-stream", status: "deleted" } as const;
+  const owned = { accountId: "author_account", personaIds: ["author_persona"] };
+  const storageFixture = () => {
+    const values = new Map<string, string>();
+    return { values, storage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    } };
+  };
+  const button = (text: string) => vi.waitFor(() => {
+    const match = [...document.body.querySelectorAll<HTMLButtonElement>("button")].find(node => node.textContent === text);
+    expect(match).toBeTruthy();
+    return match!;
+  });
+  const openDelete = async (container: HTMLElement) => {
+    (await phoneMore(container)).click();
+    const rows = await moreSheetRows();
+    const row = rows.find(node => node.textContent === "Delete video");
+    expect(row).toBeTruthy();
+    row!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Delete your video?"));
+  };
+
+  test.each([
+    { principalId: "author_account", authorPersonas: owned, offered: true },
+    { principalId: "other_account", authorPersonas: owned, offered: false },
+    { principalId: "author_account", authorPersonas: { ...owned, personaIds: ["other_persona"] }, offered: false },
+    { principalId: undefined, authorPersonas: owned, offered: false },
+  ])("offers Delete only with the current author's private identity read: $offered", async options => {
+    const feed = streamedFeed({ ...options, authorPersonaId: "author_persona", videoReportsSupported: false });
+    (await phoneMore(feed.container)).click();
+    const rows = (await moreSheetRows()).map(node => node.textContent);
+    expect(rows.includes("Delete video")).toBe(options.offered);
+    expect(rows.includes("Report")).toBe(false);
+  });
+
+  test("requires confirmation, permits cancellation, then removes the confirmed Post and returns focus to the feed", async () => {
+    const { values, storage } = storageFixture();
+    const remove = vi.fn(async () => receipt);
+    const feed = streamedFeed({ principalId: "author_account", authorPersonaId: "author_persona", authorPersonas: owned, videoReportsSupported: false, deleteVideo: remove, deletionStorage: storage });
+    await openDelete(feed.container);
+    expect(remove).not.toHaveBeenCalled();
+    (await button("Keep video")).click();
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Delete your video?"));
+    expect(remove).not.toHaveBeenCalled();
+    await openDelete(feed.container);
+    (await button("Delete video")).click();
+    await vi.waitFor(() => expect(feed.container.textContent).toContain("Video deleted."));
+    expect(remove.mock.calls).toEqual([["video-stream"]]);
+    expect(feed.container.querySelector("video")).toBeNull();
+    expect(values.size).toBe(0);
+    await vi.waitFor(() => expect(document.activeElement).toBe(feed.container.querySelector("main")));
+  });
+
+  test("keeps an uncertain target and retries the same video through the visible confirmation", async () => {
+    const { values, storage } = storageFixture();
+    const remove = vi.fn().mockRejectedValueOnce(new Error("reply lost")).mockResolvedValue(receipt);
+    const feed = streamedFeed({ principalId: "author_account", authorPersonaId: "author_persona", authorPersonas: owned, deleteVideo: remove, deletionStorage: storage });
+    await openDelete(feed.container);
+    (await button("Delete video")).click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Deletion couldn't be confirmed"));
+    expect(values.size).toBe(1);
+    (await button("Retry deletion")).click();
+    await vi.waitFor(() => expect(feed.container.textContent).toContain("Video deleted."));
+    expect(remove.mock.calls).toEqual([["video-stream"], ["video-stream"]]);
+  });
+
+  test("a browser storage failure never sends the deletion", async () => {
+    const { storage } = storageFixture();
+    const remove = vi.fn(async () => receipt);
+    const feed = streamedFeed({ principalId: "author_account", authorPersonaId: "author_persona", authorPersonas: owned, deleteVideo: remove,
+      deletionStorage: { ...storage, setItem: () => { throw new Error("storage unavailable"); } } });
+    await openDelete(feed.container);
+    (await button("Delete video")).click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn't safely save"));
+    expect(remove).not.toHaveBeenCalled();
+    expect(feed.container.querySelector("video")).not.toBeNull();
+  });
+
+  test("a completion from the old account cannot remove the next account's visible row or announce success", async () => {
+    const { storage, values } = storageFixture();
+    const [account, setAccount] = createSignal("author_account");
+    const item = { ...video([{ playback_url: "https://media.pirate.test/video.mp4" }]), identityMode: "public" as const, authorPersonaId: "author_persona", id: "video-stream" };
+    let finish!: (value: typeof receipt) => void;
+    const remove = vi.fn(() => new Promise<typeof receipt>(resolve => { finish = resolve; }));
+    const container = render(() => <HomeVideoFeed data={page([item], null)} loadPage={async () => page([item], null)}
+      principalId={account()} sourceIdentity={`user:${account()}`} authorPersonas={{ accountId: account(), personaIds: account() === "author_account" ? ["author_persona"] : ["other_persona"] }}
+      deleteVideo={remove} deletionStorage={storage} />);
+    await openDelete(container);
+    (await button("Delete video")).click();
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledOnce());
+    setAccount("other_account");
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Delete your video?"));
+    finish(receipt);
+    await vi.waitFor(() => expect(container.querySelector("video")).not.toBeNull());
+    expect(container.textContent).not.toContain("Video deleted.");
+    expect(values.size).toBe(1);
   });
 });

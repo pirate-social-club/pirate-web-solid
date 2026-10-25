@@ -81,6 +81,7 @@ const clients = [
       "get_communitiesCommunityIdKaraokeAttemptsAttemptId",
       "get_communitiesCommunityIdPostsPostIdKaraokeLeaderboard",
       "delete_usersMeLearnerAudio",
+      "delete_postsPostIdVideo",
       "get_communitiesCommunityIdPostsPostIdStudyV2",
       "post_communitiesCommunityIdPostsPostIdStudyV2Generations",
       "post_communitiesCommunityIdPostsPostIdStudyV2Sessions",

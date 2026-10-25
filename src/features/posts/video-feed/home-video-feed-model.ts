@@ -16,6 +16,7 @@ interface MediaReferenceCandidate {
 }
 
 export interface HomeVideoPost extends MediaPostData {
+  readonly authorPersonaId?: string;
   readonly destination: string;
   readonly communityDestination: string;
   /** Stream-delivered: the feed attaches signed playback; there is no videoUrl. */
@@ -125,6 +126,7 @@ export function toHomeVideoPost(item: PublicFeedItem): HomeVideoPost | null {
   const postCaption = caption(item);
   return {
     id: item.id,
+    ...(item.identityMode === "public" && item.authorPersonaId ? { authorPersonaId: item.authorPersonaId } : {}),
     videoUrl: media.videoUrl,
     ...(media.posterUrl ? { posterUrl: media.posterUrl } : {}),
     authorName: publisherName(item),
@@ -153,6 +155,7 @@ export function toStreamedHomeVideoPost(
   const songTitle = item.songTitle?.trim();
   return {
     id: item.id,
+    ...(item.identityMode === "public" && item.authorPersonaId ? { authorPersonaId: item.authorPersonaId } : {}),
     streamed: true,
     ...(item.videoDelivery.thumbnail === "ready" ? { posterUrl: posterPath(item.id) } : {}),
     authorName: publisherName(item),

@@ -32,6 +32,7 @@ import type { HomeVideoFeedProps } from "../features/posts/video-feed/home-video
 import { HomeVideoOutcome } from "../features/posts/video-outcomes/home-video-outcome.tsx";
 import type { claimVideoOutcome } from "../features/posts/video-outcomes/claim.ts";
 import { useApplicationSession, useApplicationSessionPending } from "../features/shell/application-session.tsx";
+import { useApplicationPersonas } from "../features/shell/application-personas.tsx";
 
 export interface HomeRouteProps {
   readonly claimVideoOutcome?: typeof claimVideoOutcome;
@@ -111,6 +112,7 @@ function HydrationFixtures() {
 export default function HomeRoute(props: HomeRouteProps = {}) {
   const [session, setSession] = createSignal<HomeRouteSession>("resolving", { ownedWrite: true });
   const applicationSession = useApplicationSession();
+  const personas = useApplicationPersonas();
   const applicationSessionPending = useApplicationSessionPending();
   const hydrationFixtures = isHydrationFixtureRequest();
   const reviewFixture = isLocalFeedReviewRequest();
@@ -124,6 +126,12 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   const sessionStatus = () => sessionResolutionPending() || session() === "resolving"
     ? "resolving"
     : session() === "anonymous" ? "anonymous" : session() === "failed" ? "failed" : "authenticated";
+  const authorPersonas = () => {
+    const accountId = authenticatedSession()?.userId;
+    return accountId && personas?.ownerAccountId?.() === accountId
+      ? { accountId, personaIds: personas.personas().map(persona => persona.personaId) }
+      : undefined;
+  };
 
   createEffect(
     () => applicationSession?.(),
@@ -155,6 +163,7 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
         <HomeVideoFeed
           sourceIdentity={authenticatedSession() ? `user:${authenticatedSession()?.userId}` : "anonymous"}
           principalId={authenticatedSession()?.userId}
+          authorPersonas={authorPersonas()}
           data={authenticatedSession() ? props.homeData : publicData}
           loadPage={({ cursor, locale, sort }) => authenticatedSession()
             ? fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })

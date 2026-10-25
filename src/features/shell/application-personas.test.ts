@@ -54,3 +54,15 @@ test("an anonymous account retry closes the recovery picker", async () => {
   setAccount("anonymous");
   await vi.waitFor(() => expect(store.pickerOpen()).toBe(false));
 });
+
+test("author identity authority tracks the current account and stays absent for a failed private read", async () => {
+  const [account, setAccount] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-a" });
+  const load = vi.fn<() => Promise<SessionResolution>>().mockResolvedValueOnce(result).mockRejectedValue(new Error("offline"));
+  const store = createRoot(dispose => { cleanups.push(dispose); return createApplicationPersonas(account, load); });
+  await vi.waitFor(() => expect(store.ownerAccountId?.()).toBe("account-a"));
+  setAccount({ status: "authenticated", userId: "account-b" });
+  await vi.waitFor(() => expect(store.ownerAccountId?.()).toBeUndefined());
+  await vi.waitFor(() => expect(store.unavailable()).toBe(true));
+  expect(store.ownerAccountId?.()).toBeUndefined();
+  expect(store.personas()).toEqual([]);
+});
