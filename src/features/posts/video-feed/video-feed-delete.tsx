@@ -12,8 +12,7 @@ export function VideoFeedDelete(props: {
   return <Modal open={props.open} onOpenChange={props.onOpenChange}>
     <ModalContent class="gap-4 bg-background p-5 md:max-w-[420px]" closeButtonDisabled={props.busy} onCloseAutoFocus={props.onCloseAutoFocus}>
       <ModalTitle class="pe-10 text-xl font-semibold">Delete your video?</ModalTitle>
-      <ModalDescription>This removes your published video from Pirate. It can't be undone. People may still have copies they saved.</ModalDescription>
-      <p class="text-sm text-muted-foreground">Your private Dance recording and earned qualifications stay in your account.</p>
+      <ModalDescription>This removes your published video. It can't be undone. People may still have copies they saved.</ModalDescription>
       <Show when={props.error}>{message => <p role="alert" class="text-sm text-destructive-text">{message()}</p>}</Show>
       <div class="flex flex-wrap justify-end gap-3" aria-busy={props.busy ? "true" : "false"}>
         <Button variant="outline" disabled={props.busy} onClick={() => props.onOpenChange(false)}>Keep video</Button>

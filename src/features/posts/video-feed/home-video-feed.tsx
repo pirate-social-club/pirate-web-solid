@@ -38,7 +38,7 @@ import { resolveSongActivities, type HomeSongActivity } from "./home-feed-song-a
 import { createStudyV2Api } from "../../studying/study-v2-api.ts";
 import { captureSessionAuthority } from "../../../api/browser-session-events.ts";
 import { VideoFeedDelete } from "./video-feed-delete.tsx";
-import { deleteVideoPost, removeVideoPost, type DeleteVideoPost, type VideoDeletionStorage } from "./video-post-deletion.ts";
+import { deleteVideoPost, removeVideoPost, type DeleteVideoPost } from "./video-post-deletion.ts";
 
 /** One canonical-link cache for the whole feed: a song reused across videos
  * resolves its route once. */
@@ -76,7 +76,6 @@ export interface HomeVideoFeedProps {
    * server independently enforces author ownership on every DELETE. */
   readonly authorPersonas?: Readonly<{ accountId: string; personaIds: readonly string[] }>;
   readonly deleteVideo?: DeleteVideoPost;
-  readonly deletionStorage?: VideoDeletionStorage;
   /**
    * Whether the API accepts reports on video posts. It does not yet: api-next
    * resolves a post report through its text submission, so a video report is
@@ -497,7 +496,6 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     try {
       const outcome = await removeVideoPost({
         ...target,
-        storage: () => props.deletionStorage ?? window.localStorage,
         remove: props.deleteVideo ?? deleteVideoPost,
         isCurrent: () => deletionCurrent(target),
       });
@@ -508,9 +506,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         setDeletionTarget(undefined);
         setDeleteAnnouncement({ accountId: target.accountId, message: "Video deleted." });
       } else {
-        setDeleteError(outcome.kind === "storage_failed"
-          ? "Your browser couldn't safely save this request. Try again."
-          : "Deletion couldn't be confirmed. Retry for this same video.");
+        setDeleteError("Deletion couldn't be confirmed. Retry for this same video.");
       }
     } finally {
       deleteInFlight = false;

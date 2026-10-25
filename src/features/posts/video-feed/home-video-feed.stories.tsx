@@ -448,18 +448,12 @@ export const AdultLocked: Story = { args: AdultViewing.args };
 
 const authorVideo: PublicFeedItem = { ...playableLinked, identityMode: "public", authorPersonaId: "story-author-persona" };
 const authorDeletionArgs = () => {
-  const values = new Map<string, string>();
   return {
     data: oneVideo(authorVideo),
     principalId: "story-author-account",
     sourceIdentity: "user:story-author-account",
     authorPersonas: { accountId: "story-author-account", personaIds: ["story-author-persona"] },
     videoReportsSupported: false,
-    deletionStorage: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => { values.set(key, value); },
-      removeItem: (key: string) => { values.delete(key); },
-    },
     deleteVideo: fn(async () => ({ object: "video_post_deletion" as const, community_id: authorVideo.communityId, post_id: authorVideo.id, status: "deleted" as const })),
   };
 };
