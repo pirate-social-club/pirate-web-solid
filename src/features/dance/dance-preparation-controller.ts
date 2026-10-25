@@ -4,7 +4,7 @@ import { createDancePreparationJournal, danceConsentBody, danceCreateBody, dance
 
 type Api = Pick<ReturnType<typeof createDancePreparationApi>, "create" | "consent" | "latest" | "session" | "context">;
 export type DancePreparationView =
-  | { readonly kind: "objectives"; readonly session: DanceSession; readonly context: DanceCaptureContext }
+  | { readonly kind: "objectives"; readonly session: DanceSession; readonly context: DanceCaptureContext; readonly consentRequested?: true }
   | { readonly kind: "capture_ready"; readonly session: DanceSession; readonly context: DanceCaptureContext; readonly assertCurrent: () => void }
   | { readonly kind: "upload_recovery" | "terminal" | "expired"; readonly session: DanceSession; readonly context: null };
 
@@ -49,6 +49,7 @@ export function createDancePreparationController(options: {
     if (latest.state === "awaiting_upload" || latest.state === "uploaded") return { kind: "upload_recovery", session: latest, context: null };
     const time = now();
     if (!Number.isFinite(time) || time >= latest.expires_at_ms) return { kind: "expired", session: latest, context: null };
+    if (entry.consentBodyJson !== null) return { kind: "objectives", session: latest, context, consentRequested: true };
     return { kind: "objectives", session: latest, context };
   };
   return {

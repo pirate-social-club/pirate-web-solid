@@ -7,6 +7,7 @@ import { createDanceRecorder, type DanceRecorderStage, type DanceRecorderView } 
 import { danceReviewPath } from "./dance-review-api";
 import { danceResultPath } from "./dance-result-api";
 import { VideoCaptureError } from "../posts/video-submission/capture-failure";
+import { DanceFundedObjectives } from "./dance-funded-objectives";
 
 export function DanceRecorderPanel(props: {
   readonly scope: DanceJournalScope;
@@ -40,12 +41,22 @@ export function DanceRecorderPanel(props: {
   };
   const apply = async (next: DanceRecorderView, owns: () => boolean) => {
     if (!owns()) return;
-    if (next.kind === "objectives") {
-      // This entry only admits practice snapshots. The original Do this dance
-      // gesture authorizes the versioned backend consent; no new disclaimer.
+    if (next.kind === "objectives" && (next.context.reward_mode === "practice" || next.consentRequested)) {
+      // Practice needs no additional acceptance. Funded objectives remain on
+      // screen until the participant explicitly enters that captured session.
+      // A saved consent intent only replays that same request after uncertainty.
       next = await recorder!.enter(next.session.terms_hash, request.signal); if (!owns()) return;
     }
     setView(next); setPhase("ready");
+  };
+  const acceptObjectives = async () => {
+    const selectedView = view();
+    if (phase() !== "ready" || selectedView?.kind !== "objectives" || selectedView.context.reward_mode !== "reward_eligible" || !recorder) return;
+    const selected = ++generation, pending = request;
+    const owns = () => alive && generation === selected && !pending.signal.aborted;
+    setPhase("loading");
+    try { await apply(await recorder.enter(selectedView.session.terms_hash, pending.signal), owns); }
+    catch (error) { if (owns()) failed(error instanceof Error ? error : new Error("dance_recorder_failed")); }
   };
   const load = async (recover = false, freshAttempt = false) => {
     if (!alive) return;
@@ -87,6 +98,7 @@ export function DanceRecorderPanel(props: {
   const camera = () => { const current = view(); return current?.kind === "camera" && phase() !== "error" ? current : undefined; };
   const session = () => { const current = view(); return current?.kind === "camera" ? current.ready.session : current?.kind === "upload" ? current.upload.session : current?.session; };
   const uploaded = () => { const value = view(); return phase() === "ready" && value?.kind === "upload" ? value.upload : undefined; };
+  const objectives = () => { const value = view(); return phase() === "ready" && value?.kind === "objectives" && value.context.reward_mode === "reward_eligible" ? value.context : undefined; };
   const cue = () => {
     const value = camera(); if (!value) return "";
     if (phase() === "recording" && elapsed() >= value.ready.session.body_start_ms) return "Follow the dance";
@@ -100,6 +112,7 @@ export function DanceRecorderPanel(props: {
     <Show when={camera()} keyed fallback={<div class="mx-auto flex w-full max-w-md flex-col gap-5 p-5">
       <Show when={status()}><p aria-live="polite" aria-busy={phase() !== "error" && phase() !== "ready" ? "true" : "false"}>{status()}</p></Show>
       <Show when={phase() === "error"}><Button onClick={() => void load(true)}>Check recording</Button></Show>
+      <Show when={objectives()} keyed>{context => <DanceFundedObjectives context={context} onAccept={() => void acceptObjectives()} />}</Show>
       <Show when={phase() === "ready" && view()?.kind === "recovery"}><p>Your saved recording is ready to upload.</p><Button onClick={() => void resume()}>Resume upload</Button></Show>
       <Show when={phase() === "ready" && view()?.kind === "upload_recovery"}><p>Your recording has an unfinished upload.</p><Button onClick={() => void resume()}>Check upload</Button></Show>
       <Show when={phase() === "ready" && view()?.kind === "expired"}><p>This recording session expired.</p></Show>
