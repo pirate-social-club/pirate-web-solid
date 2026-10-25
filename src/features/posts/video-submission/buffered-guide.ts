@@ -5,6 +5,8 @@ export const GUIDE_AUDIO_MAX_BYTES = 32 * 1024 * 1024;
 export const GUIDE_DOWNLOAD_TIMEOUT_MS = 30_000;
 export interface BufferedGuideSource {
   readonly url: string;
+  /** The same complete, bounded download behind url; decoders need no Blob fetch. */
+  readonly blob: Blob;
   readonly expiresAtSeconds?: number;
   release(): void;
 }
@@ -63,7 +65,7 @@ export async function prepareBufferedGuide(
       controller.signal.throwIfAborted();
       const objectUrl = (dependencies.createObjectURL ?? (value => URL.createObjectURL(value)))(blob);
       let released = false;
-      return { url: objectUrl, expiresAtSeconds: grant.expires_at, release() {
+      return { url: objectUrl, blob, expiresAtSeconds: grant.expires_at, release() {
         if (released) return;
         released = true;
         (dependencies.revokeObjectURL ?? (value => URL.revokeObjectURL(value)))(objectUrl);

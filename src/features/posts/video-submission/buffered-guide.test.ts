@@ -29,6 +29,8 @@ describe("complete local guide preparation",()=>{
     expect(String(f.fetchImpl.mock.calls[1]?.[0])).toBe("https://audio.example/second.mp3");
     expect(f.fetchImpl.mock.calls[0]?.[1]).toMatchObject({credentials:"omit",redirect:"error"});
     expect([...new Uint8Array(await f.blobs[0]!.arrayBuffer())]).toEqual([1,2,3]);
+    expect(first.blob).toBe(f.blobs[0]);
+    expect([...new Uint8Array(await first.blob.arrayBuffer())]).toEqual([1,2,3]);
     expect(f.blobs[0]!.type).toBe("audio/mpeg");
     first.release();first.release();second.release();expect(f.revokeObjectURL).toHaveBeenCalledTimes(2);
   });

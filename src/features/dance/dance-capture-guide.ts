@@ -19,7 +19,6 @@ export async function prepareDanceCaptureGuide(input: {
 }, dependencies: {
   readonly prepareSource?: GuideSourcePreparation;
   readonly createAudioContext?: () => AudioContext;
-  readonly fetch?: typeof fetch;
   readonly nowMs?: () => number;
 } = {}): Promise<DanceCaptureGuide> {
   const { signal } = input;
@@ -57,9 +56,7 @@ export async function prepareDanceCaptureGuide(input: {
     if (disposed || audio.state !== "running") throw new Error("dance_guide_unavailable");
     source = await (dependencies.prepareSource ?? prepareBufferedGuide)(postId, signal); current();
     if (new URL(source.url).protocol !== "blob:") throw new Error("dance_guide_unavailable");
-    const response = await (dependencies.fetch ?? fetch)(source.url, { signal, credentials: "omit", redirect: "error" }); current();
-    if (!response.ok) throw new Error("dance_guide_unavailable");
-    const bytes = await response.arrayBuffer(); current();
+    const bytes = await source.blob.arrayBuffer(); current();
     buffer = await audio.decodeAudioData(bytes); current();
     if (disposed || audio.state !== "running" || !Number.isFinite(buffer.duration) || buffer.duration * 1000 < songEndMs) throw new Error("dance_guide_incomplete");
     return Object.freeze({ sessionId, termsHash,

@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { prepareDanceCaptureGuide } from "./dance-capture-guide";
 import { dancePreparationFixture } from "./dance-preparation.fixture";
 
@@ -28,26 +28,38 @@ function fixture() {
   // SAFETY: All Web Audio methods used by this adapter are implemented here.
   // This observes scheduling only, not native decoding or physical output latency.
   const createAudioContext = vi.fn(() => audioMethods as AudioContext);
-  const source = { url: "blob:https://example.test/guide", release: vi.fn() };
+  const source = { url: "blob:https://example.test/guide", blob: new Blob([new Uint8Array([3, 1, 4])]), release: vi.fn() };
   const prepareSource = vi.fn(async () => source);
-  const fetcher = Object.assign(vi.fn(async () => new Response(new Uint8Array(4))), { preconnect: vi.fn() });
+  const fetcher = vi.fn(async () => { throw new TypeError("CSP blocks Blob fetch"); });
+  vi.stubGlobal("fetch", fetcher);
   const controller = new AbortController(), current = vi.fn();
   const context = structuredClone(dancePreparationFixture);
   const prepare = () => prepareDanceCaptureGuide({ context, signal: controller.signal, assertCurrent: current },
-    { prepareSource, createAudioContext, fetch: fetcher, nowMs: () => 1000 });
+    { prepareSource, createAudioContext, nowMs: () => 1000 });
   return { context, node, audio, source, controller, current, prepareSource, createAudioContext, fetcher, prepare, decoded,
     end: () => node.onended?.call(sourceNode, new Event("ended")),
     state(state: AudioContextState) { audioState = state; events.dispatchEvent(new Event("statechange")); } };
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("Dance listening guide", () => {
+  test("decodes the verified Blob bytes when Blob fetching is blocked", async () => {
+    const f = fixture();
+    const guide = await f.prepare();
+    expect(f.fetcher).not.toHaveBeenCalled();
+    expect(f.audio.decodeAudioData).toHaveBeenCalledExactlyOnceWith(await f.source.blob.arrayBuffer());
+    expect(f.source.release).toHaveBeenCalledOnce();
+    guide.dispose();
+  });
+
   test("unlocks audio in the gesture and schedules the frozen excerpt from the shared capture origin", async () => {
     const f = fixture(), pending = f.prepare();
     expect(f.audio.resume).toHaveBeenCalledOnce();
     expect(f.prepareSource).not.toHaveBeenCalled();
     const guide = await pending;
     expect(f.source.release).toHaveBeenCalledOnce();
-    expect(f.fetcher).toHaveBeenCalledWith(f.source.url, { signal: f.controller.signal, credentials: "omit", redirect: "error" });
+    expect(f.fetcher).not.toHaveBeenCalled();
     // A caller changing its view object cannot change this prepared excerpt.
     Object.assign(f.context.reference, { canonical_song_start_ms: 5000 });
     const assertCaptureCurrent = vi.fn();
@@ -68,10 +80,10 @@ describe("Dance listening guide", () => {
     expect(f.createAudioContext).not.toHaveBeenCalled();
   });
 
-  test.each(["source", "fetch", "decode", "short"])("releases resources after %s failure", async failure => {
+  test.each(["source", "bytes", "decode", "short"])("releases resources after %s failure", async failure => {
     const f = fixture();
     if (failure === "source") f.prepareSource.mockRejectedValue(new Error("unavailable"));
-    if (failure === "fetch") f.fetcher.mockRejectedValue(new Error("unavailable"));
+    if (failure === "bytes") vi.spyOn(f.source.blob, "arrayBuffer").mockRejectedValue(new Error("unavailable"));
     if (failure === "decode") f.audio.decodeAudioData.mockRejectedValue(new Error("unavailable"));
     if (failure === "short") f.audio.decodeAudioData.mockResolvedValue(f.decoded(19.99));
     await expect(f.prepare()).rejects.toThrow();
@@ -94,6 +106,17 @@ describe("Dance listening guide", () => {
     const pending = f.prepare(), rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(f.audio.decodeAudioData).toHaveBeenCalledOnce());
     f.controller.abort(); finish(f.decoded(30)); await rejected;
+    expect(f.source.release).toHaveBeenCalledOnce();
+    expect(f.audio.close).toHaveBeenCalledOnce();
+  });
+
+  test("aborting while Blob bytes are pending prevents decoding", async () => {
+    const f = fixture(); let finish!: (bytes: ArrayBuffer) => void;
+    const read = vi.spyOn(f.source.blob, "arrayBuffer").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = f.prepare(), rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    f.controller.abort(); finish(new ArrayBuffer(3)); await rejected;
+    expect(f.audio.decodeAudioData).not.toHaveBeenCalled();
     expect(f.source.release).toHaveBeenCalledOnce();
     expect(f.audio.close).toHaveBeenCalledOnce();
   });
