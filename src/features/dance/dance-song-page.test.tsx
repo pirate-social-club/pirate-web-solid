@@ -4,6 +4,7 @@ import { render, type JSX } from "@solidjs/web";
 import { establishSessionAuthority, forgetSessionAuthority } from "../../api/browser-session-events";
 import { refreshSession } from "../../api/session";
 import { DanceSongPage } from "./dance-song-page";
+import { dancePreparationFixture } from "./dance-preparation.fixture";
 import { createDanceCameraFixtureApi, danceCameraContext as context, danceCameraOptions as options, danceCameraScope as scope, danceCameraSession as session, danceCameraResult } from "./dance-camera.fixtures";
 import type { createDanceRecorder } from "./dance-recorder";
 import type { DanceRecorderView } from "./dance-recorder";
@@ -36,7 +37,7 @@ function harness() {
   // SAFETY: the DOM fixture uses only srcObject; native capture has a separate test layer.
   const stream = streamMethods as MediaStream;
   const prepare = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "objectives", session: context.session, context }));
-  const enter = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "camera", ready, stream }));
+  const enter = vi.fn<ReturnType<typeof createDanceRecorder>["enter"]>(async (): Promise<DanceRecorderView> => ({ kind: "camera", ready, stream }));
   const record = vi.fn<ReturnType<typeof createDanceRecorder>["record"]>(async (_signal, stage) => { stage("saving"); return { kind: "upload", upload: { kind: "processing", session: ready.session } }; });
   const recover = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "upload", upload: { kind: "review", session: { ...ready.session, state: "uploaded" } } }));
   const resume = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "upload", upload: { kind: "processing", session: ready.session } }));
@@ -167,4 +168,30 @@ test("page return after a hidden camera starts a new UI operation and ignores th
   await vi.waitFor(() => expect(h.record).toHaveBeenCalledTimes(1)); vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange")); flush();
   button(host, "Check recording").click(); await vi.waitFor(() => expect(h.factory).toHaveBeenCalledTimes(2)); finish({ kind: "terminal", session: context.session, context: null });
   await new Promise(done => setTimeout(done, 0)); expect(host.textContent).not.toContain("This recording has finished");
+});
+
+
+test("funded entry displays the frozen objective and waits for one explicit acceptance", async () => {
+  const h = harness();
+  h.prepare.mockResolvedValueOnce({ kind: "objectives", session: context.session, context: { ...dancePreparationFixture, session: context.session } });
+  const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Funded Dance"));
+  expect(host.textContent).toContain("test USDC"); expect(host.textContent).toContain("passed owner review");
+  expect(h.enter).not.toHaveBeenCalled(); expect(host.querySelector('[aria-label="Camera preview"]')).toBeNull();
+  button(host, "Accept and continue").click();
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
+  expect(h.enter).toHaveBeenCalledTimes(1); expect(h.enter.mock.calls[0]![0]).toBe(context.session.terms_hash);
+});
+
+
+test("recovering an uncertain funded acceptance replays it without asking for another intent", async () => {
+  const h = harness(); const funded = { ...dancePreparationFixture, session: context.session };
+  h.prepare.mockResolvedValueOnce({ kind: "objectives", session: context.session, context: funded });
+  h.enter.mockRejectedValueOnce(new Error("reply_lost"));
+  h.recover.mockResolvedValueOnce({ kind: "objectives", session: context.session, context: funded, consentRequested: true });
+  const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Funded Dance")); button(host, "Accept and continue").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("couldn’t finish")); button(host, "Check recording").click();
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
+  expect(h.enter).toHaveBeenCalledTimes(2); expect(host.textContent).not.toContain("Accept and continue");
 });
