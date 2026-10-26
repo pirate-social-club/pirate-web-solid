@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { ApiClientError } from "@pirate/api-client";
 import { establishSessionAuthority, forgetSessionAuthority } from "../../api/browser-session-events";
 import { createDanceReviewController } from "./dance-review-controller";
 import { createDanceReviewFixtureStore, danceReviewFixtureReceipt, danceReviewFixtures as f, danceReviewScope as scope } from "./dance-review.fixtures";
-import type { DanceReviewApi, DanceReviewCommand } from "./dance-review-api";
+import { DanceReviewAuthorityError, type DanceReviewApi, type DanceReviewCommand } from "./dance-review-api";
 import type { DanceResult, DanceResultScope } from "./dance-result-api";
 import { danceReviewJournalKey } from "./dance-review-journal";
 import { buildRouteTree, PageFileSystemRouter } from "filesystem-routing";
@@ -64,6 +65,16 @@ test("a lost public command recovers its identical original after membership is 
 test("scope replacement during posting preflight prevents journal, key and command creation", async () => {
   const s = setup(); s.postingEligibility.mockImplementationOnce(async () => { s.select(null); return { kind: "eligible" }; });
   await expect(s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal())).rejects.toThrow("scope_changed");
+  expect(s.command).not.toHaveBeenCalled(); expect(s.key).not.toHaveBeenCalled(); expect(s.entries.size).toBe(0);
+});
+
+test.each([
+  new DanceReviewAuthorityError("dance_review_account_changed"),
+  new ApiClientError({ name: "AuthError", status: 401, code: "auth_error", retryable: false }, { error: { code: "auth_error", message: "Sign in", retryable: false } }),
+])("posting identity failure is never downgraded to unknown posting access: %s", async error => {
+  const s = setup();
+  s.postingEligibility.mockRejectedValueOnce(error);
+  await expect(s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal())).rejects.toBe(error);
   expect(s.command).not.toHaveBeenCalled(); expect(s.key).not.toHaveBeenCalled(); expect(s.entries.size).toBe(0);
 });
 

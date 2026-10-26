@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { ApiClientError } from "@pirate/api-client";
 import { createRoot, createSignal, flush } from "solid-js";
 import { render, type JSX } from "@solidjs/web";
 import { establishSessionAuthority, forgetSessionAuthority } from "../../api/browser-session-events";
 import { refreshSession } from "../../api/session";
 import { createSessionApiClient } from "../../api/client";
 import type { DanceResult } from "./dance-result-api";
-import { createDanceReviewApi, type DanceReviewApi, type DanceReviewCommand, type DanceReviewMedia } from "./dance-review-api";
+import { createDanceReviewApi, DanceReviewAuthorityError, type DanceReviewApi, type DanceReviewCommand, type DanceReviewMedia } from "./dance-review-api";
 import { DanceReviewPage } from "./dance-review-page";
 import { createDanceReviewFixtureStore, danceReviewFixtureReceipt, danceReviewFixtures as f, danceReviewScope as scope } from "./dance-review.fixtures";
 
@@ -79,6 +80,32 @@ test("a slow or failed eligibility read never blocks private submission or previ
   expect(h.command.mock.calls[0]![1]).toMatchObject({ show_publicly_if_passed: false });
 });
 
+test.each(["load", "public-submit"])("a silent account replacement during eligibility %s removes private controls", async when => {
+  const h = harness(), error = new DanceReviewAuthorityError("dance_review_account_changed");
+  if (when === "load") h.postingEligibility.mockRejectedValueOnce(error);
+  const host = h.start();
+  if (when === "public-submit") {
+    await vi.waitFor(() => expect(button(host, "Submit").disabled).toBe(false));
+    h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit").click();
+  }
+  await vi.waitFor(() => expect(host.textContent).toContain("couldn’t confirm your recording"));
+  expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(h.command).not.toHaveBeenCalled(); expect(h.entries.size).toBe(0);
+});
+
+test.each(["load", "public-submit"])("AuthError during posting eligibility %s clears private preview and requires sign-in", async when => {
+  const h = harness(); let reject!: (reason: Error) => void;
+  if (when === "load") h.postingEligibility.mockImplementationOnce(async () => new Promise((_, no) => { reject = no; }));
+  const host = h.start(); await vi.waitFor(() => expect(h.postingEligibility).toHaveBeenCalledTimes(1));
+  button(host, "Preview recording").click(); await vi.waitFor(() => expect(host.querySelector("video")).not.toBeNull());
+  const video = host.querySelector("video")!;
+  const error = new ApiClientError({ name: "AuthError", status: 401, code: "auth_error", retryable: false }, { error: { code: "auth_error", message: "Sign in", retryable: false } });
+  if (when === "load") reject(error);
+  else { h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit").click(); }
+  await vi.waitFor(() => expect(host.textContent).toContain("Sign in to view your recording"));
+  expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(host.querySelector("video")).toBeNull(); expect(video.getAttribute("src")).toBeNull();
+  expect(h.command).not.toHaveBeenCalled(); expect(h.entries.size).toBe(0);
+});
+
 test("refresh after normal joining enables public Submit; the command still rechecks posting access", async () => {
   const h = harness(); h.postingEligibility.mockResolvedValueOnce({ kind: "unavailable", join: { kind: "join" } });
   const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("Join this community"));
@@ -115,6 +142,8 @@ test.each(["member", "gated", "unknown"])("composed generated adapter and page p
     if (path.endsWith("/join-eligibility")) return Response.json({ community: scope.communityId, membership_mode: "gated", human_verification_lane: "very", joinable_now: false,
       status: "verification_required", membership_gate_summaries: [], next_action: { kind: "start_verification", provider_id: "very.web", intent_id: "intent" } });
     if (path.endsWith("/visibility") && init?.method === "POST") {
+      // SAFETY: this fixture receives only the generated client's serialized
+      // visibility body; the operation is checked before projecting its receipt.
       const body = JSON.parse(String(init.body)) as DanceReviewCommand; writes.push(body);
       if (body.operation !== "visibility") throw new Error("unexpected_command");
       result = { ...result, review_revision: result.review_revision + 1, show_publicly_if_passed: body.show_publicly_if_passed };

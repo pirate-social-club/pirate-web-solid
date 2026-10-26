@@ -9,7 +9,7 @@ import { Button, buttonVariants, Modal, ModalContent, ModalHeader, ModalTitle, T
 import { bindPrivatePageLifecycle } from "../notifications/private-page-lifecycle";
 import { createBrowserDanceJournalStore, type DanceJournalStore } from "./dance-preparation-journal";
 import { danceResultPath, danceResultPresentation, type DanceResultScope } from "./dance-result-api";
-import { createDanceReviewApi, danceReviewEditable, danceReviewPath, danceReviewPending, DancePostingEligibilityError, type DancePostingEligibility, type DanceReviewApi } from "./dance-review-api";
+import { createDanceReviewApi, danceReviewEditable, danceReviewPath, danceReviewPending, DancePostingEligibilityError, DanceReviewAuthorityError, type DancePostingEligibility, type DanceReviewApi } from "./dance-review-api";
 import { createDanceReviewController, type DanceReviewIntent, type DanceReviewView } from "./dance-review-controller";
 
 type State = { readonly phase: "loading" | "anonymous" | "unavailable" | "error" } | { readonly phase: "ready"; readonly view: DanceReviewView };
@@ -53,7 +53,11 @@ export function DanceReviewPage(props: {
     try {
       const eligibility = await reader.postingEligibility(expected, pending.signal);
       if (owns()) setPosting(eligibility);
-    } catch { if (owns()) setPosting({ kind: "unknown" }); }
+    } catch (error) {
+      if (!owns()) return;
+      if (error instanceof DanceReviewAuthorityError || (error instanceof ApiClientError && error.declaredName === "AuthError")) { clear(); fail(error); }
+      else setPosting({ kind: "unknown" });
+    }
   };
   const load = async () => {
     clear(); const attempt = revision, communityId = props.communityId, reviewId = props.reviewId;

@@ -1,7 +1,8 @@
 import { captureSessionAuthority, isCurrentSessionAuthority } from "../../api/browser-session-events";
+import { ApiClientError } from "@pirate/api-client";
 import type { DanceJournalStore } from "./dance-preparation-journal";
 import { assertDanceResult, type DanceResult, type DanceResultScope } from "./dance-result-api";
-import { assertDanceReviewReceipt, createDanceReviewApi, danceReviewEditable, danceReviewPending, DancePostingEligibilityError, type DanceReviewApi, type DanceReviewCommand, type DanceReviewReceipt } from "./dance-review-api";
+import { assertDanceReviewReceipt, createDanceReviewApi, danceReviewEditable, danceReviewPending, DancePostingEligibilityError, DanceReviewAuthorityError, type DanceReviewApi, type DanceReviewCommand, type DanceReviewReceipt } from "./dance-review-api";
 import { danceReviewCommand, danceReviewJournalKey, decodeDanceReviewEntry, matchDanceReviewEntry, type DanceReviewEntry } from "./dance-review-journal";
 
 export interface DanceReviewView { readonly result: DanceResult; readonly receipt: DanceReviewReceipt | null }
@@ -57,7 +58,11 @@ export function createDanceReviewController(options: {
         if (intent.operation !== "withdraw" && intent.showPublicly) {
           let eligibility;
           try { eligibility = await api.postingEligibility(scope, signal); }
-          catch { guard(); throw new DancePostingEligibilityError({ kind: "unknown" }); }
+          catch (error) {
+            guard();
+            if (error instanceof DanceReviewAuthorityError || (error instanceof ApiClientError && error.declaredName === "AuthError")) throw error;
+            throw new DancePostingEligibilityError({ kind: "unknown" });
+          }
           guard();
           if (eligibility.kind !== "eligible") throw new DancePostingEligibilityError(eligibility);
         }
