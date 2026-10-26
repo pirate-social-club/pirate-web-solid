@@ -180,3 +180,25 @@ test.each([60, 60.0006, 120, Number.NaN, "unreadable"])("file admission reads th
     expect(dispose).toHaveBeenCalledOnce();
   } finally { spies.forEach(spy => spy.mockRestore()); dispose.mockRestore(); }
 });
+
+test("camera admission probes constant bitrate before opening the camera", async () => {
+  const videoSupport = vi.fn(async (config: VideoEncoderConfig) => ({
+    supported: config.bitrateMode === "constant", config,
+  }));
+  // Preview admission returns this stream without reading its tracks.
+  const stream = {};
+  const getUserMedia = vi.fn().mockResolvedValue(stream);
+  vi.stubGlobal("isSecureContext", true);
+  vi.stubGlobal("VideoEncoder", { isConfigSupported: videoSupport });
+  vi.stubGlobal("AudioEncoder", { isConfigSupported: async (config: AudioEncoderConfig) => ({ supported: true, config }) });
+  vi.stubGlobal("navigator", { userAgent: navigator.userAgent, mediaDevices: { getUserMedia } });
+  try {
+    const { openCameraPreview } = await import("./capture");
+    await expect(openCameraPreview()).resolves.toBe(stream);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(videoSupport).toHaveBeenCalledWith(expect.objectContaining({
+      codec: "avc1.42e01f", bitrate: 4_000_000, bitrateMode: "constant",
+      hardwareAcceleration: "prefer-hardware", latencyMode: "realtime",
+    }));
+  } finally { vi.unstubAllGlobals(); }
+});

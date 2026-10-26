@@ -16,7 +16,9 @@ export interface VideoCaptureSession {
   readonly cancel: () => Promise<void>;
 }
 
-const videoQuality = new Quality({ bitrate: 4_000_000 });
+// Android's variable-rate quality floor can make motion exceed the upload
+// limit despite the requested bitrate. Probe and record with the same mode.
+const videoQuality = new Quality({ bitrate: 4_000_000, bitrateMode: "constant" });
 const audioQuality = new Quality({ bitrate: 128_000 });
 
 /** Measures a chosen file's **video** duration in whole milliseconds, or null
