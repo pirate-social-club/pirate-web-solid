@@ -27,6 +27,45 @@ function setup(reply: object, identity = me) {
 }
 const signal = () => new AbortController().signal;
 
+const membership = { object: "account_community_membership", community_id: scope.communityId, display_name: "Community", resource_href: null, canonical_route: null, membership_status: "member", can_post: true } as const;
+const joinEligibility = { community: scope.communityId, membership_mode: "gated", human_verification_lane: "very", joinable_now: false, status: "verification_required", membership_gate_summaries: [],
+  next_action: { kind: "start_verification", provider_id: "very.web", intent_id: "join-intent" } } as const;
+
+test("posting preflight walks the validated can_post projection with cookies, cancellation and same-account proof", async () => {
+  const s = setup({}), abort = signal();
+  s.fetchImpl.mockImplementation(async (input, _init) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/users/me")) return Response.json(me);
+    return Response.json({ object: "account_community_membership_page", items: url.searchParams.has("cursor") ? [membership] : [], next_cursor: url.searchParams.has("cursor") ? null : "next" });
+  });
+  expect(await s.api.postingEligibility(scope, abort)).toEqual({ kind: "eligible" });
+  expect(s.fetchImpl.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual(["/api/users/me", "/api/users/me/community-memberships", "/api/users/me/community-memberships", "/api/users/me"]);
+  expect(s.fetchImpl.mock.calls.every(([, init]) => init?.credentials === "same-origin" && init.signal === abort && !new Headers(init.headers).has("authorization"))).toBe(true);
+});
+
+test("a nonmember gets the exact gated community verification action without join or provider mutations", async () => {
+  const s = setup({}); s.fetchImpl.mockImplementation(async (input, _init) => {
+    const path = new URL(String(input)).pathname;
+    return Response.json(path.endsWith("/users/me") ? me : path.endsWith("/community-memberships") ? { object: "account_community_membership_page", items: [], next_cursor: null } : joinEligibility);
+  });
+  expect(await s.api.postingEligibility(scope, signal())).toEqual({ kind: "unavailable", join: { kind: "verify", providerId: "very.web", intentId: "join-intent" } });
+  expect(s.fetchImpl.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  expect(String(s.fetchImpl.mock.calls[2]![0])).toContain("/communities/community/join-eligibility");
+});
+
+test.each(["foreign-account", "malformed-projection", "foreign-community", "network", "aborted"])("posting access remains unknown after %s", async failure => {
+  const s = setup({}), abort = new AbortController(); let identities = 0;
+  s.fetchImpl.mockImplementation(async (input, _init) => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith("/users/me")) { identities++; return Response.json(failure === "foreign-account" && identities === 2 ? { ...me, id: "other" } : me); }
+    if (failure === "network") throw new TypeError("network_failed");
+    if (failure === "aborted") abort.abort();
+    if (path.endsWith("/community-memberships")) return Response.json({ object: "account_community_membership_page", items: failure === "malformed-projection" ? [{ ...membership, can_post: false }] : [], next_cursor: null });
+    return Response.json(failure === "foreign-community" ? { ...joinEligibility, community: "other" } : joinEligibility);
+  });
+  await expect(s.api.postingEligibility(scope, abort.signal)).rejects.toThrow();
+});
+
 test("real generated Submit carries the actual boolean, fresh CSRF, cookies and cancellation between two identity reads", async () => {
   const s = setup(danceReviewFixtureReceipt(body, f.awaiting)), abort = signal();
   await s.api.command(scope, body, abort);

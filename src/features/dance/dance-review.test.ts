@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { ApiClientError } from "@pirate/api-client";
 import { establishSessionAuthority, forgetSessionAuthority } from "../../api/browser-session-events";
 import { createDanceReviewController } from "./dance-review-controller";
 import { createDanceReviewFixtureStore, danceReviewFixtureReceipt, danceReviewFixtures as f, danceReviewScope as scope } from "./dance-review.fixtures";
-import type { DanceReviewApi, DanceReviewCommand } from "./dance-review-api";
+import { DanceReviewAuthorityError, type DanceReviewApi, type DanceReviewCommand } from "./dance-review-api";
 import type { DanceResult, DanceResultScope } from "./dance-result-api";
 import { danceReviewJournalKey } from "./dance-review-journal";
 import { buildRouteTree, PageFileSystemRouter } from "filesystem-routing";
@@ -31,12 +32,51 @@ function setup() {
     return danceReviewFixtureReceipt(body, result);
   });
   const disclosure = vi.fn(async () => "disclosure-v1"), media = vi.fn();
-  const api: DanceReviewApi = { read, command, disclosure, media };
+  const postingEligibility = vi.fn<DanceReviewApi["postingEligibility"]>(async () => ({ kind: "eligible" }));
+  const api: DanceReviewApi = { read, command, disclosure, media, postingEligibility };
   const key = vi.fn(() => "original-command");
   const controller = () => createDanceReviewController({ scope, currentScope: () => selected, store, api, commandKey: key });
-  return { entries, store, read, command, disclosure, key, controller, select: (value: DanceResultScope | null) => { selected = value; }, setResult: (value: DanceResult) => { result = value; } };
+  return { entries, store, read, command, disclosure, postingEligibility, key, controller, select: (value: DanceResultScope | null) => { selected = value; }, setResult: (value: DanceResult) => { result = value; } };
 }
 const signal = () => new AbortController().signal;
+
+test.each(["submit", "visibility"] as const)("new public %s refuses unavailable or unknown posting access before allocating a command", async operation => {
+  const s = setup(), result = operation === "submit" ? f.uploaded : f.awaiting; s.setResult(result);
+  s.postingEligibility.mockResolvedValueOnce({ kind: "unavailable", join: { kind: "verify", providerId: "very.web", intentId: "intent" } });
+  await expect(s.controller().act(result, { operation, showPublicly: true }, signal())).rejects.toMatchObject({ eligibility: { kind: "unavailable" } });
+  s.postingEligibility.mockRejectedValueOnce(new Error("network"));
+  await expect(s.controller().act(result, { operation, showPublicly: true }, signal())).rejects.toMatchObject({ eligibility: { kind: "unknown" } });
+  expect(s.command).not.toHaveBeenCalled(); expect(s.key).not.toHaveBeenCalled(); expect(s.entries.size).toBe(0);
+  await s.controller().act(result, { operation, showPublicly: false }, signal());
+  expect(s.command.mock.calls[0]![1]).toMatchObject({ operation, show_publicly_if_passed: false });
+  expect(s.postingEligibility).toHaveBeenCalledTimes(2);
+});
+
+test("a lost public command recovers its identical original after membership is lost", async () => {
+  const s = setup(), original = s.command.getMockImplementation()!;
+  s.command.mockImplementationOnce(async (scope, body) => { await original(scope, body); throw new Error("reply_lost"); });
+  await expect(s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal())).rejects.toThrow("reply_lost");
+  s.postingEligibility.mockRejectedValue(new Error("not_available_anymore"));
+  await s.controller().load(signal());
+  expect(s.command.mock.calls[1]![1]).toEqual(s.command.mock.calls[0]![1]);
+  expect(s.postingEligibility).toHaveBeenCalledTimes(1); expect(s.entries.size).toBe(0);
+});
+
+test("scope replacement during posting preflight prevents journal, key and command creation", async () => {
+  const s = setup(); s.postingEligibility.mockImplementationOnce(async () => { s.select(null); return { kind: "eligible" }; });
+  await expect(s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal())).rejects.toThrow("scope_changed");
+  expect(s.command).not.toHaveBeenCalled(); expect(s.key).not.toHaveBeenCalled(); expect(s.entries.size).toBe(0);
+});
+
+test.each([
+  new DanceReviewAuthorityError("dance_review_account_changed"),
+  new ApiClientError({ name: "AuthError", status: 401, code: "auth_error", retryable: false }, { error: { code: "auth_error", message: "Sign in", retryable: false } }),
+])("posting identity failure is never downgraded to unknown posting access: %s", async error => {
+  const s = setup();
+  s.postingEligibility.mockRejectedValueOnce(error);
+  await expect(s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal())).rejects.toBe(error);
+  expect(s.command).not.toHaveBeenCalled(); expect(s.key).not.toHaveBeenCalled(); expect(s.entries.size).toBe(0);
+});
 
 test("Submit durably captures explicit on, current revision and the frozen disclosure; fresh GET owns the view", async () => {
   const s = setup(), view = await s.controller().act(f.uploaded, { operation: "submit", showPublicly: true }, signal());

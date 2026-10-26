@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { establishSessionAuthority } from "../../api/browser-session-events";
 import type { DanceResult } from "./dance-result-api";
-import type { DanceReviewApi, DanceReviewReceipt } from "./dance-review-api";
+import type { DancePostingEligibility, DanceReviewApi, DanceReviewReceipt } from "./dance-review-api";
 import { DanceReviewPage } from "./dance-review-page";
 import { createDanceReviewFixtureStore, danceReviewFixtureReceipt, danceReviewFixtures as f, danceReviewScope as scope } from "./dance-review.fixtures";
 
@@ -10,11 +10,11 @@ const meta = { title: "Screens/Dance/Recording review", parameters: { layout: "f
   docs: { description: { component: "The production recording-management page with fictional private review responses. No recording, provider, publication or reward operation." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
-function fixture(initial: DanceResult, loseReply = false) {
+function fixture(initial: DanceResult, loseReply = false, posting: DancePostingEligibility = { kind: "eligible" }) {
   let result = initial, lost = false;
   const { store } = createDanceReviewFixtureStore(), receipts = new Map<string, DanceReviewReceipt>();
   const api: DanceReviewApi = {
-    read: async () => result, disclosure: async () => "disclosure-v1", media: async () => { throw new Error("No real media in this fixture"); },
+    postingEligibility: async () => posting, read: async () => result, disclosure: async () => "disclosure-v1", media: async () => { throw new Error("No real media in this fixture"); },
     command: async (_scope, body) => {
       const prior = receipts.get(body.idempotency_key); if (prior) return prior;
       result = body.operation === "withdraw" ? f.withdrawn : { ...f.awaiting, review_revision: result.review_revision + 1,
@@ -60,5 +60,30 @@ export const RecoverLostSubmit: Story = {
     const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Submit" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Check again" })); await canvas.findByRole("heading", { name: "Waiting for review" });
     await expect(canvas.getByRole("checkbox", { name: "Show publicly if it passes" })).toBeChecked();
+  },
+};
+
+export const VerifyBeforePublicSubmission: Story = {
+  render: () => fixture(f.uploaded, false, { kind: "unavailable", join: { kind: "verify", providerId: "very.web", intentId: "fictional-intent" } }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole("link", { name: "Verify to join" })).toHaveAttribute("href", "/c/community");
+    await expect(canvas.getByRole("button", { name: "Submit" })).toBeDisabled();
+    await userEvent.click(canvas.getByRole("checkbox", { name: "Show publicly if it passes" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Submit" }));
+    await canvas.findByRole("heading", { name: "Waiting for review" });
+    await expect(canvas.getByRole("checkbox")).not.toBeChecked();
+  },
+};
+
+export const PostingAccessUnknown: Story = {
+  render: () => fixture(f.uploaded, false, { kind: "unknown" }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/We couldn’t confirm public posting access/u);
+    await expect(canvas.getByRole("button", { name: "Submit" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Check posting access" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("checkbox"));
+    await expect(canvas.getByRole("button", { name: "Submit" })).toBeEnabled();
   },
 };

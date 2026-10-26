@@ -1,7 +1,8 @@
 import { captureSessionAuthority, isCurrentSessionAuthority } from "../../api/browser-session-events";
+import { ApiClientError } from "@pirate/api-client";
 import type { DanceJournalStore } from "./dance-preparation-journal";
 import { assertDanceResult, type DanceResult, type DanceResultScope } from "./dance-result-api";
-import { assertDanceReviewReceipt, createDanceReviewApi, danceReviewEditable, danceReviewPending, type DanceReviewApi, type DanceReviewCommand, type DanceReviewReceipt } from "./dance-review-api";
+import { assertDanceReviewReceipt, createDanceReviewApi, danceReviewEditable, danceReviewPending, DancePostingEligibilityError, DanceReviewAuthorityError, type DanceReviewApi, type DanceReviewCommand, type DanceReviewReceipt } from "./dance-review-api";
 import { danceReviewCommand, danceReviewJournalKey, decodeDanceReviewEntry, matchDanceReviewEntry, type DanceReviewEntry } from "./dance-review-journal";
 
 export interface DanceReviewView { readonly result: DanceResult; readonly receipt: DanceReviewReceipt | null }
@@ -52,6 +53,19 @@ export function createDanceReviewController(options: {
           || result.review_revision !== expected.review_revision || result.state !== expected.state) throw new Error("dance_review_changed");
         if (!danceReviewEditable(result) || (intent.operation === "submit" && result.state !== "uploaded")
           || (intent.operation === "visibility" && !danceReviewPending(result))) throw new Error("dance_review_closed");
+        // Only new public intent is preflighted. An outstanding original must
+        // still recover its immutable receipt after posting access changes.
+        if (intent.operation !== "withdraw" && intent.showPublicly) {
+          let eligibility;
+          try { eligibility = await api.postingEligibility(scope, signal); }
+          catch (error) {
+            guard();
+            if (error instanceof DanceReviewAuthorityError || (error instanceof ApiClientError && error.declaredName === "AuthError")) throw error;
+            throw new DancePostingEligibilityError({ kind: "unknown" });
+          }
+          guard();
+          if (eligibility.kind !== "eligible") throw new DancePostingEligibilityError(eligibility);
+        }
         const common = { idempotency_key: commandKey(), community_id: scope.communityId, review_id: scope.reviewId, expected_review_revision: result.review_revision };
         let body: DanceReviewCommand;
         if (intent.operation === "withdraw") body = { ...common, version: "dance-review-withdraw-v1", operation: "withdraw" };

@@ -1,16 +1,25 @@
 import type { PirateApiClient, PostCommunitiesCommunityIdDanceReviewsReviewIdSubmitInput, PostCommunitiesCommunityIdDanceReviewsReviewIdVisibilityInput, PostCommunitiesCommunityIdDanceReviewsReviewIdWithdrawInput } from "@pirate/api-client";
 import { captureSessionAuthority, isCurrentSessionAuthority } from "../../api/browser-session-events";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "../../api/client";
+import { loadAccountCommunityMemberships } from "../../api/account-community-memberships";
+import { projectCommunityJoinAction, type CommunityJoinAction } from "../communities/community-page/community-engagement-api";
 import { assertDanceResult, type DanceResult, type DanceResultScope } from "./dance-result-api";
 
 type Client = Pick<PirateApiClient, "get_usersMe" | "get_communitiesCommunityIdDanceReviewsReviewIdResult"
+  | "get_usersMeCommunityMemberships" | "get_communitiesCommunityIdJoinEligibility"
   | "get_communitiesCommunityIdDanceModeratedSessionsSessionIdCaptureContext" | "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess"
   | "post_communitiesCommunityIdDanceReviewsReviewIdSubmit" | "post_communitiesCommunityIdDanceReviewsReviewIdVisibility" | "post_communitiesCommunityIdDanceReviewsReviewIdWithdraw">;
 export type DanceReviewCommand = PostCommunitiesCommunityIdDanceReviewsReviewIdSubmitInput["body"]
   | PostCommunitiesCommunityIdDanceReviewsReviewIdVisibilityInput["body"] | PostCommunitiesCommunityIdDanceReviewsReviewIdWithdrawInput["body"];
 export type DanceReviewReceipt = Awaited<ReturnType<Client["post_communitiesCommunityIdDanceReviewsReviewIdSubmit"]>>;
 export type DanceReviewMedia = Awaited<ReturnType<Client["post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess"]>>;
+export class DanceReviewAuthorityError extends Error {}
+export type DancePostingEligibility = { readonly kind: "eligible" } | { readonly kind: "unavailable"; readonly join: CommunityJoinAction } | { readonly kind: "unknown" };
+export class DancePostingEligibilityError extends Error {
+  constructor(readonly eligibility: DancePostingEligibility) { super("dance_posting_unavailable"); }
+}
 export interface DanceReviewApi {
+  postingEligibility(scope: DanceResultScope, signal: AbortSignal): Promise<DancePostingEligibility>;
   read(scope: DanceResultScope, signal: AbortSignal): Promise<DanceResult>;
   disclosure(scope: DanceResultScope, result: DanceResult, signal: AbortSignal): Promise<string>;
   command(scope: DanceResultScope, body: DanceReviewCommand, signal: AbortSignal): Promise<DanceReviewReceipt>;
@@ -38,14 +47,27 @@ export function assertDanceReviewReceipt(receipt: DanceReviewReceipt, body: Danc
  * historical snapshots, never current UI or private media authorization. */
 export function createDanceReviewApi(provided?: Client, csrf: () => string | undefined = readCsrfCookie): DanceReviewApi {
   const authority = captureSessionAuthority();
-  const current = (signal: AbortSignal) => { signal.throwIfAborted(); if (!isCurrentSessionAuthority(authority)) throw new Error("dance_review_session_changed"); };
+  const current = (signal: AbortSignal) => { signal.throwIfAborted(); if (!isCurrentSessionAuthority(authority)) throw new DanceReviewAuthorityError("dance_review_session_changed"); };
   const guarded = async <T>(scope: DanceResultScope, signal: AbortSignal, use: (api: Client) => Promise<T>): Promise<T> => {
     scope = { ...scope }; current(signal); const api = provided ?? createSessionApiClient();
-    const identity = async () => { current(signal); const user = await api.get_usersMe(undefined, { signal }); current(signal); if (user.id !== scope.accountId) throw new Error("dance_review_account_changed"); };
+    const identity = async () => { current(signal); const user = await api.get_usersMe(undefined, { signal }); current(signal); if (user.id !== scope.accountId) throw new DanceReviewAuthorityError("dance_review_account_changed"); };
     await identity(); current(signal); const result = await use(api); current(signal); await identity(); current(signal); return result;
   };
   const write = (signal: AbortSignal) => { current(signal); const token = csrf(); current(signal); if (!token) throw new Error("dance_review_csrf_unavailable"); return sessionRequestOptions(token, { signal }); };
   return {
+    async postingEligibility(scope, signal) {
+      scope = { ...scope };
+      return guarded(scope, signal, async api => {
+        const memberships = await loadAccountCommunityMemberships({ client: {
+          get_usersMeCommunityMemberships: input => { current(signal); return api.get_usersMeCommunityMemberships(input, { signal }); },
+        } });
+        current(signal);
+        if (memberships.some(item => item.community_id === scope.communityId)) return { kind: "eligible" };
+        const eligibility = await api.get_communitiesCommunityIdJoinEligibility({ path: { communityId: scope.communityId } }, { signal });
+        current(signal);
+        return { kind: "unavailable", join: projectCommunityJoinAction(eligibility, scope.communityId) };
+      });
+    },
     async read(scope, signal) {
       scope = { ...scope };
       const result = await guarded(scope, signal, api => api.get_communitiesCommunityIdDanceReviewsReviewIdResult({ path: { communityId: scope.communityId, reviewId: scope.reviewId } }, { signal }));
