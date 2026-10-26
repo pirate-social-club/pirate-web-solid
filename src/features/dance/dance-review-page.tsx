@@ -9,7 +9,7 @@ import { Button, buttonVariants, Modal, ModalContent, ModalHeader, ModalTitle, T
 import { bindPrivatePageLifecycle } from "../notifications/private-page-lifecycle";
 import { createBrowserDanceJournalStore, type DanceJournalStore } from "./dance-preparation-journal";
 import { danceResultPath, danceResultPresentation, type DanceResultScope } from "./dance-result-api";
-import { createDanceReviewApi, danceReviewEditable, danceReviewPath, danceReviewPending, type DanceReviewApi } from "./dance-review-api";
+import { createDanceReviewApi, danceReviewEditable, danceReviewPath, danceReviewPending, DancePostingEligibilityError, type DancePostingEligibility, type DanceReviewApi } from "./dance-review-api";
 import { createDanceReviewController, type DanceReviewIntent, type DanceReviewView } from "./dance-review-controller";
 
 type State = { readonly phase: "loading" | "anonymous" | "unavailable" | "error" } | { readonly phase: "ready"; readonly view: DanceReviewView };
@@ -26,21 +26,35 @@ export function DanceReviewPage(props: {
   const provided = untrack(() => ({ api: props.api, store: props.store, session: props.session }));
   const [state, setState] = createSignal<State>({ phase: "loading" }, { ownedWrite: true });
   const [showPublicly, setShowPublicly] = createSignal(true, { ownedWrite: true });
+  const [posting, setPosting] = createSignal<DancePostingEligibility | { readonly kind: "checking" }>({ kind: "checking" }, { ownedWrite: true });
   const [confirmCancel, setConfirmCancel] = createSignal(false, { ownedWrite: true });
   const [preview, setPreview] = createSignal<string | undefined>(undefined, { ownedWrite: true });
   const [previewStatus, setPreviewStatus] = createSignal<"idle" | "loading" | "unavailable">("idle", { ownedWrite: true });
   let active = true, revision = 0, request: AbortController | undefined, previewRequest: AbortController | undefined;
   let previewTimer: ReturnType<typeof setTimeout> | undefined, video: HTMLVideoElement | undefined;
+  let postingRequest: AbortController | undefined;
   let scope: DanceResultScope | null = null, api: DanceReviewApi | undefined, controller: ReturnType<typeof createDanceReviewController> | undefined;
   const stopPreview = () => {
     previewRequest?.abort(); previewRequest = undefined; clearTimeout(previewTimer);
     if (video) { video.pause(); video.removeAttribute("src"); video.load(); }
     setPreview(undefined); setPreviewStatus("idle");
   };
-  const clear = () => { revision++; request?.abort(); stopPreview(); scope = null; controller = undefined; api = undefined; setConfirmCancel(false); setState({ phase: "loading" }); };
+  const clear = () => { revision++; request?.abort(); postingRequest?.abort(); setPosting({ kind: "checking" }); stopPreview(); scope = null; controller = undefined; api = undefined; setConfirmCancel(false); setState({ phase: "loading" }); };
   const current = (attempt: number, signal: AbortSignal, communityId: string, reviewId: string) => active && !signal.aborted && revision === attempt && props.communityId === communityId && props.reviewId === reviewId;
   const fail = (error: Error) => setState({ phase: error instanceof ApiClientError && error.declaredName === "AuthError" ? "anonymous" : error instanceof ApiClientError && error.declaredName === "NotFound" ? "unavailable" : "error" });
   const apply = (view: DanceReviewView) => { setShowPublicly(view.result.show_publicly_if_passed ?? true); setState({ phase: "ready", view }); };
+  const checkPosting = async (view = ready()) => {
+    const reader = api, expected = scope;
+    if (!view || !danceReviewEditable(view.result) || !reader || !expected) return;
+    postingRequest?.abort();
+    const pending = new AbortController(); postingRequest = pending; setPosting({ kind: "checking" });
+    const attempt = revision, authority = captureSessionAuthority();
+    const owns = () => current(attempt, pending.signal, expected.communityId, expected.reviewId) && scope === expected && captureSessionAuthority() === authority;
+    try {
+      const eligibility = await reader.postingEligibility(expected, pending.signal);
+      if (owns()) setPosting(eligibility);
+    } catch { if (owns()) setPosting({ kind: "unknown" }); }
+  };
   const load = async () => {
     clear(); const attempt = revision, communityId = props.communityId, reviewId = props.reviewId;
     const pending = new AbortController(); request = pending;
@@ -53,21 +67,26 @@ export function DanceReviewPage(props: {
       controller = createDanceReviewController({ scope, currentScope: () => scope, store: provided.store ?? createBrowserDanceJournalStore(), api });
       const view = await controller.load(pending.signal); if (!owns()) return;
       if (captureSessionAuthority() !== authority) { clear(); setState({ phase: "error" }); return; }
-      apply(view);
+      apply(view); void checkPosting(view);
     } catch (error) { if (owns()) fail(error instanceof Error ? error : new Error("dance_review_unavailable")); }
   };
   const act = async (intent: DanceReviewIntent) => {
     const selected = state(), writer = controller;
     if (selected.phase !== "ready" || !writer) return;
-    revision++; request?.abort(); stopPreview(); setConfirmCancel(false); setState({ phase: "loading" });
+    revision++; request?.abort(); postingRequest?.abort(); stopPreview(); setConfirmCancel(false); setState({ phase: "loading" });
     const attempt = revision, communityId = props.communityId, reviewId = props.reviewId, authority = captureSessionAuthority();
     const pending = new AbortController(); request = pending;
     try {
       const view = await writer.act(selected.view.result, intent, pending.signal);
       if (!current(attempt, pending.signal, communityId, reviewId)) return;
       if (captureSessionAuthority() !== authority) { clear(); setState({ phase: "error" }); return; }
-      apply(view);
-    } catch (error) { if (current(attempt, pending.signal, communityId, reviewId)) fail(error instanceof Error ? error : new Error("dance_review_unavailable")); }
+      apply(view); void checkPosting(view);
+    } catch (error) {
+      if (!current(attempt, pending.signal, communityId, reviewId)) return;
+      if (captureSessionAuthority() !== authority) { clear(); setState({ phase: "error" }); return; }
+      if (error instanceof DancePostingEligibilityError) { setPosting(error.eligibility); setState(selected); }
+      else fail(error instanceof Error ? error : new Error("dance_review_unavailable"));
+    }
   };
   const play = async () => {
     const selected = state(), reader = api, expected = scope;
@@ -95,6 +114,28 @@ export function DanceReviewPage(props: {
   onCleanup(bindPrivatePageLifecycle(clear));
   onCleanup(() => { active = false; clear(); });
   const ready = () => { const value = state(); return value.phase === "ready" ? value.view : undefined; };
+  const postingMessage = () => {
+    const value = posting();
+    if (value.kind === "checking") return "Checking public posting access…";
+    if (value.kind === "eligible") return "Posting access confirmed. It must still be available when your video is published.";
+    if (value.kind === "unknown") return "We couldn’t confirm public posting access. Turn off ‘Show publicly if it passes’ to submit privately, or check again.";
+    switch (value.join.kind) {
+      case "verify": case "verify_document": return "Verify and join this community before submitting for public posting. You can also turn off ‘Show publicly if it passes’ and submit privately.";
+      case "join": case "request": return "Join this community before submitting for public posting. You can also turn off ‘Show publicly if it passes’ and submit privately.";
+      case "pending": return "Your community membership is pending. You can submit privately by turning off ‘Show publicly if it passes’.";
+      default: return "Public posting is unavailable in this community. You can submit privately by turning off ‘Show publicly if it passes’.";
+    }
+  };
+  const communityAction = () => {
+    const value = posting(); if (value.kind !== "unavailable") return undefined;
+    switch (value.join.kind) {
+      case "verify": case "verify_document": return "Verify to join";
+      case "join": return "Join community";
+      case "request": return "Request membership";
+      default: return "View community";
+    }
+  };
+  const publicUnavailable = () => showPublicly() && posting().kind !== "eligible";
   return <main class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-8" data-dance-review={state().phase}>
     <Type as="h1" variant="h1">Your recording</Type>
     <Show when={state().phase === "loading"}><p aria-busy="true">Checking your recording…</p></Show>
@@ -113,9 +154,14 @@ export function DanceReviewPage(props: {
         </Show>
         <Show when={previewStatus() === "unavailable"}><p role="status">The preview isn’t available. You can retry.</p></Show>
         <label class="flex min-h-11 items-center gap-3"><input type="checkbox" checked={showPublicly()} onChange={event => setShowPublicly(event.currentTarget.checked)} /><span>Show publicly if it passes</span></label>
+        <div class="space-y-2" aria-live="polite">
+          <p>{postingMessage()}</p>
+          <Show when={communityAction()}>{label => <a class="underline" href={`/c/${encodeURIComponent(props.communityId)}`}>{label()}</a>}</Show>
+          <Show when={posting().kind !== "eligible"}><Button variant="secondary" disabled={posting().kind === "checking"} onClick={() => void checkPosting()}>Check posting access</Button></Show>
+        </div>
         <Show when={view().result.state === "uploaded"} fallback={
-          <Button disabled={showPublicly() === view().result.show_publicly_if_passed} onClick={() => void act({ operation: "visibility", showPublicly: showPublicly() })}>Save publication choice</Button>
-        }><Button onClick={() => void act({ operation: "submit", showPublicly: showPublicly() })}>Submit</Button></Show>
+          <Button disabled={publicUnavailable() || showPublicly() === view().result.show_publicly_if_passed} onClick={() => void act({ operation: "visibility", showPublicly: showPublicly() })}>Save publication choice</Button>
+        }><Button disabled={publicUnavailable()} onClick={() => void act({ operation: "submit", showPublicly: showPublicly() })}>Submit</Button></Show>
       </Show>
       <Show when={danceReviewPending(view().result)}><p class="text-sm text-muted-foreground">Review deadline: <time datetime={view().result.review_deadline}>{new Date(view().result.review_deadline).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time></p></Show>
       <Show when={["pending", "transferred", "failed"].includes(view().result.publication_status)}><DancePublicationStatus communityId={props.communityId} reviewId={props.reviewId} initialStatus={view().result.publication_status} session={provided.session} /></Show>
