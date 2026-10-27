@@ -7,6 +7,7 @@ import { useApplicationSession, useApplicationSessionPending } from "../shell/ap
 
 const FRESHNESS_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
+const RENEW_AFTER_MS = 45_000;
 type PolicyClient = Pick<PirateApiClient, "get_rewardsQualificationPolicies">;
 
 /** A policy read exposes the service entry point, never permission to spend. */
@@ -30,6 +31,7 @@ export function RewardServiceAvailabilityProvider(props: {
   let request: AbortController | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   let expiry: ReturnType<typeof setTimeout> | undefined;
+  let renewal: ReturnType<typeof setTimeout> | undefined;
 
   const invalidate = () => {
     generation += 1;
@@ -38,6 +40,7 @@ export function RewardServiceAvailabilityProvider(props: {
     request = undefined;
     clearTimeout(deadline);
     clearTimeout(expiry);
+    clearTimeout(renewal);
   };
   const refresh = () => {
     if (typeof window === "undefined" || !alive || request) return;
@@ -47,29 +50,38 @@ export function RewardServiceAvailabilityProvider(props: {
       invalidate();
       return;
     }
-    invalidate();
+    // A successful read remains valid while its bounded renewal is in flight.
     const current = generation;
     const controller = new AbortController();
     request = controller;
-    deadline = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const failed = () => {
+      if (!alive || current !== generation || request !== controller) return;
+      invalidate();
+      renewal = setTimeout(() => {
+        if (document.visibilityState !== "hidden") refresh();
+      }, FRESHNESS_MS);
+    };
+    deadline = setTimeout(failed, REQUEST_TIMEOUT_MS);
     const client = props.client ?? createSessionApiClient();
     void client.get_rewardsQualificationPolicies(undefined, { signal: controller.signal })
       .then(() => {
         const latest = session();
         if (alive && current === generation && !controller.signal.aborted && isCurrentSessionAuthority(epoch)
           && !pending() && typeof latest === "object" && latest.userId === account.userId) {
+          clearTimeout(deadline);
+          request = undefined;
+          clearTimeout(expiry);
+          clearTimeout(renewal);
           setAvailable(true);
-        }
-      }, () => {})
-      .finally(() => {
-        if (!alive || current !== generation) return;
-        clearTimeout(deadline);
-        request = undefined;
-        expiry = setTimeout(() => {
-          invalidate();
-          if (document.visibilityState !== "hidden") refresh();
-        }, FRESHNESS_MS);
-      });
+          expiry = setTimeout(() => {
+            invalidate();
+            if (document.visibilityState !== "hidden") refresh();
+          }, FRESHNESS_MS);
+          renewal = setTimeout(() => {
+            if (document.visibilityState !== "hidden") refresh();
+          }, RENEW_AFTER_MS);
+        } else failed();
+      }, failed);
   };
 
   createEffect(() => ({ account: session(), pending: pending() }), () => {

@@ -153,3 +153,40 @@ test("removes Boost and disposes its dialog when availability is lost", async ()
   await userEvent.setup().click(ui.root.querySelector<HTMLButtonElement>('[aria-label="Post options"]')!);
   expect([...document.querySelectorAll('[role="menuitem"]')].map(node => node.textContent)).toEqual(["Share"]);
 });
+
+
+test("keeps an open contribution dialog through healthy availability renewals", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: {
+    code: "provider_unavailable", message: "Service unavailable", retryable: true,
+  } }, { status: 503 })));
+  const read = vi.fn(async () => policies);
+  const ui = mount({ get_rewardsQualificationPolicies: read }, () => <><Probe /><CommunityPostCard
+    communityId="community" post={{ id: "song", kind: "song", title: "Song", body: "", score: 0, publishedAt: "2026-10-15T00:00:00Z" }}
+  /></>);
+  await vi.advanceTimersByTimeAsync(0);
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  await user.click(ui.root.querySelector<HTMLButtonElement>('[aria-label="Post options"]')!);
+  await user.click([...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(node => node.textContent === "Boost")!);
+  await vi.advanceTimersByTimeAsync(0);
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog).not.toBeNull();
+  for (let minute = 0; minute < 3; minute++) {
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(document.querySelector('[role="dialog"]')).toBe(dialog);
+    expect(ui.root.querySelector('[data-availability]')?.textContent).toBe("available");
+  }
+  expect(read.mock.calls.length).toBeGreaterThan(3);
+});
+
+test("revokes positive availability when an early renewal fails", async () => {
+  vi.useFakeTimers();
+  const read = vi.fn<PolicyClient["get_rewardsQualificationPolicies"]>()
+    .mockResolvedValueOnce(policies).mockRejectedValueOnce({ status: 503 });
+  const ui = mount({ get_rewardsQualificationPolicies: read });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(ui.root.textContent).toBe("availableavailable");
+  await vi.advanceTimersByTimeAsync(45_000);
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(ui.root.textContent).toBe("hiddenhidden");
+});
