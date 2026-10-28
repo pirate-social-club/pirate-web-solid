@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.135.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.135.0-a4b7e628.tgz",
-  "sha256": "a4b7e6283b1faa576a06c5579aee8c643e7090ccdbccfdf906a2075211c5fe6c",
-  "source": "api-next-contracts@a98509cee4753d46da8e6efc05288f52da4ca99e5b6f8ee1227ad52cc2c02a74",
-  "openapiSha256": "a98509cee4753d46da8e6efc05288f52da4ca99e5b6f8ee1227ad52cc2c02a74",
-  "clientSha256": "1eb9719b292787ec8a72a88c9c26f6cce4d90754392676f0b07d61b419c82abf",
+  "version": "0.136.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.136.0-5b565aff.tgz",
+  "sha256": "5b565aff657fd7655f2bacca4704549c9e31305501aa01e407b6c702843b4cf5",
+  "source": "api-next-contracts@185e6b43c4084d588e996fd0b93f1f4f0e932ee3b465b38f9cc39ba61d856ac1",
+  "openapiSha256": "185e6b43c4084d588e996fd0b93f1f4f0e932ee3b465b38f9cc39ba61d856ac1",
+  "clientSha256": "32eaa53739f5ffded15d7070ff7b4a2571ac298acaf168c5edc480a8bcf94ec9",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -176,8 +176,8 @@
     "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
     "delete_postsPostIdVideo"
   ],
-  "validatedSourceCommit": "875ce9cc6cec77a89d17cde7925980c85c3a2e78",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/666",
-  "intakeStatus": "Genuine immutable135 from API666 at875ce9cc. Retains134 and adds author-only browser-session DeleteVideoPost. API local check/test, restricted-write PostgreSQL and package checks pass; protected source acceptance and deployment are pending. No runtime or financial admission.",
-  "sourceBase": "becda5f11be5a068e8805e078b2972c5a8f9a710"
+  "validatedSourceCommit": "240354616ec95c1b5846be4774d064079c22a1e3",
+  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/684",
+  "intakeStatus": "Genuine immutable136 from API684 at24035461. API full local check/test and focused PostgreSQL lifecycle checks pass. All139 guarded runtime operations retain their135 statuses and errors; only seven empty_behavior enums add the prospective single-funder ticket-first value. Protected source acceptance and staging activation remain pending.",
+  "sourceBase": "58250c5050f7738aa29123c647b97d0a37658750"
 }

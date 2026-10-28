@@ -164,7 +164,7 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
                     <Type as="p" class="text-muted-foreground" variant="caption">
                       {activityCaption(state().draft.kind, state().draft.activity)} You pay $
                       {state().draft.budgetLabel} now. Terms lock when the reward is created. Unspent funds are
-                      refunded when the bounty ends.
+                      refunded when the bounty ends. Purchased ticket costs are not refunded.
                     </Type>
                   }
                 >

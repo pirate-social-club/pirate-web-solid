@@ -64,6 +64,22 @@ test("the actual shared-pot dialog presents Amount then all activities without a
   expect(document.body.textContent).toContain("You can enter without verification. Verification is required to claim winnings");
   expect(document.body.textContent).toContain("Dance: a community-owner review must pass");
 });
+test("ticket-first payment review discloses spent cost and the frozen single-funder beneficiary", async () => {
+  const h = contributionControllerFixture();
+  h.api.context = async () => ({ ...f.context, quote: { ...f.context.quote,
+    prospective_terms: { ...f.context.quote.prospective_terms, empty_behavior: "single_funder_ticket_first_v1" },
+  } });
+  mount({ fixture: h }); await waitAmount();
+  const user = userEvent.setup(); await user.type(input("song-contribution-amount"), "2");
+  await user.click(button("Review contribution"));
+  await vi.waitFor(() => expect(document.body.textContent).toContain("A ticket is bought before participants qualify"));
+  expect(document.body.textContent).toContain("Its cost is spent even if nobody qualifies");
+  expect(document.body.textContent).toContain("any net winnings go to the pot’s single funder");
+  expect(document.body.textContent).toContain("Late payments are refunded individually to their original sending wallets");
+  expect(document.body.textContent).not.toContain("No ticket is purchased without qualifiers");
+  expect(h.api.create).not.toHaveBeenCalled(); expect(h.walletInvocations()).toBe(0);
+});
+
 test("authorization leads to Review/Pay and only explicit Pay invokes the simulated wallet", async () => {
   const { h, authorization } = mount(); const user = await reserve(); await user.click(button("Review payment"));
   await vi.waitFor(() => expect(document.body.textContent).toContain("Email for your wallet"));
