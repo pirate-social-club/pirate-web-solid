@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Genuine136 retains139operations/417rows. The only runtime-table changes
-// add single_funder_ticket_first_v1 to the shared-pot empty_behavior enums.
-// Statuses, error definitions and every other schema field retain genuine135.
-const expectedDigest = "7da3f904559d5b7e1cdb0bfb9b335047e754d9b1ee7662144c31cf753e4a8440";
+// Genuine137 retains139operations/417rows. The only runtime-table changes
+// add the Safe treasury enum and recipient to seven shared-pot term locations.
+// Statuses, error definitions and every other schema field retain genuine136.
+const expectedDigest = "83c68e0cf49aaf4bd88442748dac1f6afee1b6fe8118590399ea9176d061ba78";
 
 const operations = [
   "get_meNotifications",

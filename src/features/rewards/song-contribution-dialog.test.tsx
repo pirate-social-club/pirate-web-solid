@@ -133,3 +133,16 @@ test("pagehide clears private payment projections while retaining the durable jo
   const { h } = mount(); await reserve(); window.dispatchEvent(new Event("pagehide")); flush();
   expect(document.body.textContent).not.toContain("Original contribution"); expect(h.journal().read()?.contributionId).toBe(f.receipt.contribution_id); expect(h.walletInvocations()).toBe(0);
 });
+
+
+test("payment review discloses the frozen treasury Safe and spent ticket cost", async () => {
+  const h = contributionControllerFixture();
+  const recipient="0x1111111111111111111111111111111111111111";
+  h.api.context = async () => ({ ...f.context, quote: { ...f.context.quote, prospective_terms: { ...f.context.quote.prospective_terms, empty_behavior: "safe_treasury_ticket_first_v1", empty_winnings_recipient:recipient } } });
+  mount({fixture:h});await waitAmount();
+  const user=userEvent.setup();await user.type(input("song-contribution-amount"),"2");await user.click(button("Review contribution"));
+  await vi.waitFor(()=>expect(document.body.textContent).toContain("any net winnings stay in this pot’s Safe as treasury funds"));
+  expect(document.body.textContent).toContain(recipient);
+  expect(document.body.textContent).toContain("Its cost is spent even if nobody qualifies");
+  expect(h.api.create).not.toHaveBeenCalled();expect(h.walletInvocations()).toBe(0);
+});

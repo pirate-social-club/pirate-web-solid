@@ -1,3 +1,4 @@
+import { sharedPotDisposition } from "./shared-pot-terms.ts";
 import { isServer } from "@solidjs/web";
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { Button } from "../../design-system.ts";
@@ -21,7 +22,8 @@ export function SharedSongParticipationView(props: { readonly participation: Sha
         <For each={value().qualification_rules}>{rule => <p>{sharedSongRule(rule)}<Show when={!rule.currently_available}> This funded policy is currently unavailable for new participation.</Show></p>}</For>
         <p>Confirmed contributions: {sharedSongAmount(value().confirmed_contributed_atomic, value().chain_id)}. Remaining ticket budget: {sharedSongAmount(value().remaining_budget_atomic, value().chain_id)}.</p>
         <p>These are pool funds, separate from creator and collaborator earnings. They are not your winnings.</p>
-        <p>Maximum ticket price: {sharedSongAmount(value().terms.ticket_price_ceiling_atomic, value().chain_id)}. With no qualifying accounts, no ticket is purchased.</p>
+        <p>Maximum ticket price: {sharedSongAmount(value().terms.ticket_price_ceiling_atomic, value().chain_id)}.</p>
+        <p class="break-words">{sharedPotDisposition(value().terms)}</p>
         <p>Funded window: {rewardTime(value().terms.starts_at)} to {rewardTime(value().terms.ends_at)}.</p>
         <p>Terminal unspent budget returns proportionally to the original funding wallets.</p>
         <p>{value().chain_id === 84532 ? "Base Sepolia · test USDC has no spendable value." : "Base · USDC."}</p>
