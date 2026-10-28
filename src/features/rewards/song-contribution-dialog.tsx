@@ -154,8 +154,7 @@ export function SongContributionDialog(props: { readonly communityId: string; re
               <p>Available contribution: {usdc(ready().limits.minimum_atomic)}–{usdc(maximumContribution(ready()))}.</p><p class="text-sm text-muted-foreground">{contributionChainLabel(ready().chain_id)} · Payment fee comes from this profile’s wallet.</p>
               <BoostAmountField id="song-contribution-amount" label="Contribution (USDC)" value={amount()} onChange={setAmount} />
               <Button disabled={busy() || !amount()} onClick={() => { void run(selected => selected.reviewAmount(contributionAmount(amount()))); }}>Review contribution</Button>
-              <Button variant="ghost" disabled={busy()} onClick={() => { void run(selected => selected.refresh()); }}>Refresh terms</Button>
-            </>}</Show></Match>
+            </>}</Show><Button variant="ghost" disabled={busy()} onClick={() => { void run(selected => selected.refresh()); }}>Refresh terms</Button></Match>
             <Match when={termsView()}>{review => <>
               <BoostSummaryRow label="Contribution" value={usdc(review().request.funding_amount_atomic)} /><SharedPotTermsView terms={contextTerms(review().context)} />
               <p class="text-sm text-muted-foreground">These terms will be saved before you review and authorize the payment.</p><Button disabled={busy()} onClick={() => { void run(selected => selected.reserve()); }}>Continue to payment</Button>
