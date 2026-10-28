@@ -34,8 +34,11 @@ source.
   authorization.
 - Staging deploys use `bun run deploy:staging:hns-guarded` from published `main`.
   The command reads the active staging gateway manifest, checks the source and
-  built Worker ingress fingerprints and gateway references, and runs the live
-  8s28 serving and browser checks after deployment. Do not bypass it with a
+  built Worker ingress fingerprints and gateway references. Direct staging app,
+  bundle and API checks are required after deployment. Live 8s28 serving and
+  browser checks are reported separately and do not block staging Rewards
+  releases. Explicit `check:staging:hns-route` acceptance still requires them
+  to pass. Production checks are unchanged. Do not bypass it with a
   direct Wrangler deploy. A planned gateway rotation must update the active
   manifest and Worker reference together before the command can pass.
 - Production HNS releases use `bun run prepare:production:hns-guarded
