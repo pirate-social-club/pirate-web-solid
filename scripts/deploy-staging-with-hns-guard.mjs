@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLiveStagingGateway } from "./hns-staging-gateway-preflight.mjs";
+import { checkStagingRelease } from "./staging-release-check.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 // The repository pins its Playwright browsers in .playwright-browsers. Export
@@ -53,8 +54,8 @@ function assertPublishedMain() {
 }
 
 async function main() {
-  if (process.argv.length !== 3 || !["--check-only", "--deploy"].includes(process.argv[2])) {
-    refuse("usage_deploy_staging_with_hns_guard_--check-only_or_--deploy");
+  if (process.argv.length !== 3 || !["--check-only", "--check-release", "--deploy"].includes(process.argv[2])) {
+    refuse("usage_deploy_staging_with_hns_guard_--check-only_or_--check-release_or_--deploy");
   }
   const deploy = process.argv[2] === "--deploy";
   const sha = deploy ? assertPublishedMain() : output("git", ["rev-parse", "HEAD"]);
@@ -69,12 +70,18 @@ async function main() {
     run("bunx", ["wrangler", "deploy", "--config", "dist/ssr/wrangler.json",
       "--message", `staging HNS guard ${sha}`]);
   }
-  run("python3", ["scripts/hns-staging-serving-check.py"]);
-  run("infisical", ["run", "--projectId=fac45f92-9450-42fb-8c2f-f20d043fdfab",
-    "--env=staging", "--path=/services/api-next", "--path=/services/api-next/operator",
-    "--silent", "--", "node", "scripts/run-hns-mainnet-route.mjs"],
-  { ...process.env, ...stagingFixture });
-  console.log(JSON.stringify({ event: deploy ? "hns_staging_deploy_accepted" : "hns_staging_check_passed", sha }));
+  const serving = await checkStagingRelease({
+    requireHns: process.argv[2] === "--check-only",
+    report: value => console.log(JSON.stringify(value)),
+    hnsCheck: () => {
+      run("python3", ["scripts/hns-staging-serving-check.py"]);
+      run("infisical", ["run", "--projectId=fac45f92-9450-42fb-8c2f-f20d043fdfab",
+        "--env=staging", "--path=/services/api-next", "--path=/services/api-next/operator",
+        "--silent", "--", "node", "scripts/run-hns-mainnet-route.mjs"],
+        { ...process.env, ...stagingFixture });
+    },
+  });
+  console.log(JSON.stringify({ event: deploy ? "staging_deploy_accepted" : "staging_check_passed", sha, ...serving }));
 }
 
 main().catch(error => {
