@@ -240,7 +240,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
                 <Field label="Additional score floor (%)" field="minimumScore" />
                 <Field label="Entry cutoff before drawing (seconds)" field="cutoffSeconds" />
               </div></details>
-              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</Type>
+              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Qualifiers share net winnings. A purchased ticket’s cost is spent even if nobody qualifies.</Type>
             </>}>
               <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">Token</Type><select class="block w-full rounded-md border border-input bg-background px-3 py-2" value={draft().assetAddress} onChange={event => update("assetAddress", event.currentTarget.value)}>
                 <For each={catalog()?.assets.items}>{asset => <option value={asset.token_address}>{asset.token_symbol} · {asset.token_address}</option>}</For>
@@ -266,7 +266,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
           {offer => <p>Ends {new Date(offer().body.ends_at).toLocaleString()}</p>}
         </Show>
         <For each={value().policies}>{policy => <p class="text-sm">{qualificationText(policy)}</p>}</For>
-        <Show when={poolTerms()}>{leg => <p class="text-sm">An additional {leg().input.body.min_score_bps / 100}% score floor applies. Qualifiers share net winnings. No ticket is bought without qualifiers.</p>}</Show>
+        <Show when={poolTerms()}>{leg => <p class="text-sm">An additional {leg().input.body.min_score_bps / 100}% score floor applies. Qualifiers share net winnings. Purchased ticket costs are not refundable.</p>}</Show>
         <Show when={bonusTerms()}>{leg => <p class="text-sm">{formatUnits(BigInt(leg().input.body.amount_per_claim_atomic), leg().input.body.token_decimals)} {value().tokenSymbol} to each of the first {leg().input.body.max_claims} qualifying accounts.</p>}</Show>
         <Show when={poolTerms()}>{leg => <p class="text-sm">Ticket price ceiling: {formatUnits(BigInt(leg().input.body.max_ticket_price_atomic), 6)} USDC. Entries close {leg().input.body.entry_cutoff_seconds} seconds before the drawing.</p>}</Show>
         <p class="text-sm">These terms cannot be edited after creation. Unspent funding is returned after the offer ends.</p>

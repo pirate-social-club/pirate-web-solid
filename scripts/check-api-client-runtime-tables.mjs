@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Genuine135 protects139operations/417rows. Its only addition is the author
-// video DELETE receipt; the existing138 guarded operations retain their134
-// runtime tables byte for byte. See docs/video-post-deletion-client-intake.md.
-const expectedDigest = "bc7339452d2e5584eb89756d22a18d5a66a9357a081c02592dc98181e92249a9";
+// Genuine136 retains139operations/417rows. The only runtime-table changes
+// add single_funder_ticket_first_v1 to the shared-pot empty_behavior enums.
+// Statuses, error definitions and every other schema field retain genuine135.
+const expectedDigest = "7da3f904559d5b7e1cdb0bfb9b335047e754d9b1ee7662144c31cf753e4a8440";
 
 const operations = [
   "get_meNotifications",

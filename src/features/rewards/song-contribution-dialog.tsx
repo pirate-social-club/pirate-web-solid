@@ -41,7 +41,11 @@ function SharedPotTermsView(props: { readonly terms: SharedPotTerms }) {
     <For each={qualificationLines(props.terms)}>{line => <p class="text-sm">{line}</p>}</For>
     <p class="text-sm">At most one share per account in each drawing. You can enter without verification. Verification is required to claim winnings. Qualifying does not guarantee winnings.</p>
     <p class="text-sm">Up to {props.terms.planned_drawing_ids.length} drawings. Ends <time datetime={termsEnd(props.terms)}>{new Date(termsEnd(props.terms)).toLocaleString()}</time>.</p>
-    <p class="text-sm">Ticket price ceiling: {usdc(props.terms.ticket_price_ceiling_atomic)}. No ticket is purchased without qualifiers. Qualifiers share net winnings.</p>
+    <p class="text-sm">Ticket price ceiling: {usdc(props.terms.ticket_price_ceiling_atomic)}. Qualifiers share net winnings.</p>
+    <Show when={props.terms.empty_behavior === "single_funder_ticket_first_v1"}>
+      <p class="text-sm">This pot has one funder. A ticket is bought before participants qualify. Its cost is spent even if nobody qualifies. If nobody qualifies, any net winnings go to the pot’s single funder. This rule is fixed before payment.</p>
+    </Show>
+    <p class="text-sm">Purchased ticket costs are not refunded. Late payments are refunded individually to their original sending wallets.</p>
     <p class="text-sm">Ticket spending uses the pot’s budget. After the reward ends, the remaining unspent budget is refunded to the original funding wallets in proportion to confirmed contributions.</p>
   </section>;
 }
