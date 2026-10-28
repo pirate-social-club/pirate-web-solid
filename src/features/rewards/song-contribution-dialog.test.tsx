@@ -64,6 +64,25 @@ test("the actual shared-pot dialog presents Amount then all activities without a
   expect(document.body.textContent).toContain("You can enter without verification. Verification is required to claim winnings");
   expect(document.body.textContent).toContain("Dance: a community-owner review must pass");
 });
+test("an unavailable quote can refresh into an amount review without reserving or authorizing payment", async () => {
+  const h = contributionControllerFixture();
+  vi.mocked(h.api.context).mockResolvedValueOnce({
+    object: "song_megapot_funding_context", version: 2, readiness: "unavailable",
+    target: f.context.target, persona_id: f.scope.personaId,
+    reason: "observation_stale", retry_after_seconds: 30, own_recovery_href: null,
+  });
+  const { dependencies } = mount({ fixture: h });
+  await vi.waitFor(() => expect(h.api.context).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(button("Refresh terms")).toBeDefined());
+  expect(document.getElementById("song-contribution-amount")).toBeNull();
+  await userEvent.setup().click(button("Refresh terms"));
+  await waitAmount();
+  expect(h.api.context).toHaveBeenCalledTimes(2);
+  expect(h.api.create).not.toHaveBeenCalled();
+  expect(h.journal().read()).toBeNull();
+  expect(dependencies.authorization).not.toHaveBeenCalled();
+  expect(h.walletInvocations()).toBe(0);
+});
 test("ticket-first payment review discloses spent cost and the frozen single-funder beneficiary", async () => {
   const h = contributionControllerFixture();
   h.api.context = async () => ({ ...f.context, quote: { ...f.context.quote,
