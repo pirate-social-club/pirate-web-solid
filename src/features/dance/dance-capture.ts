@@ -2,6 +2,7 @@ import { startOriginalVideoCapture, VideoCaptureError, type OriginalVideoCapture
 import type { DanceCaptureGuide } from "./dance-capture-guide";
 import { boundDanceRecording } from "./dance-capture-media";
 import type { DancePreparationView } from "./dance-preparation-controller";
+import { isNoPoseDanceWindow } from "./dance-capture-window";
 
 export interface DanceRecordedTake {
   readonly sessionId: string;
@@ -83,6 +84,7 @@ export function startDanceCapture(input: {
       || input.guide.sessionId !== session.session_id || input.guide.termsHash !== session.terms_hash) throw new Error("dance_capture_target_changed");
     if (typeof document !== "undefined" && document.visibilityState === "hidden") throw new Error("dance_capture_interrupted");
     const started = await (dependencies.startCapture ?? startOriginalVideoCapture)({ stream: input.stream,
+      videoFirst: isNoPoseDanceWindow(session),
       limitMs: session.body_end_ms + 1500,
       onFailure: fail,
       onLimit: () => fail(new Error("dance_capture_incomplete")),
@@ -96,6 +98,7 @@ export function startDanceCapture(input: {
             || sample.timestampMs < 0 || sample.durationMs < 0
             || (sample.kind === "audio" && sample.durationMs === 0)) throw new Error("dance_capture_incomplete");
           if (!guideStarted) {
+            if (isNoPoseDanceWindow(session) && (sample.kind !== "video" || Math.round(sample.timestampMs * 1000) !== 0)) throw new Error("dance_capture_incomplete");
             input.guide.start(sample.originMs, current, fail); guideStarted = true;
           }
           covered[sample.kind] = Math.max(covered[sample.kind], sample.timestampMs + sample.durationMs);

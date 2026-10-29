@@ -65,7 +65,7 @@ export function DanceRecorderPanel(props: {
   // Retained pose policies still require their captured instruction. The
   // prospective no-pose policy must remove that obligation truthfully.
   const capturedCue = () => {
-    const value = camera(); if (!value || !matches("camera")) return undefined;
+    const value = camera(); if (!value || !matches("camera") || value.ready.session.cue.kind === "none") return undefined;
     return { hands_on_head: "Hands on your head", arms_t: "Hold your arms out to the sides", hands_on_hips: "Hands on your hips" }[value.ready.session.cue.kind];
   };
   const processing = () => state()?.matches("processing") ?? false;

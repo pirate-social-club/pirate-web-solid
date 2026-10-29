@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { establishSessionAuthority, forgetSessionAuthority, refreshSessionAuthority } from "../../api/browser-session-events";
 import { assertDanceOwnerRecording, type DanceOwnerApi, type DanceOwnerRecording } from "./dance-owner-api";
 import { createDanceOwnerController, danceOwnerJournalKey } from "./dance-owner-controller";
-import { danceOwnerFixture as f, danceOwnerFixtureReceipt, danceOwnerScope as scope } from "./dance-owner.fixtures";
+import { danceOwnerFixture as f, danceNoPoseOwnerFixture, danceOwnerFixtureReceipt, danceOwnerScope as scope } from "./dance-owner.fixtures";
 import { createDanceReviewFixtureStore } from "./dance-review.fixtures";
 beforeEach(establishSessionAuthority); afterEach(() => { forgetSessionAuthority(); vi.restoreAllMocks(); });
 const signal = () => new AbortController().signal;
@@ -17,6 +17,20 @@ test.each(["passed", "not_passed"] as const)("%s is journaled before dispatch wi
   const h = harness(); h.verdict.mockImplementation(async (_scope, body) => { expect(h.entries.size).toBe(1); return danceOwnerFixtureReceipt(body); });
   const result = await h.make().decide(f, decision, signal()); expect(result.kind).toBe("receipt"); expect(h.entries.size).toBe(0);
   expect(h.verdict.mock.calls[0]![1]).toEqual({ version: "dance-owner-verdict-attestation-v1", operation: "verdict", idempotency_key: "original-verdict", community_id: "community", review_id: "review", expected_review_revision: 3, verdict: decision });
+});
+test.each(["passed", "not_passed"] as const)("no-pose %s uses truthful v2 and replays the original command after a lost response", async decision => {
+  const h = harness(); h.detail.mockResolvedValue(danceNoPoseOwnerFixture); h.verdict.mockRejectedValueOnce(new Error("lost_reply"));
+  await expect(h.make().decide(danceNoPoseOwnerFixture, decision, signal())).rejects.toThrow("lost_reply");
+  const original = h.verdict.mock.calls[0]![1]; expect(original.version).toBe("dance-owner-verdict-attestation-v2");
+  expect(original.verdict).toBe(decision); h.detail.mockRejectedValue(new Error("closed"));
+  const result = await h.make().load(signal()); expect(result.kind).toBe("receipt");
+  if (result.kind === "receipt") expect(result.receipt.result.cue_attestation).toBe("not_required");
+  expect(h.verdict.mock.calls[1]![1]).toEqual(original); expect(h.entries.size).toBe(0); expect(h.key).toHaveBeenCalledTimes(1);
+});
+test("a v1 attestation cannot conceal a no-pose review", () => {
+  expect(() => assertDanceOwnerRecording({ ...danceNoPoseOwnerFixture,
+    detail: { ...danceNoPoseOwnerFixture.detail, attestation_version: "dance-owner-verdict-attestation-v1" } }, scope)).toThrow("target_changed");
+  expect(() => assertDanceOwnerRecording({ ...f, detail: { ...f.detail, attestation_version: "dance-owner-verdict-attestation-v2" } }, scope)).toThrow("target_changed");
 });
 test("lost verdict replay precedes detail even when a terminal review has left the queue", async () => {
   const h = harness(); h.verdict.mockRejectedValueOnce(new Error("lost_reply"));

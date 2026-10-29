@@ -5,7 +5,7 @@ import { VideoCaptureError } from "../posts/video-submission/capture-failure";
 import { VideoPlaybackSeamsContext } from "../posts/video-submission/video-playback-seams";
 import { reviewPlaybackMint, reviewPosterPath } from "../posts/feed/public-feed-fixtures";
 import { createDanceReviewFixtureStore } from "./dance-review.fixtures";
-import { createDanceCameraFixtureApi, createDanceCameraFixtureRecorder, danceCameraContext, danceFundedCameraContext, danceCameraSession, danceCameraResult, createDanceCameraReviewFixtureApi } from "./dance-camera.fixtures";
+import { createDanceCameraFixtureApi, createDanceCameraFixtureRecorder, danceCameraContext, danceNoPoseCameraContext, danceFundedCameraContext, danceCameraSession, danceCameraResult, createDanceCameraReviewFixtureApi } from "./dance-camera.fixtures";
 import { DanceSongPage } from "./dance-song-page";
 import type { createDanceRecorder } from "./dance-recorder";
 
@@ -13,8 +13,8 @@ const meta = { title: "Flows/Dance/Recording", globals: { viewport: { value: "da
   docs: { description: { component: "Production entry and recording screens with fictional API/recorder responses and a canvas preview. This does not exercise real camera, persistence, uploads or provider acceptance." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
-function fixture(mode: "camera" | "saved" | "pending" | "owner" | "denied" | "funded" | "slow" | "offline" = "camera") {
-  const captured = mode === "funded" ? danceFundedCameraContext : danceCameraContext;
+function fixture(mode: "camera" | "no-pose" | "saved" | "pending" | "owner" | "denied" | "funded" | "slow" | "offline" = "camera") {
+  const captured = mode === "funded" ? danceFundedCameraContext : mode === "no-pose" ? danceNoPoseCameraContext : danceCameraContext;
   const api = createDanceCameraFixtureApi(captured), { store } = createDanceReviewFixtureStore();
   if (mode === "owner") api.owner = async () => true;
   if (mode === "pending") api.latest = async () => ({ object: "latest_moderated_dance_review", latest_submitted: danceCameraResult("awaiting"), active_session_id: danceCameraContext.session.session_id });
@@ -38,6 +38,15 @@ export const ChooseAndFrame: Story = {
     const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Open dance 1" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Do this dance" })); await canvas.findByRole("button", { name: "Record" });
     await expect(canvas.getByLabelText("Camera preview")).toBeVisible();
+  },
+};
+export const NoPoseCamera: Story = {
+  render: () => fixture("no-pose"),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Open dance 1" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Do this dance" }));
+    await expect(await canvas.findByRole("button", { name: "Record" })).toBeEnabled();
+    await expect(canvas.queryByText(/opening cue/)).toBeNull();
   },
 };
 export const RecordAndReview: Story = {

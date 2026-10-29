@@ -5,7 +5,7 @@ import { establishSessionAuthority, forgetSessionAuthority } from "../../api/bro
 import { refreshSession } from "../../api/session";
 import { DanceSongPage } from "./dance-song-page";
 import { dancePreparationFixture } from "./dance-preparation.fixture";
-import { createDanceCameraFixtureApi, danceCameraContext as context, danceCameraOptions as options, danceCameraScope as scope, danceCameraSession as session, danceCameraResult } from "./dance-camera.fixtures";
+import { createDanceCameraFixtureApi, danceNoPoseCameraContext, danceCameraContext as context, danceCameraOptions as options, danceCameraScope as scope, danceCameraSession as session, danceCameraResult } from "./dance-camera.fixtures";
 import { createDanceCameraReviewFixtureApi } from "./dance-camera.fixtures";
 import type { createDanceRecorder } from "./dance-recorder";
 import type { DanceRecorderView } from "./dance-recorder";
@@ -70,6 +70,18 @@ test("an existing saved original exposes recovery without opening a camera", asy
   const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
   await vi.waitFor(() => expect(host.textContent).toContain("saved recording is ready")); expect(h.enter).not.toHaveBeenCalled();
   button(host, "Resume upload").click(); await vi.waitFor(() => expect(h.resume).toHaveBeenCalledTimes(1)); expect(h.enter).not.toHaveBeenCalled();
+});
+
+test("a new no-pose session opens the shared camera with Record and no opening-cue instruction", async () => {
+  const h = harness(); const ready = { kind: "capture_ready" as const, session: { ...danceNoPoseCameraContext.session, state: "consented" as const },
+    context: { ...danceNoPoseCameraContext, session: { ...danceNoPoseCameraContext.session, state: "consented" as const } }, assertCurrent() {} };
+  const streamMethods: Pick<MediaStream, "getTracks"> = { getTracks: () => [] };
+  // SAFETY: the component attaches srcObject; native capture has its own tests.
+  const stream = streamMethods as MediaStream;
+  h.enter.mockImplementationOnce(async () => ({ kind: "camera", ready, stream }));
+  const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
+  expect(button(host, "Record").disabled).toBe(false); expect(host.textContent).not.toContain("opening cue"); expect(host.textContent).not.toContain("Hands on your head");
 });
 
 test("a recording/save failure shows recovery and never invokes a second Record", async () => {

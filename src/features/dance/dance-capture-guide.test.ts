@@ -80,6 +80,29 @@ describe("Dance listening guide", () => {
     expect(f.createAudioContext).not.toHaveBeenCalled();
   });
 
+  test.each([0, 25, 250])("a no-pose guide starts now at its real %sms elapsed song offset", async elapsed => {
+    const f = fixture();
+    Object.assign(f.context.session, { body_start_ms: 0, body_end_ms: 10000,
+      cue: { kind: "none", start_ms: 0, end_ms: 0, hold_ms: 0 } });
+    const guide = await f.prepare(); guide.start(1000 - elapsed, vi.fn(), vi.fn());
+    expect(f.node.start).toHaveBeenCalledExactlyOnceWith(10, 10 + elapsed / 1000, 10 - elapsed / 1000);
+    expect(f.node.playbackRate.value).toBe(1); guide.dispose();
+  });
+
+  test.each([251, -1])("a no-pose guide refuses a missed or future origin (%sms)", async elapsed => {
+    const f = fixture();
+    Object.assign(f.context.session, { body_start_ms: 0, body_end_ms: 10000,
+      cue: { kind: "none", start_ms: 0, end_ms: 0, hold_ms: 0 } });
+    const guide = await f.prepare(); expect(() => guide.start(1000 - elapsed, vi.fn(), vi.fn())).toThrow("dance_guide_start_missed");
+    expect(f.node.start).not.toHaveBeenCalled(); guide.dispose();
+  });
+
+  test("zero timing cannot conceal a retained pose cue", async () => {
+    const f = fixture(); Object.assign(f.context.session, { body_start_ms: 0, body_end_ms: 10000 });
+    await expect(f.prepare()).rejects.toThrow("dance_guide_bounds_changed");
+    expect(f.createAudioContext).not.toHaveBeenCalled();
+  });
+
   test.each(["source", "bytes", "decode", "short"])("releases resources after %s failure", async failure => {
     const f = fixture();
     if (failure === "source") f.prepareSource.mockRejectedValue(new Error("unavailable"));

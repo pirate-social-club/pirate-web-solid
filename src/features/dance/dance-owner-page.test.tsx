@@ -7,7 +7,7 @@ import { establishSessionAuthority, forgetSessionAuthority } from "../../api/bro
 import { refreshSession } from "../../api/session";
 import type { DanceOwnerApi, DanceOwnerQueue } from "./dance-owner-api";
 import { DanceOwnerPage } from "./dance-owner-page";
-import { danceOwnerFixture as f, danceOwnerFixtureReceipt, danceOwnerScope as scope } from "./dance-owner.fixtures";
+import { danceOwnerFixture as f, danceNoPoseOwnerFixture, danceOwnerFixtureReceipt, danceOwnerScope as scope } from "./dance-owner.fixtures";
 import { createDanceReviewFixtureStore } from "./dance-review.fixtures";
 // SAFETY: the app runner selects the DOM renderer; TypeScript sees the server overload.
 const renderDom = render as (view: () => JSX.Element, host: HTMLElement) => void;
@@ -26,6 +26,13 @@ function harness() {
   const start = (reviewId: string | null = "review") => mount(() => <DanceOwnerPage communityId="community" reviewId={reviewId ?? undefined} api={api} store={store} session={session} />);
   return { start, api, store, entries, detail, verdict, queue, media };
 }
+test("no-pose review shows the actual performance rubric and submits v2 without a pose affirmation", async () => {
+  const h = harness(); h.detail.mockResolvedValue(danceNoPoseOwnerFixture); const host = h.start();
+  await vi.waitFor(() => expect(host.textContent).toContain("No opening cue is required"));
+  expect(host.textContent).not.toContain("Assigned cue:"); expect(host.textContent).not.toContain("saw the assigned cue");
+  button(host, "Pass").click(); await vi.waitFor(() => expect(host.textContent).toContain("Decision recorded"));
+  expect(h.verdict.mock.calls[0]![1]).toMatchObject({ version: "dance-owner-verdict-attestation-v2", verdict: "passed" });
+});
 test("owner queue and detail are separate reachable route leaves", async () => {
   const router = new PageFileSystemRouter({ dir: resolve("src/routes"), extensions: ["js", "jsx", "ts", "tsx"] });
   const routes = buildRouteTree(await router.getRoutes()).filter(route => route.path.startsWith("/dance/:communityId/owner-reviews"));

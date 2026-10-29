@@ -146,8 +146,13 @@ export function DanceOwnerPage(props: { readonly communityId: string; readonly r
           <section class="space-y-3" aria-label="Reference dance"><Type as="h3" variant="h3">Reference dance</Type><div class="mx-auto aspect-[9/16] max-h-[45dvh] overflow-hidden rounded-xl"><VideoPlayer postId={recording.detail.reference_post_id} state={{ playback: "ready", thumbnail: "ready" }} activation="manual" layout="card" /></div></section>
           <section class="space-y-3" aria-label="Captured review rubric"><Type as="h3" variant="h3">What to review</Type>
             <p class="whitespace-pre-wrap">{recording.rubric.rubric_text}</p>
-            <p>Assigned cue: {cueName(recording.detail.cue.id)}. Hold for {recording.detail.cue.hold_ms / 1000} seconds between {recording.detail.cue.start_ms / 1000} and {recording.detail.cue.end_ms / 1000} seconds. Dance interval: {recording.detail.body.start_ms / 1000}–{recording.detail.body.end_ms / 1000} seconds.</p>
-            <p>By choosing Pass, you confirm you inspected this recording, saw the assigned cue satisfy this rubric before the dance interval, and accept the performance of the selected dance.</p>
+            <Show when={recording.detail.cue.id !== "none"} fallback={<>
+              <p>Dance interval: 0–{recording.detail.body.end_ms / 1000} seconds. No opening cue is required.</p>
+              <p>By choosing Pass, you confirm you inspected this recording and accept the performance of the selected dance.</p>
+            </>}>
+              <p>Assigned cue: {cueName(recording.detail.cue.id)}. Hold for {recording.detail.cue.hold_ms / 1000} seconds between {recording.detail.cue.start_ms / 1000} and {recording.detail.cue.end_ms / 1000} seconds. Dance interval: {recording.detail.body.start_ms / 1000}–{recording.detail.body.end_ms / 1000} seconds.</p>
+              <p>By choosing Pass, you confirm you inspected this recording, saw the assigned cue satisfy this rubric before the dance interval, and accept the performance of the selected dance.</p>
+            </Show>
             <div class="flex flex-wrap gap-3"><Button onClick={() => void decide("passed")}>Pass</Button><Button variant="secondary" onClick={() => void decide("not_passed")}>Not passed</Button></div>
           </section>
         </Show>

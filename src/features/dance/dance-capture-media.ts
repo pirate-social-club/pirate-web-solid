@@ -3,6 +3,7 @@ import {
   EncodedVideoPacketSource, Input, Mp4OutputFormat, Output,
 } from "mediabunny";
 import type { DanceSession } from "./dance-preparation-api";
+import { DANCE_SOURCE_START_LIMIT_MS, isNoPoseDanceWindow, validDanceCaptureWindow } from "./dance-capture-window";
 
 const refused = () => new Error("dance_capture_incomplete");
 
@@ -19,12 +20,13 @@ export async function boundDanceRecording(input: {
   const current = () => { input.signal.throwIfAborted(); input.assertCurrent(); };
   const { body_start_ms: bodyStartMs, body_end_ms: bodyEndMs, cue } = input.window;
   const { start_ms: cueStartMs, end_ms: cueEndMs, hold_ms: cueHoldMs } = cue;
+  const noPose = isNoPoseDanceWindow(input.window);
   current();
-  if (![bodyStartMs, bodyEndMs, cueStartMs, cueEndMs, cueHoldMs, input.maximumBytes].every(Number.isSafeInteger)
-    || bodyStartMs <= 0 || bodyEndMs <= bodyStartMs || cueStartMs < 0 || cueHoldMs <= 0
-    || cueEndMs > bodyStartMs || cueStartMs + cueHoldMs > cueEndMs || input.maximumBytes <= 0) throw refused();
+  if (!validDanceCaptureWindow(input.window) || !Number.isSafeInteger(input.maximumBytes) || input.maximumBytes <= 0) throw refused();
   const end = bodyEndMs / 1000;
-  const fitsCue = (start: number) => Math.round((Math.max(start, cueStartMs / 1000) + cueHoldMs / 1000) * 1e6) <= cueEndMs * 1000;
+  const fitsCue = (start: number) => noPose ? Math.round(start * 1e6) === 0
+    : Math.round((Math.max(start, cueStartMs / 1000) + cueHoldMs / 1000) * 1e6) <= cueEndMs * 1000;
+  const audioStartLimitMs = noPose ? DANCE_SOURCE_START_LIMIT_MS : bodyStartMs;
   const source = new Input({ source: new BlobSource(input.file), formats: ALL_FORMATS });
   const target = new BufferTarget();
   const output = new Output({ target, format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }) });
@@ -54,7 +56,7 @@ export async function boundDanceRecording(input: {
         if (packet.timestamp < 0) throw refused();
         if (first) {
           starts[kind] = packet.timestamp;
-          if (kind === "video" ? packet.type !== "key" || !fitsCue(packet.timestamp) : Math.round(packet.timestamp * 1e6) > bodyStartMs * 1000) throw refused();
+          if (kind === "video" ? packet.type !== "key" || !fitsCue(packet.timestamp) : Math.round(packet.timestamp * 1e6) > audioStartLimitMs * 1000) throw refused();
           coveredUntil = packet.timestamp;
         }
         if (packet.timestamp >= end) break;
@@ -82,7 +84,7 @@ export async function boundDanceRecording(input: {
       if (!v || !a) throw refused();
       const [videoEnd, audioEnd, containerEnd, videoStart, audioStart] = await Promise.all([v.computeDuration(), a.computeDuration(), verified.computeDuration(), v.getFirstTimestamp(), a.getFirstTimestamp()]); current();
       if (Math.round(Math.min(videoStart, audioStart) * 1e6) !== 0 || !fitsCue(videoStart)
-        || Math.round(audioStart * 1e6) > bodyStartMs * 1000
+        || Math.round(audioStart * 1e6) > audioStartLimitMs * 1000
         || [videoEnd, audioEnd, containerEnd].some(value => Math.round(value * 1000) !== bodyEndMs)) throw refused();
     } finally { verified.dispose(); }
     return file;

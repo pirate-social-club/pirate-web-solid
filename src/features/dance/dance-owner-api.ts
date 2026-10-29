@@ -21,15 +21,23 @@ type Client = Pick<PirateApiClient, "get_usersMe" | "get_communitiesCommunityIdD
 
 export function assertDanceOwnerRecording(value: DanceOwnerRecording, scope: DanceResultScope): void {
   const { detail, rubric } = value, review = detail.review;
+  const noPose = detail.cue.id === "none";
+  const attestation = noPose ? "dance-owner-verdict-attestation-v2" : "dance-owner-verdict-attestation-v1";
+  const cueValid = noPose ? detail.cue.id === "none" && detail.cue.start_ms === 0 && detail.cue.end_ms === 0
+    && detail.cue.hold_ms === 0 && detail.body.start_ms === 0
+    : detail.cue.id !== "none" && detail.cue.hold_ms > 0 && detail.cue.end_ms <= detail.body.start_ms;
   if (review.community_id !== scope.communityId || review.review_id !== scope.reviewId || review.state !== "awaiting_review"
     || rubric.community_id !== scope.communityId || rubric.review_id !== scope.reviewId || rubric.review_revision !== review.review_revision
     || rubric.rubric_hash !== detail.rubric_hash || rubric.rubric_version !== detail.rubric_version
-    || detail.attestation_version !== "dance-owner-verdict-attestation-v1" || rubric.attestation_version !== detail.attestation_version
+    || detail.attestation_version !== attestation || rubric.attestation_version !== detail.attestation_version || !cueValid
     || !rubric.rubric_text.trim() || !Number.isFinite(Date.parse(review.review_deadline))) throw new Error("dance_owner_target_changed");
 }
 export function assertDanceOwnerReceipt(receipt: DanceReviewReceipt, body: DanceOwnerVerdict, scope: DanceResultScope): void {
   assertDanceResult(receipt.result, scope);
+  const expectedVersion = receipt.result.captured_policy.version === "moderator-review-policy-v2"
+    ? "dance-owner-verdict-attestation-v2" : "dance-owner-verdict-attestation-v1";
   if (body.community_id !== scope.communityId || body.review_id !== scope.reviewId || receipt.review_id !== scope.reviewId || receipt.operation !== "verdict"
+    || body.version !== expectedVersion
     || (receipt.outcome === "applied") !== (receipt.refusal_code === null) || receipt.result.review_revision < body.expected_review_revision
     || (receipt.outcome === "applied" && (receipt.result.state !== "reviewed" || receipt.result.verdict !== body.verdict
       || receipt.result.review_revision <= body.expected_review_revision))) throw new Error("dance_owner_receipt_mismatch");

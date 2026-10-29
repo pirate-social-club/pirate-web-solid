@@ -56,6 +56,20 @@ async function offsetRecording(videoStart: number, audioStart: number): Promise<
 }
 
 describe("Dance keeps its cue and complete body", () => {
+  test.each([0, 0.025, 0.25])("no-pose keeps video zero and its natural microphone offset %ss without retiming", async audioStart => {
+    const original = await offsetRecording(0, audioStart), before = await inspect(original);
+    const noPose = { body_start_ms: 0, body_end_ms: 8013, cue: { kind: "none" as const, start_ms: 0, end_ms: 0, hold_ms: 0 } };
+    const after = await inspect(await boundDanceRecording({ ...options(), window: noPose, file: original }));
+    expect(after.ends.map(end => Math.round(end * 1000))).toEqual([8013, 8013, 8013]);
+    for (const kind of ["video", "audio"] as const) {
+      const prefix = before[kind].filter(packet => packet.timestamp >= 0 && packet.timestamp < 8.013);
+      expect(after[kind].map(packet => [packet.timestamp, packet.digest])).toEqual(prefix.map(packet => [packet.timestamp, packet.digest]));
+    }
+  });
+  test.each([[0.001, 0], [0, 0.251], [0.025, 0.025]])("no-pose refuses missing video zero or late mic: %s/%s", async (videoStart, audioStart) => {
+    const noPose = { body_start_ms: 0, body_end_ms: 8013, cue: { kind: "none" as const, start_ms: 0, end_ms: 0, hold_ms: 0 } };
+    await expect(boundDanceRecording({ ...options(), window: noPose, file: await offsetRecording(videoStart, audioStart) })).rejects.toThrow("dance_capture_incomplete");
+  });
   test("bounds a non-frame-aligned end without shifting or re-encoding any prefix packet", async () => {
     const file = await recording(), before = await inspect(file);
     const bounded = await boundDanceRecording({ ...options(), file });

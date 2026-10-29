@@ -97,6 +97,9 @@ export interface OriginalVideoCaptureInput {
   /** A live camera stream already shown as the preview. The recording takes
    * ownership of it and stops its tracks when the take ends. */
   readonly stream?: MediaStream;
+  /** Start the file with video before admitting microphone samples. Both
+   * retain synced-zero time; the microphone is never shifted to video zero. */
+  readonly videoFirst?: boolean;
   /** Optional observation before encoder initialization. Both tracks keep
    * their shared synced-zero timestamps. This reports source arrival, not
    * camera exposure, audible output or encoded-packet acknowledgement. */
@@ -209,9 +212,11 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
   let timer: ReturnType<typeof setInterval> | undefined;
   let portraitTrack: Awaited<ReturnType<typeof portraitEncodingTrack>> | undefined;
   let sourceOriginMs: number | undefined;
+  let admitAudio: (() => void) | undefined;
   const observe = <T extends { readonly timestamp: number; readonly duration: number }>(kind: "video" | "audio", sample: T): T => {
     sourceOriginMs ??= performance.now() - sample.timestamp * 1000;
     input.onSourceSample?.({ kind, timestampMs: sample.timestamp * 1000, durationMs: sample.duration * 1000, originMs: sourceOriginMs });
+    if (kind === "video" && admitAudio) { const resume = admitAudio; admitAudio = undefined; resume(); }
     return sample;
   };
   const tracks = stream.getTracks();
@@ -258,12 +263,13 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     const videoConfig: VideoEncodingConfig = { codec: "avc", quality: videoQuality,
       fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" };
     const audioConfig: AudioEncodingConfig = { codec: "aac", quality: audioQuality };
-    if (input.onSourceSample) {
+    if (input.onSourceSample || input.videoFirst) {
       videoConfig.transform = { process: sample => observe("video", sample) };
       audioConfig.transform = { process: sample => observe("audio", sample) };
     }
     const videoSource = new MediaStreamVideoTrackSource(portraitTrack.track, videoConfig, { frameRate: 30 });
     const audioSource = new MediaStreamAudioTrackSource(audio, audioConfig);
+    if (input.videoFirst) { audioSource.pause(); admitAudio = () => audioSource.resume(); }
     dimensionsChanged = () => {
       const current = video.getSettings();
       return current.width !== settings.width || current.height !== settings.height;

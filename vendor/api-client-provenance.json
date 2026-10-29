@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.138.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.138.0-c9583989.tgz",
-  "sha256": "c9583989ccac27a0c9c17238e77ee464c48bf15545ace493abcd1a64b9ba6740",
-  "source": "api-next-contracts@96cf49301bfa160fa4d72d5710cfed9494698d6e0ec5c7450c04bbc8641d8ae8",
-  "openapiSha256": "96cf49301bfa160fa4d72d5710cfed9494698d6e0ec5c7450c04bbc8641d8ae8",
-  "clientSha256": "17a3675ba26b90287b9f8ba887cb5f2aec83a60a718a307e9481d686ce5a8649",
+  "version": "0.139.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.139.0-405cdf43.tgz",
+  "sha256": "405cdf43e3f9358d06ee9916da0ad30115e5e1958893a4059989aaa2279cfe57",
+  "source": "api-next-contracts@742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
+  "openapiSha256": "742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
+  "clientSha256": "424645e1580abae961a68c42ff3b4d44fdc0a3f88e069c3a1a7e0dac85ee92ef",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -178,5 +178,6 @@
     "post_authSessionRenew"
   ],
   "intakeStatus": "Genuine generated 138 candidate from the persistent browser-session source lane. Producer commit and independent review are pending. Local consumer validation does not establish API acceptance or release authority. Previous 137 artifact and intake history remain preserved.",
-  "sourceBase": "47e9b311ab4dc443fd61c1efca7cbf8a121b25b5"
+  "sourceBase": "97f2079100055026c42df1f877c68dd90b07b120",
+  "sourceAcceptance": "Conditional local intake of genuine candidate139 from f7585f7e. API producer review and hosted gates remain pending; no Solid publication or runtime activation before acceptance. Retained137/138artifacts remain unchanged."
 }
