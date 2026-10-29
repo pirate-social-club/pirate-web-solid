@@ -607,7 +607,7 @@ export async function createPrivySessionExchange(
     const subject = privyAccessTokenSubject(accessToken);
     if ((dependencies.retainSession !== undefined || (typeof window !== "undefined" && dependencies.createPrivy === undefined)) && subject !== undefined) {
       // A failed account read disables activation without failing sign-in.
-      const signedInAccount = readAccountId().catch(() => undefined);
+      let signedInAccount: Promise<string | undefined> = Promise.resolve(undefined);
       const retain = dependencies.retainSession ?? (session => browserIdentitySession.retain(session));
       retain({
         renew: async signal => {
@@ -630,6 +630,9 @@ export async function createPrivySessionExchange(
         },
         clear: () => { storage.clear(); client.dispose?.(); },
       });
+      // Retaining the provider advances the page authority. Bind its account
+      // read to that new epoch so the handle does not invalidate its own anchor.
+      signedInAccount = readAccountId().catch(() => undefined);
     } else storage.clear();
     client.dispose?.();
   };
