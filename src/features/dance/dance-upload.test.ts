@@ -189,3 +189,30 @@ test("a substituted server upload or recording fingerprint cannot advance an exi
   h.recordings.restore.mockResolvedValue({ metadata: { ...h.metadata, sha256: "f".repeat(64) }, blob: h.blob });
   await expect(h.resume()).rejects.toThrow("dance_upload_original_required"); expect(h.put).toHaveBeenCalledOnce();
 });
+
+test("status observation after a lost Finalize acknowledgement is GET-only and preserves every original key", async () => {
+  const { createDanceUploadObserver } = await import("./dance-upload-observer");
+  const h = await harness(); h.api.finalize.mockImplementationOnce(async () => { h.finalize(); throw new Error("lost_ack"); });
+  await expect(h.resume()).rejects.toThrow("lost_ack");
+  const before = [...h.data.entries()], writes = [h.api.reserve.mock.calls.length, h.api.access.mock.calls.length, h.api.finalize.mock.calls.length, h.put.mock.calls.length];
+  const observe = createDanceUploadObserver({ scope, currentScope: () => scope, api: { session: h.api.session }, nowMs: () => 10000 });
+  expect((await observe(h.readSession(), signal())).kind).toBe("processing");
+  h.setSession({ state: "uploaded", upload_state: "sealed" });
+  expect((await observe(h.readSession(), signal())).kind).toBe("review");
+  expect([...h.data.entries()]).toEqual(before);
+  expect([h.api.reserve.mock.calls.length, h.api.access.mock.calls.length, h.api.finalize.mock.calls.length, h.put.mock.calls.length]).toEqual(writes);
+});
+
+test.each(["session", "scope", "authority"])("read-only observation rejects a late %s change", async change => {
+  const { createDanceUploadObserver } = await import("./dance-upload-observer");
+  const h = await harness(); let selected: DanceJournalScope | null = scope;
+  const observe = createDanceUploadObserver({ scope, currentScope: () => selected, api: { session: h.api.session }, nowMs: () => 10000 });
+  const expected = h.readSession();
+  h.api.session.mockImplementationOnce(async () => {
+    if (change === "scope") selected = null;
+    if (change === "authority") replaceSessionAuthority();
+    return change === "session" ? { ...expected, terms_hash: "f".repeat(64) } : expected;
+  });
+  await expect(observe(expected, signal())).rejects.toThrow();
+  expect(h.api.reserve).not.toHaveBeenCalled(); expect(h.api.access).not.toHaveBeenCalled(); expect(h.api.finalize).not.toHaveBeenCalled(); expect(h.put).not.toHaveBeenCalled();
+});

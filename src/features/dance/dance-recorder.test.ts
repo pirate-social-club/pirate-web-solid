@@ -47,7 +47,7 @@ function harness() {
   // SAFETY: the camera coordinator consumes only this typed track list.
   const stream = { getTracks: () => [track] } as MediaStream;
   const openCamera = vi.fn(async () => { events.push("camera"); return stream; });
-  const guide: DanceCaptureGuide = { sessionId: session.session_id, termsHash: session.terms_hash, start: vi.fn(), dispose: vi.fn() };
+  const guide: DanceCaptureGuide = { sessionId: session.session_id, termsHash: session.terms_hash, activate: vi.fn(async () => {}), start: vi.fn(), dispose: vi.fn() };
   const prepareGuide = vi.fn(async () => { events.push("guide"); return guide; });
   const file = new File(["original"], "recording.mp4", { type: "video/mp4" });
   const take: DanceRecordedTake = { sessionId: session.session_id, termsHash: session.terms_hash, durationMs: session.body_end_ms, file };
@@ -66,13 +66,13 @@ test("the composition acknowledges consent, opens camera, saves original and onl
   const h = harness(), recorder = await h.enter(), stages: string[] = [];
   const view = await recorder.record(signal(), value => stages.push(value), () => {});
   expect(view.kind).toBe("upload"); expect(h.events.filter(event => event !== "stop")).toEqual(["create", "consent", "camera", "guide", "capture", "store", "reserve", "put", "finalize"]);
-  expect(stages).toEqual(["preparing_audio", "recording", "saving", "uploading"]); expect(h.stop).toHaveBeenCalled(); recorder.dispose();
+  expect(stages).toEqual(["recording", "saving", "uploading"]); expect(h.stop).toHaveBeenCalled(); recorder.dispose();
 });
 
-test("guide preparation starts synchronously inside the Record gesture", async () => {
+test("guide preparation finishes before Record and activation starts in its gesture", async () => {
   const h = harness(), recorder = await h.enter();
   const pending = recorder.record(signal(), () => {}, () => {});
-  expect(h.prepareGuide).toHaveBeenCalledTimes(1); await pending; recorder.dispose();
+  expect(h.prepareGuide).toHaveBeenCalledTimes(1); expect(h.guide.activate).toHaveBeenCalledTimes(1); await pending; recorder.dispose();
 });
 
 test("a quota/save refusal cannot reserve an upload and retries the same in-memory original", async () => {
@@ -111,8 +111,8 @@ test("server processing then uploaded state leads to Review without another PUT"
 });
 
 test("guide failure stops camera and sends no recording bytes", async () => {
-  const h = harness(), recorder = await h.enter(); h.prepareGuide.mockRejectedValueOnce(new Error("guide_unavailable"));
-  await expect(recorder.record(signal(), () => {}, () => {})).rejects.toThrow("guide_unavailable"); expect(h.stop).toHaveBeenCalled(); expect(h.capture).not.toHaveBeenCalled(); expect(h.uploadApi.reserve).not.toHaveBeenCalled(); recorder.dispose();
+  const h = harness(); h.prepareGuide.mockRejectedValueOnce(new Error("guide_unavailable"));
+  await expect(h.enter()).rejects.toThrow("guide_unavailable"); expect(h.stop).toHaveBeenCalled(); expect(h.capture).not.toHaveBeenCalled(); expect(h.uploadApi.reserve).not.toHaveBeenCalled();
 });
 
 test("late camera permission completion after disposal releases every track", async () => {
@@ -193,4 +193,24 @@ test("funded consent uncertainty retains and replays the exact original acceptan
   await expect(recorder.enter(recovered.session.terms_hash, signal())).resolves.toMatchObject({ kind: "camera" });
   expect(h.preparationApi.consent.mock.calls[1]![1]).toEqual(h.preparationApi.consent.mock.calls[0]![1]);
   expect(h.openCamera).toHaveBeenCalledTimes(1); recorder.dispose();
+});
+
+test("the original preview is available before persistence and any network upload, including save uncertainty", async () => {
+  const h = harness(), recorder = await h.enter(), seen = vi.fn();
+  vi.spyOn(h.storage, "add").mockRejectedValueOnce(new Error("quota"));
+  await expect(recorder.record(signal(), () => {}, () => {}, (take, expires) => {
+    seen(take.file, expires); expect(h.uploadApi.reserve).not.toHaveBeenCalled(); expect(h.files.size).toBe(0);
+  })).rejects.toThrow("quota");
+  expect(seen).toHaveBeenCalledExactlyOnceWith(h.take.file, dancePreparationFixture.session.expires_at_ms);
+  await recorder.recover("unused-policy", signal(), () => {}); expect(h.capture).toHaveBeenCalledOnce(); recorder.dispose();
+});
+
+test("disposal during guide preload releases a late guide without ever exposing a recordable camera", async () => {
+  const h = harness(); let finish!: (guide: DanceCaptureGuide) => void;
+  h.prepareGuide.mockImplementationOnce(async () => new Promise(done => { finish = done; }));
+  const entering = h.enter(); await vi.waitFor(() => expect(h.prepareGuide).toHaveBeenCalledOnce());
+  // The current scope disappears while the asset is decoding.
+  h.setScope(null); finish(h.guide);
+  await expect(entering).rejects.toThrow("scope_changed"); expect(h.stop).toHaveBeenCalled(); expect(h.guide.dispose).toHaveBeenCalledOnce();
+  expect(h.capture).not.toHaveBeenCalled(); expect(h.uploadApi.reserve).not.toHaveBeenCalled();
 });

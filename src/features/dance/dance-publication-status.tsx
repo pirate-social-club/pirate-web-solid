@@ -7,6 +7,14 @@ import { bindPrivatePageLifecycle } from "../notifications/private-page-lifecycl
 import { createDancePublicationApi, dancePublicationMessage, type DancePublication, type DancePublicationApi, type DancePublicationView } from "./dance-publication-api";
 
 type State = { readonly phase: "idle" | "loading" | "error" | "unavailable" | "anonymous" } | { readonly phase: "ready"; readonly view: DancePublicationView };
+/** Presentation shared by explicit recovery and the continuous review observer. */
+export function DancePublicationDetails(props: { readonly initialStatus: DancePublication["status"]; readonly view?: DancePublicationView }) {
+  const published = () => { const post = props.view?.post; return post?.status === "published" ? post.published_resource.post_id : undefined; };
+  return <section class="space-y-3" aria-label="Video post status" aria-live="polite">
+    <p>{dancePublicationMessage(props.view?.publication.status ?? props.initialStatus, props.view?.post ?? null)}</p>
+    <Show when={published()}>{id => <a class={buttonVariants({ variant: "secondary" })} href={`/post/${encodeURIComponent(id())}`}>View video post</a>}</Show>
+  </section>;
+}
 /** Explicit status refresh performs GETs only. No processing, upload, retry or
  * publication command is issued, and SSR cannot start a private read. */
 export function DancePublicationStatus(props: { readonly communityId: string; readonly reviewId: string; readonly initialStatus: DancePublication["status"]; readonly api?: DancePublicationApi; readonly session?: () => Promise<SessionResolution> }) {
