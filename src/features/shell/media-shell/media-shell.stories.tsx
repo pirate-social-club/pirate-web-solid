@@ -46,9 +46,7 @@ export const MobileTabs: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
-    await userEvent.click(tabs.getByRole("button", { name: "Your Songs" }));
-    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /songs"));
-    await expect(tabs.getByRole("button", { name: "Your Songs" })).toHaveAttribute("aria-current", "page");
+    await expect(tabs.queryByRole("button", { name: "Your Songs" })).toBeNull();
     await userEvent.click(tabs.getByRole("button", { name: "Wallet" }));
     await waitFor(() => expect(tabs.getByRole("button", { name: "Wallet" })).toHaveAttribute("aria-current", "page"));
   },
@@ -191,9 +189,7 @@ export const DesktopNavigation: Story = {
     await expect(navigation.queryByRole("link", { name: "Post" })).not.toBeInTheDocument();
     await expect(navigation.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
     await expect(navigation.queryByText("Resources")).not.toBeInTheDocument();
-    await userEvent.click(navigation.getByRole("link", { name: "Your Songs" }));
-    await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /songs");
-    await expect(navigation.getByRole("link", { name: "Your Songs" })).toHaveAttribute("aria-current", "page");
+    await expect(navigation.queryByRole("link", { name: "Your Songs" })).toBeNull();
     await userEvent.click(navigation.getByRole("link", { name: "Harbor Collective" }));
     await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /c/harbor");
     await expect(navigation.getByRole("link", { name: "Harbor Collective" })).toHaveAttribute("aria-current", "page");

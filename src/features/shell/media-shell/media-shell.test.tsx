@@ -67,13 +67,13 @@ describe("Application navigation", () => {
   test("connects desktop destinations and keeps native link targets", () => {
     const navigate = vi.fn();
     const container = render(() => <ApplicationChrome signedIn communityNavigation={{ kind: "ready", data: { joined: [], popular: [], moderated: [] } }} navigate={navigate}>Route</ApplicationChrome>);
-    for (const path of ["/", "/songs", "/wallet"]) {
+    for (const path of ["/", "/wallet"]) {
       const link = container.querySelector<HTMLAnchorElement>(`aside a[href="${path}"]`)!;
       expect(link).not.toBeNull();
       link.click();
       expect(navigate).toHaveBeenLastCalledWith(path);
     }
-    for (const path of ["/search", "/live", "/study", "/karaoke", "/settings"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
+    for (const path of ["/songs", "/search", "/live", "/study", "/karaoke", "/settings"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
     const notifications = container.querySelector<HTMLAnchorElement>('a[href="/activity"]')!;
     expect(notifications.textContent).toContain("Notifications"); notifications.click();
     expect(navigate).toHaveBeenLastCalledWith("/activity");
@@ -83,19 +83,18 @@ describe("Application navigation", () => {
     expect(container.textContent).toContain("Notifications");
   });
 
-  test("mobile has four destinations and Wallet opens the wallet route", () => {
+  test("mobile omits the unreleased library while Wallet and Profile remain reachable", () => {
     const navigate = vi.fn();
     const container = render(() => <ApplicationChrome navigate={navigate} mobileActiveItem="wallet" mode="immersive">Route</ApplicationChrome>);
     const footer = container.querySelector('nav[aria-label="Primary navigation"]')!;
-    expect(footer.querySelectorAll("button")).toHaveLength(4);
+    expect(footer.querySelectorAll("button")).toHaveLength(3);
     // An unsigned profile tab reads Sign in, matching what a tap there does.
     const labels = [...footer.querySelectorAll("button")].map(control => control.getAttribute("aria-label"));
-    expect(labels).toEqual(["For You", "Your Songs", "Wallet", "Sign in"]);
+    expect(labels).toEqual(["For You", "Wallet", "Sign in"]);
     footer.querySelector<HTMLButtonElement>('button[aria-label="Wallet"]')!.click();
     expect(navigate).toHaveBeenCalledWith("/wallet");
     expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
-    footer.querySelector<HTMLButtonElement>('button[aria-label="Your Songs"]')!.click();
-    expect(navigate).toHaveBeenLastCalledWith("/songs");
+    expect(footer.querySelector('button[aria-label="Your Songs"]')).toBeNull();
     // The immersive home has no Post: a post belongs to a community.
     expect(container.querySelector('button[aria-label="Choose a community to post in"]')).toBeNull();
   });
