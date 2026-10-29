@@ -10,6 +10,8 @@ import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 import { VideoPlayer } from "../../posts/video-submission/video-player.tsx";
 import { SongContributionDialog } from "../../rewards/song-contribution-dialog.tsx";
 import { useRewardServiceAvailability } from "../../rewards/reward-service-availability.tsx";
+import { useApplicationSession } from "../../shell/application-session.tsx";
+import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createEffect, createMemo, createSignal } from "solid-js";
@@ -175,6 +177,10 @@ function VideoPost(props: { post: CommunityVideoPost }) {
  */
 export const communityFeedListClass = "flex flex-col [&>*:first-child_[data-community-post]]:pt-0 [&>[data-community-post]:first-child]:pt-0 [&>*:last-child_[data-community-post]]:border-b-0 [&>[data-community-post]:last-child]:border-b-0";
 
+// Memory only: a Boost dialog retired by a signed-out session reopens after the
+// same account signs in again, even when the feed re-creates its cards.
+const resumedBoosts = new Map<string, { readonly accountId: string; signedOut: boolean }>();
+
 export function CommunityPostCard(props: {
   post: CommunityPost; communityId?: string; titleHref?: string; nativeNavigation?: boolean; actions?: JSX.Element; menuActions?: readonly ContentAction[]; flush?: boolean;
   /**
@@ -189,7 +195,25 @@ export function CommunityPostCard(props: {
   // Capability changes must synchronously retire an open sponsor dialog.
   const [boosting, setBoosting] = createSignal(false, { ownedWrite: true });
   const rewardsAvailable = useRewardServiceAvailability();
-  createEffect(rewardsAvailable, available => { if (!available) setBoosting(false); });
+  const session = useApplicationSession();
+  createEffect(rewardsAvailable, available => {
+    const account = session(), resumed = resumedBoosts.get(props.post.id);
+    if (!available) {
+      if (boosting() && typeof account === "object" && account !== null) resumedBoosts.set(props.post.id, { accountId: account.userId, signedOut: false });
+      setBoosting(false);
+      return;
+    }
+    resumedBoosts.delete(props.post.id);
+    // Only a real sign-out and the same account's return reopens it. Reopening reads
+    // the saved payment; paying again needs a new explicit review.
+    if (resumed?.signedOut && typeof account === "object" && account !== null && account.userId === resumed.accountId) setBoosting(true);
+  });
+  createEffect(session, account => {
+    const resumed = resumedBoosts.get(props.post.id);
+    if (account !== "anonymous" || resumed === undefined || resumed.signedOut) return;
+    resumed.signedOut = true;
+    requestGlobalSignIn();
+  });
   let card: HTMLElement | undefined;
   // The dialog opens from a menu item that no longer exists once the menu
   // closes, so the card returns focus to the menu trigger that led there.

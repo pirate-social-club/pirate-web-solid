@@ -44,7 +44,12 @@ const statusLabels = {
   nonce_closed_no_principal: ["Payment closed", "The original payment is closed without principal added to the pot."],
   manual_reconciliation_required: ["Payment needs attention", "Keep the saved payment and contact support for reconciliation."],
 } satisfies Record<SongContributionState["state"], readonly [string, string]>;
-export const contributionStatus = (state: SongContributionState) => ({ title: statusLabels[state.state][0], detail: statusLabels[state.state][1] });
+// The 60-second payment window always closes before network finality, so a sent
+// transfer reads as expired until the receipt is credited.
+const sentAwaitingFinality = { title: "Confirming payment", detail: "Your payment was sent. It is added once the network confirms it." };
+export const contributionStatus = (state: SongContributionState, sent = false) => state.state === "expired_reconciling" && sent
+  ? sentAwaitingFinality
+  : { title: statusLabels[state.state][0], detail: statusLabels[state.state][1] };
 export function contributionFailure(error: unknown): string {
   if (error instanceof Error) {
     if (error.message === "contribution_amount_invalid") return "Enter an amount within the displayed limits, with up to six decimal places.";
