@@ -1,5 +1,4 @@
 import { ApiClientError } from "@pirate/api-client";
-import { browserIdentitySession } from "../../api/browser-identity-session";
 import { readCsrfCookie } from "../../api/client";
 import { resolveAccountSession, refreshSession, invalidateSession } from "../../api/session";
 import type { AccountSessionResolution } from "../../api/session";
@@ -53,10 +52,11 @@ export function createSessionRecovery(dependencies: SessionRecoveryDependencies)
 }
 
 export const ensureApplicationSession = createSessionRecovery({
-  // Explicit transport bypasses the cached authenticated result.
+  // Explicit transport bypasses cached authentication and already attempts one
+  // owned-cookie renewal. Its authoritative refusal needs explicit sign-in.
   account: () => resolveAccountSession({ timeoutMs: 15_000 }),
   csrfPresent: () => readCsrfCookie() !== undefined,
-  renew: () => browserIdentitySession.renew(),
+  renew: async () => false,
   signIn: requestGlobalSignInCompletion,
   invalidate: invalidateSession,
   refresh: refreshSession,

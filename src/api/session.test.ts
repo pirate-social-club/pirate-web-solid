@@ -309,7 +309,7 @@ describe("shared session store", () => {
     expect(listener).toHaveBeenCalledOnce();
     await expect(store.resolveSession()).resolves.toBe("anonymous");
     finish({ id: "old-account" });
-    await pending;
+    await expect(pending).rejects.toThrow("session_changed");
     await expect(store.resolveAccountSession()).resolves.toBe("anonymous");
     expect(spies.get_usersMe).toHaveBeenCalledOnce();
     expect(spies.get_personas).not.toHaveBeenCalled();
@@ -345,7 +345,7 @@ describe("shared session store", () => {
     finish({ id: "current" });
     await current;
     finishOld({ id: "old" });
-    await old;
+    await expect(old).rejects.toThrow("session_changed");
     expect(store.resolveSession()).toBe(current);
     expect(authenticated).toHaveBeenCalledOnce();
     await expect(store.resolveSession()).resolves.toMatchObject({ userId: "current" });

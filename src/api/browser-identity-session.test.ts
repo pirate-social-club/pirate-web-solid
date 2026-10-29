@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi } from "vitest";
-import { createBrowserIdentitySessionStore, browserIdentitySession } from "./browser-identity-session";
-import { createGeneratedApiClient } from "./client";
+import { createBrowserIdentitySessionStore } from "./browser-identity-session";
 
 describe("page-local identity recovery", () => {
   test("fences late bootstrap after explicit sign-in and bounds a stalled restore", async () => {
@@ -91,22 +90,4 @@ describe("page-local identity recovery", () => {
     } finally { vi.useRealTimers(); }
   });
 
-  test.each(["GET", "POST"])("recovers a rejected %s without replaying unsafe requests", async method => {
-    const renew = vi.fn(async () => true);
-    browserIdentitySession.retain({ renew, clear: () => {} });
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 401 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
-    try {
-      const client = createGeneratedApiClient((_origin, options) => ({
-        request: () => {
-          if (options.fetchImpl === undefined) throw new Error("missing transport");
-          return options.fetchImpl("https://pirate.sc/users/me", { method, credentials: "same-origin" });
-        },
-      }), { origin: "https://pirate.sc", fetchImpl }, { credentials: "same-origin" });
-      expect((await client.request()).status).toBe(method === "GET" ? 204 : 401);
-      expect(fetchImpl).toHaveBeenCalledTimes(method === "GET" ? 2 : 1);
-      expect(renew).toHaveBeenCalledTimes(method === "GET" ? 1 : 0);
-    } finally { browserIdentitySession.clear(); }
-  });
 });
