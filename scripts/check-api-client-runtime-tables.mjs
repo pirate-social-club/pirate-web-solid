@@ -8,10 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Genuine137 retains139operations/417rows. The only runtime-table changes
-// add the Safe treasury enum and recipient to seven shared-pot term locations.
-// Statuses, error definitions and every other schema field retain genuine136.
-const expectedDigest = "83c68e0cf49aaf4bd88442748dac1f6afee1b6fe8118590399ea9176d061ba78";
+// Genuine138 adds owned browser-session renewal to the prior 139 operations.
+// Pin all 140 admitted operations' response, status and error tables.
+const expectedDigest = "dd45441a8f8c883d55dd37b0b4ded595a9a7c8ae13e579ea63d07a5070f6549e";
 
 const operations = [
   "get_meNotifications",
@@ -43,6 +42,7 @@ const operations = [
   "post_personasPersonaIdWalletsEvmPrepare",
   "post_personasPersonaIdWalletsEvmConfirm",
   "post_authSessionExchange",
+  "post_authSessionRenew",
   "post_authRegister",
   "get_usersMe",
   "get_usersMeCommunityMemberships",

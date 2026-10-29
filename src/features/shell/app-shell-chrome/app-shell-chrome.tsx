@@ -135,6 +135,7 @@ export function AppHeader(props: AppHeaderProps) {
  * instead of the pattern's CSS breakpoint.
  */
 export interface MobileFooterNavProps {
+  showSongs?: boolean;
   activeItem?: ShellNavItem | "none";
   avatarFallback?: string;
   class?: string;
@@ -193,6 +194,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
   return (
     <Show when={props.forceMobile}>
       <DesignSystemMobileFooterNav
+        showSongs={props.showSongs}
         activeItem={props.activeItem}
         avatarFallback={props.avatarFallback}
         class={cn("md:block", props.class)}

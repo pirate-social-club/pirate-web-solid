@@ -4,6 +4,7 @@ import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
 import { browserIdentitySession } from "./browser-identity-session.ts";
 import { captureSessionAuthority, establishSessionAuthority, forgetSessionAuthority, isCurrentSessionAuthority, refreshSessionAuthority, SESSION_REJECTED_EVENT } from "./browser-session-events.ts";
 import type { ApiFetch } from "./proxy.ts";
+import { BROWSER_AUTH_CHANGE_EVENT, observeBrowserAuthChanges, SessionAuthorityChangedError, type BrowserAuthChange } from "./browser-auth-coordination.ts";
 
 export interface AuthenticatedSession {
   readonly status: "authenticated";
@@ -57,7 +58,9 @@ function boundedFetch(fetchImpl: ApiFetch, timeoutMs: number): ApiFetch {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetchImpl(input, { ...init, signal: controller.signal });
+      const supplied = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+      const signal = supplied == null ? controller.signal : AbortSignal.any([controller.signal, supplied]);
+      return await fetchImpl(input, { ...init, signal });
     } finally {
       clearTimeout(timer);
     }
@@ -195,11 +198,16 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
   const refreshListeners = new Set<() => void>();
   const clearListeners = new Set<() => void>();
   let invalidated = false;
+  let generation = 0;
 
   function track<T>(slot: { promise: Promise<T> | undefined }, start: () => Promise<T>): Promise<T> {
     const existing = slot.promise;
     if (existing !== undefined) return existing;
-    const created = start();
+    const started = generation;
+    const created = start().then(value => {
+      if (generation !== started) throw new SessionAuthorityChangedError();
+      return value;
+    });
     slot.promise = created;
     created.catch(() => {
       if (slot.promise === created) slot.promise = undefined;
@@ -252,6 +260,7 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
       return pending;
     },
     clearSession() {
+      generation++;
       invalidated = true;
       slots.account.promise = Promise.resolve("anonymous");
       slots.session.promise = Promise.resolve("anonymous");
@@ -262,6 +271,7 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
     },
     invalidateSession() {
       if (invalidated) return;
+      generation++;
       invalidated = true;
       slots.account.promise = Promise.resolve("anonymous");
       slots.session.promise = Promise.resolve("anonymous");
@@ -282,6 +292,7 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
       // A late profile continuation cannot reopen a deliberately refused or
       // signed-out session. Only an explicit identity refresh may do that.
       if (invalidated) return;
+      generation++;
       slots.account.promise = undefined;
       slots.session.promise = undefined;
     },
@@ -303,7 +314,7 @@ export function createSessionStore(clientFactory: SessionClientFactory, onAuthen
 const browserStore = createSessionStore(() => createSessionApiClient({
   fetchImpl: boundedFetch(fetch, SESSION_TIMEOUT_MS),
 }), accountId => {
-  establishSessionAuthority();
+  establishSessionAuthority(accountId);
   const authority = captureSessionAuthority();
   void browserIdentitySession.bootstrap(async signal => {
     const { restoreBrowserIdentitySession } = await import("./privy-browser-bootstrap.ts");
@@ -367,4 +378,16 @@ export function invalidateSession(): void {
   browserStore.invalidateSession();
 }
 
-if (typeof window !== "undefined") window.addEventListener(SESSION_REJECTED_EVENT, invalidateSession);
+if (typeof window !== "undefined") {
+  observeBrowserAuthChanges();
+  window.addEventListener(SESSION_REJECTED_EVENT, invalidateSession);
+  window.addEventListener(BROWSER_AUTH_CHANGE_EVENT, event => {
+    // SAFETY: the coordination module emits only these credential-free kinds.
+    const kind = (event as CustomEvent<BrowserAuthChange>).detail;
+    browserIdentitySession.clear();
+    clearWalletAuthorization();
+    if (kind === "logout") browserStore.clearSession();
+    else if (kind === "changing") browserStore.invalidateSession();
+    else browserStore.refreshSession();
+  });
+}

@@ -42,8 +42,9 @@ export const MAX_COOKIE_VALUE_BYTES = 16 * 1024;
 
 export const SESSION_COOKIE_NAME = "__Host-pirate_session";
 export const CSRF_COOKIE_NAME = "__Host-pirate_csrf";
+export const RENEWAL_COOKIE_NAME = "__Host-pirate_renewal";
 
-const SENSITIVE_COOKIE_NAMES = new Set([SESSION_COOKIE_NAME, CSRF_COOKIE_NAME]);
+const SENSITIVE_COOKIE_NAMES = new Set([SESSION_COOKIE_NAME, CSRF_COOKIE_NAME, RENEWAL_COOKIE_NAME]);
 
 export function isHopByHopHeader(name: string): boolean {
   return HOP_BY_HOP_HEADERS.has(name.toLowerCase());

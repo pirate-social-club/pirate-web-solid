@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.137.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.137.0-43bdd8ed.tgz",
-  "sha256": "43bdd8edf192031ead414c05f8764471c129242750b3b7435b45ed54e3419d7f",
-  "source": "api-next-contracts@f6b314b7deeed8eb1c1be3cfe97d6fe1d46bdb59a2d43c08fe45df649f4a8660",
-  "openapiSha256": "f6b314b7deeed8eb1c1be3cfe97d6fe1d46bdb59a2d43c08fe45df649f4a8660",
-  "clientSha256": "d5091263da0dd31cb2e3421d2a39fa191cc03864bbf98b6912bd30dd43b24373",
+  "version": "0.138.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.138.0-c9583989.tgz",
+  "sha256": "c9583989ccac27a0c9c17238e77ee464c48bf15545ace493abcd1a64b9ba6740",
+  "source": "api-next-contracts@96cf49301bfa160fa4d72d5710cfed9494698d6e0ec5c7450c04bbc8641d8ae8",
+  "openapiSha256": "96cf49301bfa160fa4d72d5710cfed9494698d6e0ec5c7450c04bbc8641d8ae8",
+  "clientSha256": "17a3675ba26b90287b9f8ba887cb5f2aec83a60a718a307e9481d686ce5a8649",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -174,10 +174,9 @@
     "post_communitiesCommunityIdPostsPostIdDanceModeratedReferences",
     "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
     "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
-    "delete_postsPostIdVideo"
+    "delete_postsPostIdVideo",
+    "post_authSessionRenew"
   ],
-  "validatedSourceCommit": "a87449c4819ecc35724c82f73e3862588d772db4",
-  "pullRequest": "https://github.com/pirate-social-club/api-next/pull/686",
-  "intakeStatus": "Genuine137 from reviewed treasury source a87449c4 in API686. Local source and paired consumer checks pass; protected acceptance and paired staging release remain pending. No new terms admitted.",
-  "sourceBase": "1b8a9bb9b5683a995dba2bd5c18609af45755a61"
+  "intakeStatus": "Genuine generated 138 candidate from the persistent browser-session source lane. Producer commit and independent review are pending. Local consumer validation does not establish API acceptance or release authority. Previous 137 artifact and intake history remain preserved.",
+  "sourceBase": "47e9b311ab4dc443fd61c1efca7cbf8a121b25b5"
 }

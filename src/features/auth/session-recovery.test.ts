@@ -59,3 +59,38 @@ describe("shared session continuation", () => {
     expect(await second).toBe(false);
   });
 });
+
+// The real default continuation must never fall back to provider proof after
+// the account transport has already attempted owned-cookie renewal.
+test("default continuation requests explicit sign-in after owned renewal refusal without using the wallet provider", async () => {
+  const { ensureApplicationSession } = await import("./session-recovery");
+  const { browserIdentitySession } = await import("../../api/browser-identity-session");
+  const { clearSession, refreshSession } = await import("../../api/session");
+  const { GLOBAL_SIGN_IN_EVENT } = await import("./global-sign-in-host");
+  clearSession(); refreshSession();
+  const provider = vi.spyOn(browserIdentitySession, "renew");
+  const prompted = vi.fn();
+  const cancelPrompt = (event: Event) => {
+    prompted();
+    // SAFETY: the app-owned sign-in event carries this explicit completion callback.
+    (event as CustomEvent<{ complete(value: boolean): void }>).detail.complete(false);
+  };
+  window.addEventListener(GLOBAL_SIGN_IN_EVENT, cancelPrompt);
+  document.cookie = "__Host-pirate_csrf=fixture-csrf; Secure; SameSite=Lax; Path=/";
+  vi.stubGlobal("navigator", { locks: { request: <T>(_name: string, _options: LockOptions, action: () => Promise<T>) => action() } });
+  const paths: string[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    paths.push(new URL(String(input)).pathname);
+    return Response.json({ error: { code: "auth_error", message: "fixture refusal", retryable: false } }, { status: 401 });
+  }));
+  try {
+    expect(await ensureApplicationSession("owner", new AbortController().signal)).toBe(false);
+    expect(paths).toEqual(["/api/users/me", "/api/auth/session/renew"]);
+    expect(provider).not.toHaveBeenCalled(); expect(prompted).toHaveBeenCalledOnce();
+  } finally {
+    window.removeEventListener(GLOBAL_SIGN_IN_EVENT, cancelPrompt);
+    provider.mockRestore(); clearSession();
+    document.cookie = "__Host-pirate_csrf=; Secure; Path=/; Max-Age=0";
+    vi.unstubAllGlobals();
+  }
+});

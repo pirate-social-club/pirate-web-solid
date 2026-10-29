@@ -25,6 +25,7 @@ import { useActivePersonaStoreOptional } from "../../identity/active-persona-sto
 import { CommunityPersonaControl } from "../../identity/community-persona-control.tsx";
 import { PersonaSwitcherSheet, type SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
+import { songLibraryAvailable } from "../../songs/your-songs-api";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem } from "../app-sidebar/app-sidebar";
 import { navigationPath, profilePath, profileSwitch, scopedPrimaryNavigation, primaryNavigationLabel, platformNavigationScope, navigationHomePath, type ApplicationNavigationScope, type CommunityNavigationState, type CommunityNavigationData } from "../navigation-model.ts";
@@ -365,6 +366,7 @@ export function ApplicationChrome(props: MediaShellProps) {
         </Show>
         <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : props.hideMobileHeader ? "min-h-[100dvh] w-full md:min-h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{surfaceChildren()}</div>
         <MobileFooterNav
+          showSongs={songLibraryAvailable}
           class={composing() || props.hideMobileFooter ? "hidden" : "md:hidden"}
           forceMobile
           activeItem={props.mobileActiveItem ?? "home"}
@@ -379,7 +381,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             profileAriaLabel: footerProfileLabel(),
           }}
           onHomeClick={() => go(homePath())}
-          onSongsClick={() => go("/songs")}
+          onSongsClick={songLibraryAvailable ? () => go("/songs") : undefined}
           onWalletClick={() => go("/wallet")}
           onProfileClick={openFooterProfile}
           onProfileDoubleTap={canSwitchProfile() ? doubleTapSwitch : undefined}

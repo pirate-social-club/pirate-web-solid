@@ -3,6 +3,7 @@ import {
   MAX_COOKIE_HEADER_BYTES,
   MAX_REQUEST_BODY_BYTES,
   createPublicApiClient,
+  createSessionApiClient,
   cookieHeaderWithinLimits,
   proxyApiRequest,
   readCsrfCookie,
@@ -92,7 +93,7 @@ describe("same-origin API transport", () => {
     ]);
   });
 
-  it.each(["/api/auth/register", "/api/auth/session/exchange"])(
+  it.each(["/api/auth/register", "/api/auth/session/exchange", "/api/auth/session/renew", "/api/auth/session/logout"])(
     "preserves the session cookie, CSRF proof, and response cookie through %s",
     async (path) => {
       let upstreamUrl = "";
@@ -101,7 +102,7 @@ describe("same-origin API transport", () => {
       const request = new Request(`https://solid.test${path}`, {
         method: "POST",
         headers: {
-          cookie: "__Host-pirate_session=session; __Host-pirate_csrf=csrf-value",
+          cookie: "__Host-pirate_session=session; __Host-pirate_csrf=csrf-value; __Host-pirate_renewal=sid.secret",
           origin: "https://solid.test",
           "x-csrf-token": "csrf-value",
         },
@@ -113,19 +114,33 @@ describe("same-origin API transport", () => {
           const headers = new Headers(init?.headers);
           upstreamCookie = headers.get("cookie");
           upstreamCsrf = headers.get("x-csrf-token");
+          const responseHeaders = new Headers();
+          for (const value of ["__Host-pirate_session=replaced; Secure; HttpOnly; Path=/", "__Host-pirate_renewal=sid.secret; Secure; HttpOnly; Path=/", "__Host-pirate_csrf=csrf-value; Secure; Path=/"]) responseHeaders.append("set-cookie", value);
           return new Response(null, {
             status: 204,
-            headers: { "set-cookie": "__Host-pirate_session=replaced; Secure; HttpOnly; Path=/" },
+            headers: responseHeaders,
           });
         },
       });
 
       expect(upstreamUrl).toBe(`${origin}${path.slice(4)}`);
-      expect(upstreamCookie).toBe("__Host-pirate_session=session; __Host-pirate_csrf=csrf-value");
+      expect(upstreamCookie).toBe("__Host-pirate_session=session; __Host-pirate_csrf=csrf-value; __Host-pirate_renewal=sid.secret");
       expect(upstreamCsrf).toBe("csrf-value");
       expect(response.headers.get("set-cookie")).toContain("__Host-pirate_session=replaced");
+      expect(response.headers.get("set-cookie")).toContain("__Host-pirate_renewal=sid.secret; Secure; HttpOnly; Path=/");
+      expect(response.headers.get("set-cookie")).toContain("__Host-pirate_csrf=csrf-value; Secure; Path=/");
     },
   );
+
+  it("SSR session requests never renew cookies or consult browser-private state", async () => {
+    const paths: string[] = [];
+    const client = createSessionApiClient({ origin: "https://solid.test", fetchImpl: async input => {
+      paths.push(String(input));
+      return Response.json({ error: { code: "auth_error", message: "refused", retryable: false } }, { status: 401 });
+    } });
+    await expect(client.get_usersMe(undefined)).rejects.toMatchObject({ status: 401 });
+    expect(paths).toEqual(["https://solid.test/api/users/me"]);
+  });
 
   it("enforces request and cookie limits before an upstream call", async () => {
     let calls = 0;
@@ -298,5 +313,7 @@ describe("same-origin API transport", () => {
     expect(sessionHeaders.get("x-csrf-token")).toBe("csrf");
     expect(readCsrfCookie("a=b; __Host-pirate_csrf=csrf")).toBe("csrf");
     expect(readCsrfCookie("__Host-pirate_session=secret")).toBeUndefined();
+    expect(readCsrfCookie("__Host-pirate_renewal=secret")).toBeUndefined();
+    expect(readCsrfCookie("__Host-pirate_csrf=one; __Host-pirate_csrf=two")).toBeUndefined();
   });
 });
