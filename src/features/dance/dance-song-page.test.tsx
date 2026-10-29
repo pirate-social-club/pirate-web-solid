@@ -16,6 +16,8 @@ import { VideoCaptureError } from "../posts/video-submission/capture-failure";
 import { buildRouteTree, PageFileSystemRouter } from "filesystem-routing";
 import { resolve } from "node:path";
 import { VideoPlaybackSeamsContext } from "../posts/video-submission/video-playback-seams";
+import { createGeneratedApiClient, readCsrfCookie } from "../../api/client";
+import { SessionAuthorityChangedError } from "../../api/browser-auth-coordination";
 // SAFETY: the DOM app runner supplies this renderer; TypeScript sees its SSR overload.
 const renderDom = render as (view: () => JSX.Element, host: HTMLElement) => void;
 const cleanups: Array<() => void> = [];
@@ -164,6 +166,51 @@ test("session replacement removes private detail before the next identity resolv
   const h = harness(); let signedIn = true;
   const host = mount(() => <DanceSongPage {...scope} api={h.api} recorder={h.factory} session={async () => signedIn ? authenticated() : "anonymous"} />); await h.choose(host);
   signedIn = false; refreshSession(); flush(); expect(host.querySelector('[aria-label="Selected dance"]')).toBeNull(); await vi.waitFor(() => expect(host.textContent).toContain("Sign in to do"));
+});
+
+test.each(["participant", "replacement-account"])("cookie renewal as %s preserves or fences an active Dance take", async renewedAccount => {
+  const h = harness(); let finish!: (view: DanceRecorderView) => void;
+  h.record.mockImplementationOnce(async () => new Promise(done => { finish = done; }));
+  const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
+  establishSessionAuthority("participant"); button(host, "Record").click();
+  await vi.waitFor(() => expect(h.record).toHaveBeenCalledTimes(1));
+  const captureSignal = h.record.mock.calls[0]![0], disposals = h.dispose.mock.calls.length;
+  document.cookie = "__Host-pirate_csrf=dance-renewal-fixture; Secure; SameSite=Lax; Path=/";
+  expect(readCsrfCookie()).toBe("dance-renewal-fixture");
+  vi.stubGlobal("navigator", { locks: { request: <T,>(_name: string, _options: LockOptions, action: () => Promise<T>) => action() } });
+  let reads = 0, renewals = 0;
+  const reader = createGeneratedApiClient((_origin, options) => ({
+    read: () => options.fetchImpl!("https://pirate.sc/users/me", { credentials: "same-origin" }),
+  }), { origin: "https://pirate.sc", fetchImpl: async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/api/auth/session/renew") {
+      renewals++; expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("x-csrf-token")).toBe("dance-renewal-fixture");
+      return Response.json({ status: "renewed", user_id: renewedAccount, expires_at: "2099-01-01T00:00:00.000Z" });
+    }
+    reads++; return new Response(null, { status: reads === 1 ? 401 : 200 });
+  } }, { credentials: "same-origin" });
+  try {
+    if (renewedAccount === "participant") {
+      expect((await reader.read()).status).toBe(200); expect(reads).toBe(2);
+      expect(captureSignal.aborted).toBe(false); expect(h.dispose).toHaveBeenCalledTimes(disposals);
+      finish({ kind: "upload", upload: { kind: "processing", session: context.session } });
+      await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
+      expect(h.recover).toHaveBeenCalledTimes(1); expect(h.record).toHaveBeenCalledTimes(1);
+    } else {
+      await expect(reader.read()).rejects.toBeInstanceOf(SessionAuthorityChangedError);
+      expect(reads).toBe(1); expect(captureSignal.aborted).toBe(true);
+      expect(h.dispose.mock.calls.length).toBeGreaterThan(disposals);
+      finish({ kind: "terminal", session: context.session, context: null });
+      await new Promise(done => setTimeout(done, 0));
+      expect(host.textContent).not.toContain("This recording has finished"); expect(h.recover).not.toHaveBeenCalled();
+    }
+    expect(renewals).toBe(1);
+  } finally {
+    document.cookie = "__Host-pirate_csrf=; Secure; Path=/; Max-Age=0";
+    vi.unstubAllGlobals();
+  }
 });
 
 test("page return after a hidden camera starts a new UI operation and ignores the old completion", async () => {

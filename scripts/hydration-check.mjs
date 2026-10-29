@@ -31,11 +31,23 @@ try {
       contentType: "application/json",
       body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
     }));
+    await page.route("**/api/public/communities/popular**", route => route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+    }));
     await page.route("**/api/users/me/community-memberships**", route => route.fulfill({
       status: 503,
       contentType: "application/json",
       body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
     }));
+    for (const path of ["rewards/qualification-policies", "users/me/moderation-communities"]) {
+      await page.route(`**/api/${path}**`, route => route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+      }));
+    }
     await page.route("**/api/users/me", async route => {
       if (retryAccountResponse) {
         accountRetryRequests += 1;
@@ -157,7 +169,8 @@ try {
 
   if (apiDown) {
     // Authenticate independently of a failed profile read, then hold the retry
-    // to prove that authenticated chrome and the typed form remain stable.
+    // to prove that the standalone creation form survives a fresh account check.
+    // Creation owns a bare screen, so its route state is the observable boundary.
     let releaseAccount;
     let accountGate = new Promise(resolve => { releaseAccount = resolve; });
     await page.unroute("**/api/users/me");
@@ -172,35 +185,36 @@ try {
     });
     await page.goto(new URL("/communities/new", base).toString(), { waitUntil: "domcontentloaded" });
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-    if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "resolving") {
-      throw new Error("Initial account check must have neutral chrome");
+    const creation = page.locator("main[data-route-path='/communities/new']");
+    if (await creation.getAttribute("data-creation-state") !== "resolving") {
+      throw new Error("Initial account check must keep creation pending");
+    }
+    if (await page.locator("[data-shell-auth]").count()) {
+      throw new Error("Creation must retain its standalone screen");
     }
     if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
       throw new Error("Initial account check must not advertise sign-in");
     }
     await page.locator("form input").first().fill("Retained browser draft");
     releaseAccount();
-    await page.locator("[data-shell-auth='authenticated']").waitFor();
-    const profileRetry = page.locator("main[data-route-path='/communities/new']").getByRole("button", { name: "Try again", exact: true });
+    await page.locator("main[data-creation-state='ready']").waitFor();
+    const profileRetry = creation.getByRole("button", { name: "Try again", exact: true });
     await profileRetry.waitFor();
     accountGate = new Promise(resolve => { releaseAccount = resolve; });
     const retryRequest = page.waitForRequest("**/api/users/me");
     await profileRetry.click();
     await retryRequest;
-    if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "authenticated") {
-      throw new Error("Background refresh discarded authenticated chrome");
+    if (await creation.getAttribute("data-creation-state") !== "resolving") {
+      throw new Error("Profile retry must report its pending account check");
     }
-    const sidebar = page.getByRole("complementary", { name: "Navigation", exact: true });
-    if (/Session active|Checking your account|Your Pirate/u.test(await sidebar.innerText())) {
-      throw new Error("Background refresh exposed session diagnostics in navigation");
+    if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
+      throw new Error("Profile retry must not replace the retained form with sign-in");
     }
-    if (!await sidebar.getByRole("button", { name: "Profile", exact: true }).isVisible()) {
-      throw new Error("Background refresh removed the profile picker");
-    }
-    if (await sidebar.getByRole("link", { name: "Settings", exact: true }).count()) {
-      throw new Error("Settings must be reached through profile controls, not the sidebar");
+    if (await page.locator("form input").first().inputValue() !== "Retained browser draft") {
+      throw new Error("Pending profile retry discarded the draft");
     }
     releaseAccount();
+    await page.locator("main[data-creation-state='ready']").waitFor();
     await profileRetry.waitFor();
     if (await page.locator("form input").first().inputValue() !== "Retained browser draft") {
       throw new Error("Profile retry discarded the draft");

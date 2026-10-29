@@ -6,8 +6,10 @@ import {
 } from "@pirate/api-client";
 import { sameOrigin } from "./origin.ts";
 import type { ApiFetch } from "./proxy.ts";
-import { captureSessionAuthority, isCurrentSessionAuthority, reportSessionRejection } from "./browser-session-events.ts";
-import { browserIdentitySession } from "./browser-identity-session.ts";
+import { captureSessionAuthority, establishedSessionAccount, reportSessionRejection } from "./browser-session-events.ts";
+import { browserSessionRenewal } from "./browser-session-renewal.ts";
+import { fenceBrowserSessionResponse } from "./browser-session-response.ts";
+import { captureBrowserSessionFence, changeBrowserAuthentication, isCurrentBrowserSessionFence, reportBrowserAccountChange, SessionAuthorityChangedError, SessionRenewalUnavailableError, withBrowserAuthLock } from "./browser-auth-coordination.ts";
 
 export type { PirateApiClient, PirateApiClientOptions, PirateApiRequestOptions } from "@pirate/api-client";
 
@@ -69,31 +71,64 @@ export function createGeneratedApiClient<Client>(
   const fetchImpl = options.fetchImpl ?? fetch;
   const rewriteFetchImplementation: ApiFetch = async (input, init) => {
     const rewritten = rewriteGeneratedClientUrl(input, origin);
-    const authority = captureSessionAuthority();
-    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
-    if (rewritten.pathname === "/api/auth/session/logout") browserIdentitySession.clear();
-    const response = await fetchImpl(rewritten, init);
     const credentials = init?.credentials ?? (input instanceof Request ? input.credentials : requestOptions.credentials);
-    if (response.status === 401 && requestOptions.credentials === "same-origin"
-      && credentials === "same-origin"
-      && !rewritten.pathname.startsWith("/api/auth/")
-      && isCurrentSessionAuthority(authority)) {
-      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-      // Reads can be retried after a coalesced exchange. Unsafe requests and
-      // wallet actions require their explicit continuation, never replay.
-      if (signal?.aborted) return response;
-      if (method === "GET" || method === "HEAD") {
-        const renewed = await browserIdentitySession.renew();
-        if (signal?.aborted || !isCurrentSessionAuthority(authority)) return response;
-        if (renewed) {
-          const recovered = await fetchImpl(rewritten, init);
-          if (recovered.status === 401 && !signal?.aborted) reportSessionRejection(authority);
-          return recovered;
-        }
-      }
-      reportSessionRejection(authority);
+    const privateBrowser = typeof window !== "undefined" && requestOptions.credentials === "same-origin" && credentials === "same-origin";
+    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+    const outbound = input instanceof Request ? new Request(rewritten, input) : rewritten;
+    // SAFETY: Request cloning uses only Fetch-standard fields; Worker-specific
+    // generic metadata is irrelevant to this same-origin browser transport.
+    const send = () => fetchImpl(outbound instanceof Request ? outbound.clone() as RequestInfo : outbound, init);
+    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+    const authMutation = method === "POST" && ["/api/auth/session/exchange", "/api/auth/register", "/api/auth/session/logout"].includes(rewritten.pathname);
+    if (privateBrowser && authMutation) {
+      return changeBrowserAuthentication(rewritten.pathname.endsWith("/logout") ? "logout" : "changed", send, signal ?? undefined);
     }
-    return response;
+    if (!privateBrowser) return send();
+    const authority = captureSessionAuthority();
+    const fence = captureBrowserSessionFence();
+    const account = establishedSessionAccount();
+    const current = () => isCurrentBrowserSessionFence(fence);
+    if (rewritten.pathname === "/api/auth/session/renew") {
+      return withBrowserAuthLock(async () => {
+        if (!current()) throw new SessionAuthorityChangedError();
+        const renewed = await send();
+        if (!current()) throw new SessionAuthorityChangedError();
+        return renewed;
+      }, signal ?? undefined, true);
+    }
+    const response = await send();
+    if (rewritten.pathname.startsWith("/api/auth/")) return response;
+    if (signal?.aborted) return response;
+    if (!current()) throw new SessionAuthorityChangedError();
+    if (response.status !== 401) return fenceBrowserSessionResponse(response, current);
+    // Only a safe read can be replayed, once. Writes retain their original
+    // command/journal and require an explicit continuation after reauthentication.
+    if ((method !== "GET" && method !== "HEAD") || readCsrfCookie() === undefined) {
+      reportSessionRejection(authority);
+      return response;
+    }
+    const result = await browserSessionRenewal.renew({
+      key: fence.revision ?? 0, current, expectedAccount: account, accountChanged: reportBrowserAccountChange,
+      lock: (action, renewalSignal) => withBrowserAuthLock(action, renewalSignal, true),
+      request: async renewalSignal => {
+        const csrf = readCsrfCookie();
+        if (csrf === undefined) throw new SessionRenewalUnavailableError();
+        // Use the genuine generated contract with a plain rewriting transport.
+        // Renewal cannot recursively renew itself or touch a provider session.
+        const renewalFetch: ApiFetch = (value, requestInit) => fetchImpl(rewriteGeneratedClientUrl(value, origin), requestInit);
+        // SAFETY: the generated client calls only the standard Fetch signature.
+        const client = createPirateApiClient(`${origin}/`, { credentials: "same-origin", fetchImpl: renewalFetch as typeof fetch });
+        return client.post_authSessionRenew(undefined, sessionRequestOptions(csrf, { signal: renewalSignal }));
+      },
+    });
+    if (signal?.aborted) return response;
+    if (!current()) throw new SessionAuthorityChangedError();
+    if (result === "rejected") { reportSessionRejection(authority); return response; }
+    const recovered = await send();
+    if (signal?.aborted) return recovered;
+    if (!current()) throw new SessionAuthorityChangedError();
+    if (recovered.status === 401) reportSessionRejection(authority);
+    return fenceBrowserSessionResponse(recovered, current);
   };
   // SAFETY: The generated client uses the standard fetch call signature; the
   // Worker/Bun-specific optional fetch members are not used by the adapter.
@@ -144,12 +179,14 @@ export function sessionRequestOptions(
 /** Read only the readable CSRF cookie; session cookies are never exposed. */
 export function readCsrfCookie(cookieHeader?: string): string | undefined {
   const source = cookieHeader ?? (typeof document === "undefined" ? "" : document.cookie);
+  let found: string | undefined;
   for (const pair of source.split(";")) {
     const separator = pair.indexOf("=");
     if (separator <= 0 || pair.slice(0, separator).trim() !== "__Host-pirate_csrf") continue;
     const value = pair.slice(separator + 1).trim();
     if (value === "" || value.length > 16 * 1024 || /[\r\n]/u.test(value)) return undefined;
-    return value;
+    if (found !== undefined) return undefined;
+    found = value;
   }
-  return undefined;
+  return found;
 }
