@@ -298,3 +298,41 @@ test("a nonmember can explicitly keep the take private and submit without joinin
   button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledOnce());
   expect(h.command.mock.calls[0]![1]).toMatchObject({ operation: "submit", show_publicly_if_passed: false });
 });
+
+test("a confirmed Passed verdict closes editing even while downstream publication status fails", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = harness(f.awaiting);
+    const publicationRead = vi.fn(async () => { throw new Error("publication unavailable"); });
+    const host = mount(() => <DanceReviewPage communityId={scope.communityId} reviewId={scope.reviewId} api={h.api} store={h.store} session={session} publicationApi={{ read: publicationRead }} />);
+    await vi.advanceTimersByTimeAsync(1); flush();
+    h.setResult({ ...f.passed, show_publicly_if_passed: true, publication_status: "pending" });
+    await vi.advanceTimersByTimeAsync(3000); flush();
+    expect(host.textContent).toContain("Passed"); expect(host.textContent).not.toContain("Waiting for review");
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(h.command).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Your confirmed result is unchanged"); expect(publicationRead).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(3000); expect(publicationRead).toHaveBeenCalledTimes(2); expect(h.command).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+test("publication observation keeps its live signal, never overlaps, and stops after a confirmed public Post", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = harness(f.awaiting);
+    let finish!: (view: import("./dance-publication-api").DancePublicationView) => void;
+    const read = vi.fn<import("./dance-publication-api").DancePublicationApi["read"]>(async (_scope, signal) => {
+      expect(signal.aborted).toBe(false); return new Promise(done => { finish = done; });
+    });
+    const host = mount(() => <DanceReviewPage communityId={scope.communityId} reviewId={scope.reviewId} api={h.api} store={h.store} session={session} publicationApi={{ read }} />);
+    await vi.advanceTimersByTimeAsync(1); flush();
+    h.setResult({ ...f.passed, show_publicly_if_passed: true, publication_status: "pending" });
+    await vi.advanceTimersByTimeAsync(3000); flush(); expect(host.textContent).toContain("Passed");
+    const reads = h.read.mock.calls.length; await vi.advanceTimersByTimeAsync(6000); expect(h.read).toHaveBeenCalledTimes(reads); expect(read).toHaveBeenCalledOnce();
+    expect(read.mock.calls[0]![1].aborted).toBe(false);
+    finish({ publication: { version: "dance-moderated-publication-v1", review_id: scope.reviewId, status: "transferred", submission: { submission_id: "ordinary", href: "/media-post-submissions/ordinary" } },
+      post: { submission_id: "ordinary", author_persona: { object: "persona", persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null },
+        href: "/media-post-submissions/ordinary", track: "video", intent: "song_reference", creation_revision: 1, video_revision: 1, caption: null, updated_at: "2026-10-29T00:00:00Z", status: "published", published_resource: { post_id: "public-video", href: "/posts/public-video" } } });
+    await vi.advanceTimersByTimeAsync(1); flush(); expect(host.querySelector('a[href="/post/public-video"]')).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(30000); expect(h.read).toHaveBeenCalledTimes(reads); expect(read).toHaveBeenCalledOnce(); expect(h.command).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});

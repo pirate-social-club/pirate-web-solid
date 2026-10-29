@@ -58,21 +58,21 @@ export function DanceReviewPage(props: {
   const clear = () => { stopObservation(); revision++; request?.abort(); postingRequest?.abort(); setPublication(undefined); setPosting({ kind: "checking" }); stopPreview(); scope = null; controller = undefined; api = undefined; setConfirmCancel(false); setState({ phase: "loading" }); };
   const current = (attempt: number, signal: AbortSignal, communityId: string, reviewId: string) => active && !signal.aborted && revision === attempt && props.communityId === communityId && props.reviewId === reviewId;
   const fail = (error: Error) => setState({ phase: error instanceof ApiClientError && error.declaredName === "AuthError" ? "anonymous" : error instanceof ApiClientError && error.declaredName === "NotFound" ? "unavailable" : "error" });
-  const apply = (view: DanceReviewView, resetChoice = true) => {
+  const apply = (view: DanceReviewView, resetChoice = true, observeNext = true) => {
     if (resetChoice) setShowPublicly(view.result.show_publicly_if_passed ?? true);
     journey.send({ type: "REVIEW_FACT", view }); setState({ phase: "ready" });
     if (!danceReviewEditable(view.result)) stopPreview();
-    scheduleObservation(view);
+    if (observeNext) scheduleObservation(view);
   };
-  const scheduleObservation = (view = ready(), immediate = false) => {
+  const scheduleObservation = (view = ready(), immediate = false, knownPublication = publication()) => {
     stopObservation();
-    if (!view || !needsObservation(view) || document.visibilityState === "hidden" || busy()) return;
+    if (!view || !needsObservation(view, knownPublication) || document.visibilityState === "hidden" || busy()) return;
     if (observations >= 90) { setObservingNotice("You can leave this screen. We’ll check for updates when you return."); return; }
     observationTimer = setTimeout(() => { void observe(); }, immediate ? 0 : 3000);
   };
-  const needsObservation = (view: DanceReviewView) => danceReviewPending(view.result)
-    || (view.result.publication_status === "pending")
-    || (view.result.publication_status === "transferred" && (!publication()?.post || ["processing", "manual_review"].includes(publication()!.post!.status)));
+  const needsObservation = (view: DanceReviewView, knownPublication: DancePublicationView | undefined) => danceReviewPending(view.result)
+    || (knownPublication?.post?.status !== "published" && (view.result.publication_status === "pending"
+      || (view.result.publication_status === "transferred" && (!knownPublication?.post || ["processing", "manual_review"].includes(knownPublication.post.status)))));
   const observe = async () => {
     const reader = controller, expected = scope;
     if (!active || !reader || !expected || busy() || document.visibilityState === "hidden") return;
@@ -84,16 +84,20 @@ export function DanceReviewPage(props: {
       if (!owns()) return;
       const previous = ready();
       if (previous && (next.result.session_id !== previous.result.session_id || next.result.session_terms_hash !== previous.result.session_terms_hash || next.result.review_revision < previous.result.review_revision)) throw new Error("dance_review_stale_read");
+      // The verdict is already confirmed. A downstream publication failure
+      // must never keep the old editable review on screen.
+      setObservingNotice(""); apply(next, false, false);
+      let knownPublication = publication();
       if (["pending", "transferred", "failed"].includes(next.result.publication_status)) {
         const published = await publicationApi.read(expected, pending.signal);
         if (!owns()) return;
-        setPublication(published);
+        knownPublication = published; setPublication(published);
       }
-      setObservingNotice(""); apply(next, false);
+      scheduleObservation(next, false, knownPublication);
     } catch (error) {
       if (!active || revision !== attempt || scope !== expected || !visible()) return;
       if (captureSessionAuthority() !== authority || error instanceof DanceReviewAuthorityError || (error instanceof Error && /scope_changed|session_changed|account_changed|target_changed/u.test(error.message)) || (error instanceof ApiClientError && error.declaredName === "AuthError")) { clear(); fail(error instanceof Error ? error : new Error("dance_review_unavailable")); }
-      else { setObservingNotice("Connection interrupted. Your submitted recording is unchanged."); scheduleObservation(); }
+      else { setObservingNotice("We couldn’t check for updates. Your confirmed result is unchanged."); scheduleObservation(); }
     } finally { clearTimeout(timeout); if (observationRequest === pending) observationRequest = undefined; }
   };
   const checkPosting = async (view = ready()) => {
