@@ -1,3 +1,4 @@
+import reviewVideoUrl from "../../../packages/solid-ui/src/patterns/engagement/vertical-feed/fixtures/clip-1.mp4";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 import { establishSessionAuthority } from "../../api/browser-session-events";
@@ -24,25 +25,25 @@ function fixture(initial: DanceResult, loseReply = false, posting: DancePostingE
       return receipt;
     },
   };
-  return <DanceReviewPage communityId={scope.communityId} reviewId={scope.reviewId} api={api} store={store}
+  return <DanceReviewPage communityId={scope.communityId} reviewId={scope.reviewId} api={api} store={store} localPreview={reviewVideoUrl}
     session={async () => { establishSessionAuthority(); return { status: "authenticated", userId: scope.accountId, personas: [] }; }} />;
 }
 export const ReadyToSubmit: Story = {
   render: () => fixture(f.uploaded),
-  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await canvas.findByRole("button", { name: "Submit" }); await expect(canvas.getByRole("checkbox", { name: "Show publicly if it passes" })).toBeChecked(); },
+  play: async ({ canvasElement }) => { const canvas = within(canvasElement); await canvas.findByRole("button", { name: "Submit for review" }); await expect(canvas.getByRole("switch", { name: "Show publicly if it passes" })).toBeChecked(); },
 };
 export const SubmitPrivately: Story = {
   render: () => fixture(f.uploaded),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("checkbox", { name: "Show publicly if it passes" })); await userEvent.click(canvas.getByRole("button", { name: "Submit" }));
-    await canvas.findByRole("heading", { name: "Waiting for review" }); await expect(canvas.getByRole("checkbox", { name: "Show publicly if it passes" })).not.toBeChecked();
+    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("switch", { name: "Show publicly if it passes" })); await userEvent.click(canvas.getByRole("button", { name: "Submit for review" }));
+    await canvas.findByRole("heading", { name: "Waiting for review" }); await expect(canvas.getByRole("switch", { name: "Show publicly if it passes" })).not.toBeChecked();
   },
 };
 export const ChangePendingChoice: Story = {
   render: () => fixture(f.awaiting),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("checkbox", { name: "Show publicly if it passes" })); await userEvent.click(canvas.getByRole("button", { name: "Save publication choice" }));
-    await canvas.findByRole("heading", { name: "Waiting for review" }); await expect(canvas.getByRole("checkbox", { name: "Show publicly if it passes" })).toBeChecked();
+    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("switch", { name: "Show publicly if it passes" })); await userEvent.click(canvas.getByRole("button", { name: "Save publication choice" }));
+    await canvas.findByRole("heading", { name: "Waiting for review" }); await expect(canvas.getByRole("switch", { name: "Show publicly if it passes" })).toBeChecked();
     await expect(canvas.getByRole("button", { name: "Save publication choice" })).toBeDisabled();
   },
 };
@@ -51,15 +52,15 @@ export const CancelPendingReview: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Cancel review" }));
     const dialog = within(await within(document.body).findByRole("dialog")); await userEvent.click(dialog.getByRole("button", { name: "Cancel review" }));
-    await canvas.findByRole("heading", { name: "Withdrawn" }); await expect(canvas.queryByRole("checkbox")).toBeNull();
+    await canvas.findByRole("heading", { name: "Withdrawn" }); await expect(canvas.queryByRole("switch")).toBeNull();
   },
 };
 export const RecoverLostSubmit: Story = {
   render: () => fixture(f.uploaded, true),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Submit" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Check again" })); await canvas.findByRole("heading", { name: "Waiting for review" });
-    await expect(canvas.getByRole("checkbox", { name: "Show publicly if it passes" })).toBeChecked();
+    const canvas = within(canvasElement); await userEvent.click(await canvas.findByRole("button", { name: "Submit for review" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Resume submission" })); await canvas.findByRole("heading", { name: "Waiting for review" });
+    await expect(canvas.getByRole("switch", { name: "Show publicly if it passes" })).toBeChecked();
   },
 };
 
@@ -68,11 +69,11 @@ export const VerifyBeforePublicSubmission: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole("link", { name: "Verify to join" })).toHaveAttribute("href", "/c/community");
-    await expect(canvas.getByRole("button", { name: "Submit" })).toBeDisabled();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Show publicly if it passes" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Submit" }));
+    await expect(canvas.getByRole("button", { name: "Submit for review" })).toBeDisabled();
+    await userEvent.click(canvas.getByRole("switch", { name: "Show publicly if it passes" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Submit for review" }));
     await canvas.findByRole("heading", { name: "Waiting for review" });
-    await expect(canvas.getByRole("checkbox")).not.toBeChecked();
+    await expect(canvas.getByRole("switch")).not.toBeChecked();
   },
 };
 
@@ -81,9 +82,9 @@ export const PostingAccessUnknown: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText(/We couldn’t confirm public posting access/u);
-    await expect(canvas.getByRole("button", { name: "Submit" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Submit for review" })).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Check posting access" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("checkbox"));
-    await expect(canvas.getByRole("button", { name: "Submit" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("switch"));
+    await expect(canvas.getByRole("button", { name: "Submit for review" })).toBeEnabled();
   },
 };

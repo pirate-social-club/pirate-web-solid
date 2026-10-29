@@ -6,6 +6,7 @@ import { refreshSession } from "../../api/session";
 import { DanceSongPage } from "./dance-song-page";
 import { dancePreparationFixture } from "./dance-preparation.fixture";
 import { createDanceCameraFixtureApi, danceCameraContext as context, danceCameraOptions as options, danceCameraScope as scope, danceCameraSession as session, danceCameraResult } from "./dance-camera.fixtures";
+import { createDanceCameraReviewFixtureApi } from "./dance-camera.fixtures";
 import type { createDanceRecorder } from "./dance-recorder";
 import type { DanceRecorderView } from "./dance-recorder";
 import type { AuthenticatedSession } from "../../api/session";
@@ -41,9 +42,10 @@ function harness() {
   const record = vi.fn<ReturnType<typeof createDanceRecorder>["record"]>(async (_signal, stage) => { stage("saving"); return { kind: "upload", upload: { kind: "processing", session: ready.session } }; });
   const recover = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "upload", upload: { kind: "review", session: { ...ready.session, state: "uploaded" } } }));
   const resume = vi.fn(async (): Promise<DanceRecorderView> => ({ kind: "upload", upload: { kind: "processing", session: ready.session } }));
-  const dispose = vi.fn(stop), factory = vi.fn<typeof createDanceRecorder>(() => ({ prepare, enter, record, recover, resume, dispose, newAttempt: prepare }));
+  const dispose = vi.fn(stop), factory = vi.fn<typeof createDanceRecorder>(() => ({ prepare, enter, record, recover, resume, observe: recover, pause: dispose, localPreview: async () => null, dispose, newAttempt: prepare }));
   const store: DanceJournalStore = { read: () => null, write: () => {}, remove: () => {}, exclusive: async (_key, use) => use() };
-  const start = () => mount(() => <DanceSongPage {...scope} api={api} session={authenticated} recorder={factory} store={store} />);
+  const reviewApi = createDanceCameraReviewFixtureApi();
+  const start = () => mount(() => <DanceSongPage {...scope} api={api} session={authenticated} recorder={factory} store={store} reviewApi={reviewApi} />);
   const choose = async (host: HTMLElement) => { await vi.waitFor(() => expect(host.querySelector('[aria-label="Open dance 1"]')).not.toBeNull()); button(host, "Open dance 1").click(); await vi.waitFor(() => expect(host.textContent).toContain("Do this dance")); };
   return { api, owner, readOptions, latest, prepare, enter, record, recover, resume, dispose, factory, start, choose, stop, store };
 }
@@ -53,9 +55,10 @@ test("the song's dance grid leads through reference and profile to the actual re
   expect(host.textContent).toContain("Dancer"); button(host, "Do this dance").click(); await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
   expect(host.querySelector('[aria-label="Selected dance"]')).toBeNull();
   expect(h.factory.mock.calls[0]![0].scope).toEqual(scope); expect(h.owner).toHaveBeenCalledTimes(2); expect(h.enter).toHaveBeenCalledTimes(1);
-  button(host, "Record").click(); await vi.waitFor(() => expect(host.textContent).toContain("Your recording is being prepared"));
-  expect(h.record).toHaveBeenCalledTimes(1); button(host, "Check recording").click();
-  await vi.waitFor(() => expect(host.querySelector('a[href="/dance/test-community/reviews/test-capture-review/recording"]')).not.toBeNull()); expect(h.recover).toHaveBeenCalledTimes(1);
+  button(host, "Record").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
+  expect(h.record).toHaveBeenCalledTimes(1); expect(h.recover).toHaveBeenCalledTimes(1);
+  expect(host.textContent).not.toContain("Check recording"); expect(host.textContent).not.toContain("Review recording");
 });
 
 test("an existing saved original exposes recovery without opening a camera", async () => {
@@ -68,8 +71,8 @@ test("an existing saved original exposes recovery without opening a camera", asy
 test("a recording/save failure shows recovery and never invokes a second Record", async () => {
   const h = harness(); h.record.mockRejectedValueOnce(new Error("unknown_save")); const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
   await vi.waitFor(() => expect(host.querySelector('button[aria-label="Record"]')).not.toBeNull()); button(host, "Record").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("couldn’t finish")); button(host, "Check recording").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("Your recording is ready")); expect(h.record).toHaveBeenCalledTimes(1); expect(h.recover).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(host.textContent).toContain("was interrupted")); button(host, "Resume recording").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit")); expect(h.record).toHaveBeenCalledTimes(1); expect(h.recover).toHaveBeenCalledTimes(1);
 });
 
 test("permission refusal explains browser access and preserves an explicit recovery path", async () => {
@@ -77,7 +80,7 @@ test("permission refusal explains browser access and preserves an explicit recov
   h.recover.mockResolvedValueOnce({ kind: "objectives", session: context.session, context });
   const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
   await vi.waitFor(() => expect(host.textContent).toContain("Allow access in your browser")); expect(host.querySelector('[aria-label="Camera preview"]')).toBeNull();
-  button(host, "Check recording").click(); await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull()); expect(h.record).not.toHaveBeenCalled();
+  button(host, "Resume recording").click(); await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull()); expect(h.record).not.toHaveBeenCalled();
 });
 
 test("pending review links to its current recording and omits Do this dance", async () => {
@@ -166,7 +169,8 @@ test("page return after a hidden camera starts a new UI operation and ignores th
   h.record.mockImplementationOnce(async () => new Promise(done => { finish = done; }));
   const host = h.start(); await h.choose(host); button(host, "Do this dance").click(); await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull()); button(host, "Record").click();
   await vi.waitFor(() => expect(h.record).toHaveBeenCalledTimes(1)); vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange")); flush();
-  button(host, "Check recording").click(); await vi.waitFor(() => expect(h.factory).toHaveBeenCalledTimes(2)); finish({ kind: "terminal", session: context.session, context: null });
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible"); document.dispatchEvent(new Event("visibilitychange")); flush();
+  button(host, "Resume recording").click(); await vi.waitFor(() => expect(h.recover).toHaveBeenCalledTimes(1)); finish({ kind: "terminal", session: context.session, context: null });
   await new Promise(done => setTimeout(done, 0)); expect(host.textContent).not.toContain("This recording has finished");
 });
 
@@ -175,7 +179,7 @@ test("funded entry displays the frozen objective and waits for one explicit acce
   const h = harness();
   h.prepare.mockResolvedValueOnce({ kind: "objectives", session: context.session, context: { ...dancePreparationFixture, session: context.session } });
   const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("Funded Dance"));
+  await vi.waitFor(() => expect(host.textContent).toContain("Before you record"));
   expect(host.textContent).toContain("test USDC"); expect(host.textContent).toContain("passed owner review");
   expect(h.enter).not.toHaveBeenCalled(); expect(host.querySelector('[aria-label="Camera preview"]')).toBeNull();
   button(host, "Accept and continue").click();
@@ -190,8 +194,8 @@ test("recovering an uncertain funded acceptance replays it without asking for an
   h.enter.mockRejectedValueOnce(new Error("reply_lost"));
   h.recover.mockResolvedValueOnce({ kind: "objectives", session: context.session, context: funded, consentRequested: true });
   const host = h.start(); await h.choose(host); button(host, "Do this dance").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("Funded Dance")); button(host, "Accept and continue").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("couldn’t finish")); button(host, "Check recording").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Before you record")); button(host, "Accept and continue").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("was interrupted")); button(host, "Resume recording").click();
   await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
   expect(h.enter).toHaveBeenCalledTimes(2); expect(host.textContent).not.toContain("Accept and continue");
 });

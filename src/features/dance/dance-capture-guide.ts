@@ -4,6 +4,8 @@ import type { DanceCaptureContext } from "./dance-preparation-api";
 export interface DanceCaptureGuide {
   readonly sessionId: string;
   readonly termsHash: string;
+  /** Called in the Record gesture after preparation; never downloads audio. */
+  activate(): Promise<void>;
   /** The recorder supplies its shared source-arrival origin, never encoder-ready
    * time. Starting this listening source does not authorize recording. */
   start(originMs: number, assertCaptureCurrent: () => void, onFailure: (error: Error) => void): void;
@@ -16,6 +18,7 @@ export async function prepareDanceCaptureGuide(input: {
   readonly context: DanceCaptureContext;
   readonly signal: AbortSignal;
   readonly assertCurrent: () => void;
+  readonly deferActivation?: boolean;
 }, dependencies: {
   readonly prepareSource?: GuideSourcePreparation;
   readonly createAudioContext?: () => AudioContext;
@@ -52,14 +55,23 @@ export async function prepareDanceCaptureGuide(input: {
   try {
     // Resume is invoked before any await so a caller's explicit gesture can
     // unlock audio. A suspended source never silently becomes a practice take.
-    await audio.resume(); current();
-    if (disposed || audio.state !== "running") throw new Error("dance_guide_unavailable");
+    if (!input.deferActivation) await audio.resume();
+    current();
+    if (disposed || (!input.deferActivation && audio.state !== "running")) throw new Error("dance_guide_unavailable");
     source = await (dependencies.prepareSource ?? prepareBufferedGuide)(postId, signal); current();
     if (new URL(source.url).protocol !== "blob:") throw new Error("dance_guide_unavailable");
     const bytes = await source.blob.arrayBuffer(); current();
     buffer = await audio.decodeAudioData(bytes); current();
-    if (disposed || audio.state !== "running" || !Number.isFinite(buffer.duration) || buffer.duration * 1000 < songEndMs) throw new Error("dance_guide_incomplete");
+    if (disposed || audio.state === "closed" || !Number.isFinite(buffer.duration) || buffer.duration * 1000 < songEndMs) throw new Error("dance_guide_incomplete");
     return Object.freeze({ sessionId, termsHash,
+      async activate() {
+        current();
+        if (disposed || started || !buffer) throw new Error("dance_guide_unavailable");
+        // Invoke synchronously in the deliberate Record gesture. Download and
+        // decode have already finished, including on browsers that suspend audio.
+        await audio.resume(); current();
+        if (disposed || audio.state !== "running") throw new Error("dance_guide_unavailable");
+      },
       start(originMs: number, assertCaptureCurrent: () => void, onFailure: (error: Error) => void) {
         current(); assertCaptureCurrent();
         if (disposed || started || !buffer || audio.state !== "running" || !Number.isFinite(originMs)) throw new Error("dance_guide_unavailable");

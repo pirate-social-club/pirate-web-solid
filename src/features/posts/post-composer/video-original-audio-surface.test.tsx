@@ -121,3 +121,11 @@ describe("original-audio video design surfaces", () => {
     expect(document.body.textContent).not.toContain("Paid unlock");
   });
 });
+
+test("a policy-bound capture can reuse the camera without offering gallery upload or a premature stop", () => {
+  const record = vi.fn();
+  render(() => <OriginalVideoCaptureSurface title="Dance" allowUpload={false} recordDisabled status="recording" recordActionLabel="Recording in progress" onRecordToggle={record} />);
+  expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Upload")).toBe(false);
+  const control = document.querySelector<HTMLButtonElement>('button[aria-label="Recording in progress"]')!;
+  expect(control.disabled).toBe(true); control.click(); expect(record).not.toHaveBeenCalled();
+});

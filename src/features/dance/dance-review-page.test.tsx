@@ -39,7 +39,7 @@ test("an eligible participant submits the actual public choice after current pos
   await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
   expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
   expect(host.textContent).not.toMatch(/Fictional|consent|retention|This recording will not|subject to posting/u);
-  button(host, "Submit").click();
+  button(host, "Submit for review").click();
   await vi.waitFor(() => expect(host.textContent).toContain("Waiting for review"));
   expect(h.command.mock.calls[0]![1]).toMatchObject({ operation: "submit", show_publicly_if_passed: true });
   expect(host.querySelector('a[href="/post/song"]')?.textContent).toBe("Done");
@@ -48,7 +48,7 @@ test("an eligible participant submits the actual public choice after current pos
 test("public-off remains explicit at Submit and does not become public-on during recovery", async () => {
   const h = harness(), host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!; checkbox.checked = false; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flush();
-  button(host, "Submit").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
   expect(h.command.mock.calls[0]![1]).toMatchObject({ show_publicly_if_passed: false });
 });
 
@@ -57,12 +57,12 @@ test.each(["join", "request", "verify", "pending", "blocked", "joined"] as const
   const join = kind === "verify" ? { kind, providerId: "very.web", intentId: "intent" } as const : kind === "blocked" ? { kind, reason: "banned" } as const : { kind };
   h.postingEligibility.mockResolvedValue({ kind: "unavailable", join });
   const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("submit privately"));
-  expect(button(host, "Submit").disabled).toBe(true); expect(h.command).not.toHaveBeenCalled();
+  expect(button(host, "Submit for review").disabled).toBe(true); expect(h.command).not.toHaveBeenCalled();
   const link = host.querySelector('a[href="/c/community"]'); expect(link).not.toBeNull();
   if (kind === "verify") expect(link?.textContent).toBe("Verify to join");
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
   checkbox.checked = false; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flush();
-  expect(button(host, "Submit").disabled).toBe(false); button(host, "Submit").click();
+  expect(button(host, "Submit for review").disabled).toBe(false); button(host, "Submit for review").click();
   await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
   expect(h.command.mock.calls[0]![1]).toMatchObject({ operation: "submit", show_publicly_if_passed: false });
 });
@@ -71,12 +71,12 @@ test("a slow or failed eligibility read never blocks private submission or previ
   const h = harness(); let reject!: (reason: Error) => void;
   h.postingEligibility.mockImplementationOnce(async () => new Promise((_, no) => { reject = no; }));
   const host = h.start(); await vi.waitFor(() => expect(h.postingEligibility).toHaveBeenCalledTimes(1));
-  expect(host.textContent).toContain("Checking public posting access"); expect(button(host, "Submit").disabled).toBe(true);
+  expect(host.textContent).toContain("Checking public posting access"); expect(button(host, "Submit for review").disabled).toBe(true);
   button(host, "Preview recording").click(); await vi.waitFor(() => expect(h.media).toHaveBeenCalledTimes(1));
   reject(new Error("network")); await vi.waitFor(() => expect(host.textContent).toContain("couldn’t confirm public posting access"));
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
   checkbox.checked = false; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flush();
-  button(host, "Submit").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
   expect(h.command.mock.calls[0]![1]).toMatchObject({ show_publicly_if_passed: false });
 });
 
@@ -85,8 +85,8 @@ test.each(["load", "public-submit"])("a silent account replacement during eligib
   if (when === "load") h.postingEligibility.mockRejectedValueOnce(error);
   const host = h.start();
   if (when === "public-submit") {
-    await vi.waitFor(() => expect(button(host, "Submit").disabled).toBe(false));
-    h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit").click();
+    await vi.waitFor(() => expect(button(host, "Submit for review").disabled).toBe(false));
+    h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit for review").click();
   }
   await vi.waitFor(() => expect(host.textContent).toContain("couldn’t confirm your recording"));
   expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(h.command).not.toHaveBeenCalled(); expect(h.entries.size).toBe(0);
@@ -100,7 +100,7 @@ test.each(["load", "public-submit"])("AuthError during posting eligibility %s cl
   const video = host.querySelector("video")!;
   const error = new ApiClientError({ name: "AuthError", status: 401, code: "auth_error", retryable: false }, { error: { code: "auth_error", message: "Sign in", retryable: false } });
   if (when === "load") reject(error);
-  else { h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit").click(); }
+  else { h.postingEligibility.mockRejectedValueOnce(error); button(host, "Submit for review").click(); }
   await vi.waitFor(() => expect(host.textContent).toContain("Sign in to view your recording"));
   expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(host.querySelector("video")).toBeNull(); expect(video.getAttribute("src")).toBeNull();
   expect(h.command).not.toHaveBeenCalled(); expect(h.entries.size).toBe(0);
@@ -109,19 +109,19 @@ test.each(["load", "public-submit"])("AuthError during posting eligibility %s cl
 test("refresh after normal joining enables public Submit; the command still rechecks posting access", async () => {
   const h = harness(); h.postingEligibility.mockResolvedValueOnce({ kind: "unavailable", join: { kind: "join" } });
   const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("Join this community"));
-  button(host, "Check posting access").click(); await vi.waitFor(() => expect(button(host, "Submit").disabled).toBe(false));
-  button(host, "Submit").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
+  button(host, "Check posting access").click(); await vi.waitFor(() => expect(button(host, "Submit for review").disabled).toBe(false));
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
   expect(h.postingEligibility).toHaveBeenCalledTimes(4); // Initial, explicit refresh, new intent, pending view.
 });
 
 test("membership lost between page load and public Submit keeps the private choice usable without a new journal", async () => {
-  const h = harness(), host = h.start(); await vi.waitFor(() => expect(button(host, "Submit").disabled).toBe(false));
+  const h = harness(), host = h.start(); await vi.waitFor(() => expect(button(host, "Submit for review").disabled).toBe(false));
   h.postingEligibility.mockResolvedValue({ kind: "unavailable", join: { kind: "verify", providerId: "very.web", intentId: "intent" } });
-  button(host, "Submit").click(); await vi.waitFor(() => expect(host.textContent).toContain("Verify and join"));
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(host.textContent).toContain("Verify and join"));
   expect(h.command).not.toHaveBeenCalled(); expect(h.entries.size).toBe(0);
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
   checkbox.checked = false; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flush();
-  button(host, "Submit").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledTimes(1));
   expect(h.command.mock.calls[0]![1]).toMatchObject({ show_publicly_if_passed: false });
 });
 
@@ -154,7 +154,7 @@ test.each(["member", "gated", "unknown"])("composed generated adapter and page p
   // This session resolves without rotating authority after the real adapter is created.
   const api = createDanceReviewApi(createSessionApiClient({ origin: "https://pirate.sc", fetchImpl }), () => "csrf");
   const host = mount(() => <DanceReviewPage communityId="community" reviewId="review" api={api} store={store} session={async () => ({ status: "authenticated", userId: scope.accountId, personas: [] })} />);
-  await vi.waitFor(() => expect(host.textContent).toContain(access === "member" ? "Posting access confirmed" : access === "gated" ? "Verify and join" : "couldn’t confirm public posting access"));
+  await vi.waitFor(() => expect(host.textContent).toContain(access === "member" ? "Waiting for review" : access === "gated" ? "Verify and join" : "couldn’t confirm public posting access"));
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
   checkbox.checked = access === "member"; checkbox.dispatchEvent(new Event("change", { bubbles: true })); flush();
   expect(button(host, "Save publication choice").disabled).toBe(false); button(host, "Save publication choice").click();
@@ -188,16 +188,16 @@ test("pending review edits its current boolean through a confirmed command", asy
   await vi.waitFor(() => expect(button(host, "Save publication choice").disabled).toBe(true));
 });
 
-test("unknown Submit blocks new controls until Check again recovers the identical original", async () => {
+test("unknown Submit keeps the screen and disables writes until explicit original-command recovery", async () => {
   const h = harness(), original = h.command.getMockImplementation()!;
   h.command.mockImplementationOnce(async (scope, body, signal) => { await original(scope, body, signal); throw new Error("lost_reply"); });
   const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
-  button(host, "Submit").click(); await vi.waitFor(() => expect(host.textContent).toContain("couldn’t confirm"));
-  expect(host.querySelector('input[type="checkbox"]')).toBeNull(); expect(h.entries.size).toBe(1);
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(host.textContent).toContain("could not be confirmed"));
+  expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(true); expect(h.entries.size).toBe(1);
   const first: DanceReviewCommand = h.command.mock.calls[0]![1];
   h.setResult(f.awaiting);
   h.command.mockImplementationOnce(async () => danceReviewFixtureReceipt(first, f.awaiting));
-  button(host, "Check again").click(); await vi.waitFor(() => expect(host.textContent).toContain("Waiting for review"));
+  button(host, "Resume submission").click(); await vi.waitFor(() => expect(host.textContent).toContain("Waiting for review"));
   expect(h.command.mock.calls[1]![1]).toEqual(first); expect(h.entries.size).toBe(0);
 });
 
@@ -266,4 +266,35 @@ test("session replacement clears ready controls before the next account resolves
   const host = mount(() => <DanceReviewPage communityId="community" reviewId="review" api={h.api} store={h.store} session={async () => signedIn ? session() : "anonymous"} />);
   await vi.waitFor(() => expect(host.textContent).toContain("Waiting for review")); signedIn = false; refreshSession(); flush();
   expect(host.querySelector('input[type="checkbox"]')).toBeNull(); await vi.waitFor(() => expect(host.textContent).toContain("Sign in to view"));
+});
+
+test("pending review advances to its truthful verdict without a manual check or any command", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = harness(f.awaiting), host = h.start(); await vi.advanceTimersByTimeAsync(1); flush();
+    expect(host.textContent).toContain("Waiting for review"); h.setResult(f.passed);
+    await vi.advanceTimersByTimeAsync(3000); flush();
+    expect(host.textContent).toContain("Passed"); expect(h.command).not.toHaveBeenCalled();
+    const reads = h.read.mock.calls.length; await vi.advanceTimersByTimeAsync(20000); expect(h.read).toHaveBeenCalledTimes(reads);
+  } finally { vi.useRealTimers(); }
+});
+
+test("visibility return resumes bounded read-only review observation", async () => {
+  vi.useFakeTimers();
+  try {
+    const h = harness(f.awaiting), host = h.start(); await vi.advanceTimersByTimeAsync(1); flush();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange"));
+    const reads = h.read.mock.calls.length; await vi.advanceTimersByTimeAsync(30000); expect(h.read).toHaveBeenCalledTimes(reads);
+    h.setResult(f.passed); visibility.mockReturnValue("visible"); document.dispatchEvent(new Event("visibilitychange")); await vi.advanceTimersByTimeAsync(1); flush();
+    expect(host.textContent).toContain("Passed"); expect(h.command).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+test("a nonmember can explicitly keep the take private and submit without joining or verification", async () => {
+  const h = harness(); h.postingEligibility.mockResolvedValue({ kind: "unavailable", join: { kind: "join" } });
+  const host = h.start(); await vi.waitFor(() => expect(host.textContent).toContain("Keep this take private"));
+  button(host, "Keep this take private").click(); flush();
+  expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false);
+  button(host, "Submit for review").click(); await vi.waitFor(() => expect(h.command).toHaveBeenCalledOnce());
+  expect(h.command.mock.calls[0]![1]).toMatchObject({ operation: "submit", show_publicly_if_passed: false });
 });
