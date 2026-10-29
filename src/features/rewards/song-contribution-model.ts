@@ -46,7 +46,7 @@ const statusLabels = {
 } satisfies Record<SongContributionState["state"], readonly [string, string]>;
 // The 60-second payment window always closes before network finality, so a sent
 // transfer reads as expired until the receipt is credited.
-const sentAwaitingFinality = { title: "Confirming payment", detail: "Your payment was sent. It is added once the network confirms it." };
+const sentAwaitingFinality = { title: "Confirming payment", detail: "Your payment was sent and is being checked." };
 export const contributionStatus = (state: SongContributionState, sent = false) => state.state === "expired_reconciling" && sent
   ? sentAwaitingFinality
   : { title: statusLabels[state.state][0], detail: statusLabels[state.state][1] };
