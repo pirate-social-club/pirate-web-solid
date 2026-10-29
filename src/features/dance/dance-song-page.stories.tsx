@@ -9,7 +9,7 @@ import { createDanceCameraFixtureApi, createDanceCameraFixtureRecorder, danceCam
 import { DanceSongPage } from "./dance-song-page";
 import type { createDanceRecorder } from "./dance-recorder";
 
-const meta = { title: "Flows/Dance/Recording", parameters: { layout: "fullscreen", a11y: { test: "error" },
+const meta = { title: "Flows/Dance/Recording", globals: { viewport: { value: "dancePhone", isRotated: false } }, parameters: { layout: "fullscreen", viewport: { options: { dancePhone: { name: "Dance phone", styles: { width: "390px", height: "844px" } } } }, a11y: { test: "error" },
   docs: { description: { component: "Production entry and recording screens with fictional API/recorder responses and a canvas preview. This does not exercise real camera, persistence, uploads or provider acceptance." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;

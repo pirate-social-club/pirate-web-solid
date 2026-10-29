@@ -7,7 +7,7 @@ import type { DancePostingEligibility, DanceReviewApi, DanceReviewReceipt } from
 import { DanceReviewPage } from "./dance-review-page";
 import { createDanceReviewFixtureStore, danceReviewFixtureReceipt, danceReviewFixtures as f, danceReviewScope as scope } from "./dance-review.fixtures";
 
-const meta = { title: "Screens/Dance/Recording review", parameters: { layout: "fullscreen", a11y: { test: "error" },
+const meta = { title: "Screens/Dance/Recording review", globals: { viewport: { value: "dancePhone", isRotated: false } }, parameters: { layout: "fullscreen", viewport: { options: { dancePhone: { name: "Dance phone", styles: { width: "390px", height: "844px" } } } }, a11y: { test: "error" },
   docs: { description: { component: "The production recording-management page with fictional private review responses. No recording, provider, publication or reward operation." } } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
