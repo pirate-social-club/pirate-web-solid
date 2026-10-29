@@ -3,6 +3,7 @@ import { createRoot, createSignal } from "solid-js";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "@testing-library/user-event";
 import type { PirateApiClient } from "../../api/client.ts";
+import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { establishSessionAuthority, forgetSessionAuthority, replaceSessionAuthority } from "../../api/browser-session-events.ts";
 import { refreshSession } from "../../api/session.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../shell/application-session.tsx";
@@ -175,8 +176,11 @@ function signedOutBoost(id: string) {
   window.addEventListener(GLOBAL_SIGN_IN_EVENT, prompts);
   disposers.push(() => window.removeEventListener(GLOBAL_SIGN_IN_EVENT, prompts));
   // The real host, so the prompt is proved to open rather than only requested.
-  const exchange = async () => ({ beginOAuth: vi.fn(), clear: vi.fn(), completeOAuth: vi.fn(), loginWithCode: vi.fn(),
-    loginWithWallet: vi.fn(), register: vi.fn(), sendCode: vi.fn() }) as never;
+  const exchange = async (): Promise<PrivySessionExchange> => ({
+    beginOAuth: vi.fn(async () => "https://privy.example.test/authorize"), clear: vi.fn(async () => undefined),
+    completeOAuth: vi.fn(async () => undefined), loginWithCode: vi.fn(async () => undefined),
+    loginWithWallet: vi.fn(async () => undefined), register: vi.fn(async () => undefined), sendCode: vi.fn(async () => undefined),
+  });
   const ui = mount({ get_rewardsQualificationPolicies: vi.fn(async () => policies) }, () => <><Probe /><CommunityPostCard
     communityId="community" post={{ id, kind: "song", title: "Song", body: "", score: 0, publishedAt: "2026-10-15T00:00:00Z" }}
   /><GlobalSignInHost createExchange={exchange} refresh={() => {}} /></>);
