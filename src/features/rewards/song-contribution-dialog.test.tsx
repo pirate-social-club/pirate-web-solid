@@ -17,9 +17,20 @@ const cleanups: Array<() => void> = [];
 beforeEach(() => { establishSessionAuthority(); });
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); document.body.replaceChildren(); forgetSessionAuthority(); });
 
-function mount(options: { previous?: boolean; fixture?: ReturnType<typeof contributionControllerFixture> } = {}) {
+type CatalogPersona = Awaited<ReturnType<SongContributionDependencies["catalog"]>>["personas"][number];
+function mount(options: { previous?: boolean; fixture?: ReturnType<typeof contributionControllerFixture>; otherProfileBound?: boolean } = {}) {
   const h = options.fixture ?? contributionControllerFixture();
   if (options.previous) h.values.set(rewardCreationKey(f.scope), "opaque unresolved V1 fixture");
+  const fixturePersona: CatalogPersona = {
+    object: "persona", persona_id: f.scope.personaId, status: "active",
+    profile: { object: "persona_profile", persona_id: f.scope.personaId, revision: 1, display_name: "Fixture profile", avatar_ref: null, cover_ref: null, bio: null, preferred_locale: "en", primary_public_handle: null },
+    wallet_set: { evm: { chain_account_kind: "evm", address: f.receipt.instruction.from, hd_wallet_index: 0, assigned_at: "2026-10-18T13:00:00.000Z" } },
+    community_binding: { community_id: f.scope.communityId, binding_source: "persona_creation" }, created_at: "2026-10-18T13:00:00.000Z", retired_at: null,
+  };
+  // The community-bound default belongs to another profile; the saved payment does not.
+  const personas: CatalogPersona[] = options.otherProfileBound
+    ? [{ ...fixturePersona, persona_id: "persona_other", profile: { ...fixturePersona.profile, persona_id: "persona_other", display_name: "Other profile" } }, { ...fixturePersona, community_binding: null }]
+    : [fixturePersona];
   const authorization: SongContributionAuthorization = {
     sendCode: vi.fn(async () => {}), loginWithCode: vi.fn(async () => {}),
     estimateTransfer: async () => h.wallet.estimate(f.receipt), estimateCancellation: async () => h.wallet.estimate(f.receipt),
@@ -27,12 +38,7 @@ function mount(options: { previous?: boolean; fixture?: ReturnType<typeof contri
     sendCancellation: async (_transfer, fee, before) => h.wallet.send(f.receipt, fee, before), dispose: h.wallet.dispose,
   };
   const dependencies: SongContributionDependencies = {
-    catalog: vi.fn<SongContributionDependencies["catalog"]>(async () => ({ accountId: f.scope.accountId, personas: [{
-      object: "persona", persona_id: f.scope.personaId, status: "active",
-      profile: { object: "persona_profile", persona_id: f.scope.personaId, revision: 1, display_name: "Fixture profile", avatar_ref: null, cover_ref: null, bio: null, preferred_locale: "en", primary_public_handle: null },
-      wallet_set: { evm: { chain_account_kind: "evm", address: f.receipt.instruction.from, hd_wallet_index: 0, assigned_at: "2026-10-18T13:00:00.000Z" } },
-      community_binding: { community_id: f.scope.communityId, binding_source: "persona_creation" }, created_at: "2026-10-18T13:00:00.000Z", retired_at: null,
-    }] })),
+    catalog: vi.fn<SongContributionDependencies["catalog"]>(async () => ({ accountId: f.scope.accountId, personas })),
     api: () => h.api, journal: createSongContributionJournal, store: () => h.store,
     authorization: vi.fn(async () => authorization), previous: scope => h.store.read(rewardCreationKey(scope)) !== null, nowMs: h.nowMs,
   };
@@ -125,6 +131,17 @@ test("an uncertain original creation reopens as recovery without posting a new c
   await controller.reviewAmount("2000000"); await expect(controller.reserve()).rejects.toThrow(); const original = h.journal().read()?.commands[0]?.bodyJson;
   mount({ fixture: h }); await vi.waitFor(() => expect(document.body.textContent).toContain("Your original request is saved"));
   expect(h.api.create).toHaveBeenCalledTimes(1); expect(h.journal().read()?.commands[0]?.bodyJson).toBe(original); expect(h.walletInvocations()).toBe(0);
+});
+
+test("a saved payment reopens on its own profile instead of the community default, reading only", async () => {
+  const h = contributionControllerFixture(), controller = h.controller();
+  await controller.reviewAmount("2000000"); await controller.reserve(); controller.dispose();
+  const created = vi.mocked(h.api.create).mock.calls.length;
+  mount({ fixture: h, otherProfileBound: true });
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Original contribution"));
+  expect(document.querySelector('select[aria-label="Paying profile"] option:checked')?.getAttribute("value")).toBe(f.scope.personaId);
+  expect(document.getElementById("song-contribution-amount")).toBeNull();
+  expect(h.api.create).toHaveBeenCalledTimes(created); expect(h.api.claim).not.toHaveBeenCalled(); expect(h.walletInvocations()).toBe(0);
 });
 
 test("a refused original request offers a new amount review without wallet authorization or an automatic POST", async () => {

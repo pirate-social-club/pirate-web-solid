@@ -10,7 +10,7 @@ export type SongContributionView =
   | { readonly kind: "amount"; readonly context: SongContributionContext; readonly notice?: string }
   | { readonly kind: "terms"; readonly context: Extract<SongContributionContext, { readonly readiness: "ready" }>; readonly request: SongContributionRequest }
   | { readonly kind: "pending"; readonly entry: ContributionJournalEntry; readonly current: SongContributionState | null }
-  | { readonly kind: "status"; readonly current: SongContributionState }
+  | { readonly kind: "status"; readonly current: SongContributionState; readonly sent?: true }
   | { readonly kind: "pay"; readonly reviewId: string; readonly current: SongContributionState; readonly fee: RewardFeeEstimate; readonly cancellation: ContributionCancellationReceipt | null };
 
 /** One actor/song controller. Reload performs reads only; wallet dispatch requires
@@ -77,7 +77,9 @@ export function createSongContributionController(options: {
     entry = stored(handle);
     const result = entry.contributionId ? await state(handle) : null;
     if (!result || pendingCommand(stored(handle))) return publish({ kind: "pending", entry: stored(handle), current: result });
-    return publish({ kind: "status", current: result });
+    // This browser recorded the original transfer hash; expiry before finality is expected.
+    const sent = stored(handle).invocations.some(invocation => invocation.purpose === "funding_transfer" && invocation.transactionHash !== null);
+    return publish(sent ? { kind: "status", current: result, sent: true } : { kind: "status", current: result });
   };
   const run = async (operation: () => Promise<SongContributionView>) => {
     assertCurrent(); if (busy) throw new Error("contribution_action_in_progress"); busy = true;

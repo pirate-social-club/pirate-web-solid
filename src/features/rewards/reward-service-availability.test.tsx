@@ -3,9 +3,11 @@ import { createRoot, createSignal } from "solid-js";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "@testing-library/user-event";
 import type { PirateApiClient } from "../../api/client.ts";
+import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { establishSessionAuthority, forgetSessionAuthority, replaceSessionAuthority } from "../../api/browser-session-events.ts";
 import { refreshSession } from "../../api/session.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../shell/application-session.tsx";
+import { GLOBAL_SIGN_IN_EVENT, GlobalSignInHost } from "../auth/global-sign-in-host.tsx";
 import { CommunityPostCard } from "../community/page-shell/page-shell.tsx";
 import { RewardServiceAvailabilityProvider, useRewardServiceAvailability } from "./reward-service-availability.tsx";
 
@@ -154,6 +156,72 @@ test("removes Boost and disposes its dialog when availability is lost", async ()
   expect([...document.querySelectorAll('[role="menuitem"]')].map(node => node.textContent)).toEqual(["Share"]);
 });
 
+
+async function openBoost(ui: ReturnType<typeof mount>) {
+  await settled();
+  const user = userEvent.setup();
+  await user.click(ui.root.querySelector<HTMLButtonElement>('[aria-label="Post options"]')!);
+  await user.click(await vi.waitFor(() => {
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(node => node.textContent === "Boost");
+    expect(item).toBeDefined();
+    return item!;
+  }));
+  await vi.waitFor(() => expect(boostDialog()).not.toBeNull());
+}
+function signedOutBoost(id: string) {
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: {
+    code: "provider_unavailable", message: "Service unavailable", retryable: true,
+  } }, { status: 503 })));
+  const prompts = vi.fn();
+  window.addEventListener(GLOBAL_SIGN_IN_EVENT, prompts);
+  disposers.push(() => window.removeEventListener(GLOBAL_SIGN_IN_EVENT, prompts));
+  // The real host, so the prompt is proved to open rather than only requested.
+  const exchange = async (): Promise<PrivySessionExchange> => ({
+    beginOAuth: vi.fn(async () => "https://privy.example.test/authorize"), clear: vi.fn(async () => undefined),
+    completeOAuth: vi.fn(async () => undefined), loginWithCode: vi.fn(async () => undefined),
+    loginWithWallet: vi.fn(async () => undefined), register: vi.fn(async () => undefined), sendCode: vi.fn(async () => undefined),
+  });
+  const ui = mount({ get_rewardsQualificationPolicies: vi.fn(async () => policies) }, () => <><Probe /><CommunityPostCard
+    communityId="community" post={{ id, kind: "song", title: "Song", body: "", score: 0, publishedAt: "2026-10-15T00:00:00Z" }}
+  /><GlobalSignInHost createExchange={exchange} refresh={() => {}} /></>);
+  return { ui, prompts };
+}
+const boostDialog = () => document.querySelector('[role="dialog"]:not([aria-label="Sign in"])');
+const signInDialog = () => document.querySelector('[role="dialog"][aria-label="Sign in"]');
+
+test("a Boost dialog closed by a sign-out asks for sign-in and reopens for the same account", async () => {
+  const { ui, prompts } = signedOutBoost("song-resume");
+  await openBoost(ui);
+  // A rejected session revokes availability before the account resolves anonymous.
+  ui.setPending(true);
+  await vi.waitFor(() => expect(boostDialog()).toBeNull());
+  ui.setSession("anonymous");
+  ui.setPending(false);
+  await vi.waitFor(() => expect(prompts).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(signInDialog()).not.toBeNull());
+  ui.setSession({ status: "authenticated", userId: "account-a" });
+  await vi.waitFor(() => expect(boostDialog()).not.toBeNull());
+  expect(prompts).toHaveBeenCalledOnce();
+});
+
+test("a Boost dialog closed by a sign-out stays closed when another account signs in", async () => {
+  const { ui, prompts } = signedOutBoost("song-other");
+  await openBoost(ui);
+  ui.setPending(true);
+  await vi.waitFor(() => expect(boostDialog()).toBeNull());
+  ui.setSession("anonymous");
+  ui.setPending(false);
+  await vi.waitFor(() => expect(prompts).toHaveBeenCalledOnce());
+  ui.setSession({ status: "authenticated", userId: "account-b" });
+  await settled();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(boostDialog()).toBeNull();
+  // The retired entry is spent; the original account no longer reopens it either.
+  ui.setSession({ status: "authenticated", userId: "account-a" });
+  await settled();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(boostDialog()).toBeNull();
+});
 
 test("keeps an open contribution dialog through healthy availability renewals", async () => {
   vi.useFakeTimers();

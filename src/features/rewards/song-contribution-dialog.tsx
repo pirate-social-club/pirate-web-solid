@@ -5,7 +5,7 @@ import { formatUnits } from "viem";
 import { createSongContributionCatalog, type SongContributionCatalog } from "../../api/song-contribution-catalog.ts";
 import { createSongContributionApi, type SongContributionScope } from "../../api/song-contributions.ts";
 import { createSongContributionController, type SongContributionView } from "../../api/song-contribution-controller.ts";
-import { createBrowserContributionJournalStore, createSongContributionJournal } from "../../api/song-contribution-journal.ts";
+import { contributionJournalKey, createBrowserContributionJournalStore, createSongContributionJournal } from "../../api/song-contribution-journal.ts";
 import { createSongContributionWallet } from "../../api/song-contribution-wallet.ts";
 import { createBrowserRewardCreationJournal, rewardCreationKey } from "../../api/reward-creation.ts";
 import { createRewardWalletSession, type RewardWalletSession } from "../../api/reward-wallet-session.ts";
@@ -92,7 +92,10 @@ export function SongContributionDialog(props: { readonly communityId: string; re
       if (!owns(attempt) || captureSessionAuthority() !== authority) return;
       const session = applicationSession(); if (session !== undefined && (typeof session === "string" || session.userId !== loaded.accountId)) throw new Error("contribution_scope_changed");
       setCatalog(loaded);
-      const first = loaded.personas.find(persona => persona.community_binding?.community_id === props.communityId) ?? loaded.personas[0];
+      // A saved payment reopens on its own profile, never behind another profile's amount form.
+      const store = dependencies.store();
+      const saved = loaded.personas.find(persona => store.read(contributionJournalKey({ accountId: loaded.accountId, personaId: persona.persona_id, communityId: props.communityId, postId: props.postId })) !== null);
+      const first = saved ?? loaded.personas.find(persona => persona.community_binding?.community_id === props.communityId) ?? loaded.personas[0];
       if (!first) { setPhase("error"); setError("Create a profile wallet before contributing to this song."); return; }
       await selectPersona(first.persona_id, loaded);
     } catch (cause) { if (owns(attempt)) { setError(contributionFailure(cause)); setPhase("error"); } }
@@ -130,6 +133,7 @@ export function SongContributionDialog(props: { readonly communityId: string; re
     else { await authorization.loginWithCode(email(), code()); if (!owns(attempt)) return; await selected.preparePayment(cancellation); if (owns(attempt)) setAuthorizing(false); }
   });
   const status = () => { const state = view(); return state.kind === "status" || state.kind === "pay" ? state.current : state.kind === "pending" ? state.current ?? undefined : undefined; };
+  const sent = () => { const state = view(); return state.kind === "status" && state.sent === true; };
   const amountView = () => { const state = view(); return state.kind === "amount" ? state : undefined; };
   const readyContext = () => { const context = amountView()?.context; return context?.readiness === "ready" ? context : undefined; };
   const unavailableContext = () => { const context = amountView()?.context; return context?.readiness === "unavailable" ? contributionUnavailable(context) : "Contribution details are unavailable."; };
@@ -169,7 +173,7 @@ export function SongContributionDialog(props: { readonly communityId: string; re
             </>}</Match>
             <Match when={view().kind === "pending"}><p>Your original request is saved. Check its status before starting another contribution.</p><Button disabled={busy()} onClick={() => { void run(selected => selected.refresh()); }}>Check original request</Button><Button variant="secondary" disabled={busy()} onClick={() => { void run(selected => selected.retryOriginalCommand()); }}>Retry original request</Button></Match>
             <Match when={view().kind === "status"}><Show when={status()}>{state => <>
-              <Type as="h2" variant="h3">{contributionStatus(state()).title}</Type><p>{contributionStatus(state()).detail}</p><BoostSummaryRow label="Original contribution" value={usdc(state().command_receipt.instruction.amount_atomic)} />
+              <Type as="h2" variant="h3">{contributionStatus(state(), sent()).title}</Type><p>{contributionStatus(state(), sent()).detail}</p><BoostSummaryRow label="Original contribution" value={usdc(state().command_receipt.instruction.amount_atomic)} />
               <SharedPotTermsView terms={state().command_receipt.committed_terms} />
               <Show when={state().allowed_actions.includes("claim_funding_submission")}><Button disabled={busy()} onClick={() => payment(false)}>Review payment</Button></Show>
               <Show when={state().allowed_actions.includes("prepare_nonce_cancellation")}><Button variant="secondary" disabled={busy()} onClick={() => { void run(selected => selected.prepareCancellation()); }}>Prepare cancellation</Button></Show>
