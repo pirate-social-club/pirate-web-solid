@@ -43,3 +43,14 @@ describe("MobileFooterNav", () => {
     document.documentElement.classList.remove("light");
   });
 });
+
+describe("an unavailable song destination", () => {
+  it("keeps Home, Wallet and Profile usable without an inert fourth slot", async () => {
+    const user = userEvent.setup(), actions: string[] = [];
+    const container = render(() => <MobileFooterNav showSongs={false} onHomeClick={() => actions.push("home")} onWalletClick={() => actions.push("wallet")} onProfileClick={() => actions.push("profile")} />);
+    expect(within(container).queryByRole("button", { name: "Your songs" })).toBeNull();
+    expect(within(container).getAllByRole("button")).toHaveLength(3);
+    for (const name of ["Home", "Wallet", "Profile"]) await user.click(within(container).getByRole("button", { name }));
+    expect(actions).toEqual(["home", "wallet", "profile"]); await expectNoA11yViolations();
+  });
+});

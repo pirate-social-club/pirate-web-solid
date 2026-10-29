@@ -7,6 +7,8 @@ import { danceJournalKey, type DanceJournalScope, type DanceJournalStore } from 
 import { createDanceRecordingController } from "./dance-recording";
 import { createBrowserDanceRecordingStorage } from "./dance-recording-storage";
 import { createDanceUploadController, type DanceUploadView } from "./dance-upload-controller";
+import { createDanceUploadObserver } from "./dance-upload-observer";
+import type { DanceSession } from "./dance-preparation-api";
 
 type Ready = Extract<DancePreparationView, { kind: "capture_ready" }>;
 export type DanceRecorderView = Exclude<DancePreparationView, Ready>
@@ -35,6 +37,7 @@ export function createDanceRecorder(options: {
   const preparation = createDancePreparationController({ ...options, api: options.preparationApi });
   const recordings = createDanceRecordingController({ ...options, preparationStore: options.store, storage: options.storage ?? createBrowserDanceRecordingStorage(scope.accountId) });
   const upload = createDanceUploadController({ ...options, recordings, api: options.uploadApi });
+  const observeUpload = createDanceUploadObserver({ ...options, api: options.uploadApi });
   let disposed = false, stream: MediaStream | null = null, guide: DanceCaptureGuide | null = null, capture: DanceCaptureHandle | null = null;
   let ready: Ready | null = null, original: { readonly ready: Ready; readonly take: DanceRecordedTake } | null = null;
   let uploadSession: string | null = null, busy = false;
@@ -89,6 +92,14 @@ export function createDanceRecorder(options: {
     return view;
   };
   return {
+    observe: (expected: DanceSession, signal: AbortSignal): Promise<DanceRecorderView> => exclusive(signal, async () => {
+      const observed = await observeUpload(expected, signal); current(signal);
+      return { kind: "upload", upload: observed };
+    }),
+    localPreview: (sessionId: string, signal: AbortSignal) => exclusive(signal, async () => {
+      const saved = await recordings.restore(sessionId, signal); current(signal);
+      return saved && { blob: saved.blob, expiresAtMs: saved.metadata.expiresAtMs };
+    }),
     prepare: (policyHash: string, signal: AbortSignal) => exclusive(signal, () => prepare(policyHash, signal)),
     enter(acceptedTermsHash: string, signal: AbortSignal): Promise<DanceRecorderView> {
       return exclusive(signal, async () => {
@@ -99,24 +110,30 @@ export function createDanceRecorder(options: {
         if (saved) { uploadSession = view.session.session_id; return { kind: "recovery", session: view.session }; }
         release(); ready = view;
         const opened = await (options.openCamera ?? openCameraPreview)();
-        try { current(signal); view.assertCurrent(); stream = opened; return { kind: "camera", ready: view, stream: opened }; }
-        catch (error) { for (const track of opened.getTracks()) track.stop(); ready = null; throw error; }
+        try {
+          current(signal); view.assertCurrent(); stream = opened;
+          guide = await (options.prepareGuide ?? prepareDanceCaptureGuide)({ context: view.context, signal,
+            assertCurrent: () => { current(signal); view.assertCurrent(); }, deferActivation: true });
+          current(signal); view.assertCurrent();
+          return { kind: "camera", ready: view, stream: opened };
+        } catch (error) { release(); for (const track of opened.getTracks()) track.stop(); ready = null; throw error; }
       });
     },
     /** Called directly from the Record gesture so resume() can unlock audio. */
-    record(signal: AbortSignal, stage: (value: DanceRecorderStage) => void, progress: (elapsedMs: number) => void): Promise<DanceRecorderView> {
+    record(signal: AbortSignal, stage: (value: DanceRecorderStage) => void, progress: (elapsedMs: number) => void,
+      preview?: (take: DanceRecordedTake, expiresAtMs: number) => void): Promise<DanceRecorderView> {
       return exclusive(signal, async () => {
-        if (!ready || !stream || original || uploadSession) throw new Error("dance_recorder_original_required");
+        if (!ready || !stream || !guide || original || uploadSession) throw new Error("dance_recorder_original_required");
         const selected = ready, camera = stream;
         const guard = () => { current(signal); selected.assertCurrent(); };
         guard();
         // Invoke before notifying a renderer or awaiting any network work.
         try {
-          const preparing = (options.prepareGuide ?? prepareDanceCaptureGuide)({ context: selected.context, signal, assertCurrent: guard });
-          stage("preparing_audio"); guide = await preparing; guard();
+          await guide.activate(); guard();
           stage("recording"); capture = (options.capture ?? startDanceCapture)({ ready: selected, stream: camera, guide, signal,
             onProgress: elapsedMs => { guard(); progress(elapsedMs); } });
           const take = await capture.result; guard(); original = { ready: selected, take };
+          preview?.(take, selected.session.expires_at_ms); guard();
           release(); return await saveAndUpload(signal, stage);
         } finally { release(); }
       });
@@ -139,6 +156,7 @@ export function createDanceRecorder(options: {
         return prepare(policyHash, signal);
       });
     },
+    pause() { release(); ready = null; },
     dispose() { disposed = true; release(); ready = null; original = null; },
   };
 }

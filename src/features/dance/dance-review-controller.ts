@@ -36,6 +36,13 @@ export function createDanceReviewController(options: {
     return { result, receipt };
   };
   return {
+    hasOutstanding: () => read() !== null,
+    /** Status observation cannot replay or remove an outstanding command. */
+    async observe(signal: AbortSignal): Promise<DanceReviewView> {
+      current(signal);
+      const result = await api.read(scope, signal); current(signal); assertDanceResult(result, scope);
+      return { result, receipt: null };
+    },
     async load(signal: AbortSignal): Promise<DanceReviewView> {
       const guard = () => current(signal); guard();
       return store.exclusive(key, async () => {

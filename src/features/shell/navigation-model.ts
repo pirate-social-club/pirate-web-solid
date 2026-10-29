@@ -1,4 +1,6 @@
-/** One destination map for desktop, the mobile drawer and the four mobile tabs. */
+import { songLibraryAvailable } from "../songs/your-songs-api";
+
+/** One destination map for desktop, the mobile drawer and the available mobile tabs. */
 export const navigationPaths = {
   home: "/", songs: "/songs",
   wallet: "/wallet", profile: "/me", notifications: "/activity",
@@ -111,5 +113,6 @@ export function navigationHomePath(scope: ApplicationNavigationScope): string {
 
 export function scopedPrimaryNavigation(scope: ApplicationNavigationScope) {
   return primaryNavigation
+    .filter(item => item.id !== "songs" || songLibraryAvailable)
     .map(item => ({ ...item, label: item.id === "home" && scope.kind === "community" ? "Home" : item.label, href: item.id === "home" ? navigationHomePath(scope) : item.href }));
 }

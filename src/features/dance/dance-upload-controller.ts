@@ -10,6 +10,17 @@ export type DanceUploadView = {
   readonly session: DanceSession;
 };
 
+export function danceUploadObservation(session: DanceSession, time: number): DanceUploadView | null {
+  if (session.state === "terminal") return { kind: "terminal", session };
+  if (session.state === "uploaded") return { kind: "review", session };
+  if (!Number.isSafeInteger(time) || time < 0) throw new Error("dance_upload_clock_unavailable");
+  if (time >= session.expires_at_ms) return { kind: "expired", session };
+  if (session.upload_state === "sealing" || session.upload_state === "sealed") return { kind: "processing", session };
+  if (session.upload_state === "unknown") return { kind: "reconciling", session };
+  if (session.upload_state === "held" || session.upload_state === "deleted") return { kind: "unavailable", session };
+  return null;
+}
+
 /** Explicit resume only. Every retry keeps the original reservation, file and
  * command keys. An unknown PUT is retried conditionally before sealing, because
  * Finalize queues processing and cannot be used to probe whether bytes exist. */
@@ -28,19 +39,7 @@ export function createDanceUploadController(options: {
   const now = options.nowMs ?? Date.now, commandKey = options.commandKey ?? (() => crypto.randomUUID());
   const preparation = createDancePreparationJournal({ scope, currentScope: options.currentScope, store: options.store });
   let generation = 0;
-  const state = (session: DanceSession): DanceUploadView | null => {
-    if (session.state === "terminal") return { kind: "terminal", session };
-    // The private review read owns current submission/deadline state. A review
-    // already submitted has its own deadline beyond the capture expiry.
-    if (session.state === "uploaded") return { kind: "review", session };
-    const time = now();
-    if (!Number.isSafeInteger(time) || time < 0) throw new Error("dance_upload_clock_unavailable");
-    if (time >= session.expires_at_ms) return { kind: "expired", session };
-    if (session.upload_state === "sealing" || session.upload_state === "sealed") return { kind: "processing", session };
-    if (session.upload_state === "unknown") return { kind: "reconciling", session };
-    if (session.upload_state === "held" || session.upload_state === "deleted") return { kind: "unavailable", session };
-    return null;
-  };
+  const state = (session: DanceSession) => danceUploadObservation(session, now());
   return {
     async resume(sessionId: string, signal: AbortSignal): Promise<DanceUploadView> {
       const selectedGeneration = ++generation;

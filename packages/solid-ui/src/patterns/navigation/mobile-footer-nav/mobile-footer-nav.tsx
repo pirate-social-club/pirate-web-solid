@@ -28,6 +28,8 @@ export interface MobileFooterNavIcons {
 }
 
 export interface MobileFooterNavProps {
+  /** Omit an unavailable song destination without leaving an empty slot. */
+  showSongs?: boolean;
   activeItem?: FooterNavItemId;
   avatarFallback?: string;
   class?: string;
@@ -49,7 +51,7 @@ export interface MobileFooterNavProps {
   userAvatarSrc?: string | null;
 }
 
-/** Callback-driven four-position bottom navigation. CSS owns the mobile breakpoint. */
+/** Callback-driven bottom navigation with optional song availability. CSS owns the mobile breakpoint. */
 export function MobileFooterNav(props: MobileFooterNavProps) {
   const labels = () => props.labels ?? {};
   const icons = () => props.icons ?? {};
@@ -68,6 +70,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
     { id: "home" as const, icon: icons().home ?? IconHouse, label: home(), onClick: props.onHomeClick, ariaLabel: home() },
     { id: "songs" as const, icon: icons().songs ?? IconPlaylist, label: songs(), onClick: props.onSongsClick, ariaLabel: labels().songsAriaLabel ?? songs() },
   ];
+  const visibleItems = () => items().filter(item => item.id !== "songs" || props.showSongs !== false);
   const trailingItems = () => [
     { id: "wallet" as const, icon: icons().wallet ?? IconWallet, label: wallet(), onClick: props.onWalletClick, ariaLabel: labels().walletAriaLabel ?? wallet() },
   ];
@@ -81,8 +84,8 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         props.class,
       )}
     >
-      <div class="grid h-[var(--header-height)] grid-cols-4 items-center px-3">
-        <For each={items()}>
+      <div class={cn("grid h-[var(--header-height)] items-center px-3", props.showSongs === false ? "grid-cols-3" : "grid-cols-4")}>
+        <For each={visibleItems()}>
           {(item) => (
             <button
               aria-current={active() === item.id ? "page" : undefined}
