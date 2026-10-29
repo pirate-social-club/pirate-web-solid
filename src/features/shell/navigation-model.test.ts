@@ -56,7 +56,7 @@ describe("community application scope", () => {
   test("keeps the home destination local and omits platform discovery", () => {
     const scope = { kind: "community" as const, community: community("harbor") };
     expect(navigationHomePath(scope)).toBe("/c/harbor");
-    expect(scopedPrimaryNavigation(scope).map(item => item.id)).toEqual(["home", "songs", "wallet", "profile"]);
+    expect(scopedPrimaryNavigation(scope).map(item => item.id)).toEqual(["home", "wallet", "profile"]);
     expect(scopedPrimaryNavigation(scope)[0]?.href).toBe("/c/harbor");
     expect(scopedPrimaryNavigation(scope)[0]?.label).toBe("Home");
     expect(scopedPrimaryNavigation({ kind: "platform" }).some(item => String(item.id) === "explore")).toBe(false);

@@ -8,3 +8,4 @@ import type { SongLibrarySource } from "./your-songs-model.ts";
  * or showing fixture songs as live data.
  */
 export const songLibrarySource: SongLibrarySource | undefined = undefined;
+export const songLibraryAvailable = songLibrarySource !== undefined;
