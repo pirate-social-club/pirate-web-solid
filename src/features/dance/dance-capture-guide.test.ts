@@ -151,3 +151,13 @@ describe("Dance listening guide", () => {
     guide.dispose();
   });
 });
+
+test("prepares and decodes while audio is suspended, then unlocks without another fetch on Record", async () => {
+  const f = fixture(); f.state("suspended");
+  const guide = await prepareDanceCaptureGuide({ context: f.context, signal: f.controller.signal, assertCurrent: f.current, deferActivation: true },
+    { prepareSource: f.prepareSource, createAudioContext: f.createAudioContext });
+  expect(f.audio.resume).not.toHaveBeenCalled(); expect(f.audio.decodeAudioData).toHaveBeenCalledOnce();
+  f.audio.resume.mockImplementationOnce(async () => { f.state("running"); });
+  const activation = guide.activate(); expect(f.audio.resume).toHaveBeenCalledOnce(); await activation;
+  expect(f.prepareSource).toHaveBeenCalledOnce(); expect(f.fetcher).not.toHaveBeenCalled(); guide.dispose();
+});

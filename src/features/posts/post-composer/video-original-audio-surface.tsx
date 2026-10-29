@@ -34,6 +34,11 @@ export interface OriginalVideoCaptureSurfaceProps {
   readonly status?: OriginalVideoCaptureStatus;
   readonly elapsedLabel?: string;
   readonly durationLabel?: string;
+  readonly title?: string;
+  readonly recordDisabled?: boolean;
+  readonly recordActionLabel?: string;
+  readonly allowUpload?: boolean;
+  readonly timerClass?: string;
   readonly onClose?: () => void;
   readonly onBack?: () => void;
   readonly onRecordToggle?: () => void;
@@ -135,7 +140,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         <div class="flex min-w-0 flex-1 justify-center">
           <Show when={props.songLabel} fallback={
             <Show when={props.onSongTap} fallback={
-              <Type as="h1" variant="body-strong" class="text-center text-white">New video</Type>
+              <Type as="h1" variant="body-strong" class="text-center text-white">{props.title ?? "New video"}</Type>
             }>
               <button
                 aria-label="Add song"
@@ -175,7 +180,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         <div class="absolute inset-x-0 bottom-0 z-10 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <Show when={props.elapsedLabel && props.durationLabel}>
             <div class="mb-5 flex justify-center">
-              <span class="inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-sm font-medium tabular-nums backdrop-blur-sm" role="timer">
+              <span class={cn("inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-sm font-medium tabular-nums backdrop-blur-sm", props.timerClass)} role="timer">
                 <span
                   aria-hidden="true"
                   class={cn("size-2 rounded-full", recording() ? "bg-destructive" : "bg-white/45")}
@@ -185,15 +190,16 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             </div>
           </Show>
           <div class="grid grid-cols-3 items-center justify-items-center">
-            <CaptureSideAction
+            <Show when={props.allowUpload !== false} fallback={<span aria-hidden="true" />}><CaptureSideAction
               disabled={recording()}
               icon={<IconImage class="size-5" />}
               label="Upload"
               onClick={() => props.onUpload?.()}
-            />
+            /></Show>
             <button
-              aria-label={recording() ? "Stop recording" : "Start recording"}
+              aria-label={props.recordActionLabel ?? (recording() ? "Stop recording" : "Start recording")}
               aria-pressed={recording() ? "true" : "false"}
+              disabled={props.recordDisabled}
               class="grid size-[74px] cursor-pointer place-items-center rounded-full border-4 border-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-black"
               onClick={() => props.onRecordToggle?.()}
               type="button"

@@ -205,3 +205,14 @@ test("a receipt older than the original command revision cannot clear recovery",
   s.command.mockImplementationOnce(async (_scope, body) => ({ ...danceReviewFixtureReceipt(body, f.withdrawn), result: { ...f.withdrawn, review_revision: 2 } }));
   await expect(s.controller().act(f.awaiting, { operation: "withdraw" }, signal())).rejects.toThrow("receipt_mismatch"); expect(s.entries.size).toBe(1);
 });
+
+test("review observation never replays a lost Submit or changes its journal", async () => {
+  const s = setup(), original = s.command.getMockImplementation()!;
+  s.command.mockImplementationOnce(async (scope, body) => { await original(scope, body); throw new Error("lost_ack"); });
+  const controller = s.controller();
+  await expect(controller.act(f.uploaded, { operation: "submit", showPublicly: false }, signal())).rejects.toThrow("lost_ack");
+  const retained = [...s.entries.entries()];
+  expect((await controller.observe(signal())).result.state).toBe("awaiting_review");
+  expect(controller.hasOutstanding()).toBe(true); expect(s.command).toHaveBeenCalledTimes(1); expect([...s.entries.entries()]).toEqual(retained);
+  await controller.load(signal()); expect(s.command).toHaveBeenCalledTimes(2); expect(s.command.mock.calls[1]![1]).toEqual(s.command.mock.calls[0]![1]);
+});

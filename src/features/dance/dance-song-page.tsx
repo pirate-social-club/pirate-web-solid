@@ -17,6 +17,7 @@ import type { DanceJournalScope, DanceJournalStore } from "./dance-preparation-j
 import { DanceRecorderPanel } from "./dance-recorder-panel";
 import type { createDanceRecorder } from "./dance-recorder";
 import { assertDanceResult, danceResultPath, danceResultPresentation, type DanceResult } from "./dance-result-api";
+import type { DanceReviewApi } from "./dance-review-api";
 import { danceReviewPath, danceReviewPending } from "./dance-review-api";
 import { danceSongPath } from "./dance-song-path";
 import { danceOwnerPath } from "./dance-owner-path";
@@ -36,8 +37,9 @@ export function DanceSongPage(props: {
   readonly prepareProfile?: ReturnType<typeof createCommunityProfileAttempt>;
   readonly recorder?: typeof createDanceRecorder;
   readonly store?: DanceJournalStore;
+  readonly reviewApi?: DanceReviewApi;
 }) {
-  const seams = untrack(() => ({ api: props.api, session: props.session, prepareProfile: props.prepareProfile, recorder: props.recorder, store: props.store }));
+  const seams = untrack(() => ({ api: props.api, session: props.session, prepareProfile: props.prepareProfile, recorder: props.recorder, store: props.store, reviewApi: props.reviewApi }));
   const playback = useVideoPlaybackSeams();
   const [state, setState] = createSignal<State>({ phase: "loading" }, { ownedWrite: true });
   const [detail, setDetail] = createSignal<Detail | null>(null, { ownedWrite: true });
@@ -133,8 +135,8 @@ export function DanceSongPage(props: {
   onCleanup(onSessionRefreshed(() => { void load(); }));
   onCleanup(bindPrivatePageLifecycle(clear));
   onCleanup(() => { alive = false; clear(); });
-  return <main class="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 p-5" data-dance-song={state().phase}>
-    <Show when={!recording()}><header class="flex items-center gap-3"><a class="text-sm underline" href={`/post/${encodeURIComponent(props.postId)}`}>Back to song</a><Type as="h1" variant="body-strong">Dances</Type></header></Show>
+  return <div role={recording() ? undefined : "main"} class="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 p-5" data-dance-song={state().phase}>
+    <Show when={!recording()}><div class="flex items-center gap-3"><a class="text-sm underline" href={`/post/${encodeURIComponent(props.postId)}`}>Back to song</a><Type as="h1" variant="body-strong">Dances</Type></div></Show>
     <Show when={state().phase === "loading"}><p aria-busy="true">Loading dances…</p></Show>
     <Show when={state().phase === "anonymous"}><p>Sign in to do this dance.</p><a class={buttonVariants({ variant: "secondary" })} href={`/auth/sign-in?return_to=${encodeURIComponent(danceSongPath(props.communityId, props.postId))}`}>Sign in</a></Show>
     <Show when={state().phase === "error"}><p role="alert">Dances couldn’t be loaded.</p><Button variant="secondary" onClick={() => void load()}>Check again</Button></Show>
@@ -176,9 +178,9 @@ export function DanceSongPage(props: {
         choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined} onChoose={choice => void chooseProfile(choice)} allowCreateNew={profiles().length === 0} />
       </Show>
       <Show when={recording()} keyed>{scope => <DanceRecorderPanel scope={scope} policyHash={value.options.policy!.policy_hash} profileLabel={profileLabel()} api={api!}
-        recorder={seams.recorder} store={seams.store} onBack={() => { setRecording(null); const target = selected(); if (target) void choose(target); }} />}</Show>
+        recorder={seams.recorder} store={seams.store} reviewApi={seams.reviewApi} session={seams.session} onBack={() => { setRecording(null); const target = selected(); if (target) void choose(target); }} />}</Show>
     </>}</Show>
-  </main>;
+  </div>;
 }
 
 export function DanceSongRoute() {

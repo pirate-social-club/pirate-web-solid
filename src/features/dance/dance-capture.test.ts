@@ -15,7 +15,7 @@ function fixture() {
   const context = { ...structuredClone(dancePreparationFixture), session };
   const current = vi.fn();
   const ready = { kind: "capture_ready" as const, context, session: context.session, assertCurrent: current };
-  const guide = { sessionId: context.session.session_id, termsHash: context.session.terms_hash, start: vi.fn(), dispose: vi.fn() };
+  const guide = { sessionId: context.session.session_id, termsHash: context.session.terms_hash, activate: vi.fn(async () => {}), start: vi.fn(), dispose: vi.fn() };
   const trackMethods: Pick<MediaStreamTrack, "stop">[] = [{ stop: vi.fn() }, { stop: vi.fn() }];
   // SAFETY: Capture lifetime only calls stop on these tracks; no encoder receives them.
   const tracks = trackMethods.map(track => track as MediaStreamTrack);
