@@ -24,7 +24,7 @@ test("chain labels follow the bound instruction and pending payment never claims
   expect(contributionChainLabel(84532)).toContain("testnet"); expect(contributionChainLabel(8453)).toBe("Base");
   expect(contributionStatus({ ...f.current, state: "broadcast_unknown" }).detail).toContain("uncertain");
   expect(contributionStatus({ ...f.current, state: "expired_reconciling" }).detail).toContain("does not prove");
-  expect(contributionStatus({ ...f.current, state: "expired_reconciling" }, true).title).toBe("Confirming payment");
+  expect(contributionStatus({ ...f.current, state: "expired_reconciling" }, true)).toEqual({ title: "Confirming payment", detail: "Your payment was sent and is being checked." });
   expect(contributionStatus({ ...f.current, state: "pool_credited" }, true).title).toBe("Contribution added");
 });
 test("the displayed maximum uses remaining capacity as well as the profile ceiling", () => {
