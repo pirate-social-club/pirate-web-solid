@@ -10,8 +10,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function fixture() {
-  const session: DanceSession = { ...structuredClone(dancePreparationFixture.session), state: "consented" };
+function fixture(noPose = false) {
+  const session: DanceSession = { ...structuredClone(dancePreparationFixture.session), state: "consented",
+    ...(noPose ? { body_start_ms: 0, body_end_ms: 10000, cue: { kind: "none" as const, start_ms: 0, end_ms: 0, hold_ms: 0 } } : {}) };
   const context = { ...structuredClone(dancePreparationFixture), session };
   const current = vi.fn();
   const ready = { kind: "capture_ready" as const, context, session: context.session, assertCurrent: current };
@@ -38,6 +39,25 @@ function fixture() {
 describe("Dance capture lifetime", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  test("no-pose admits video zero with unknown frame duration before the real microphone start", async () => {
+    const f = fixture(true), handle = f.start(); expect(f.input().videoFirst).toBe(true);
+    f.sample("video", 0, 0); f.sample("audio", 25, 20); f.starting.resolve(f.recording); await Promise.resolve();
+    expect(f.guide.start).toHaveBeenCalledExactlyOnceWith(50, expect.any(Function), expect.any(Function));
+    f.sample("video", 9980, 40); await vi.advanceTimersByTimeAsync(1); expect(f.recording.stop).not.toHaveBeenCalled();
+    f.sample("audio", 9990, 20); await vi.advanceTimersByTimeAsync(1);
+    await expect(handle.result).resolves.toMatchObject({ durationMs: 10000, file: f.bounded });
+  });
+  test("no-pose refuses audio-first rather than treating a missing video beginning as a complete take", async () => {
+    const f = fixture(true), handle = f.start(); const refused = expect(handle.result).rejects.toThrow("dance_capture_incomplete");
+    expect(() => f.sample("audio", 0, 20)).toThrow("dance_capture_incomplete"); await refused; f.starting.resolve(f.recording); await Promise.resolve();
+    expect(f.guide.start).not.toHaveBeenCalled(); expect(f.boundRecording).not.toHaveBeenCalled(); expect(f.guide.dispose).toHaveBeenCalledOnce();
+  });
+  test("cancelling a no-pose take retains no late completion", async () => {
+    const f = fixture(true), handle = f.start(); f.sample("video", 0, 0); f.starting.resolve(f.recording); await Promise.resolve();
+    const refused = expect(handle.result).rejects.toThrow(); f.controller.abort(); await refused;
+    expect(f.recording.cancel).toHaveBeenCalledOnce(); expect(f.boundRecording).not.toHaveBeenCalled(); expect(f.guide.dispose).toHaveBeenCalledOnce();
+  });
 
   test("starts from the first source sample, accepts its unknown video duration, and waits for both complete tracks", async () => {
     const f = fixture(), handle = f.start();

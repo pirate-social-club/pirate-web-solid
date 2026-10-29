@@ -1,5 +1,6 @@
 import { prepareBufferedGuide, type GuideSourcePreparation } from "../posts/video-submission/buffered-guide";
 import type { DanceCaptureContext } from "./dance-preparation-api";
+import { DANCE_SOURCE_START_LIMIT_MS, isNoPoseDanceWindow, validDanceCaptureWindow } from "./dance-capture-window";
 
 export interface DanceCaptureGuide {
   readonly sessionId: string;
@@ -28,10 +29,11 @@ export async function prepareDanceCaptureGuide(input: {
   const { session_id: sessionId, terms_hash: termsHash, song_post_id: postId,
     body_start_ms: bodyStartMs, body_end_ms: bodyEndMs } = input.context.session;
   const { canonical_song_start_ms: songStartMs, canonical_song_end_ms: songEndMs } = input.context.reference;
+  const noPose = isNoPoseDanceWindow(input.context.session);
   const current = () => { signal.throwIfAborted(); input.assertCurrent(); };
   current();
   if (![bodyStartMs, bodyEndMs, songStartMs, songEndMs].every(Number.isSafeInteger)
-    || bodyStartMs <= 0 || songStartMs < 0 || songEndMs <= songStartMs
+    || !validDanceCaptureWindow(input.context.session) || songStartMs < 0 || songEndMs <= songStartMs
     || bodyEndMs - bodyStartMs !== songEndMs - songStartMs) throw new Error("dance_guide_bounds_changed");
   const audio = (dependencies.createAudioContext ?? (() => new AudioContext()))();
   const now = dependencies.nowMs ?? (() => performance.now());
@@ -76,16 +78,22 @@ export async function prepareDanceCaptureGuide(input: {
         current(); assertCaptureCurrent();
         if (disposed || started || !buffer || audio.state !== "running" || !Number.isFinite(originMs)) throw new Error("dance_guide_unavailable");
         const delaySeconds = (originMs + bodyStartMs - now()) / 1000;
-        if (delaySeconds <= 0) throw new Error("dance_guide_start_missed");
+        // No-pose capture has already delivered its first video sample. Keep
+        // that clock: start now at the corresponding song offset, never add a
+        // countdown or move either recorded track to hide source latency.
+        const elapsed = noPose ? Math.max(0, -delaySeconds) : 0;
+        if ((!noPose && delaySeconds <= 0) || (noPose && (delaySeconds > 0 || elapsed * 1000 > DANCE_SOURCE_START_LIMIT_MS))) throw new Error("dance_guide_start_missed");
         started = true; reportFailure = onFailure;
         node = audio.createBufferSource(); node.buffer = buffer; node.playbackRate.value = 1;
         node.connect(audio.destination);
-        const startAt = audio.currentTime + delaySeconds;
-        const endAt = startAt + (songEndMs - songStartMs) / 1000;
+        const startAt = audio.currentTime + Math.max(0, delaySeconds);
+        const duration = (songEndMs - songStartMs) / 1000 - elapsed;
+        if (duration <= 0) { dispose(); throw new Error("dance_guide_start_missed"); }
+        const endAt = startAt + duration;
         node.onended = () => {
           if (!disposed && audio.currentTime < endAt - 1 / audio.sampleRate) failed(new Error("dance_guide_interrupted"));
         };
-        try { node.start(startAt, songStartMs / 1000, (songEndMs - songStartMs) / 1000); }
+        try { node.start(startAt, songStartMs / 1000 + elapsed, duration); }
         catch (error) { dispose(); throw error; }
       },
       dispose,

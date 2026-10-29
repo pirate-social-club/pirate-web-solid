@@ -13,6 +13,10 @@ import type { createDanceRecorder } from "./dance-recorder";
 export const danceCameraContext: DanceCaptureContext = { ...dancePreparationFixture,
   reward_mode: "practice", rewards_enabled: false, objectives: [], session: { ...dancePreparationFixture.session, expires_at_ms: 4070908800000 } };
 export const danceFundedCameraContext: DanceCaptureContext = { ...dancePreparationFixture, session: danceCameraContext.session };
+export const danceNoPoseCameraContext: DanceCaptureContext = { ...danceCameraContext, session: {
+  ...danceCameraContext.session, body_start_ms: 0, body_end_ms: 10000,
+  cue: { kind: "none", start_ms: 0, end_ms: 0, hold_ms: 0 },
+} };
 export const danceCameraScope = { accountId: "participant", communityId: "test-community", postId: "test-song", personaId: "persona", choreographyId: "dance", choreographyRevision: 1 };
 export const danceCameraSession: AuthenticatedSession = { status: "authenticated", userId: "participant", personas: [
   { personaId: "persona", displayName: "Dancer", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "test-community", bindingSource: "activity_participation" } },

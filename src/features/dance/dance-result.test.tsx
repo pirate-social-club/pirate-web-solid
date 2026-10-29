@@ -4,7 +4,7 @@ import { render, type JSX } from "@solidjs/web";
 import { ApiClientError, type GetUsersMeResponse } from "@pirate/api-client";
 import { createSessionApiClient } from "../../api/client.ts";
 import { refreshSession } from "../../api/session.ts";
-import { createDanceResultApi, danceResultPath, danceResultPresentation, type DanceResult, type DanceResultApi } from "./dance-result-api.ts";
+import { assertDanceResult, createDanceResultApi, danceResultPath, danceResultPresentation, type DanceResult, type DanceResultApi } from "./dance-result-api.ts";
 import { DanceResultPage } from "./dance-result-page.tsx";
 import { danceResultFixtures as fixtures } from "./dance-result.fixture.ts";
 
@@ -18,6 +18,14 @@ const cleanups: Array<() => void> = [];
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); document.body.replaceChildren(); });
 function mount(view: () => JSX.Element) { const host = document.createElement("div"); document.body.appendChild(host); createRoot(dispose => { cleanups.push(dispose); renderDom(view, host); }); return host; }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
+
+test.each([fixtures.passed, fixtures.notPassed])("new no-pose results require not_required for either verdict", result => {
+  const noPose: DanceResult = { ...result, captured_policy: { ...result.captured_policy, version: "moderator-review-policy-v2" }, cue_attestation: "not_required" };
+  expect(() => assertDanceResult(noPose, scope)).not.toThrow();
+  expect(() => assertDanceResult({ ...noPose, cue_attestation: "affirmed" }, scope)).toThrow("projection_invalid");
+  expect(() => assertDanceResult({ ...noPose, cue_attestation: "not_attested" }, scope)).toThrow("projection_invalid");
+  expect(() => assertDanceResult({ ...result, cue_attestation: "not_required" }, scope)).toThrow("projection_invalid");
+});
 
 test("the generated private reader uses the exact same-origin route, cookies, cancellation and a fresh account check", async () => {
   const fetchImpl = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => Response.json(String(input).endsWith("/users/me") ? me : fixtures.passed));

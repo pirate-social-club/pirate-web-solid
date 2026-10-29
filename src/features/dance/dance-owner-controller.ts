@@ -8,7 +8,7 @@ import { assertDanceOwnerReceipt, assertDanceOwnerRecording, type DanceOwnerApi,
 interface Entry extends DanceResultScope { readonly version: 1; readonly termsHash: string; readonly rubricHash: string; readonly bodyJson: string }
 const text: JournalRule<string> = (v): v is string => typeof v === "string";
 const fields = { version: journalLiteral(1), accountId: journalIdentifier, communityId: journalIdentifier, reviewId: journalIdentifier, termsHash: journalHash, rubricHash: journalHash, bodyJson: text } satisfies JournalFields<Entry>;
-const bodyFields = { version: journalLiteral("dance-owner-verdict-attestation-v1"), operation: journalLiteral("verdict"), idempotency_key: journalIdentifier,
+const bodyFields = { version: journalChoice(["dance-owner-verdict-attestation-v1", "dance-owner-verdict-attestation-v2"]), operation: journalLiteral("verdict"), idempotency_key: journalIdentifier,
   community_id: journalIdentifier, review_id: journalIdentifier, expected_review_revision: journalInteger, verdict: journalChoice(["passed", "not_passed"]) } satisfies JournalFields<DanceOwnerVerdict>;
 export const danceOwnerJournalKey = (scope: DanceResultScope) => `pirate:dance-owner:v1:${JSON.stringify([scope.accountId, scope.communityId, scope.reviewId])}`;
 function decode(raw: string, scope: DanceResultScope) {

@@ -8,9 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Genuine138 adds owned browser-session renewal to the prior 139 operations.
+// Genuine139 preserves renewal and adds the prospective no-pose Dance contracts.
 // Pin all 140 admitted operations' response, status and error tables.
-const expectedDigest = "dd45441a8f8c883d55dd37b0b4ded595a9a7c8ae13e579ea63d07a5070f6549e";
+const expectedDigest = "008e619ed598ca8eca44d4519ab0a2af11643417f5af626a3c5b2e776b0dfff0";
 
 const operations = [
   "get_meNotifications",

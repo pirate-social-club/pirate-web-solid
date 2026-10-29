@@ -7,9 +7,11 @@ export interface DanceResultApi { read(scope: DanceResultScope, signal: AbortSig
 
 export function assertDanceResult(result: DanceResult, scope: DanceResultScope): void {
   if (result.community_id !== scope.communityId || result.review_id !== scope.reviewId) throw new Error("dance_result_target_mismatch");
-  const passed = result.state === "reviewed" && result.verdict === "passed" && result.cue_attestation === "affirmed";
+  const noPose = result.captured_policy.version === "moderator-review-policy-v2";
+  const cue = result.verdict === null ? null : noPose ? "not_required" : result.verdict === "passed" ? "affirmed" : "not_attested";
+  const passed = result.state === "reviewed" && result.verdict === "passed" && result.cue_attestation === cue;
   if ((result.state === "reviewed") !== (result.verdict !== null) || (result.verdict === "passed" && !passed) || (result.qualification_ref !== null && !passed)) throw new Error("dance_result_projection_invalid");
-  if ((result.cue_attestation === "affirmed") !== (result.verdict === "passed") || (result.cue_attestation === "not_attested") !== (result.verdict === "not_passed")) throw new Error("dance_result_projection_invalid");
+  if (result.cue_attestation !== cue) throw new Error("dance_result_projection_invalid");
   if ((result.publication_status === "pending" || result.publication_status === "failed" || result.publication_status === "transferred") && (!passed || result.show_publicly_if_passed !== true)) throw new Error("dance_result_projection_invalid");
 }
 
