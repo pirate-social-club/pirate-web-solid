@@ -177,7 +177,7 @@
     "delete_postsPostIdVideo",
     "post_authSessionRenew"
   ],
-  "intakeStatus": "Genuine generated 138 candidate from the persistent browser-session source lane. Producer commit and independent review are pending. Local consumer validation does not establish API acceptance or release authority. Previous 137 artifact and intake history remain preserved.",
-  "sourceBase": "97f2079100055026c42df1f877c68dd90b07b120",
-  "sourceAcceptance": "Conditional local intake of genuine candidate139 from f7585f7e. API producer review and hosted gates remain pending; no Solid publication or runtime activation before acceptance. Retained137/138artifacts remain unchanged."
+  "intakeStatus": "Genuine generated client139 from the independently accepted prospective no-pose Dance and persistent browser-session source. Producer PR692 passed all required hosted checks and merged normally. Previous137/138 artifacts and intake history remain preserved. Source acceptance does not establish deployment or policy admission.",
+  "sourceBase": "d82c51735734c436f05a6b80937f8ee47f203232",
+  "sourceAcceptance": "Reviewed producer af11f2cb53fa371fdee552526741c502d2b5890e is tree-identical to protected PR692 merge d82c51735734c436f05a6b80937f8ee47f203232. Genuine139 archive405cdf43 retains browser renewal from138 and matches the accepted producer bytes. Paired source/runtime acceptance and prospective policy admission remain separate."
 }
