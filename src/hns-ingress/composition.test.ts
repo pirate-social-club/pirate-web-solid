@@ -4,8 +4,8 @@ import {
   CF_ACCESS_ASSERTION_HEADER,
   CF_ACCESS_CLIENT_ID_HEADER,
   CF_ACCESS_CLIENT_SECRET_HEADER,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4_SHA256,
   HNS_FORWARDER_AUTHORITY_HEADER,
   HNS_FORWARDER_BODY_SHA256_HEADER,
   HNS_FORWARDER_HOST_HEADER,
@@ -91,8 +91,8 @@ async function composition(overrides: {
   replay?: () => Promise<boolean>;
 } = {}) {
   return makeHnsCommunityAppIngressCompositionV2({
-    profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
-    profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
+    profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4,
+    profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4_SHA256,
     ingressOrigin,
     canonicalOrigin: "https://pirate.sc",
     apiOrigin: "https://api-next.pirate.sc",
@@ -154,6 +154,7 @@ describe("interactive community application ingress composition", () => {
           "set-cookie",
           "__Host-pirate_session=session; Secure; HttpOnly; Path=/; SameSite=Lax",
         );
+        response.headers.append("set-cookie", "__Host-pirate_renewal=renewal; Secure; HttpOnly; Path=/; SameSite=Lax");
         response.headers.append("set-cookie", "__Host-pirate_csrf=csrf; Secure; Path=/; SameSite=Lax");
         return response;
       },
@@ -183,7 +184,7 @@ describe("interactive community application ingress composition", () => {
     expect(seenHeaders.get(CF_ACCESS_CLIENT_SECRET_HEADER)).toBe("api-access-client-secret");
     // SAFETY: the optional Fetch extension is feature-detected before use.
     const cookies = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
-    expect(cookies).toHaveLength(2);
+    expect(cookies).toHaveLength(3);
   });
 
   it("fails current-generation disagreement, foreign unsafe Origin, handle hosts, and nonce replay closed", async () => {
@@ -291,7 +292,7 @@ describe("interactive community application ingress composition", () => {
     await expect(
       makeHnsCommunityAppIngressCompositionV2({
         profile: "wrong",
-        profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
+        profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4_SHA256,
         ingressOrigin,
         canonicalOrigin: "https://pirate.sc",
         apiOrigin: "https://api-next.pirate.sc",

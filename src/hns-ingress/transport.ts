@@ -44,7 +44,7 @@ const hopByHopHeaders = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
-const acceptedCookieNames = new Set(["__Host-pirate_session", "__Host-pirate_csrf"]);
+const acceptedCookieNames = new Set(["__Host-pirate_session", "__Host-pirate_renewal", "__Host-pirate_csrf"]);
 const acceptedCookieAttributes = new Set(["secure", "httponly", "path", "samesite", "expires", "max-age"]);
 
 function utf8Length(value: string): number {
@@ -208,7 +208,7 @@ function validateCookie(line: string): string {
     attributes.get("path") !== "/" ||
     typeof attributes.get("samesite") !== "string" ||
     String(attributes.get("samesite")).toLowerCase() !== "lax" ||
-    (name === "__Host-pirate_session") !== (attributes.get("httponly") === true)
+    (name !== "__Host-pirate_csrf") !== (attributes.get("httponly") === true)
   ) {
     throw new HnsIngressFailure("upstream_unavailable");
   }

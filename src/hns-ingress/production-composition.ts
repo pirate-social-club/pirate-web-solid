@@ -14,8 +14,8 @@ import {
   type HnsReplayStoreNamespace,
 } from "./replay-store.ts";
 import {
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4_SHA256,
   HnsIngressFailure,
   type HnsForwarderClockV1,
 } from "./wire.ts";
@@ -152,8 +152,8 @@ export async function makeProductionHnsCommunityAppIngressCompositionV2(input: {
       retentionSeconds,
     });
     return await makeHnsCommunityAppIngressCompositionV2({
-      profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
-      profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
+      profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4,
+      profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V4_SHA256,
       ingressOrigin,
       canonicalOrigin,
       apiOrigin,
