@@ -62,6 +62,12 @@ export function DanceRecorderPanel(props: {
   const session = () => { const value = view(); return value?.kind === "camera" ? value.ready.session : value?.kind === "upload" ? value.upload.session : value?.session; };
   const review = () => state()?.matches("review") ? session() : undefined;
   const objectives = () => { const value = view(); return matches("objectives") && value?.kind === "objectives" ? value.context : undefined; };
+  // Retained pose policies still require their captured instruction. The
+  // prospective no-pose policy must remove that obligation truthfully.
+  const capturedCue = () => {
+    const value = camera(); if (!value || !matches("camera")) return undefined;
+    return { hands_on_head: "Hands on your head", arms_t: "Hold your arms out to the sides", hands_on_hips: "Hands on your hips" }[value.ready.session.cue.kind];
+  };
   const processing = () => state()?.matches("processing") ?? false;
   const finished = () => { const value = view(); return value?.kind === "expired" || value?.kind === "terminal" || (value?.kind === "upload" && value.upload.kind === "expired"); };
   const missingOriginal = () => { const value = view(); return value?.kind === "upload" && ["missing_recording", "original_command_missing", "unavailable"].includes(value.upload.kind); };
@@ -108,6 +114,7 @@ export function DanceRecorderPanel(props: {
         </>}>{context => <DanceFundedObjectives context={context} onAccept={() => journey?.send({ type: "ACCEPT" })} />}</Show>
       </div>}>
         {value => <OriginalVideoCaptureSurface title="Dance" allowUpload={false} onClose={options.onBack}
+          notice={<Show when={capturedCue()}>{cue => <p class="text-center text-sm text-white">This session requires an opening cue: {cue()}.</p>}</Show>}
           status={matches("capturing") && state()?.context.stage === "recording" ? "recording" : "idle"}
           elapsedLabel={matches("capturing") ? `${(state()!.context.elapsed / 1000).toFixed(1)} s` : "0 s"}
           durationLabel={`${value.ready.session.body_end_ms / 1000} s`}

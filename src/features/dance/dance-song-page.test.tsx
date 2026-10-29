@@ -55,8 +55,10 @@ test("the song's dance grid leads through reference and profile to the actual re
   expect(host.textContent).toContain("Dancer"); button(host, "Do this dance").click(); await vi.waitFor(() => expect(host.querySelector('[aria-label="Camera preview"]')).not.toBeNull());
   expect(host.querySelector('[aria-label="Selected dance"]')).toBeNull();
   expect(h.factory.mock.calls[0]![0].scope).toEqual(scope); expect(h.owner).toHaveBeenCalledTimes(2); expect(h.enter).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("This session requires an opening cue");
   button(host, "Record").click();
   await vi.waitFor(() => expect(host.textContent).toContain("Ready to submit"));
+  expect(host.textContent).not.toContain("This session requires an opening cue");
   expect(h.record).toHaveBeenCalledTimes(1); expect(h.recover).toHaveBeenCalledTimes(1);
   expect(host.textContent).not.toContain("Check recording"); expect(host.textContent).not.toContain("Review recording");
 });
