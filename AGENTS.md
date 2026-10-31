@@ -52,8 +52,6 @@ source.
   prepared bytes, source and Worker references before deploying. Do not run a
   direct production Wrangler deploy for this release.
 
-### Home route session upgrade
-
 The owner-directed pirate.sc-only V1 release defers HNS. Use
 `bun run prepare:production:website` for published-source website artifact
 preparation and `bun run check:production:website` to verify its retained
@@ -68,6 +66,8 @@ path. Actual website deployment requires the independently reviewed whole
 release executor, current production facts and ordinary-host recovery; direct
 Wrangler production deployment is not authorized by artifact preparation.
 The existing HNS release procedure remains separate.
+
+### Home route session upgrade
 
 The `/` route is public-first: it renders the vertical public video discovery
 surface immediately, then resolves the host-only api-next session cookie in the

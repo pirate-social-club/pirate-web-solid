@@ -26,14 +26,14 @@ export function assertPublishedWebsiteSource(root, git = (args) =>
     const remote = git(["ls-remote", "origin", "refs/heads/main"]).split("\t")[0];
     if (remote !== sha) refuse("source_is_not_published_main");
   } else {
-  const ref = "refs/heads/" + branch;
-  const published = git(["ls-remote", releaseRemote, ref]);
-  if (published !== sha + "\t" + ref) refuse("source_is_not_published_release");
-  // FETCH_HEAD belongs to this checkout; do not advance the shared main ref.
-  git(["fetch", "--no-tags", "origin", "refs/heads/main"]);
-  const accepted = git(["rev-parse", "FETCH_HEAD"]);
-  if (!commitPattern.test(accepted)
-    || git(["merge-base", sha, accepted]) !== sha) refuse("release_source_not_accepted_on_main");
+    const ref = "refs/heads/" + branch;
+    const published = git(["ls-remote", releaseRemote, ref]);
+    if (published !== sha + "\t" + ref) refuse("source_is_not_published_release");
+    // FETCH_HEAD belongs to this checkout; do not advance the shared main ref.
+    git(["fetch", "--no-tags", "origin", "refs/heads/main"]);
+    const accepted = git(["rev-parse", "FETCH_HEAD"]);
+    if (!commitPattern.test(accepted)
+      || git(["merge-base", sha, accepted]) !== sha) refuse("release_source_not_accepted_on_main");
   }
   if (git(["rev-parse", "HEAD"]) !== sha || git(["status", "--porcelain=v1"])) {
     refuse("source_changed_during_preflight");
