@@ -57,7 +57,10 @@ source.
 The owner-directed pirate.sc-only V1 release defers HNS. Use
 `bun run prepare:production:website` for published-source website artifact
 preparation and `bun run check:production:website` to verify its retained
-receipt and bytes. This build disables only the two HNS activation flags and
+receipt and bytes. Website preparation accepts exact published GitHub main or
+a frozen release/production-* branch published on GitHub whose commit is
+already accepted on GitHub main. It does not require the HNS Radicle namespace.
+This build disables only the two HNS activation flags and
 retains reserved ingress origins/routes so Worker-dispatched HNS requests
 refuse. CI exercises the actual production build and flattened configuration
 through `check:production:website-build`. These commands contain no upload
