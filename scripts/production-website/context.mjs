@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -44,15 +44,71 @@ function apiClosure() {
   assert.ok(changes.every(name => name.startsWith(prefix) || name.startsWith("scripts/production-compatibility/") || name === "tsconfig.scripts.json"));
   return hash(bytes);
 }
+const apiReleaseRef = "refs/heads/release/v1-website-qualified-tooling-r2-20261031";
+const apiPublicationPaths = { "scripts/production-release": "tree", "scripts/production-compatibility": "tree", "tsconfig.scripts.json": "blob" };
+export function apiPublishedTip(output, ref) {
+  const rows = output.trim().split("\n"); assert.equal(rows.length, 1, "Published API branch is absent or ambiguous");
+  const fields = rows[0]?.split("\t"); assert.equal(fields?.length, 2); assert.match(fields[0], /^[a-f0-9]{40}$/u); assert.equal(fields[1], ref);
+  return fields[0];
+}
+/** Git/data-only bootstrap; the canonical API guard repeats this after verified imports. */
+export function validateApiPublication(snapshot) {
+  assert.match(snapshot.source, /^[a-f0-9]{40}$/u); assert.match(snapshot.main, /^[a-f0-9]{40}$/u);
+  assert.equal(typeof snapshot.source_is_ancestor, "boolean");
+  if (snapshot.source_is_ancestor) return;
+  assert.equal(snapshot.application_is_ancestor, true); assert.equal(snapshot.release_ref, apiReleaseRef);
+  assert.equal(snapshot.release_tip, snapshot.source);
+  assert.deepEqual(Object.keys(snapshot.objects ?? {}).sort(), Object.keys(apiPublicationPaths).sort());
+  for (const [path, type] of Object.entries(apiPublicationPaths)) {
+    const object = snapshot.objects[path]; assert.equal(object.source_type, type); assert.equal(object.main_type, type);
+    assert.match(object.source_oid, /^[a-f0-9]{40}$/u); assert.match(object.main_oid, /^[a-f0-9]{40}$/u);
+    assert.equal(object.source_oid, object.main_oid, "Accepted API tooling content differs: " + path);
+  }
+}
+function assertApiPublication(source) {
+  assert.equal(git(API_REPO, ["remote", "get-url", "origin"]), "https://github.com/pirate-social-club/api-next.git");
+  const tip = ref => apiPublishedTip(git(API_REPO, ["ls-remote", "--refs", "origin", ref]), ref);
+  const main = tip("refs/heads/main"); git(API_REPO, ["fetch", "--no-tags", "origin", "refs/heads/main"]);
+  assert.equal(git(API_REPO, ["rev-parse", "FETCH_HEAD"]), main, "Accepted API main changed during fetch");
+  const ancestor = commit => {
+    const result = spawnSync("/usr/bin/git", ["merge-base", "--is-ancestor", commit, main],
+      { cwd: API_REPO, encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024, env: bootstrapToolEnvironment() });
+    if (result.error) throw result.error;
+    assert.ok(result.status === 0 || result.status === 1, "API Git ancestry check failed"); return result.status === 0;
+  };
+  const sourceIsAncestor = ancestor(source);
+  const snapshot = { source, main, source_is_ancestor: sourceIsAncestor, application_is_ancestor: sourceIsAncestor || ancestor(API_APP_SOURCE) };
+  if (!sourceIsAncestor) {
+    snapshot.release_ref = apiReleaseRef; snapshot.release_tip = tip(apiReleaseRef);
+    snapshot.objects = Object.fromEntries(Object.keys(apiPublicationPaths).map(path => [path, {
+      source_oid: git(API_REPO, ["rev-parse", "--verify", source + ":" + path]), main_oid: git(API_REPO, ["rev-parse", "--verify", main + ":" + path]),
+      source_type: git(API_REPO, ["cat-file", "-t", source + ":" + path]), main_type: git(API_REPO, ["cat-file", "-t", main + ":" + path]),
+    }]));
+  }
+  validateApiPublication(snapshot);
+  assert.equal(tip("refs/heads/main"), main, "Accepted API main moved during publication check");
+  if (!sourceIsAncestor) assert.equal(tip(apiReleaseRef), source, "Frozen API release ref moved during publication check");
+}
+const websiteTestBase = "node --test scripts/website-production-config.test.mjs scripts/website-production-artifacts.test.mjs scripts/website-production-source-preflight.test.mjs";
+const executorTest = "node --test scripts/production-website/*.test.mjs";
+const executorTestSuffix = " && bun run test:production:website-executor";
+export function assertWebsitePackage(before, after) {
+  const scripts = before.scripts;
+  const original = scripts["test:production:website"] === websiteTestBase && !Object.hasOwn(scripts, "test:production:website-executor");
+  const integrated = scripts["test:production:website"] === websiteTestBase + executorTestSuffix
+    && scripts["test:production:website-executor"] === executorTest;
+  assert.ok(original || integrated, "Unknown website executor package baseline");
+  const expectedScripts = { ...scripts, "test:production:website-executor": executorTest,
+    "test:production:website": websiteTestBase + executorTestSuffix };
+  assert.deepEqual(after.scripts, expectedScripts); assert.deepEqual({ ...after, scripts }, before);
+}
 function assertToolingOnlyChanges() {
   const names = git(TOOLING_REPO, ["diff", "--name-only", "--no-renames", APP_SOURCE, "HEAD", "--"]).split("\n").filter(Boolean);
   assert.ok(names.every(name => name.startsWith("scripts/production-website/") || name === "scripts/production-website-cutover.mjs" || name === "package.json"
     || name === "AGENTS.md" || name === "scripts/deploy-staging-with-hns-guard.mjs"));
   const before = JSON.parse(execFileSync("/usr/bin/git", ["show", APP_SOURCE + ":package.json"], { cwd: TOOLING_REPO, encoding: "utf8", timeout: 10_000, env: bootstrapToolEnvironment() }));
   const after = JSON.parse(readFileSync(join(TOOLING_REPO, "package.json"), "utf8"));
-  const expectedScripts = { ...before.scripts, "test:production:website-executor": "node --test scripts/production-website/*.test.mjs",
-    "test:production:website": before.scripts["test:production:website"] + " && bun run test:production:website-executor" };
-  assert.deepEqual(after.scripts, expectedScripts); assert.deepEqual({ ...after, scripts: before.scripts }, before);
+  assertWebsitePackage(before, after);
 }
 
 /** Source-only bootstrap precedes URL consumption and does not require future whole-release facts. */
@@ -61,9 +117,7 @@ export function verifiedSourcePins() {
   assert.equal(app.source, APP_SOURCE); assert.equal(app.tree, APP_TREE); assertToolingOnlyChanges();
   assert.equal(assertPublishedWebsiteSource(TOOLING_REPO, args => git(TOOLING_REPO, args)), own.source);
   assert.equal(assertPublishedWebsiteSource(APP_REPO, args => git(APP_REPO, args)), APP_SOURCE);
-  assert.equal(git(API_REPO, ["remote", "get-url", "origin"]), "https://github.com/pirate-social-club/api-next.git");
-  git(API_REPO, ["fetch", "--no-tags", "origin", "refs/heads/main"]);
-  git(API_REPO, ["merge-base", "--is-ancestor", api.source, git(API_REPO, ["rev-parse", "FETCH_HEAD"])]);
+  assertApiPublication(api.source);
   const apiManifest = apiClosure();
   const solidManifest = sourceClosure(TOOLING_REPO, "scripts/production-website/source-manifest.json", ["scripts/production-website/", "scripts/production-website-cutover.mjs", "package.json",
     "AGENTS.md", "scripts/deploy-staging-with-hns-guard.mjs"]);
