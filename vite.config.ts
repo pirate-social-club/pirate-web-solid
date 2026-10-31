@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import solid from "@solidjs/vite-plugin";
+import { websiteBuildMode, websiteProductionOverrides } from "./scripts/website-production-config.mjs";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 const solidUiRoot = path.resolve(appRoot, "packages/solid-ui");
 const fixtureApiOrigin = process.env.SOLID_API_NEXT_FIXTURE_ORIGIN;
+const websiteOnlyRelease = websiteBuildMode(process.env);
 
 export default defineConfig({
   plugins: [
@@ -24,7 +26,9 @@ export default defineConfig({
     },
     cloudflare({
       viteEnvironment: { name: "ssr" },
-      config: config => fixtureApiOrigin === undefined ? {} : {
+      config: config => websiteOnlyRelease
+        ? websiteProductionOverrides(config, process.env.CLOUDFLARE_ENV)
+        : fixtureApiOrigin === undefined ? {} : {
         vars: { ...config.vars, API_NEXT_ORIGIN: fixtureApiOrigin },
       },
     }),
