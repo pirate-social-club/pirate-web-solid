@@ -18,7 +18,7 @@
     "scripts/production-website/managed-environment.test.mjs": "a100f0d04e4ee2f0975507ec7633becbc6cc49322a167c543f5c8dfbf0253dc6",
     "scripts/production-website/paths.mjs": "f17f96d1404a95db54dd6278fbbdf09bf97f5c0102b128dcf48f6c8216e195e5",
     "scripts/production-website/provider.mjs": "f3c95d57f44ec969e41eb7bf5c82c2c3df0d5a528109897e9aab592c92196539",
-    "scripts/production-website/staging-build-isolation.mjs": "fb1c66a1843124116e9c2a965376355241ce18dfdbc8a59dd99d3046d9da5dc3",
-    "scripts/production-website/staging-build-isolation.test.mjs": "b0a38f57f3bd3ba4d1fc50f6e2910c81a19bc4ef55946de209c87011b9b6493c"
+    "scripts/production-website/staging-build-isolation.mjs": "1b1b036fec5b74fb52c9e59e4c3acb9d2f39d9b4341d39b2d48d396c0cd7a314",
+    "scripts/production-website/staging-build-isolation.test.mjs": "2fdd2d1cdecf988e860cc70af0f842ef252669102494b4514f2628297960f1f3"
   }
 }

@@ -17,6 +17,10 @@ const text = args => git(args).toString("utf8").trim();
 const refuse = reason => { throw new Error("hns_staging_deploy_refused:" + reason); };
 
 export function stagingSelection(args) {
+  // The mandated package script supplies --deploy before explicit frozen arguments.
+  if (args.length === 3 && args[0] === "--deploy"
+    && ["--prepare-frozen", "--deploy-frozen", "--check-frozen-release"].includes(args[1]))
+    return stagingSelection(args.slice(1));
   if (args.length === 1 && ["--deploy", "--check-only", "--check-release"].includes(args[0])) return { mode: args[0], frozen: false };
   if (args.length === 2 && ["--prepare-frozen", "--deploy-frozen", "--check-frozen-release"].includes(args[0])
     && /^\/tmp\/pirate-v1-solid-staging-[a-f0-9]{32}$/u.test(args[1])) return { mode: args[0], frozen: true, runRoot: args[1] };

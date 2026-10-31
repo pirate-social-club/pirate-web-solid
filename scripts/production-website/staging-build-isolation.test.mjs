@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { assertStagingConfiguration, frozenBuildEnvironment, requireReadOnlyMount, stagingSelection } from "./staging-build-isolation.mjs";
 
@@ -10,6 +11,17 @@ test("staging modes retain exact normal commands and require a fresh-root-shaped
   for (const args of [[], ["--deploy", root], ["--deploy-frozen"], ["--deploy-frozen", root, "extra"],
     ["--deploy-frozen", "/tmp/../root"], ["--deploy-frozen", "/tmp/pirate-v1-solid-staging-" + "A".repeat(32)],
     ["--source-ref", "other"], ["--deploy-frozen", "relative"]]) assert.throws(() => stagingSelection(args));
+});
+
+test("the actual guarded package command preserves an explicitly selected frozen action", () => {
+  const script = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"))
+    .scripts["deploy:staging:hns-guarded"];
+  assert.equal(script, "node scripts/deploy-staging-with-hns-guard.mjs --deploy");
+  const prefix = script.split(" ").slice(2);
+  for (const mode of ["--prepare-frozen", "--deploy-frozen", "--check-frozen-release"])
+    assert.deepEqual(stagingSelection([...prefix, mode, root]), { mode, frozen: true, runRoot: root });
+  for (const args of [[...prefix, "--check-release", root], [...prefix, "--deploy-frozen", root, "extra"]])
+    assert.throws(() => stagingSelection(args));
 });
 
 test("longest native mount controls dependency write protection", () => {
