@@ -1,8 +1,8 @@
 /**
  * Terms and Privacy copy. Written from the product specifications and the
- * providers the service actually calls. No operator entity, jurisdiction or
- * public contact address exists yet, so the documents say so instead of
- * naming one. Review by counsel is still expected before production launch.
+ * providers the service actually calls. Operator identity, public contact and
+ * governing-law wording remain unresolved launch inputs. They must be supplied
+ * before production launch.
  */
 
 export interface LegalSection {
@@ -25,7 +25,7 @@ const pendingDetails =
 export const termsOfService: LegalDocumentContent = {
   path: "/terms",
   title: "Terms of Service",
-  updated: "22 October 2026",
+  updated: "31 October 2026",
   summary:
     "These terms cover your use of this app: your account and profiles, what you post, how communities work, and the wallets that come with your profiles.",
   sections: [
@@ -46,7 +46,7 @@ export const termsOfService: LegalDocumentContent = {
       heading: "What you post",
       paragraphs: [
         "You keep ownership of the songs, videos, images, lyrics, posts and comments you publish. You give us permission to store, process and show them in the app. That includes transcoding media, checking it for policy violations, matching audio against a fingerprint database, transcribing it and translating it.",
-        "When you publish a song, its audio, artwork and details are stored on IPFS and registered on the DATA Network (formerly Story) under a commercial remix licence: others may remix it and sell their remix with credit, and you receive the share of their remix earnings you set when you publish. A song submission that was given a different licence before 24 September 2026 keeps that licence. These public records are permanent. We cannot remove them from IPFS or the chain, even if you later delete the post or your account.",
+        "When you publish a song, its audio, artwork and details are available through the app under a commercial remix licence, with the remix earnings share you set when you publish. A song submission that was given a different licence before 24 September 2026 keeps that licence. DATA Network registration is not enabled for this launch. Content already published to IPFS or a blockchain may remain public after you delete it from the app.",
         "You must have the rights to what you post. A fingerprint match with a known recording blocks publication, but passing that check is not a copyright clearance.",
       ],
     },
@@ -101,7 +101,7 @@ export const termsOfService: LegalDocumentContent = {
 export const privacyPolicy: LegalDocumentContent = {
   path: "/privacy",
   title: "Privacy Policy",
-  updated: "22 October 2026",
+  updated: "31 October 2026",
   summary:
     "This explains what we collect, why, who processes it for us, what is public by design and how deletion works. We do not use advertising trackers or analytics tools.",
   sections: [
@@ -122,7 +122,7 @@ export const privacyPolicy: LegalDocumentContent = {
     {
       heading: "Cookies and storage",
       paragraphs: [
-        "We use two cookies, both required: one keeps you signed in and one protects your actions against cross-site requests. Your browser also stores preferences, drafts and notices you have already seen. We do not use advertising or analytics cookies.",
+        "We use three required cookies: two maintain and renew your sign-in, and one protects your actions against cross-site requests. Your browser also stores preferences, drafts and notices you have already seen. We do not use advertising or analytics cookies.",
       ],
     },
     {
@@ -142,7 +142,7 @@ export const privacyPolicy: LegalDocumentContent = {
         "OpenRouter and the model providers it routes to: lyric classification, translation and Study exercises.",
         "ACRCloud: audio fingerprinting.",
         "Qencode: converting audio and video.",
-        "Filebase (IPFS) and the DATA Network: public storage and registration of published songs.",
+        "Filebase (IPFS) and the DATA Network: public storage and registration when those features are enabled. DATA Network registration is not enabled for this launch.",
         "Very, Self and ZKPassport: palm, age and nationality checks you choose to take.",
       ],
     },
@@ -163,7 +163,7 @@ export const privacyPolicy: LegalDocumentContent = {
     {
       heading: "What is public",
       paragraphs: [
-        "Your profiles, posts and published songs are public. Published song audio, artwork and details are stored on IPFS and registered on the DATA Network. Wallet addresses and blockchain transactions are public too. These public records are permanent, and we cannot delete them.",
+        "Your profiles, posts and published songs are public in the app. Wallet addresses and blockchain transactions are public too. DATA Network registration is not enabled for this launch. Content already published to IPFS or a blockchain may remain public after you delete it from the app.",
       ],
     },
     {
