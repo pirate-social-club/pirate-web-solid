@@ -1,20 +1,24 @@
 {
   "kind": "ordinary-website-tooling-source-v1",
   "files": {
+    "AGENTS.md": "eea7b9c26695e1a4c2b56937b919f1d08a5ee0b5f93c4c8714b2def7e89e7ab9",
     "package.json": "5392b45585664ca0fc5e4a752a205c6af665dfef51e254272eb279a425eeec09",
+    "scripts/deploy-staging-with-hns-guard.mjs": "039d30f3d0b203786cab39069df391564e1640fc826965d6ceb670e6a07fba1c",
     "scripts/production-website-cutover.mjs": "d42e68525ebdfcf8e4e0f73208696913979c8c10b3094bcb4d6f9716caffcb2a",
     "scripts/production-website/README.md": "95cd04edad212a6612922d597fa9221dba082dff31dd291f39023becbac0fa03",
     "scripts/production-website/RUNBOOK.md": "5391881b174d626ef77b757c581f96e0b2b786527d8033c0d927d88f95bbc85e",
     "scripts/production-website/bindings.mjs": "96df126372d90cd4a33aba41a6271d18ef22845947abf2bb21f765ef2f7c15b4",
     "scripts/production-website/bindings.test.mjs": "eaf5c944ddc53bbe9071269d35637f249933a247014dfbd2e4e83c339d7f10d9",
     "scripts/production-website/candidate.mjs": "bd0390833122d88aa515635df8f5714a546c8292c683426be72dde14c03b109f",
-    "scripts/production-website/context.mjs": "55e5b715a8777b2a438796b8bf4b46d9b2ad1ab07fb3d3096560362cf53f9a0b",
+    "scripts/production-website/context.mjs": "4f346e84397a1487a68e4d6871a279f5269752a9cf3b2c59dec4d2fd74c9e5ae",
     "scripts/production-website/contract.mjs": "a4dbaca4f934c962c2a0779c4117c0b789c73160d2889ab78216a0cdcd2a43c9",
     "scripts/production-website/contract.test.mjs": "83354a84f8c1ec0e79ecbb48f1e0ac6c1256984bd19839d2b112d49467a4151b",
     "scripts/production-website/lifecycle.mjs": "61f3d0f5a630f9f327e8f22901caaccbd554f7044f8515990c57fa9afea0ccde",
     "scripts/production-website/lifecycle.test.mjs": "628ca05184109ec82b4f005a40da80c3f784bd930bdb356539941e1fd55814b1",
     "scripts/production-website/managed-environment.test.mjs": "a100f0d04e4ee2f0975507ec7633becbc6cc49322a167c543f5c8dfbf0253dc6",
-    "scripts/production-website/paths.mjs": "fedc541821744469df04cf58366152dff8a156c40cb5af6d53b56511e7af2a00",
-    "scripts/production-website/provider.mjs": "f3c95d57f44ec969e41eb7bf5c82c2c3df0d5a528109897e9aab592c92196539"
+    "scripts/production-website/paths.mjs": "f17f96d1404a95db54dd6278fbbdf09bf97f5c0102b128dcf48f6c8216e195e5",
+    "scripts/production-website/provider.mjs": "f3c95d57f44ec969e41eb7bf5c82c2c3df0d5a528109897e9aab592c92196539",
+    "scripts/production-website/staging-build-isolation.mjs": "fb1c66a1843124116e9c2a965376355241ce18dfdbc8a59dd99d3046d9da5dc3",
+    "scripts/production-website/staging-build-isolation.test.mjs": "b0a38f57f3bd3ba4d1fc50f6e2910c81a19bc4ef55946de209c87011b9b6493c"
   }
 }

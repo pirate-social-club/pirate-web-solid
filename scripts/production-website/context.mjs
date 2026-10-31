@@ -46,7 +46,8 @@ function apiClosure() {
 }
 function assertToolingOnlyChanges() {
   const names = git(TOOLING_REPO, ["diff", "--name-only", "--no-renames", APP_SOURCE, "HEAD", "--"]).split("\n").filter(Boolean);
-  assert.ok(names.every(name => name.startsWith("scripts/production-website/") || name === "scripts/production-website-cutover.mjs" || name === "package.json"));
+  assert.ok(names.every(name => name.startsWith("scripts/production-website/") || name === "scripts/production-website-cutover.mjs" || name === "package.json"
+    || name === "AGENTS.md" || name === "scripts/deploy-staging-with-hns-guard.mjs"));
   const before = JSON.parse(execFileSync("/usr/bin/git", ["show", APP_SOURCE + ":package.json"], { cwd: TOOLING_REPO, encoding: "utf8", timeout: 10_000, env: bootstrapToolEnvironment() }));
   const after = JSON.parse(readFileSync(join(TOOLING_REPO, "package.json"), "utf8"));
   const expectedScripts = { ...before.scripts, "test:production:website-executor": "node --test scripts/production-website/*.test.mjs",
@@ -64,7 +65,8 @@ export function verifiedSourcePins() {
   git(API_REPO, ["fetch", "--no-tags", "origin", "refs/heads/main"]);
   git(API_REPO, ["merge-base", "--is-ancestor", api.source, git(API_REPO, ["rev-parse", "FETCH_HEAD"])]);
   const apiManifest = apiClosure();
-  const solidManifest = sourceClosure(TOOLING_REPO, "scripts/production-website/source-manifest.json", ["scripts/production-website/", "scripts/production-website-cutover.mjs", "package.json"]);
+  const solidManifest = sourceClosure(TOOLING_REPO, "scripts/production-website/source-manifest.json", ["scripts/production-website/", "scripts/production-website-cutover.mjs", "package.json",
+    "AGENTS.md", "scripts/deploy-staging-with-hns-guard.mjs"]);
   assert.deepEqual(clean(TOOLING_REPO), own); assert.deepEqual(clean(API_REPO), api); assert.deepEqual(clean(APP_REPO), app);
   return { solid_tooling_source: own.source, solid_tooling_tree: own.tree, solid_tooling_manifest_sha256: solidManifest,
     api_tooling_source: api.source, api_tooling_tree: api.tree, api_tooling_manifest_sha256: apiManifest };

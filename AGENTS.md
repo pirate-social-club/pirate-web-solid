@@ -33,6 +33,17 @@ source.
   binding mutation, secret provisioning, or remote push without explicit human
   authorization.
 - Staging deploys use `bun run deploy:staging:hns-guarded` from published `main`.
+  The reviewed frozen-source mode of that same command may instead prepare
+  exact published-main-ancestor website source2df in a fresh owned export,
+  using --prepare-frozen /tmp/pirate-v1-solid-staging-<32hex>, then install or
+  recover the exact retained staging package through --deploy-frozen with
+  that same path. Its tooling and retained source must pass the existing
+  accepted-source preflight. The qualified source and dependencies are mounted
+  read-only; only the new export/output root is writable. The staging package
+  has its own artifact identity and never overwrites or retargets the frozen
+  production artifact or canonical staging dist. The ordinary published-main
+  mode remains unchanged. Both modes retain the same gateway/source/built
+  fingerprint checks and direct and HNS post-check behavior.
   The command reads the active staging gateway manifest, checks the source and
   built Worker ingress fingerprints and gateway references. Direct staging app,
   bundle and API checks are required after deployment. Live 8s28 serving and
