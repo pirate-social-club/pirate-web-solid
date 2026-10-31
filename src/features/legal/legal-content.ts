@@ -1,8 +1,7 @@
 /**
  * Terms and Privacy copy. Written from the product specifications and the
- * providers the service actually calls. Operator and contact wording reflects
- * the supplied launch inputs. Governing-law wording remains unresolved and
- * must be supplied before production launch.
+ * providers the service actually calls. Operator and public contact wording
+ * reflects the supplied launch inputs. No governing law has been selected.
  */
 
 export interface LegalSection {
@@ -22,8 +21,7 @@ export interface LegalDocumentContent {
 const operatorAndContact =
   "Pirate is operated by its individual owner. For support or privacy requests, contact support@pirate.sc.";
 
-const pendingGoverningLaw =
-  "Before launch we will publish the law that governs these documents here.";
+const governingLaw = "These documents do not specify a governing law.";
 
 export const termsOfService: LegalDocumentContent = {
   path: "/terms",
@@ -96,7 +94,7 @@ export const termsOfService: LegalDocumentContent = {
       paragraphs: [
         "If we change these terms we will update this page and the date above.",
         operatorAndContact,
-        pendingGoverningLaw,
+        governingLaw,
       ],
     },
   ],
@@ -189,7 +187,7 @@ export const privacyPolicy: LegalDocumentContent = {
       paragraphs: [
         "If we change this policy we will update this page and the date above.",
         operatorAndContact,
-        pendingGoverningLaw,
+        governingLaw,
       ],
     },
   ],
