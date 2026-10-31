@@ -1,0 +1,19 @@
+{
+  "kind": "ordinary-website-tooling-source-v1",
+  "files": {
+    "package.json": "5392b45585664ca0fc5e4a752a205c6af665dfef51e254272eb279a425eeec09",
+    "scripts/production-website/README.md": "4602b960b3956ff03944e7e20035186f8234c01f82a1ae21388a30ada5294928",
+    "scripts/production-website/RUNBOOK.md": "6b7a5453dab6c6ded3ab7c0566dec4ee4c60a398d33afba5255d5e6f44458c1f",
+    "scripts/production-website/bindings.mjs": "96df126372d90cd4a33aba41a6271d18ef22845947abf2bb21f765ef2f7c15b4",
+    "scripts/production-website/bindings.test.mjs": "eaf5c944ddc53bbe9071269d35637f249933a247014dfbd2e4e83c339d7f10d9",
+    "scripts/production-website/candidate.mjs": "bd0390833122d88aa515635df8f5714a546c8292c683426be72dde14c03b109f",
+    "scripts/production-website/context.mjs": "17a1b7bf9948cc174c3247ec647b8df028adb5b0df00e34a86bc74b42994a5f4",
+    "scripts/production-website/contract.mjs": "a4dbaca4f934c962c2a0779c4117c0b789c73160d2889ab78216a0cdcd2a43c9",
+    "scripts/production-website/contract.test.mjs": "83354a84f8c1ec0e79ecbb48f1e0ac6c1256984bd19839d2b112d49467a4151b",
+    "scripts/production-website/lifecycle.mjs": "61f3d0f5a630f9f327e8f22901caaccbd554f7044f8515990c57fa9afea0ccde",
+    "scripts/production-website/lifecycle.test.mjs": "628ca05184109ec82b4f005a40da80c3f784bd930bdb356539941e1fd55814b1",
+    "scripts/production-website/paths.mjs": "fedc541821744469df04cf58366152dff8a156c40cb5af6d53b56511e7af2a00",
+    "scripts/production-website/provider.mjs": "82bee2d4361b010ffcc18a1968299d26a02e00575db4e15515cec913afba6950",
+    "scripts/production-website-cutover.mjs": "972917cd3ae5bd37e72a72ca541697ed28578449bb9db38826332c4066c2b701"
+  }
+}
