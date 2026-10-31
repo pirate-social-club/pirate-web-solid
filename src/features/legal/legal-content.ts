@@ -1,8 +1,8 @@
 /**
  * Terms and Privacy copy. Written from the product specifications and the
- * providers the service actually calls. Operator identity, public contact and
- * governing-law wording remain unresolved launch inputs. They must be supplied
- * before production launch.
+ * providers the service actually calls. Operator and contact wording reflects
+ * the supplied launch inputs. Governing-law wording remains unresolved and
+ * must be supplied before production launch.
  */
 
 export interface LegalSection {
@@ -19,8 +19,11 @@ export interface LegalDocumentContent {
   readonly sections: readonly LegalSection[];
 }
 
-const pendingDetails =
-  "This is an early version of the service. Before launch we will publish the name of the operator, a contact address and the law that governs these documents here.";
+const operatorAndContact =
+  "Pirate is operated by its individual owner. For support or privacy requests, contact support@pirate.sc.";
+
+const pendingGoverningLaw =
+  "Before launch we will publish the law that governs these documents here.";
 
 export const termsOfService: LegalDocumentContent = {
   path: "/terms",
@@ -92,7 +95,8 @@ export const termsOfService: LegalDocumentContent = {
       heading: "Changes and contact",
       paragraphs: [
         "If we change these terms we will update this page and the date above.",
-        pendingDetails,
+        operatorAndContact,
+        pendingGoverningLaw,
       ],
     },
   ],
@@ -177,14 +181,15 @@ export const privacyPolicy: LegalDocumentContent = {
       heading: "Your choices",
       items: [
         "Delete your stored Study and Karaoke recordings in Settings.",
-        "Requests to see, correct or delete your data, or to object to how it is used, will be handled through the contact address we publish before launch.",
+        "For requests to see, correct or delete your data, or to object to how it is used, contact support@pirate.sc.",
       ],
     },
     {
       heading: "Changes and contact",
       paragraphs: [
         "If we change this policy we will update this page and the date above.",
-        pendingDetails,
+        operatorAndContact,
+        pendingGoverningLaw,
       ],
     },
   ],
