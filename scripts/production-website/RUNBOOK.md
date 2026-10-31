@@ -1,5 +1,7 @@
 # Proposed website executor procedure
 
+DB-dependent apply/reconcile phases consume only the two fixed existing HNS production database selectors privately injected by the established operator workflow. For apply, infisical run --env=prod --path=/services/api-next/operator --include-imports=false --expand=false --silent wraps the OUTER API Bun wrapper before website apply, never the child between GNUtimeout and executor. Direct read-only reconcile uses the same prefix around its Bun entry. Provider-only snapshot needs no database injection. The CLI fetch precedes Bun; the separately reviewed launch binds its exact source/scope, and in-process guards precede URL parsing and database use. The verified API context exposes its shared safe environment helper for all provider/login children. No injected DB/operator secret reaches Wrangler/cf/Git/auth renewal children. Bootstrap Git uses a local explicit nonsecret OS/transport projection until the API source closure is verified, preserving pure Node CI without a sibling checkout. No new approval protocol or Worker/browser runtime import is introduced.
+
 This is an unexecuted source runbook. Root owns admission, source integration and all actual operations. The overlay author does not independently review their own code or assert a test result. Follow workspace custody and current standing authority, preserve every spent marker, and tell workspace_owner before the first production write. The website executor does not touch HNS wallet/session/route state.
 
 ## Committed qualification
@@ -50,7 +52,7 @@ The existing API wrapper selects only the fixed admitted Solid executor path and
 bun scripts/production-release/production-bounded-command.ts website apply
 ```
 
-The shared real GNUtimeout bound is180seconds with TERM and KILL ten seconds later. The executor verifies its active ancestry before credentials, uses the same operation directory, and publishes one exclusive website-upload-attempt.json immediately before the sole normal deployment command. Every preparation/managed-read/admission failure before that point consumes no upload attempt. Provider uncertainty after it stops new effects and leaves immutable evidence. A command result stores only actual exit status and output hashes; stdout/stderr and credentials are withheld.
+The shared real GNUtimeout bound is180seconds with TERM and KILL ten seconds later. The executor verifies its active ancestry before database use, uses the same operation directory, and publishes one exclusive website-upload-attempt.json immediately before the sole normal deployment command. Every preparation/managed-read/admission failure before that point consumes no upload attempt. Provider uncertainty after it stops new effects and leaves immutable evidence. A command result stores only actual exit status and output hashes; stdout/stderr and credentials are withheld.
 
 Readback establishes current sole100percent candidate serving, latest-upload agreement, git provenance, entrypoint and188 module bytes/types, compatibility fields, exact public settings/bindings/routes/namespaces/subdomain settings, selected served asset bytes and actual database333/paused0. Source/artifact/whole review identities are checked again. A complete original readback includes the original command-result hash. There is no remote full-asset-membership assertion.
 

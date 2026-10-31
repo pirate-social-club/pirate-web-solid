@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { ACCOUNT, API_APP_SOURCE, APP_REPO, APP_SOURCE, CONFIG_PATH, EXECUTOR, NODE, WORKER, WRANGLER_BIN } from "./production-website/paths.mjs";
+import { API_APP_SOURCE, APP_REPO, APP_SOURCE, CONFIG_PATH, EXECUTOR, NODE, WORKER, WRANGLER_BIN } from "./production-website/paths.mjs";
 import { candidateIdentity, accepted, digest, digestString, hash, validateAttemptIdentity, validateCommandLineage, validateReadbackIdentity } from "./production-website/contract.mjs";
 import { preparedCandidate, criticalAssets } from "./production-website/candidate.mjs";
 import { assertWholeSourcePins, loadApiContext } from "./production-website/context.mjs";
@@ -120,7 +120,7 @@ export async function main(args = process.argv.slice(2)) {
   validateWebsiteBinding(proposal, review.website_bindings);
   assert.deepEqual(proposal.candidate.settings, referenceJson(review.website_bindings.candidate_settings_derivation).normalized_candidate_settings);
   // Managed credentials are obtained before the once marker. Uncertain command results are never replayed.
-  await api.provider.managedToken();
+  await api.environment.managedProviderToken();
   phase = "immediate_preupload_recheck";
   const rechecked = await loadApiContext(); assertWholeSourcePins(review, rechecked.pins);
   assert.deepEqual(candidateIdentity(await preparedCandidate()), candidateIdentity(candidate));
@@ -134,7 +134,7 @@ export async function main(args = process.argv.slice(2)) {
     candidate_identity: candidateIdentity(candidate), before, before_sha256: digest(comparable(before)),
     critical_assets: criticalAssets(candidate, review.website_critical_assets), proposal });
   const output = await api.commands.runDeploymentCommand([NODE, WRANGLER_BIN, "deploy", "--config", CONFIG_PATH, "--message", "git:" + APP_SOURCE],
-    APP_REPO, AbortSignal.timeout(150_000), { ...process.env, CLOUDFLARE_ACCOUNT_ID: ACCOUNT });
+    APP_REPO, AbortSignal.timeout(150_000), api.environment.wranglerEnvironment());
   const receipt = { kind: "ordinary-website-deployment-command-result-v1", at: new Date().toISOString(), executor_sha256: self(),
     attempt_sha256: api.evidence.recordDigest(selected.attempt), exit_code: output.exitCode,
     stdout_sha256: hash(output.stdout), stderr_sha256: hash(output.stderr), provider_output_emitted: false };
