@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { open, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { assertPublishedProductionSource } from "./hns-production-source-preflight.mjs";
+import { assertPublishedWebsiteSource } from "./website-production-source-preflight.mjs";
 import { checkWebsiteProductionConfig } from "./website-production-config.mjs";
 import { websiteArtifactDigest } from "./website-production-artifacts.mjs";
 
@@ -21,12 +21,12 @@ async function config() {
 async function main() {
   if (process.argv.length !== 3 || !["--prepare", "--check"].includes(process.argv[2])) refuse("usage_prepare_or_check");
   if (process.env.SOLID_API_NEXT_FIXTURE_ORIGIN !== undefined) refuse("fixture_api_override");
-  const source = assertPublishedProductionSource(root);
+  const source = assertPublishedWebsiteSource(root);
   if (process.argv[2] === "--prepare") {
     run("bun", ["run", "build"], { ...process.env, CLOUDFLARE_ENV: "production", PIRATE_WEBSITE_ONLY_RELEASE: "1" });
     await config();
     run("bunx", ["wrangler", "deploy", "--dry-run", "--config", "dist/ssr/wrangler.json"], process.env);
-    if (assertPublishedProductionSource(root) !== source) refuse("source_changed");
+    if (assertPublishedWebsiteSource(root) !== source) refuse("source_changed");
     const value = { kind: "pirate-website-production-prepared-v1", sourceSha: source,
       buildSha256: await websiteArtifactDigest(root), configuration: await config() };
     const file = await open(receipt, "wx", 0o600);
@@ -37,7 +37,7 @@ async function main() {
     if (value.kind !== "pirate-website-production-prepared-v1" || value.sourceSha !== source
       || value.buildSha256 !== await websiteArtifactDigest(root)) refuse("prepared_build_or_source_changed");
     await config();
-    if (assertPublishedProductionSource(root) !== source) refuse("source_changed");
+    if (assertPublishedWebsiteSource(root) !== source) refuse("source_changed");
     console.log(JSON.stringify({ event: "website_production_prepared_verified", sourceSha: source }));
   }
 }

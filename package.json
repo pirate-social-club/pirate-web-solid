@@ -35,7 +35,7 @@
     "prepare:production:website": "node scripts/prepare-production-website.mjs --prepare",
     "check:production:website": "node scripts/prepare-production-website.mjs --check",
     "check:production:website-build": "node scripts/check-production-website-build.mjs",
-    "test:production:website": "node --test scripts/website-production-config.test.mjs scripts/website-production-artifacts.test.mjs",
+    "test:production:website": "node --test scripts/website-production-config.test.mjs scripts/website-production-artifacts.test.mjs scripts/website-production-source-preflight.test.mjs",
     "prepare:production:hns-guarded": "node scripts/deploy-production-with-hns-guard.mjs --prepare",
     "deploy:production:hns-guarded": "node scripts/deploy-production-with-hns-guard.mjs --deploy",
     "check:staging:release": "node scripts/deploy-staging-with-hns-guard.mjs --check-release",
