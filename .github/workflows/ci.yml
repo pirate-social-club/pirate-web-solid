@@ -53,6 +53,18 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
       - name: Check post-engagement Worker proxy transport
         run: bun run post-engagement-check
+      - name: Build website-only production Worker artifact
+        run: bun run build
+        env:
+          CLOUDFLARE_ENV: production
+          PIRATE_WEBSITE_ONLY_RELEASE: "1"
+          NODE_OPTIONS: --max-old-space-size=3072
+      - name: Validate website-only production configuration
+        run: bun run check:production:website-build
+      - name: Package website-only production Worker without deployment
+        run: bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
 
   storybook-audit:
     runs-on: ubuntu-24.04
