@@ -12,7 +12,7 @@ function fixture() {
   built.vars.HNS_HANDLE_HOST_INGRESS_ENABLED = "false";
   return { ...built, main: "index.js", assets: { directory: "../client", binding: "ASSETS" },
     rules: [{ type: "ESModule", globs: ["**/*.js", "**/*.mjs"] }], no_bundle: true,
-    targetEnvironment: "production", queues: { producers: [], consumers: [] }, triggers: { crons: [] } };
+    targetEnvironment: "production", cloudchamber: {}, logfwdr: { bindings: [] }, queues: { producers: [], consumers: [] }, triggers: {} };
 }
 test("website projection changes only two activation flags and preserves source", () => {
   const effective = structuredClone({ ...source, ...source.env.production });
@@ -46,7 +46,12 @@ const mutations = {
   services: b => { b.services = [{ binding: "EXTRA", service: "other" }]; },
   storage: b => { b.r2_buckets = [{ binding: "EXTRA", bucket_name: "other" }]; },
   queue: b => { b.queues.consumers.push({ queue: "other" }); },
-  cron: b => { b.triggers.crons.push("* * * * *"); },
+  cron: b => { b.triggers.crons = ["* * * * *"]; },
+  triggerKey: b => { b.triggers.extra = []; },
+  email: b => { b.send_email = [{ name: "EXTRA" }]; },
+  ai: b => { b.ai_search = [{ binding: "EXTRA" }]; },
+  cloudchamber: b => { b.cloudchamber = { image: "other" }; },
+  logfwdr: b => { b.logfwdr.bindings.push({ name: "EXTRA" }); },
   secret: b => { b.secrets.required.push("EXTRA"); },
   replay: b => { b.durable_objects.bindings[0].class_name = "Other"; },
   compatibility: b => { b.compatibility_date = "2020-01-01"; },
@@ -54,4 +59,9 @@ const mutations = {
 for (const [name, mutate] of Object.entries(mutations)) test("rejects generated config drift: " + name, () => {
   const built = fixture(); mutate(built);
   assert.throws(() => checkWebsiteProductionConfig(source, built), /website_production_refused/);
+});
+
+test("normalized empty cron forms both pass", () => {
+  const built = fixture(); built.triggers = { crons: [] };
+  assert.equal(checkWebsiteProductionConfig(source, built).hns_enabled, false);
 });

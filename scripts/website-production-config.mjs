@@ -50,7 +50,8 @@ export function checkWebsiteProductionConfig(source, built) {
   for (const key of ["services", "hyperdrive", "kv_namespaces", "r2_buckets", "d1_databases",
     "vectorize", "analytics_engine_datasets", "mtls_certificates", "dispatch_namespaces",
     "pipelines", "secrets_store_secrets", "worker_loaders", "ratelimits", "vpc_services",
-    "vpc_networks", "workflows"]) {
+    "vpc_networks", "workflows", "send_email", "ai_search_namespaces", "ai_search",
+    "agent_memory", "artifacts", "unsafe_hello_world", "flagship"]) {
     equal(built?.[key] ?? [], effective[key] ?? [], "built_" + key + "_differs");
   }
   equal(built.main, "index.js", "built_entry");
@@ -59,7 +60,9 @@ export function checkWebsiteProductionConfig(source, built) {
   equal(built.no_bundle, true, "built_no_bundle");
   equal(built.targetEnvironment, "production", "built_environment");
   equal(built.queues, { producers: [], consumers: [] }, "built_queues");
-  equal(built.triggers, { crons: [] }, "built_triggers");
+  equal(built.triggers, Object.hasOwn(built.triggers ?? {}, "crons") ? { crons: [] } : {}, "built_triggers");
+  equal(built.cloudchamber, {}, "built_cloudchamber");
+  equal(built.logfwdr, { bindings: [] }, "built_logfwdr");
   for (const key of ["ai", "browser", "images", "unsafe", "observability"]) {
     equal(built[key], undefined, "unexpected_" + key);
   }
