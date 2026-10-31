@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { checkLiveStagingGateway } from "./hns-staging-gateway-preflight.mjs";
 import { checkStagingRelease } from "./staging-release-check.mjs";
+import { prepareFrozenStagingBuild, readFrozenStagingBuild, stagingSelection } from "./production-website/staging-build-isolation.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 // The repository pins its Playwright browsers in .playwright-browsers. Export
@@ -36,9 +37,9 @@ function output(command, args) {
   }).trim();
 }
 
-function run(command, args, env = process.env) {
+function run(command, args, env = process.env, cwd = root) {
   const result = spawnSync(command, args, {
-    cwd: root, env, stdio: "inherit", timeout: 600_000,
+    cwd, env, stdio: "inherit", timeout: 600_000,
   });
   if (result.error || result.status !== 0) refuse(`${command}_failed`);
 }
@@ -54,34 +55,49 @@ function assertPublishedMain() {
 }
 
 async function main() {
-  if (process.argv.length !== 3 || !["--check-only", "--check-release", "--deploy"].includes(process.argv[2])) {
-    refuse("usage_deploy_staging_with_hns_guard_--check-only_or_--check-release_or_--deploy");
-  }
-  const deploy = process.argv[2] === "--deploy";
-  const sha = deploy ? assertPublishedMain() : output("git", ["rev-parse", "HEAD"]);
-  if (deploy) run("bun", ["run", "build"], { ...process.env, CLOUDFLARE_ENV: "staging" });
-  const first = await checkLiveStagingGateway();
+  const selection = stagingSelection(process.argv.slice(2));
+  let stage;
+  if (selection.frozen) stage = selection.mode === "--prepare-frozen"
+    ? await prepareFrozenStagingBuild(selection.runRoot) : await readFrozenStagingBuild(selection.runRoot);
+  const operationRoot = stage?.app ?? root;
+  const environment = stage?.environment ?? process.env;
+  const deploy = selection.mode === "--deploy" || selection.mode === "--deploy-frozen";
+  const sha = stage?.source ?? (deploy ? assertPublishedMain() : output("git", ["rev-parse", "HEAD"]));
+  if (selection.mode === "--deploy") run("bun", ["run", "build"], { ...process.env, CLOUDFLARE_ENV: "staging" });
+  // Frozen source is exported and hash-checked before this exact source-owned preflight is imported.
+  const gateway = stage ? (await import(pathToFileURL(join(operationRoot, "scripts/hns-staging-gateway-preflight.mjs")).href)).checkLiveStagingGateway
+    : checkLiveStagingGateway;
+  const first = await gateway();
   console.log(JSON.stringify({ event: "hns_staging_preflight", sha, ...first }));
+  if (selection.mode === "--prepare-frozen") {
+    console.log(JSON.stringify({ event: "frozen_staging_prepared", sha, artifact_sha256: stage.receipt.artifact_sha256,
+      config_sha256: stage.receipt.config_sha256, installed: false }));
+    return;
+  }
   if (deploy) {
-    run("bunx", ["wrangler", "deploy", "--dry-run", "--config", "dist/ssr/wrangler.json"]);
+    const wrangler = stage ? args => run(stage.node, [stage.wrangler, ...args], environment, operationRoot)
+      : args => run("bunx", ["wrangler", ...args]);
+    wrangler(["deploy", "--dry-run", "--config", "dist/ssr/wrangler.json"]);
+    if (stage) await readFrozenStagingBuild(selection.runRoot);
     // Re-read the active gateway just before mutation. A gateway switch after
     // build must not silently invalidate the candidate Worker.
-    await checkLiveStagingGateway();
-    run("bunx", ["wrangler", "deploy", "--config", "dist/ssr/wrangler.json",
-      "--message", `staging HNS guard ${sha}`]);
+    await gateway();
+    wrangler(["deploy", "--config", "dist/ssr/wrangler.json", "--message", `staging HNS guard ${sha}`]);
   }
   const serving = await checkStagingRelease({
-    requireHns: process.argv[2] === "--check-only",
+    requireHns: selection.mode === "--check-only",
     report: value => console.log(JSON.stringify(value)),
     hnsCheck: () => {
-      run("python3", ["scripts/hns-staging-serving-check.py"]);
+      run("python3", ["scripts/hns-staging-serving-check.py"], environment, operationRoot);
       run("infisical", ["run", "--projectId=fac45f92-9450-42fb-8c2f-f20d043fdfab",
         "--env=staging", "--path=/services/api-next", "--path=/services/api-next/operator",
         "--silent", "--", "node", "scripts/run-hns-mainnet-route.mjs"],
-        { ...process.env, ...stagingFixture });
+        { ...environment, ...stagingFixture }, operationRoot);
     },
   });
-  console.log(JSON.stringify({ event: deploy ? "staging_deploy_accepted" : "staging_check_passed", sha, ...serving }));
+  if (stage) await readFrozenStagingBuild(selection.runRoot);
+  console.log(JSON.stringify({ event: deploy ? "staging_deploy_accepted" : "staging_check_passed", sha, ...serving,
+    ...(stage ? { staging_artifact_sha256: stage.receipt.artifact_sha256 } : {}) }));
 }
 
 main().catch(error => {
