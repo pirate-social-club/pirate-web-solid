@@ -24,10 +24,14 @@ export function normalizedBindings(input) {
   }).sort(compare);
 }
 export function normalizedRuntime(input) {
-  const row = object(input); assert.ok(Object.keys(row).every(key => ["compatibility_date", "compatibility_flags", "migration_tag", "usage_model"].includes(key)));
+  const row = object(input); assert.ok(Object.keys(row).every(key => ["compatibility_date", "compatibility_flags", "migration_tag", "usage_model", "assets"].includes(key)));
   assert.equal(typeof row.compatibility_date, "string"); assert.ok(Array.isArray(row.compatibility_flags) && row.compatibility_flags.every(item => typeof item === "string"));
   assert.equal(typeof row.usage_model, "string"); assert.ok(row.migration_tag == null || typeof row.migration_tag === "string");
-  return { compatibility_date: row.compatibility_date, compatibility_flags: [...row.compatibility_flags].sort(), migration_tag: row.migration_tag ?? null, usage_model: row.usage_model };
+  const assets = object(row.assets); exactKeys(assets, ["serve_directly", "raw_run_worker_first", "base_path"]);
+  assert.equal(typeof assets.serve_directly, "boolean"); assert.equal(typeof assets.raw_run_worker_first, "boolean");
+  assert.equal(assets.base_path, "/", "Unreviewed website asset base path");
+  return { compatibility_date: row.compatibility_date, compatibility_flags: [...row.compatibility_flags].sort(), migration_tag: row.migration_tag ?? null,
+    usage_model: row.usage_model, assets: { serve_directly: assets.serve_directly, raw_run_worker_first: assets.raw_run_worker_first, base_path: assets.base_path } };
 }
 export function normalizedSettings(input) {
   const row = object(input), allowed = ["compatibility_date", "compatibility_flags", "usage_model", "limits", "logpush", "observability", "placement", "tail_consumers", "tags", "assets"];
@@ -67,6 +71,8 @@ export function normalizedSubdomain(input) {
 
 /** Derive a candidate from actual nonsecret settings and exactly the validated flat config. */
 export function expectedDeployment(before, config) {
+  // The prepared V1 artifact uses only this qualified asset-first default configuration.
+  assert.deepEqual(config.assets, { directory: "../client", binding: "ASSETS" });
   const bindings = [];
   for (const [name, text] of Object.entries(config.vars)) { assert.equal(typeof text, "string"); bindings.push({ name, type: "plain_text", text }); }
   bindings.push({ name: config.assets.binding, type: "assets" });
@@ -83,7 +89,8 @@ export function expectedDeployment(before, config) {
   const known = new Set(bindings.map(row => row.name));
   assert.ok(before.bindings.every(row => known.has(row.name)), "Upload would remove an undeclared existing binding");
   const runtime = { compatibility_date: config.compatibility_date, compatibility_flags: [...config.compatibility_flags].sort(),
-    migration_tag: config.migrations.at(-1)?.tag ?? null, usage_model: "standard" };
+    migration_tag: config.migrations.at(-1)?.tag ?? null, usage_model: "standard",
+    assets: { serve_directly: true, raw_run_worker_first: false, base_path: "/" } };
   const settings = normalizedSettings({ ...before.settings, compatibility_date: config.compatibility_date, compatibility_flags: config.compatibility_flags });
   const domains = config.routes.map(row => {
     assert.equal(row.custom_domain, true); const current = before.domains.find(item => item.hostname === row.pattern);

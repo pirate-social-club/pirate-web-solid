@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bindingProposal, deploymentVersions, expectedDeployment, normalizedBindings, normalizedDomains, normalizedSettings } from "./bindings.mjs";
+import { bindingProposal, deploymentVersions, expectedDeployment, normalizedBindings, normalizedDomains, normalizedRuntime, normalizedSettings } from "./bindings.mjs";
 
 function fixture() {
   const vars = { API_NEXT_ORIGIN: "https://api-next.pirate.sc", HNS_COMMUNITY_APP_INGRESS_ENABLED: "false", HNS_HANDLE_HOST_INGRESS_ENABLED: "false" };
-  const config = { vars, assets: { binding: "ASSETS" }, version_metadata: { binding: "CF_VERSION_METADATA" },
+  const config = { vars, assets: { directory: "../client", binding: "ASSETS" }, version_metadata: { binding: "CF_VERSION_METADATA" },
     durable_objects: { bindings: [{ name: "REPLAY", class_name: "Replay" }] }, secrets: { required: ["REQUIRED_SECRET"] },
     migrations: [{ tag: "v1" }], compatibility_date: "2026-08-13", compatibility_flags: ["nodejs_compat"],
     routes: [{ pattern: "pirate.sc", custom_domain: true }, { pattern: "hns-community-ingress.pirate.sc", custom_domain: true }], workers_dev: true, preview_urls: false };
@@ -14,7 +14,8 @@ function fixture() {
     { name: "REPLAY", type: "durable_object_namespace", namespace_id: "a".repeat(32), class_name: "Replay" },
     { name: "REQUIRED_SECRET", type: "secret_text", text: "private-value-must-not-survive" },
     { name: "PRESERVED_SECRET", type: "secret_key", key_base64: "private-key-must-not-survive" },
-  ]), runtime: { compatibility_date: "2026-08-13", compatibility_flags: ["nodejs_compat"], migration_tag: "v1", usage_model: "standard" },
+  ]), runtime: { compatibility_date: "2026-08-13", compatibility_flags: ["nodejs_compat"], migration_tag: "v1", usage_model: "standard",
+    assets: { serve_directly: true, raw_run_worker_first: false, base_path: "/" } },
     settings: { compatibility_date: "2026-08-13", compatibility_flags: ["nodejs_compat"], placement: {} },
     domains: normalizedDomains(config.routes.map(row => ({ hostname: row.pattern, service: "website" })), "website"),
     subdomain: { enabled: true, previews_enabled: false } };
@@ -37,6 +38,33 @@ test("candidate derivation changes the two ingress flags and retains namespaces,
   assert.ok(proposal.candidate.bindings.some(row => row.name === "PRESERVED_SECRET"));
   assert.deepEqual(proposal.candidate.domains, before.domains);
   assert.equal(proposal.candidate.subdomain.previews_enabled, false);
+  assert.deepEqual(proposal.candidate.runtime.assets, before.runtime.assets);
+});
+
+test("live runtime asset routing is retained and missing, foreign or token-bearing metadata refuses", () => {
+  const { before } = fixture();
+  assert.deepEqual(normalizedRuntime(before.runtime), before.runtime);
+  for (const mutate of [
+    row => { delete row.assets; },
+    row => { row.assets = null; },
+    row => { row.assets = []; },
+    row => { delete row.assets.serve_directly; },
+    row => { row.assets.serve_directly = "true"; },
+    row => { row.assets.raw_run_worker_first = ["/api/*"]; },
+    row => { row.assets.base_path = "/other"; },
+    row => { row.assets.jwt = "must-not-survive"; },
+    row => { row.unreviewed = true; },
+  ]) {
+    const runtime = structuredClone(before.runtime); mutate(runtime); assert.throws(() => normalizedRuntime(runtime));
+  }
+  const changed = structuredClone(before.runtime); changed.assets.raw_run_worker_first = true;
+  assert.notDeepEqual(normalizedRuntime(changed), normalizedRuntime(before.runtime));
+});
+
+test("candidate asset routing uses only the exact qualified default configuration", () => {
+  for (const extra of [{ run_worker_first: true }, { run_worker_first: false }, { base_path: "/" }, { html_handling: "none" }]) {
+    const { before, config } = fixture(); Object.assign(config.assets, extra); assert.throws(() => expectedDeployment(before, config));
+  }
 });
 
 test("missing secrets, foreign namespace ownership and undeclared binding/route removals refuse", () => {
