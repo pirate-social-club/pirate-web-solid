@@ -96,15 +96,18 @@ export async function submitSongComposer(input: SongComposerBridgeInput): Promis
   const allocations = bridgeAllocations(input.royaltySplit);
   const termsAlreadyIssued = input.coordinator.termsIssued;
   if (!termsAlreadyIssued && input.license.presetId === "commercial-remix") {
-    await input.coordinator.bindTerms({
+    return input.coordinator.bindTerms({
       licensePreset: input.license.presetId,
       commercialRevShareBps: input.license.commercialRevShareBps ?? 1_000,
       allocations,
     });
   } else if (!termsAlreadyIssued) {
-    await input.coordinator.bindTerms({ licensePreset: input.license.presetId, allocations });
+    return input.coordinator.bindTerms({ licensePreset: input.license.presetId, allocations });
   }
-  return (await input.coordinator.refresh()) ?? snapshot;
+  // Preparation reconciles a retained command with its original key. A terms
+  // acknowledgment already contains the accepted snapshot: observation belongs
+  // to the receiving store, and must never delay the author leaving Review.
+  return snapshot;
 }
 
 export interface SongComposerSnapshotProjection {
