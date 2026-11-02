@@ -179,7 +179,9 @@
     "post_communitiesCommunityIdTelegramStudy",
     "get_communitiesCommunityIdTelegramStudyCatalogue"
   ],
-  "intakeStatus": "Genuine generated client141.1 candidate, superseding the retained rejected 141.0 candidate. Existing Telegram integration responses are unchanged; new Study operations own the Study snapshot. Protected producer acceptance remains pending.",
+  "intakeStatus": "Genuine generated client 0.141.1 from protected producer PR711, accepted on api-next main. The immutable rejected 0.141.0 candidate and previous archives remain retained.",
   "sourceBase": "0222c5310db1c4438e0d9980840c20d8b662114d",
-  "sourceAcceptance": "Candidate intake for isolated source qualification only. No serving/runtime, policy, credentials, activation or financial acceptance. Update this record with actual protected producer acceptance before publication."
+  "sourceAcceptance": "Protected API PR711 accepted as e7d7e625da02b298adff693df2a53c94f7e5a9c4 on2026-11-02 after exact-source review and all required checks. Reviewed feature e6a34e16123127bcfcf03e08df6c593de015e15d and squash have identical trees. This accepts source only; no policy, serving/runtime, credentials, activation or financial acceptance.",
+  "producerAcceptedCommit": "e7d7e625da02b298adff693df2a53c94f7e5a9c4",
+  "producerPullRequest": "https://github.com/pirate-social-club/api-next/pull/711"
 }
