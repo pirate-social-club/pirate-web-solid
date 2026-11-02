@@ -103,7 +103,7 @@ export function ActivityLeaderboardPage(props: LeaderboardViewProps & { readonly
   const outside = () => { const ownEntry = own(); return ownEntry && !props.board?.entries.some(entry => entry.persona.persona_id === ownEntry.persona.persona_id); };
   createEffect(viewerElement, element => {
     if (!element || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(entries => setViewerVisible(entries.some(entry => entry.isIntersecting)), { threshold: 0, rootMargin: "-56px 0px -80px 0px" });
+    const observer = new IntersectionObserver(entries => setViewerVisible(entries.some(entry => entry.isIntersecting)), { threshold: 0, rootMargin: "0px" });
     observer.observe(element); onCleanup(() => observer.disconnect());
   });
   const pin = () => props.state === "ready" && own() && !viewerVisible() ? own() : undefined;
