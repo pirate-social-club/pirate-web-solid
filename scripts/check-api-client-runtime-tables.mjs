@@ -8,11 +8,12 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client141 preserves the prior 140-operation pin and adds the 15 owner Telegram operations.
+// Client142 preserves all155 prior operations and adds configured Rewards availability.
 // Pin response schemas, statuses and declared errors for the complete admitted surface.
-const expectedDigest = "afe2fe2efdace466a965dae997aa6525360d02bd4d04ee75aefb25b82c0db7c3";
+const expectedDigest = "67ad5955bd91b0ae7cffeaa8192186a0a3153939e84d822bbb19cbb80f9681fc";
 
 const operations = [
+  "get_rewardsAvailability",
   "get_communitiesCommunityIdTelegram",
   "get_communitiesCommunityIdTelegramDeliveries",
   "get_communitiesCommunityIdTelegramModels",
