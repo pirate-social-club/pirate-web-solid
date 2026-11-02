@@ -14,6 +14,8 @@ export function createCommunityTelegramSettingsApi(options: { client?: PirateApi
   const fence = (settings: CommunityTelegramSettings, key: string) => ({ expected_revision: settings.revision, idempotency_key: key });
   return {
     getSettings: ({ communityId, signal }: { communityId: string; signal?: AbortSignal }) => client().get_communitiesCommunityIdTelegram({ path: { communityId } }, { signal }),
+    getStudyCatalogue: (communityId: string) => client().get_communitiesCommunityIdTelegramStudyCatalogue({ path: { communityId } }),
+    saveStudy: (settings: CommunityTelegramSettings, enabled: boolean, key: string) => client().post_communitiesCommunityIdTelegramStudy({ path: { communityId: settings.community_id }, body: { ...fence(settings, key), enabled } }, writeOptions()),
     getDeliveries: (communityId: string) => client().get_communitiesCommunityIdTelegramDeliveries({ path: { communityId } }),
     getModels: (communityId: string) => client().get_communitiesCommunityIdTelegramModels({ path: { communityId } }),
     getVoices: (communityId: string) => client().get_communitiesCommunityIdTelegramVoices({ path: { communityId } }),

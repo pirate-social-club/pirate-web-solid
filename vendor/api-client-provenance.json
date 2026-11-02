@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.139.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.139.0-405cdf43.tgz",
-  "sha256": "405cdf43e3f9358d06ee9916da0ad30115e5e1958893a4059989aaa2279cfe57",
-  "source": "api-next-contracts@742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
-  "openapiSha256": "742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
-  "clientSha256": "424645e1580abae961a68c42ff3b4d44fdc0a3f88e069c3a1a7e0dac85ee92ef",
+  "version": "0.141.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.141.0-5d7d0d51.tgz",
+  "sha256": "5d7d0d51006ad2a8c4d8c073bca3a31428e1bbb3bb1c0c4599777de7d49e3a07",
+  "source": "api-next-contracts@1d5087a1ae0e35e715fcc7d72800284b072f8341ec0af0e32a8c3033f6e82066",
+  "openapiSha256": "1d5087a1ae0e35e715fcc7d72800284b072f8341ec0af0e32a8c3033f6e82066",
+  "clientSha256": "445337628f9b8acce473ab9d799cfbb53d09a17f0eac919f1c0062da68cfbb86",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -175,9 +175,11 @@
     "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
     "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
     "delete_postsPostIdVideo",
-    "post_authSessionRenew"
+    "post_authSessionRenew",
+    "post_communitiesCommunityIdTelegramStudy",
+    "get_communitiesCommunityIdTelegramStudyCatalogue"
   ],
-  "intakeStatus": "Genuine generated client139 from the independently accepted prospective no-pose Dance and persistent browser-session source. Producer PR692 passed all required hosted checks and merged normally. Previous137/138 artifacts and intake history remain preserved. Source acceptance does not establish deployment or policy admission.",
-  "sourceBase": "d82c51735734c436f05a6b80937f8ee47f203232",
-  "sourceAcceptance": "Reviewed producer af11f2cb53fa371fdee552526741c502d2b5890e is tree-identical to protected PR692 merge d82c51735734c436f05a6b80937f8ee47f203232. Genuine139 archive405cdf43 retains browser renewal from138 and matches the accepted producer bytes. Paired source/runtime acceptance and prospective policy admission remain separate."
+  "intakeStatus": "Genuine generated client141 candidate from the Telegram community practice task. Producer package verification passed; exact-commit independent review and protected-main source acceptance remain pending. Previous artifacts are retained.",
+  "sourceBase": "0222c5310db1c4438e0d9980840c20d8b662114d",
+  "sourceAcceptance": "Candidate intake for isolated source qualification only. No serving/runtime, policy, credentials, activation or financial acceptance. Update this record with actual protected producer acceptance before publication."
 }
