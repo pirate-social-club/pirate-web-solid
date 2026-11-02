@@ -150,3 +150,20 @@ test("Study writes carry same-origin cookies, CSRF, revision and replay fences",
   expect(requests[0]?.headers.get("x-csrf-token")).toBe("fixture-csrf");
   expect(await requests[0]!.json()).toEqual({expected_revision:4,idempotency_key:"fixture-command",enabled:true});
 });
+
+test.each(["failed", "pending"])("%s publishing diagnostics do not block basic Study readiness or saving", async (diagnostics) => {
+  const current={...TELEGRAM_CONNECTED,channel:null,automatic_publishing:false};
+  const saveStudy=vi.fn<CommunityTelegramSettingsApi["saveStudy"]>(async()=>({...current,study_enabled:true,revision:5}));
+  const getDeliveries:CommunityTelegramSettingsApi["getDeliveries"] = diagnostics === "pending"
+    ? ()=>new Promise(()=>{}) : async()=>{throw Error("publishing unavailable");};
+  const {container}=render(()=><CommunityTelegramSettingsController communityId="community-fixture" section="telegram" api={api({
+    getSettings:async()=>current,getDeliveries,saveStudy,
+    getStudyCatalogue:async()=>({availability:"available",items:[{post_id:"song",title:"Ready song"}],next_cursor:null}),
+  })}/>);
+  await vi.waitFor(()=>expect(container.textContent).toContain("1 song is ready for practice."));
+  const checkbox=container.querySelector<HTMLInputElement>('section[aria-label="Song practice"] input')!;
+  await vi.waitFor(()=>expect(checkbox.disabled).toBe(false));
+  checkbox.click();
+  await vi.waitFor(()=>expect(saveStudy).toHaveBeenCalledTimes(1));
+  await vi.waitFor(()=>expect(checkbox.checked).toBe(true));
+});

@@ -30,12 +30,12 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       ? "Only a community owner can access these settings."
       : "That change could not be completed. Refresh to check the current status.";
 
-  async function options(current: CommunityTelegramSettings) {
+  async function options(current: CommunityTelegramSettings, request = generation) {
     const results = await Promise.allSettled([
       current.openrouter.status === "valid" ? api.getModels(current.community_id) : Promise.resolve({ items: [] }),
       current.elevenlabs.status === "valid" ? api.getVoices(current.community_id) : Promise.resolve({ items: [] }),
     ]);
-    if (!active || props.communityId !== current.community_id) return;
+    if (!active || request !== generation || props.communityId !== current.community_id) return;
     if (results[0].status === "fulfilled") setModels(results[0].value.items);
     if (results[1].status === "fulfilled") setVoices(results[1].value.items);
     if (results.some((result) => result.status === "rejected" && result.reason instanceof ApiClientError && result.reason.status === 401)) {
@@ -52,10 +52,9 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       if (!active || request !== generation) return;
       setSettings(current);
       setCatalogue(undefined);
-      const [activity, selection] = await Promise.all([api.getDeliveries(current.community_id), setup() ? api.getSetup(current.community_id, setup()!.id) : Promise.resolve(undefined)]);
-      if (!active || request !== generation) return;
-      setDeliveries(activity.items); setSetup(selection);
-      await Promise.all([options(current), loadCatalogue(current.community_id, request)]);
+      void loadPublishing(current, request);
+      void options(current, request).catch(() => { if (active && request === generation) setError("Assistant options could not be loaded. Refresh to try again."); });
+      await loadCatalogue(current.community_id, request);
     } catch (reason) {
       if (active && request === generation) {
         if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
@@ -63,6 +62,19 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       }
     }
     finally { if (active && request === generation) setLoading(false); }
+  }
+  async function loadPublishing(current: CommunityTelegramSettings, request: number) {
+    try {
+      const [activity, selection] = await Promise.allSettled([api.getDeliveries(current.community_id), setup() ? api.getSetup(current.community_id, setup()!.id) : Promise.resolve(undefined)]);
+      if (!active || request !== generation) return;
+      if (activity.status === "fulfilled") setDeliveries(activity.value.items);
+      if (selection.status === "fulfilled") setSetup(selection.value);
+      const failures = [activity, selection].filter(result => result.status === "rejected");
+      if (failures.some(result => result.reason instanceof ApiClientError && result.reason.status === 401)) setAuthRequired(true);
+      else if (failures.length) setError("Publishing details could not be loaded. Refresh to try again.");
+    } catch {
+      if (active && request === generation) setError("Publishing details could not be loaded. Refresh to try again.");
+    }
   }
   async function loadCatalogue(communityId: string, request: number) {
     try {
