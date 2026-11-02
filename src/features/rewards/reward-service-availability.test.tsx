@@ -11,7 +11,7 @@ import { GLOBAL_SIGN_IN_EVENT, GlobalSignInHost } from "../auth/global-sign-in-h
 import { CommunityPostCard } from "../community/page-shell/page-shell.tsx";
 import { RewardServiceAvailabilityProvider, useRewardServiceAvailability } from "./reward-service-availability.tsx";
 
-type PolicyClient = Pick<PirateApiClient, "get_rewardsQualificationPolicies">;
+type PolicyClient = Pick<PirateApiClient, "get_rewardsAvailability" | "get_rewardsQualificationPolicies">;
 type Policies = Awaited<ReturnType<PolicyClient["get_rewardsQualificationPolicies"]>>;
 const policies: Policies = { policies: [{ activity: "study", policy: {
   kind: "study_session_first_pass_v2", qualification_policy_version_id: "study-v2", required_correct_bps: 7000,
@@ -28,7 +28,7 @@ function Probe() {
   const available = useRewardServiceAvailability();
   return <span data-availability>{available() ? "available" : "hidden"}</span>;
 }
-function mount(client: PolicyClient, children: () => JSX.Element = () => <><Probe /><Probe /></>) {
+function mount(client: Pick<PolicyClient, "get_rewardsQualificationPolicies"> & Partial<Pick<PolicyClient, "get_rewardsAvailability">>, children: () => JSX.Element = () => <><Probe /><Probe /></>) {
   const [session, setSession] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-a" });
   const [pending, setPending] = createSignal(false);
   const root = document.createElement("div");
@@ -36,7 +36,7 @@ function mount(client: PolicyClient, children: () => JSX.Element = () => <><Prob
   createRoot(dispose => {
     disposers.push(dispose);
     render(() => <ApplicationSessionProvider state={session} pending={pending}>
-      <RewardServiceAvailabilityProvider client={client}>{children()}</RewardServiceAvailabilityProvider>
+      <RewardServiceAvailabilityProvider client={{ get_rewardsAvailability: async () => ({ enabled: true }), ...client }}>{children()}</RewardServiceAvailabilityProvider>
     </ApplicationSessionProvider>, root);
   });
   return { root, setSession, setPending };
@@ -64,7 +64,71 @@ test("shares one authenticated read across consumers and hides until it succeeds
   expect(read).toHaveBeenCalledOnce();
 });
 
-test.each([401, 503, "network"])("hides an unavailable or failed policy read: %s", async status => {
+test("disabled Rewards sends no policy requests on focus or renewal", async () => {
+  vi.useFakeTimers();
+  const capability = vi.fn(async () => ({ enabled: false }));
+  const read = vi.fn(async () => policies);
+  const ui = mount({ get_rewardsAvailability: capability, get_rewardsQualificationPolicies: read });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(capability).toHaveBeenCalledOnce();
+  expect(read).not.toHaveBeenCalled();
+  expect(ui.root.textContent).toBe("hiddenhidden");
+  window.dispatchEvent(new Event("focus"));
+  await vi.advanceTimersByTimeAsync(180_000);
+  expect(capability.mock.calls.length).toBeGreaterThan(2);
+  expect(read).not.toHaveBeenCalled();
+  expect(ui.root.textContent).toBe("hiddenhidden");
+});
+
+test("configuration changes take effect without inventing a provider outage", async () => {
+  vi.useFakeTimers();
+  const capability = vi.fn().mockResolvedValueOnce({ enabled: false }).mockResolvedValueOnce({ enabled: true }).mockResolvedValue({ enabled: false });
+  const read = vi.fn(async () => policies);
+  const ui = mount({ get_rewardsAvailability: capability, get_rewardsQualificationPolicies: read });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(read).not.toHaveBeenCalled();
+  window.dispatchEvent(new Event("focus"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(ui.root.textContent).toBe("availableavailable");
+  expect(read).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(45_000);
+  expect(ui.root.textContent).toBe("hiddenhidden");
+  expect(read).toHaveBeenCalledOnce();
+});
+
+test("a late capability from the former account cannot start a policy read", async () => {
+  const requests: Array<{ resolve: (value: { enabled: boolean }) => void; signal?: AbortSignal }> = [];
+  const capability: PolicyClient["get_rewardsAvailability"] = (_input, options) => new Promise(resolve => {
+    requests.push({ resolve, signal: options?.signal });
+  });
+  const read = vi.fn(async () => policies);
+  const ui = mount({ get_rewardsAvailability: capability, get_rewardsQualificationPolicies: read });
+  await vi.waitFor(() => expect(requests).toHaveLength(1));
+  replaceSessionAuthority();
+  ui.setSession({ status: "authenticated", userId: "account-b" });
+  await vi.waitFor(() => expect(requests).toHaveLength(2));
+  expect(requests[0]!.signal?.aborted).toBe(true);
+  requests[0]!.resolve({ enabled: true });
+  await Promise.resolve(); await Promise.resolve();
+  expect(read).not.toHaveBeenCalled();
+  requests[1]!.resolve({ enabled: true });
+  await settled();
+  expect(read).toHaveBeenCalledOnce();
+});
+
+test("a failed capability remains retryable rather than becoming permanent disabled", async () => {
+  const capability = vi.fn<PolicyClient["get_rewardsAvailability"]>().mockRejectedValueOnce(new Error("network")).mockResolvedValue({ enabled: true });
+  const read = vi.fn(async () => policies);
+  mount({ get_rewardsAvailability: capability, get_rewardsQualificationPolicies: read });
+  await vi.waitFor(() => expect(capability.mock.calls[0]?.[1]?.signal?.aborted).toBe(true));
+  expect(read).not.toHaveBeenCalled();
+  window.dispatchEvent(new Event("focus"));
+  await settled();
+  expect(capability).toHaveBeenCalledTimes(2);
+  expect(read).toHaveBeenCalledOnce();
+});
+
+test.each([401, 502, 503, "network"])("hides an unavailable or failed policy read: %s", async status => {
   const read = vi.fn(async () => { throw { status }; });
   mount({ get_rewardsQualificationPolicies: read });
   await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());

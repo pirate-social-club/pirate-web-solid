@@ -6,6 +6,7 @@ export interface ActivityScope { readonly communityId: string; readonly postId?:
 export type ActivityClient = Pick<PirateApiClient,
   "get_communitiesCommunityIdPostsPostIdRewardsLeaderboard" |
   "get_communitiesCommunityIdRewardsLeaderboard" |
+  "get_rewardsAvailability" |
   "get_rewardsQualificationPolicies" |
   "put_communitiesCommunityIdRewardsPresentationPersona">;
 

@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.141.1",
-  "artifact": "vendor/api-client/pirate-api-client-0.141.1-c47b6266.tgz",
-  "sha256": "c47b62666516de7ca6645d64c17bb2ed682abb2c149eb479955c82ef326614b4",
-  "source": "api-next-contracts@a91b46263a6e8ebb9647c3c693270b1e133a3dedd2d794ecf4bcf2e22e9ce171",
-  "openapiSha256": "a91b46263a6e8ebb9647c3c693270b1e133a3dedd2d794ecf4bcf2e22e9ce171",
-  "clientSha256": "4df70093bf94b33b4a3f738226dd979c98b5c26458b1e2d057db88deaac05f27",
+  "version": "0.142.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.142.0-49603d66.tgz",
+  "sha256": "49603d6657d47a6da16cd83235c1cb815c1eb5cb0053b0c6d69a7a6058efc81e",
+  "source": "api-next-contracts@6566a3f6936ae15f24cc2edabb34a475efc4f1da67b47655cfc2cb102de3a100",
+  "openapiSha256": "6566a3f6936ae15f24cc2edabb34a475efc4f1da67b47655cfc2cb102de3a100",
+  "clientSha256": "6fef4ac78add898a7d9e3f1e140f8d83117a91870ba9d33e78eb414f763ec889",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -177,11 +177,12 @@
     "delete_postsPostIdVideo",
     "post_authSessionRenew",
     "post_communitiesCommunityIdTelegramStudy",
-    "get_communitiesCommunityIdTelegramStudyCatalogue"
+    "get_communitiesCommunityIdTelegramStudyCatalogue",
+    "get_rewardsAvailability"
   ],
-  "intakeStatus": "Genuine generated client 0.141.1 from protected producer PR711, accepted on api-next main. The immutable rejected 0.141.0 candidate and previous archives remain retained.",
-  "sourceBase": "0222c5310db1c4438e0d9980840c20d8b662114d",
-  "sourceAcceptance": "Protected API PR711 accepted as e7d7e625da02b298adff693df2a53c94f7e5a9c4 on2026-11-02 after exact-source review and all required checks. Reviewed feature e6a34e16123127bcfcf03e08df6c593de015e15d and squash have identical trees. This accepts source only; no policy, serving/runtime, credentials, activation or financial acceptance.",
-  "producerAcceptedCommit": "e7d7e625da02b298adff693df2a53c94f7e5a9c4",
-  "producerPullRequest": "https://github.com/pirate-social-club/api-next/pull/711"
+  "intakeStatus": "Genuine generated client0.142.0 from protected producer PR713, accepted on api-next main. Previous immutable archives remain retained.",
+  "sourceBase": "5c6248d5a4dabd744c49402db210d0383eb8980f",
+  "sourceAcceptance": "Protected API PR713 accepted as236f5a67de0d66b8c832116cfde619fe168eebf0 on2026-11-02 after exact-source independent review, all15hosted checks and a fresh live task gate. Reviewed757214a9 and squash have identical trees. Source only; no serving/runtime, activation, credentials or financial acceptance.",
+  "producerAcceptedCommit": "236f5a67de0d66b8c832116cfde619fe168eebf0",
+  "producerPullRequest": "https://github.com/pirate-social-club/api-next/pull/713"
 }

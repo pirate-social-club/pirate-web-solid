@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 import { privateFixtureClient, presentationFixture } from "./activity-contract-fixtures.ts";
 import type { AuthenticatedSession } from "../../api/session.ts";
 import type { ActivityClient, ActivityLeaderboardData } from "./activity-api.ts";
@@ -18,6 +18,7 @@ const session: AuthenticatedSession = { status: "authenticated", userId: "story-
 ] };
 function client(result: ActivityLeaderboardData = board): ActivityClient {
   return {
+    get_rewardsAvailability: async () => ({ enabled: true }),
     get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: async () => result,
     get_communitiesCommunityIdRewardsLeaderboard: async () => ({ ...result, scope: { kind: "community", community_id: "community" } }),
     get_rewardsQualificationPolicies: async () => ({ policies: [
@@ -60,3 +61,11 @@ export const ReadError: Story = { args: { dependencies: { client: { ...client(),
 export const SessionError: Story = { args: { dependencies: { client: client(), resolveSession: async () => { throw new Error("fixture session unavailable"); } } } };
 export const ProfilesUnavailable: Story = { args: { dependencies: { client: client(), resolveSession: async () => ({ ...session, personas: [], personasUnavailable: true }) } } };
 export const RequirementsUnavailable: Story = { args: { dependencies: { client: { ...client(), get_rewardsQualificationPolicies: async () => { throw new Error("fixture requirements unavailable"); } }, resolveSession: async () => session } } };
+export const RewardsDisabled: Story = {
+  args: { dependencies: { client: { ...client(), get_rewardsAvailability: async () => ({ enabled: false }), get_rewardsQualificationPolicies: async () => { throw new Error("Disabled Rewards must not read policies"); } }, resolveSession: async () => session } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText("Your standing")).toBeVisible();
+    await waitFor(() => expect(canvas.queryByRole("region", { name: "Qualification requirements" })).toBeNull());
+  },
+};

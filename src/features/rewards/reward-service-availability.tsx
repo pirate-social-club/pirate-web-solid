@@ -1,14 +1,14 @@
 import type { JSX } from "@solidjs/web";
 import { createContext, createEffect, createSignal, onCleanup, untrack, useContext, type Accessor } from "solid-js";
 import { captureSessionAuthority, isCurrentSessionAuthority } from "../../api/browser-session-events.ts";
-import { createSessionApiClient, type PirateApiClient } from "../../api/client.ts";
+import { createSessionApiClient } from "../../api/client.ts";
 import { onSessionRefreshed } from "../../api/session.ts";
 import { useApplicationSession, useApplicationSessionPending } from "../shell/application-session.tsx";
+import { readRewardQualificationPolicies, type RewardPolicyClient } from "./reward-qualification-policies.ts";
 
 const FRESHNESS_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const RENEW_AFTER_MS = 45_000;
-type PolicyClient = Pick<PirateApiClient, "get_rewardsQualificationPolicies">;
 
 /** A policy read exposes the service entry point, never permission to spend. */
 export const RewardServiceAvailabilityContext = createContext<Accessor<boolean>>(() => false);
@@ -17,10 +17,10 @@ export function useRewardServiceAvailability(): Accessor<boolean> {
   return useContext(RewardServiceAvailabilityContext);
 }
 
-/** One browser read shared by every card; server rendering always stays hidden. */
+/** One bounded check shared by every card; server rendering always stays hidden. */
 export function RewardServiceAvailabilityProvider(props: {
   readonly children: JSX.Element;
-  readonly client?: PolicyClient;
+  readonly client?: RewardPolicyClient;
 }) {
   const session = useApplicationSession();
   const pending = useApplicationSessionPending();
@@ -63,8 +63,8 @@ export function RewardServiceAvailabilityProvider(props: {
     };
     deadline = setTimeout(failed, REQUEST_TIMEOUT_MS);
     const client = props.client ?? createSessionApiClient();
-    void client.get_rewardsQualificationPolicies(undefined, { signal: controller.signal })
-      .then(() => {
+    void readRewardQualificationPolicies(client, controller.signal)
+      .then(policies => {
         const latest = session();
         if (alive && current === generation && !controller.signal.aborted && isCurrentSessionAuthority(epoch)
           && !pending() && typeof latest === "object" && latest.userId === account.userId) {
@@ -72,14 +72,16 @@ export function RewardServiceAvailabilityProvider(props: {
           request = undefined;
           clearTimeout(expiry);
           clearTimeout(renewal);
-          setAvailable(true);
-          expiry = setTimeout(() => {
-            invalidate();
-            if (document.visibilityState !== "hidden") refresh();
-          }, FRESHNESS_MS);
+          setAvailable(policies !== undefined);
+          if (policies !== undefined) {
+            expiry = setTimeout(() => {
+              invalidate();
+              if (document.visibilityState !== "hidden") refresh();
+            }, FRESHNESS_MS);
+          }
           renewal = setTimeout(() => {
             if (document.visibilityState !== "hidden") refresh();
-          }, RENEW_AFTER_MS);
+          }, policies === undefined ? FRESHNESS_MS : RENEW_AFTER_MS);
         } else failed();
       }, failed);
   };
