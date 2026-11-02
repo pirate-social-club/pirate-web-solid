@@ -166,4 +166,5 @@ test.each(["failed", "pending"])("%s publishing diagnostics do not block basic S
   checkbox.click();
   await vi.waitFor(()=>expect(saveStudy).toHaveBeenCalledTimes(1));
   await vi.waitFor(()=>expect(checkbox.checked).toBe(true));
+  expect(container.textContent).not.toContain("No deliveries yet.");
 });

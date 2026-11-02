@@ -15,6 +15,7 @@ export function CommunityTelegramSettingsController(props: { communityId: string
   const [deliveries, setDeliveries] = createSignal<ReadonlyArray<CommunityTelegramDelivery>>([]);
   const [setup, setSetup] = createSignal<CommunityTelegramSetup>();
   const [catalogue, setCatalogue] = createSignal<CommunityTelegramStudyCatalogue>();
+  const [publishingStatus, setPublishingStatus] = createSignal<"loading" | "available" | "unavailable">("loading");
   const [loading, setLoading] = createSignal(true);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -52,6 +53,7 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       if (!active || request !== generation) return;
       setSettings(current);
       setCatalogue(undefined);
+      setPublishingStatus("loading");
       void loadPublishing(current, request);
       void options(current, request).catch(() => { if (active && request === generation) setError("Assistant options could not be loaded. Refresh to try again."); });
       await loadCatalogue(current.community_id, request);
@@ -70,10 +72,10 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       if (activity.status === "fulfilled") setDeliveries(activity.value.items);
       if (selection.status === "fulfilled") setSetup(selection.value);
       const failures = [activity, selection].filter(result => result.status === "rejected");
+      setPublishingStatus(failures.length ? "unavailable" : "available");
       if (failures.some(result => result.reason instanceof ApiClientError && result.reason.status === 401)) setAuthRequired(true);
-      else if (failures.length) setError("Publishing details could not be loaded. Refresh to try again.");
     } catch {
-      if (active && request === generation) setError("Publishing details could not be loaded. Refresh to try again.");
+      if (active && request === generation) setPublishingStatus("unavailable");
     }
   }
   async function loadCatalogue(communityId: string, request: number) {
@@ -90,7 +92,7 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     // Solid 2 forbids signal writes inside the owned effect callback.
     queueMicrotask(() => {
       if (!active || request !== generation || communityId !== props.communityId) return;
-      setSettings(undefined); setSetup(undefined); setCatalogue(undefined); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
+      setSettings(undefined); setSetup(undefined); setCatalogue(undefined); setPublishingStatus("loading"); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
       void load();
     });
   });
@@ -121,6 +123,7 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     {(current) => <Show when={props.section === "assistant"} fallback={<CommunityTelegramSettingsPanel showHeading={false}
       settings={current()} setup={setup()} deliveries={deliveries()} loading={loading()} saving={busy()} errorMessage={error() || undefined}
       studyCatalogue={catalogue()}
+      publishingStatus={publishingStatus()}
       onStudyChange={(enabled) => run((snapshot, commandKey) => api.saveStudy(snapshot, enabled, commandKey))}
       onConnect={(token) => execute((snapshot, commandKey) => api.connect(snapshot, token, commandKey))}
       onDisconnect={() => run((snapshot, commandKey) => api.disconnect(snapshot, commandKey))}

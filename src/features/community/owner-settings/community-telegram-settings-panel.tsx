@@ -12,6 +12,7 @@ export interface CommunityTelegramSettingsPanelProps {
   showHeading?: boolean;
   errorMessage?: string;
   studyCatalogue?: CommunityTelegramStudyCatalogue;
+  publishingStatus?: "loading" | "available" | "unavailable";
   onStudyChange: (enabled: boolean) => void;
   onConnect: (token: string) => Promise<void>;
   onDisconnect: () => void;
@@ -115,7 +116,10 @@ export function CommunityTelegramSettingsPanel(props: CommunityTelegramSettingsP
       <Button type="button" variant="outline" disabled={disabled() || !props.settings.channel} onClick={props.onBackfill}>Share latest 20 public posts</Button>
     </div>
     <div class="space-y-3"><div class="flex items-center justify-between gap-3"><h3 class="font-medium">Delivery activity</h3><Button type="button" variant="outline" disabled={disabled()} onClick={props.onRefresh}>Refresh status</Button></div>
-      <Show when={props.deliveries.length > 0} fallback={<p class="text-sm text-muted-foreground">No deliveries yet.</p>}><For each={props.deliveries}>{(item) => <DeliveryReview item={item} disabled={disabled()} onResolve={props.onResolve} />}</For></Show>
+      <Show when={props.publishingStatus !== "loading" && props.publishingStatus !== "unavailable"}
+        fallback={<p role="status" class="text-sm text-muted-foreground">{props.publishingStatus === "loading" ? "Checking publishing details…" : "Publishing details could not be loaded. Refresh to try again."}</p>}>
+        <Show when={props.deliveries.length > 0} fallback={<p class="text-sm text-muted-foreground">No deliveries yet.</p>}><For each={props.deliveries}>{(item) => <DeliveryReview item={item} disabled={disabled()} onResolve={props.onResolve} />}</For></Show>
+      </Show>
     </div>
     </details>
     <Show when={props.settings.bot_username}><div class="space-y-3 border-t border-border pt-5"><Button type="button" variant="outline" disabled={disabled()} onClick={() => setConfirmDisconnect(true)}>Disconnect bot</Button><Show when={confirmDisconnect()}><p>Disconnecting stops new bot work. Existing Telegram messages remain in the channel.</p><Button type="button" disabled={disabled()} onClick={() => { setConfirmDisconnect(false); props.onDisconnect(); }}>Confirm disconnect</Button><Button type="button" variant="outline" onClick={() => setConfirmDisconnect(false)}>Keep connected</Button></Show></div></Show>
