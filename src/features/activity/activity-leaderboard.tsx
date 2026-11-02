@@ -175,7 +175,7 @@ export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: 
               <p class="text-sm text-muted-foreground">This profile presents your song, community and Karaoke standings in this community.</p>
             </Show>
             <Show when={candidates().length === 1 && (presentation()?.selection.status === "unset" || presentation()?.selection.status === "unavailable") ? candidates()[0] : undefined}>{persona => <>
-              <Button variant="secondary" disabled={saving()} onClick={() => { void selectPersona(persona().personaId); }}>Use {persona().displayName || persona().primaryPublicHandle || "Community profile"} as presenting profile</Button>
+              <Button class="h-auto min-h-11 max-w-full whitespace-normal break-words" variant="secondary" disabled={saving()} onClick={() => { void selectPersona(persona().personaId); }}>Use {persona().displayName || persona().primaryPublicHandle || "Community profile"} as presenting profile</Button>
               <p class="text-sm text-muted-foreground">This profile presents your song, community and Karaoke standings in this community.</p>
             </>}</Show>
             <Show when={saving()}><p role="status">Saving presenting profile…</p></Show>
