@@ -78,6 +78,17 @@ release executor, current production facts and ordinary-host recovery; direct
 Wrangler production deployment is not authorized by artifact preparation.
 The existing HNS release procedure remains separate.
 
+A website-only correction on an unchanged backend uses
+`node scripts/production-website-hotfix.mjs`, chosen by the workspace_owner on
+2026-11-02 because the whole release executor is bound to the November 1
+migration and its spent attempt. It takes the exact source, artifact, receipt
+and baseline version as arguments. Run `snapshot` first, then `apply`, which
+makes one upload behind an exclusive marker and verifies compiled and served
+bytes. `verify` repeats that read-only, and `rollback` returns traffic to the
+named baseline. It refuses any binding, setting or domain change, so a release
+needing one, or any backend or database change, must not use it. Independent
+review of the exact candidate and required CI still apply.
+
 ### Home route session upgrade
 
 The `/` route is public-first: it renders the vertical public video discovery
