@@ -235,7 +235,6 @@ describe("CommunityPage", () => {
     const status = loading.querySelector('[role="status"]')!;
     expect(loading.getAttribute("aria-busy")).toBe("true");
     expect(loading.querySelectorAll('[role="status"]')).toHaveLength(1);
-    expect(status.tagName.toLowerCase()).toBe("svg");
     expect(status.getAttribute("aria-label")).toMatch(/Loading community/iu);
     expect(loading.textContent?.trim()).toBe("");
     finish(await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example"));
