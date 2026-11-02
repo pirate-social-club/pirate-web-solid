@@ -197,7 +197,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         showSongs={props.showSongs}
         activeItem={props.activeItem}
         avatarFallback={props.avatarFallback}
-        class={cn("md:block", props.class)}
+        class={cn("md:hidden", props.class)}
         labels={{
           home: labels().home,
           songs: labels().songs,

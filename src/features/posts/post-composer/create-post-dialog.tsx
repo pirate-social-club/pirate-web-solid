@@ -221,6 +221,12 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   let mediaOperationInFlight = false;
   let mediaUploadController: AbortController | undefined;
+  let observationController: AbortController | undefined;
+
+  function stopObservation(): void {
+    observationController?.abort(new DOMException("Song observation superseded", "AbortError"));
+    observationController = undefined;
+  }
   let finishingPublishedSong = false;
 
   const songStore = useSongSubmissionStore() ?? untrack(() => props.songStore) ?? null;
@@ -316,6 +322,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   function discardTerminalSong(): void {
+    stopObservation();
     mediaCoordinator?.discardTerminal();
     resetSongDraft();
   }
@@ -417,6 +424,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       return false;
     }
     setError("");
+    stopObservation();
     setMediaBusy(true);
     mediaOperationInFlight = true;
     const uploadController = new AbortController();
@@ -458,32 +466,35 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   async function refreshSong(automatic = false): Promise<void> {
-    if (mediaCoordinator?.currentRecord?.submission_id == null || mediaBusy() || lyricsBusy()) return;
+    if (mediaCoordinator?.currentRecord?.submission_id == null || mediaBusy() || lyricsBusy()
+      || observationController !== undefined) return;
     if (!automatic) {
       observationCount = 0;
       observationFailures = 0;
       observationRetryAt = 0;
       setObservationPaused(false);
+      setError("");
     }
-    setError("");
-    setMediaBusy(true);
+    const controller = new AbortController();
+    observationController = controller;
     try {
-      const snapshot = await mediaCoordinator.refresh();
+      // Abort reaches the coordinator before it adopts a late snapshot.
+      const snapshot = await mediaCoordinator.refresh(controller.signal);
+      if (disposed || handedOver || controller.signal.aborted || observationController !== controller) return;
       if (snapshot !== null) applySnapshot(snapshot);
       observationFailures = 0;
       observationRetryAt = 0;
     } catch (refreshError) {
+      if (disposed || controller.signal.aborted || observationController !== controller) return;
       if (automatic) {
-        // A transient status failure must not strand a submission that later
-        // publishes: back off and keep checking until a bounded run of
-        // consecutive failures pauses observation for a manual retry.
         observationFailures += 1;
         observationRetryAt = Date.now() + Math.min(30_000, 3_000 * 2 ** (observationFailures - 1));
         if (observationFailures >= 5) setObservationPaused(true);
+      } else {
+        setError(refreshError instanceof Error ? refreshError.message : "The song status is still uncertain.");
       }
-      setError(refreshError instanceof Error ? refreshError.message : "The song status is still uncertain.");
     } finally {
-      setMediaBusy(false);
+      if (observationController === controller) observationController = undefined;
     }
   }
 
@@ -491,6 +502,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     const snapshot = mediaSnapshot();
     if (mediaCoordinator === undefined || snapshot === null) return;
     setError("");
+    stopObservation();
     setLyricsBusy(true);
     try {
       applySnapshot(await submitComposerLyrics(mediaCoordinator, snapshot, lyrics()));
@@ -505,6 +517,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   async function retrySong(): Promise<void> {
     if (mediaCoordinator === undefined) return;
     setError("");
+    stopObservation();
     setMediaBusy(true);
     try {
       applySnapshot(await mediaCoordinator.retry());
@@ -518,6 +531,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   async function cancelSong(): Promise<void> {
     if (mediaCoordinator === undefined) return;
     setError("");
+    stopObservation();
     setMediaBusy(true);
     try {
       applySnapshot(await mediaCoordinator.cancel());
@@ -550,7 +564,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [observationPaused, setObservationPaused] = createSignal(false);
   const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
     if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
-      || observationPaused()) return;
+      || observationController !== undefined || observationPaused()) return;
     const view = mediaView();
     if (view.status !== "processing"
       && view.status !== "manual_review"
@@ -563,6 +577,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   onCleanup(() => {
     disposed = true;
     if (observation !== undefined) clearInterval(observation);
+    stopObservation();
     mediaUploadController?.abort(new DOMException("Composer closed", "AbortError"));
   });
 

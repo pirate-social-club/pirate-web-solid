@@ -490,6 +490,42 @@ export const SongStepRights: Story = {
   },
 };
 
+/** A real observer request held while the author navigates the editable steps. */
+export const SongStepsDuringBackgroundRead: Story = {
+  name: "Song / States / Background read keeps editing available",
+  render: () => {
+    const [hold, setHold] = createSignal(false);
+    const [pending, setPending] = createSignal(false);
+    class HeldReadTransport extends StoryMediaTransport {
+      override async read(): Promise<MediaSubmissionSnapshot | null> {
+        if (!hold()) return super.read();
+        setPending(true);
+        return new Promise(() => {});
+      }
+    }
+    return <>
+      <button onClick={() => setHold(true)}>Hold next status response</button>
+      <Show when={pending()}><span>Status response held</span></Show>
+      {dialogHarness({ mediaTransport: new HeldReadTransport() }).render()}
+    </>;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await canvas.findByText("Your cut of remix sales");
+    await userEvent.click(canvas.getByRole("button", { name: "Hold next status response" }));
+    await waitFor(async () => { await expect(canvas.getByText("Status response held")).toBeVisible(); }, { timeout: 5_000 });
+    await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Add collaborator" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await canvas.findByRole("heading", { name: "Review" });
+    await expect(canvas.getByRole("button", { name: "Post" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Post" })).not.toHaveAttribute("aria-busy", "true");
+    await expect(canvas.getByRole("button", { name: "Back" })).toBeEnabled();
+  },
+};
+
 /** Two eligible profiles so the collaborator picker can be exercised. */
 export const SongStepRightsCollaborators: Story = {
   name: "Song / Step 2 — Royalties / Collaborators",
