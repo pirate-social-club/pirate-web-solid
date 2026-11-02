@@ -8,6 +8,7 @@ import type { ActivityPersonaPreparationApi } from "../identity/activity-persona
 import { createKaraokeApiClient, type KaraokeApiClient } from "./karaoke-api";
 import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "./karaoke-route-view";
 import { clearSession, refreshSession } from "../../api/session.ts";
+import { GLOBAL_SIGN_IN_EVENT } from "../auth/global-sign-in-host";
 import { createRouter, memoryHistory } from "@solidjs/router";
 import type { UseKaraokeScoringOptions, UseKaraokeScoringResult } from "./scoring/use-karaoke-scoring-session";
 import type { KaraokeScoringState } from "./scoring/karaoke-scoring-controller";
@@ -129,9 +130,41 @@ test.each(["karaoke", "leaderboard"] as const)("anonymous %s refusal settles wit
     ? <KaraokeSessionRouteView postId="post-1" client={client} />
     : <KaraokeLeaderboardRouteView postId="post-1" client={client} />}</TestRouter>, host);
   disposers.push(() => { dispose(); host.remove(); });
-  await vi.waitFor(() => expect(host.textContent).toContain(activity === "karaoke" ? "Karaoke unavailable" : "Sign in"));
+  await vi.waitFor(() => expect(host.textContent).toContain(activity === "karaoke" ? "Sign in to sing" : "Sign in"));
+  expect(host.textContent).not.toContain("unavailable");
   await new Promise(resolve => setTimeout(resolve, 50));
   expect(fetchImpl).toHaveBeenCalledOnce();
+});
+
+test("signing in from the Karaoke prompt reloads the same song in place", async () => {
+  clearSession(); refreshSession();
+  const opened = vi.fn();
+  window.addEventListener(GLOBAL_SIGN_IN_EVENT, opened);
+  const unused = async (): Promise<never> => { throw new Error("unused"); };
+  const getPayload = vi.fn<KaraokeApiClient["getPayload"]>()
+    .mockRejectedValueOnce(new KaraokeApiError("auth_error", "Authentication required", 401, false))
+    .mockResolvedValue({
+      community: "community-here", id: "revision-1", object: "song_karaoke_payload", post: "post-1",
+      karaoke_lines: [{ id: "line-1", index: 0, kind: "lyric", start_ms: 0, end_ms: 2000, text: "Sing this", words: [] }],
+    });
+  const client: KaraokeApiClient = { createSession: unused, getAttempt: unused, getLeaderboard: unused, getPayload };
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const TestRouter = createRouter({ history: memoryHistory(), routes: [{ path: "/" }] });
+  const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView
+    postId="post-1" client={client} createScoring={createScoring}
+    resolveSession={async () => ({ status: "authenticated", userId: "account-1", personas: [persona("here", "community-here")] })}
+  />}</TestRouter>, host);
+  disposers.push(() => { dispose(); host.remove(); window.removeEventListener(GLOBAL_SIGN_IN_EVENT, opened); });
+
+  await vi.waitFor(() => expect(host.textContent).toContain("Sign in to sing"));
+  [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Sign in")!.click();
+  expect(opened).toHaveBeenCalledOnce();
+
+  // The sign-in host refreshes the shared session after a successful exchange.
+  refreshSession();
+  await vi.waitFor(() => expect(host.textContent).toContain("Start karaoke"));
+  expect(host.textContent).not.toContain("Sign in to sing");
+  expect(getPayload.mock.calls.map(call => call[0])).toEqual(["post-1", "post-1"]);
 });
 
 function failingScoring(code: string, microphone: boolean) {
