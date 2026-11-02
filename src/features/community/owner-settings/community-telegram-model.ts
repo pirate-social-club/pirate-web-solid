@@ -1,7 +1,8 @@
 import type { GetCommunitiesCommunityIdTelegramResponse, GetCommunitiesCommunityIdTelegramDeliveriesResponse, GetCommunitiesCommunityIdTelegramChannelSetupSetupIdResponse } from "@pirate/api-client";
-import type { GetCommunitiesCommunityIdTelegramStudyCatalogueResponse } from "@pirate/api-client";
+import type { GetCommunitiesCommunityIdTelegramStudyCatalogueResponse, PostCommunitiesCommunityIdTelegramStudyResponse } from "@pirate/api-client";
 
 export type CommunityTelegramSettings = GetCommunitiesCommunityIdTelegramResponse;
+export type CommunityTelegramStudySettings = PostCommunitiesCommunityIdTelegramStudyResponse;
 export type CommunityTelegramStudyCatalogue = GetCommunitiesCommunityIdTelegramStudyCatalogueResponse;
 export type CommunityAssistantSettings = CommunityTelegramSettings["assistant"];
 export type CommunityTelegramDelivery = GetCommunitiesCommunityIdTelegramDeliveriesResponse["items"][number];

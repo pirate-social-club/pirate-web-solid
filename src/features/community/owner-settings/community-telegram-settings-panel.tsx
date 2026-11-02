@@ -83,9 +83,9 @@ export function CommunityTelegramSettingsPanel(props: CommunityTelegramSettingsP
     <Show when={props.settings.bot_username}>
       <section class="space-y-3 border-t border-border pt-5" aria-label="Song practice">
         <h3 class="font-medium">Song practice</h3>
-        <label class="flex items-center gap-3"><input type="checkbox" checked={props.settings.study_enabled}
-          disabled={disabled() || (!props.settings.study_enabled && (props.settings.status !== "ready" || props.studyCatalogue?.availability !== "available"))}
-          onChange={(event) => { const enabled = event.currentTarget.checked; event.currentTarget.checked = props.settings.study_enabled; props.onStudyChange(enabled); }} /> Enable song practice</label>
+        <label class="flex items-center gap-3"><input type="checkbox" checked={(props.studyCatalogue?.enabled ?? false)}
+          disabled={disabled() || (!(props.studyCatalogue?.enabled ?? false) && (props.settings.status !== "ready" || props.studyCatalogue?.availability !== "available"))}
+          onChange={(event) => { const enabled = event.currentTarget.checked; event.currentTarget.checked = (props.studyCatalogue?.enabled ?? false); props.onStudyChange(enabled); }} /> Enable song practice</label>
         <p role="status" class="text-sm text-muted-foreground">{props.loading ? "Checking available songs…"
           : props.studyCatalogue === undefined ? "Song availability could not be checked. Refresh to try again."
           : props.studyCatalogue.availability === "unavailable" ? "Song practice is not available yet."

@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.141.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.141.0-5d7d0d51.tgz",
-  "sha256": "5d7d0d51006ad2a8c4d8c073bca3a31428e1bbb3bb1c0c4599777de7d49e3a07",
-  "source": "api-next-contracts@1d5087a1ae0e35e715fcc7d72800284b072f8341ec0af0e32a8c3033f6e82066",
-  "openapiSha256": "1d5087a1ae0e35e715fcc7d72800284b072f8341ec0af0e32a8c3033f6e82066",
-  "clientSha256": "445337628f9b8acce473ab9d799cfbb53d09a17f0eac919f1c0062da68cfbb86",
+  "version": "0.141.1",
+  "artifact": "vendor/api-client/pirate-api-client-0.141.1-c47b6266.tgz",
+  "sha256": "c47b62666516de7ca6645d64c17bb2ed682abb2c149eb479955c82ef326614b4",
+  "source": "api-next-contracts@a91b46263a6e8ebb9647c3c693270b1e133a3dedd2d794ecf4bcf2e22e9ce171",
+  "openapiSha256": "a91b46263a6e8ebb9647c3c693270b1e133a3dedd2d794ecf4bcf2e22e9ce171",
+  "clientSha256": "4df70093bf94b33b4a3f738226dd979c98b5c26458b1e2d057db88deaac05f27",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -179,7 +179,7 @@
     "post_communitiesCommunityIdTelegramStudy",
     "get_communitiesCommunityIdTelegramStudyCatalogue"
   ],
-  "intakeStatus": "Genuine generated client141 candidate from the Telegram community practice task. Producer package verification passed; exact-commit independent review and protected-main source acceptance remain pending. Previous artifacts are retained.",
+  "intakeStatus": "Genuine generated client141.1 candidate, superseding the retained rejected 141.0 candidate. Existing Telegram integration responses are unchanged; new Study operations own the Study snapshot. Protected producer acceptance remains pending.",
   "sourceBase": "0222c5310db1c4438e0d9980840c20d8b662114d",
   "sourceAcceptance": "Candidate intake for isolated source qualification only. No serving/runtime, policy, credentials, activation or financial acceptance. Update this record with actual protected producer acceptance before publication."
 }

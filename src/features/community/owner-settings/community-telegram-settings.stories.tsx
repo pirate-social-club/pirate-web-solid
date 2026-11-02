@@ -8,7 +8,7 @@ const meta = {
   component: CommunityTelegramSettingsPanel,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
   decorators: [(Story) => <main class="mx-auto min-h-screen w-full max-w-5xl bg-background p-4 text-foreground md:p-8"><Story /></main>],
-  args: { settings: TELEGRAM_CONNECTED, deliveries: [], studyCatalogue: { availability: "available", items: [{post_id: "fixture-song", title: "Practice song"}], next_cursor: null }, onStudyChange: fn(), onConnect: fn(async () => {}), onDisconnect: fn(), onSetup: fn(), onConfirmChannel: fn(), onRefresh: fn(), onAutomaticChange: fn(), onBackfill: fn(), onResolve: fn() },
+  args: { settings: TELEGRAM_CONNECTED, deliveries: [], studyCatalogue: { integration: TELEGRAM_CONNECTED, enabled: false, availability: "available", items: [{post_id: "fixture-song", title: "Practice song"}], next_cursor: null }, onStudyChange: fn(), onConnect: fn(async () => {}), onDisconnect: fn(), onSetup: fn(), onConfirmChannel: fn(), onRefresh: fn(), onAutomaticChange: fn(), onBackfill: fn(), onResolve: fn() },
 } satisfies Meta<typeof CommunityTelegramSettingsPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -30,6 +30,6 @@ export const ReadOnly: Story = { args: { readOnly: true } };
 export const Unavailable: Story = { args: { settings: TELEGRAM_DISCONNECTED, readOnly: true, errorMessage: "Telegram setup is unavailable. Try again later." } };
 export const Refused: Story = { args: { settings: { ...TELEGRAM_CONNECTED, status: "error", channel: null }, errorMessage: "The bot could not be connected. Check its token and try again." } };
 export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, args: {settings: TELEGRAM_DISCONNECTED} };
-export const StudyEnabled: Story = { args: {settings: {...TELEGRAM_CONNECTED, study_enabled: true, channel: null, automatic_publishing: false}} };
-export const EmptyCatalogue: Story = { args: {studyCatalogue: {availability: "available", items: [], next_cursor: null}} };
-export const StudyUnavailable: Story = { args: {studyCatalogue: {availability: "unavailable", items: [], next_cursor: null}} };
+export const StudyEnabled: Story = { args: {settings: {...TELEGRAM_CONNECTED, channel: null, automatic_publishing: false}, studyCatalogue: { integration: TELEGRAM_CONNECTED, enabled: true, availability: "available", items: [{post_id: "fixture-song", title: "Practice song"}], next_cursor: null }} };
+export const EmptyCatalogue: Story = { args: {studyCatalogue: { integration: TELEGRAM_CONNECTED, enabled: false,availability: "available", items: [], next_cursor: null}} };
+export const StudyUnavailable: Story = { args: {studyCatalogue: { integration: TELEGRAM_CONNECTED, enabled: false,availability: "unavailable", items: [], next_cursor: null}} };

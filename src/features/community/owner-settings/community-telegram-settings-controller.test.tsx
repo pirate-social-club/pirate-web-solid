@@ -5,7 +5,7 @@ import { CommunityTelegramSettingsController } from "./community-telegram-settin
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { TELEGRAM_CONNECTED, TELEGRAM_DISCONNECTED } from "./community-telegram-fixtures";
 import { createCommunityTelegramSettingsApi } from "./community-telegram-settings-api";
-import type { CommunityTelegramSettings } from "./community-telegram-model";
+import type { CommunityTelegramSettings, CommunityTelegramStudySettings } from "./community-telegram-model";
 
 const disposers: Array<() => void> = [];
 function render(ui: () => JSX.Element) {
@@ -28,7 +28,7 @@ function api(overrides: Partial<CommunityTelegramSettingsApi> = {}): CommunityTe
   return {
     getSettings: async ({ communityId }) => ({ ...TELEGRAM_DISCONNECTED, community_id: communityId }),
     getDeliveries: async () => ({ items: [], next_cursor: null }),
-    getStudyCatalogue: async () => ({ availability: "unavailable", items: [], next_cursor: null }),
+    getStudyCatalogue: async (communityId) => ({ integration: {...TELEGRAM_DISCONNECTED,community_id:communityId}, enabled:false, availability: "unavailable", items: [], next_cursor: null }),
     saveStudy: unexpected,
     getModels: async () => ({ items: [] }), getVoices: async () => ({ items: [] }),
     connect: unexpected, disconnect: unexpected, save: unexpected, saveCredential: unexpected,
@@ -108,11 +108,11 @@ test("connect clears the masked token immediately and only opens a ready bot", a
 
 test("Study saves only through its owner API and waits for the saved response", async () => {
   const current={...TELEGRAM_CONNECTED,channel:null,automatic_publishing:false};
-  let resolveSave!: (settings: CommunityTelegramSettings) => void;
+  let resolveSave!: (settings: CommunityTelegramStudySettings) => void;
   const saveStudy=vi.fn<CommunityTelegramSettingsApi["saveStudy"]>(()=>new Promise(resolve=>{resolveSave=resolve;}));
   const {container}=render(()=><CommunityTelegramSettingsController communityId="community-fixture" section="telegram" api={api({
     getSettings:async()=>current,
-    getStudyCatalogue:async()=>({availability:"available",items:[{post_id:"song",title:"Ready song"}],next_cursor:null}),saveStudy,
+    getStudyCatalogue:async()=>({integration:current,enabled:false,availability:"available",items:[{post_id:"song",title:"Ready song"}],next_cursor:null}),saveStudy,
   })}/>);
   await vi.waitFor(()=>expect(container.textContent).toContain("1 song is ready for practice."));
   const checkbox=container.querySelector<HTMLInputElement>('section[aria-label="Song practice"] input')!;
@@ -122,13 +122,13 @@ test("Study saves only through its owner API and waits for the saved response", 
   expect(saveStudy.mock.calls[0]?.[0].revision).toBe(current.revision);
   expect(saveStudy.mock.calls[0]?.[1]).toBe(true);
   expect(checkbox.checked).toBe(false);
-  resolveSave({...current,revision:current.revision+1,study_enabled:true});
+  resolveSave({integration:{...current,revision:current.revision+1},enabled:true});
   await vi.waitFor(()=>expect(checkbox.checked).toBe(true));
 });
 
 test("unavailable and failed catalogue reads never advertise an empty ready catalogue", async () => {
   for (const getStudyCatalogue of [
-    async()=>({availability:"unavailable" as const,items:[],next_cursor:null}),
+    async()=>({integration:TELEGRAM_CONNECTED,enabled:false,availability:"unavailable" as const,items:[],next_cursor:null}),
     async():Promise<never>=>{throw Error("unavailable");},
   ]) {
     const {container,dispose}=render(()=><CommunityTelegramSettingsController communityId="community-fixture" section="telegram" api={api({getSettings:async()=>TELEGRAM_CONNECTED,getStudyCatalogue})}/>);
@@ -142,7 +142,7 @@ test("Study writes carry same-origin cookies, CSRF, revision and replay fences",
   const requests:Request[]=[];
   const port=createCommunityTelegramSettingsApi({origin:"https://web.test",readCsrfToken:()=>"fixture-csrf",fetchImpl:async(input,init)=>{
     requests.push(new Request(input,init));
-    return new Response(JSON.stringify({...TELEGRAM_CONNECTED,study_enabled:true}),{headers:{"content-type":"application/json"}});
+    return new Response(JSON.stringify({integration:TELEGRAM_CONNECTED,enabled:true}),{headers:{"content-type":"application/json"}});
   }});
   await port.saveStudy(TELEGRAM_CONNECTED,true,"fixture-command");
   expect(requests[0]?.url).toBe("https://web.test/api/communities/community-fixture/telegram/study");
@@ -153,12 +153,12 @@ test("Study writes carry same-origin cookies, CSRF, revision and replay fences",
 
 test.each(["failed", "pending"])("%s publishing diagnostics do not block basic Study readiness or saving", async (diagnostics) => {
   const current={...TELEGRAM_CONNECTED,channel:null,automatic_publishing:false};
-  const saveStudy=vi.fn<CommunityTelegramSettingsApi["saveStudy"]>(async()=>({...current,study_enabled:true,revision:5}));
+  const saveStudy=vi.fn<CommunityTelegramSettingsApi["saveStudy"]>(async()=>({integration:{...current,revision:5},enabled:true}));
   const getDeliveries:CommunityTelegramSettingsApi["getDeliveries"] = diagnostics === "pending"
     ? ()=>new Promise(()=>{}) : async()=>{throw Error("publishing unavailable");};
   const {container}=render(()=><CommunityTelegramSettingsController communityId="community-fixture" section="telegram" api={api({
     getSettings:async()=>current,getDeliveries,saveStudy,
-    getStudyCatalogue:async()=>({availability:"available",items:[{post_id:"song",title:"Ready song"}],next_cursor:null}),
+    getStudyCatalogue:async()=>({integration:current,enabled:false,availability:"available",items:[{post_id:"song",title:"Ready song"}],next_cursor:null}),
   })}/>);
   await vi.waitFor(()=>expect(container.textContent).toContain("1 song is ready for practice."));
   const checkbox=container.querySelector<HTMLInputElement>('section[aria-label="Song practice"] input')!;
@@ -167,4 +167,22 @@ test.each(["failed", "pending"])("%s publishing diagnostics do not block basic S
   await vi.waitFor(()=>expect(saveStudy).toHaveBeenCalledTimes(1));
   await vi.waitFor(()=>expect(checkbox.checked).toBe(true));
   expect(container.textContent).not.toContain("No deliveries yet.");
+});
+
+
+test("Study snapshot advances the integration revision before the next owner command", async () => {
+  const current = { ...TELEGRAM_CONNECTED, revision: 6, channel: null };
+  const saveStudy = vi.fn<CommunityTelegramSettingsApi["saveStudy"]>(async () => ({ integration: { ...current, revision: 7 }, enabled: true }));
+  const { container } = render(() => <CommunityTelegramSettingsController communityId="community-fixture" section="telegram" api={api({
+    getSettings: async () => TELEGRAM_CONNECTED,
+    getStudyCatalogue: async () => ({ integration: current, enabled: false, availability: "available", items: [], next_cursor: null }),
+    saveStudy,
+  })} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("No songs are ready for practice yet."));
+  const checkbox = container.querySelector<HTMLInputElement>('section[aria-label="Song practice"] input')!;
+  await vi.waitFor(() => expect(checkbox.disabled).toBe(false));
+  checkbox.click();
+  await vi.waitFor(() => expect(saveStudy).toHaveBeenCalledTimes(1));
+  expect(saveStudy.mock.calls[0]?.[0].revision).toBe(6);
+  await vi.waitFor(() => expect(checkbox.checked).toBe(true));
 });

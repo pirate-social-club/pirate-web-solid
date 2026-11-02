@@ -4,7 +4,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { CommunityAssistantSettingsPanel } from "./community-assistant-settings-panel";
 import { CommunityTelegramSettingsPanel } from "./community-telegram-settings-panel";
 import { createCommunityTelegramSettingsApi, type CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
-import type { AssistantOption, CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup, CommunityTelegramStudyCatalogue } from "./community-telegram-model";
+import type { AssistantOption, CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup, CommunityTelegramStudyCatalogue, CommunityTelegramStudySettings } from "./community-telegram-model";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 export function CommunityTelegramSettingsController(props: { communityId: string; section: "telegram" | "assistant"; api?: CommunityTelegramSettingsApi }) {
@@ -81,23 +81,27 @@ export function CommunityTelegramSettingsController(props: { communityId: string
   async function loadCatalogue(communityId: string, request: number) {
     try {
       const page=await api.getStudyCatalogue(communityId);
-      if (active && request === generation && props.communityId === communityId) setCatalogue(page);
+      if (active && request === generation && props.communityId === communityId
+        && page.integration.community_id === communityId && page.integration.revision >= (settings()?.revision ?? 0)) {
+        if (props.section === "telegram" && page.integration.revision > (settings()?.revision ?? 0)) setSettings(page.integration);
+        setCatalogue(page);
+      }
     } catch (reason) {
       if (active && request === generation && reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
       // A failed catalogue read stays unknown; it never becomes an empty ready catalogue.
     }
   }
-  createEffect(() => props.communityId, (communityId) => {
+  createEffect(() => ({ communityId: props.communityId, section: props.section }), ({ communityId, section }) => {
     const request = ++generation;
     // Solid 2 forbids signal writes inside the owned effect callback.
     queueMicrotask(() => {
-      if (!active || request !== generation || communityId !== props.communityId) return;
+      if (!active || request !== generation || communityId !== props.communityId || section !== props.section) return;
       setSettings(undefined); setSetup(undefined); setCatalogue(undefined); setPublishingStatus("loading"); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
       void load();
     });
   });
 
-  async function execute(action: (current: CommunityTelegramSettings, commandKey: string) => Promise<CommunityTelegramSettings | void>) {
+  async function execute(action: (current: CommunityTelegramSettings, commandKey: string) => Promise<CommunityTelegramSettings | CommunityTelegramStudySettings | void>) {
     const current = settings();
     if (!current || busy()) return;
     const request = generation;
@@ -105,7 +109,16 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     try {
       const next = await action(current, key());
       if (!active || request !== generation) return;
-      if (next) setSettings(next);
+      if (next && "integration" in next) {
+        setSettings(next.integration);
+        setCatalogue((page) => page ? { ...page, ...next } : undefined);
+      } else if (next) {
+        setSettings(next);
+        if (props.section === "telegram") {
+          setCatalogue(undefined);
+          void loadCatalogue(next.community_id, request);
+        }
+      }
       setSuccess("Settings saved.");
     } catch (reason) {
       if (active && request === generation) {

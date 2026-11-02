@@ -63,7 +63,6 @@ const disconnectedTelegram: GetCommunitiesCommunityIdTelegramResponse = {
   bot_username: null,
   channel: null,
   automatic_publishing: false,
-  study_enabled: false,
   assistant: {
     enabled: false,
     model: "",
@@ -113,7 +112,7 @@ const telegramSectionApi: CommunityTelegramSettingsApi = {
   ...createCommunityTelegramSettingsApi(),
   getDeliveries: async () => ({ items: [], next_cursor: null }),
   getSettings: async () => disconnectedTelegram,
-  getStudyCatalogue: async () => ({ availability: "unavailable", items: [], next_cursor: null }),
+  getStudyCatalogue: async () => ({ integration: disconnectedTelegram, enabled: false, availability: "unavailable", items: [], next_cursor: null }),
 };
 
 const moderationSectionApi: CommunityModerationSettingsApi = {
