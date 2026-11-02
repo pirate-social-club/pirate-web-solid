@@ -1,5 +1,5 @@
 import type { PirateApiClient } from "@pirate/api-client";
-import type { Page, Request, Response, TestInfo } from "playwright/test";
+import type { Locator, Page, Request, Response, TestInfo } from "playwright/test";
 import { expect, test } from "./auth.ts";
 
 export type SongAcceptanceObservation = Readonly<{
@@ -7,6 +7,32 @@ export type SongAcceptanceObservation = Readonly<{
   readonly instrumentalReviewVisible: boolean;
   readonly submissionId: string;
 }>;
+
+/** Detect brief disabled/busy transitions, including a blink between poll assertions. */
+export async function assertStablePostingControl(control: Locator, observationMs = 6_500): Promise<void> {
+  await expect(control).toBeEnabled({ timeout: 3_000 });
+  const observed = await control.evaluate(async (element, duration) => {
+    if (!(element instanceof HTMLButtonElement)) throw new Error("Posting control must be a button");
+    let disabled = element.disabled;
+    let busy = element.getAttribute("aria-busy") === "true";
+    return new Promise<{ disabled: boolean; busy: boolean; detached: boolean }>(resolve => {
+      const observer = new MutationObserver(records => {
+        for (const record of records) {
+          // oldValue captures an added boolean attribute even if it is removed in the same turn.
+          if (record.attributeName === "disabled" && record.oldValue === null) disabled = true;
+          if (record.attributeName === "aria-busy"
+            && (record.oldValue === "true" || element.getAttribute("aria-busy") === "true")) busy = true;
+        }
+      });
+      observer.observe(element, { attributes: true, attributeOldValue: true, attributeFilter: ["disabled", "aria-busy"] });
+      setTimeout(() => {
+        observer.disconnect();
+        resolve({ disabled: disabled || element.disabled, busy, detached: !element.isConnected });
+      }, duration);
+    });
+  }, observationMs);
+  expect(observed).toEqual({ disabled: false, busy: false, detached: false });
+}
 
 export async function publishSongAndVerifyPlayback(
   page: Page,
@@ -82,7 +108,7 @@ export async function publishSongAndVerifyPlayback(
   await expect(forward).toBeEnabled({ timeout: 120_000 });
   await forward.click();
   await expect(stepHeading("Royalties")).toBeVisible({ timeout: 120_000 });
-  await expect(forward).toBeEnabled({ timeout: 120_000 });
+  await assertStablePostingControl(forward);
   await forward.click();
   await expect(stepHeading("Review")).toBeVisible({ timeout: 120_000 });
 
@@ -98,7 +124,9 @@ export async function publishSongAndVerifyPlayback(
   }
   else expect(review).not.toContain("No lyrics added");
 
-  await composer.getByRole("button", { name: "Post", exact: true }).click();
+  const publish = composer.getByRole("button", { name: "Post", exact: true });
+  await assertStablePostingControl(publish);
+  await publish.click();
   // The steps end when the server accepts the song. Paper ruling 14: the
   // author then sees the song's one centred state on the same page, not a
   // card in the feed, until it is published.
