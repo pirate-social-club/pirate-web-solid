@@ -4,6 +4,8 @@ import { createEffect, createRoot, createSignal, flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
+import { useComposingSurface } from "../composing-surface.tsx";
+import { resolveApplicationChrome } from "../application-chrome-model.ts";
 import { ApplicationChrome } from "./media-shell";
 
 const discoveryFetch = vi.fn(async (input: RequestInfo | URL) => {
@@ -37,6 +39,32 @@ afterEach(() => {
 });
 
 describe("Application navigation", () => {
+  test.each(["/post/one", "/posts/song"])("keeps mobile navigation hidden on desktop post route %s", path => {
+    const policy = resolveApplicationChrome(path);
+    const container = render(() => <ApplicationChrome {...policy} currentPath={path}>Post</ApplicationChrome>);
+    const nav = container.querySelector('nav[aria-label="Primary navigation"]')!;
+    expect(nav.classList.contains("hidden")).toBe(true);
+    expect(nav.classList.contains("md:hidden")).toBe(true);
+    expect(nav.classList.contains("md:block")).toBe(false);
+  });
+
+  test("composition hides the final merged navigation and closing restores phone navigation", async () => {
+    function ComposerToggle() {
+      const surface = useComposingSurface();
+      return <button onClick={() => surface?.setComposing(!surface.composing())}>Toggle composer</button>;
+    }
+    const container = render(() => <ApplicationChrome><ComposerToggle /></ApplicationChrome>);
+    const nav = container.querySelector('nav[aria-label="Primary navigation"]')!;
+    expect(nav.classList.contains("hidden")).toBe(false);
+    expect(nav.classList.contains("md:hidden")).toBe(true);
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Toggle composer")!.click();
+    await vi.waitFor(() => expect(nav.classList.contains("hidden")).toBe(true));
+    expect(nav.classList.contains("md:hidden")).toBe(true);
+    expect(nav.classList.contains("md:block")).toBe(false);
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Toggle composer")!.click();
+    await vi.waitFor(() => expect(nav.classList.contains("hidden")).toBe(false));
+  });
+
   test("keeps route updates working after a pending viewer resolves anonymous", async () => {
     const [resolving, setResolving] = createSignal(true);
     const [route, setRoute] = createSignal("Initial route");

@@ -1026,6 +1026,76 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 8_000 });
   }, 20_000);
 
+  test("background reads leave Royalties and Review usable and cannot land after Post", async () => {
+    const intervals = vi.spyOn(globalThis, "setInterval");
+    const transport = new ProductionMediaTransport();
+    const onPublished = vi.fn();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} onPublished={onPublished} open
+      personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio();
+    button("Next").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
+    const poll = intervals.mock.calls.find(([, delay]) => delay === 3_000)?.[0];
+    if (typeof poll !== "function") throw new Error("Missing song observer");
+    let answer!: (snapshot: MediaSubmissionSnapshot) => void;
+    const held = new Promise<MediaSubmissionSnapshot>(resolve => { answer = resolve; });
+    const stale = mediaSnapshot({ ...transport.snapshot!, creation_revision: 99, status: "published",
+      published_resource: { post_id: "stale", href: "/posts/stale" } });
+    let releaseCommandRead!: (snapshot: MediaSubmissionSnapshot) => void;
+    const commandRead = new Promise<MediaSubmissionSnapshot>(resolve => { releaseCommandRead = resolve; });
+    const read = vi.spyOn(transport, "read").mockImplementationOnce(() => held).mockImplementationOnce(() => commandRead);
+    poll();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    expect(button("Next").disabled).toBe(false);
+    expect(button("Add collaborator").disabled).toBe(false);
+    button("Next").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
+    expect(button("Post").disabled).toBe(false);
+    expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
+    expect(button("Back").disabled).toBe(false);
+    poll(); poll();
+    expect(read).toHaveBeenCalledOnce();
+    button("Post").click();
+    await vi.waitFor(() => expect(button("Post").getAttribute("aria-busy")).toBe("true"));
+    releaseCommandRead(transport.snapshot!);
+    await vi.waitFor(() => expect(transport.commands.some(command => command.kind === "terms")).toBe(true));
+    answer(stale);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(onPublished).not.toHaveBeenCalled();
+    expect(transport.commands.filter(command => command.kind === "terms")).toHaveLength(1);
+  });
+
+  test("automatic observation preserves the form error on start and failure", async () => {
+    const intervals = vi.spyOn(globalThis, "setInterval");
+    const transport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} open
+      personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio();
+    await continueToReview();
+    transport.failReads = true;
+    button("Post").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("API response was not valid JSON"));
+    transport.failReads = false;
+    let fail!: (error: Error) => void;
+    const held = new Promise<MediaSubmissionSnapshot>(() => {});
+    const rejected = new Promise<MediaSubmissionSnapshot>((_resolve, reject) => { fail = reject; });
+    const read = vi.spyOn(transport, "read").mockImplementationOnce(() => rejected).mockImplementationOnce(() => held);
+    const poll = intervals.mock.calls.find(([, delay]) => delay === 3_000)?.[0];
+    if (typeof poll !== "function") throw new Error("Missing song observer");
+    poll();
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    expect(document.body.textContent).toContain("API response was not valid JSON");
+    fail(new Error("Background read failed"));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(document.body.textContent).toContain("API response was not valid JSON");
+    expect(document.body.textContent).not.toContain("Background read failed");
+    expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
+  });
+
   test("wizard navigation preserves state and supports back", async () => {
     const mediaTransport = new ProductionMediaTransport();
     render(() => <CreatePostDialog
