@@ -83,11 +83,12 @@ A website-only correction on an unchanged backend uses
 2026-11-02 because the whole release executor is bound to the November 1
 migration and its spent attempt. It takes the exact source, artifact, receipt
 and baseline version as arguments. Run `snapshot` first, then `apply`, which
-makes one upload behind an exclusive marker and verifies compiled and served
-bytes. `verify` repeats that read-only, and `rollback` returns traffic to the
-named baseline. It refuses any binding, setting or domain change, so a release
-needing one, or any backend or database change, must not use it. Independent
-review of the exact candidate and required CI still apply.
+makes one upload behind an exclusive marker and verifies compiled module bytes
+and every hashed client file. `verify` repeats that read-only against the
+recorded attempt, and `rollback` returns traffic to the named baseline. It
+refuses any binding, setting or domain change it can observe. It cannot detect
+that a change needs the backend or database, so the operator must not use it
+for one. Independent review of the exact candidate and required CI still apply.
 
 ### Home route session upgrade
 
