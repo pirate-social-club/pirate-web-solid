@@ -60,6 +60,9 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   const activitySession = (first === "p" || first === "posts") && segments.length === 3
     && (segments[2] === "study" || segments[2] === "karaoke");
 
+  if ((first === "c" || first === "posts" || first === "post") && segments.length === 3 && segments[2] === "leaderboard") {
+    return { activeItemId: first === "c" ? "your-communities" : "songs", mobileActiveItem: "none", mobileTitle: "", mode: "standard", hideMobileHeader: true, hideMobileFooter: true };
+  }
   if (isCommunityManagementRoute(pathname)) {
     return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "bare" };
   }

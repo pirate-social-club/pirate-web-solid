@@ -97,6 +97,7 @@ export interface CommunityPageProps {
   /** Entering from a "Post here" action elsewhere: open the text composer
    * once the viewer's posting session is resolved. */
   readonly composeText?: boolean;
+  readonly initialTab?: "feed" | "songs" | "about";
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -170,6 +171,7 @@ function SuccessState(props: {
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
   readonly composeText?: boolean;
+  readonly initialTab?: "feed" | "songs" | "about";
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly nameClients?: CommunityNameClients;
@@ -415,6 +417,7 @@ function SuccessState(props: {
       avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
       bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
       membershipMode: state.community.membershipMode,
+      joinRule: state.community.joinRule,
       rules: source.rules ?? state.community.rules.map((rule, position) => ({ ...rule, position: position + 1 })),
       referenceLinks: source.referenceLinks,
     };
@@ -956,9 +959,10 @@ function SuccessState(props: {
       <Link rel="canonical" href={canonicalUrl()} />
       <div class="min-h-[calc(100dvh-4rem)] bg-background">
           <CommunityPageShell
-            activitySummary={() => <ActivityLeaderboard compact communityId={communityId} />}
+            initialTab={props.initialTab}
+            aboutLeaderboard={() => <ActivityLeaderboard display="preview" communityId={communityId} href={`${state.canonicalPath}/leaderboard?from=${encodeURIComponent(`${state.canonicalPath}?tab=about`)}`} />}
             onBack={() => navigate("/communities")}
-            canJoin
+            canJoin={state.community.membershipMode !== "request"}
             community={community()}
             createPostBusy={postingBusy()}
             createPostLabel={engagement.personaRetryAvailable() ? "Retry and open Post" : "Post"}
@@ -1116,6 +1120,7 @@ function CommunityState(props: {
   /** Clears the song-entry compose marker once its composer is dismissed. */
   readonly clearVideoSongIntent?: () => void;
   readonly composeText?: boolean;
+  readonly initialTab?: "feed" | "songs" | "about";
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly nameClients?: CommunityNameClients;
@@ -1144,6 +1149,7 @@ function CommunityState(props: {
               initialVideoSong={props.initialVideoSong}
               clearVideoSongIntent={props.clearVideoSongIntent}
               composeText={props.composeText}
+              initialTab={props.initialTab}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               nameClients={props.nameClients}
@@ -1181,6 +1187,7 @@ function CommunityData(props: CommunityPageProps) {
       initialVideoSong={props.initialVideoSong}
       clearVideoSongIntent={props.clearVideoSongIntent}
       composeText={props.composeText}
+      initialTab={props.initialTab}
       viewerVoteClient={props.viewerVoteClient}
       textSubmissionTransport={props.textSubmissionTransport}
       mediaSubmissionTransport={props.mediaSubmissionTransport}

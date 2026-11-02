@@ -5,7 +5,7 @@ import { Type } from "../../design-system";
 import { YourSongsPage, type LibrarySong } from "./your-songs-page.tsx";
 
 const songs: readonly LibrarySong[] = [
-  { id: "harbor-lights", title: "Harbor Lights", artist: "Night Shift", studyPath: "/p/harbor-lights/study", karaokePath: "/p/harbor-lights/karaoke", activities: ["study", "karaoke"] },
+  { id: "harbor-lights", currentStreak: 12, leaderboardPath: "/posts/harbor-lights/leaderboard", title: "Harbor Lights", artist: "Night Shift", studyPath: "/p/harbor-lights/study", karaokePath: "/p/harbor-lights/karaoke", activities: ["study", "karaoke"] },
   { id: "open-water", title: "Open Water", artist: "Studio", studyPath: "/p/open-water/study", karaokePath: "/p/open-water/karaoke" },
   { id: "after-the-rain", title: "After the Rain", artist: "Harbor", studyPath: "/p/after-the-rain/study", activities: ["dance"] },
 ];
@@ -45,3 +45,5 @@ export const SongActions: Story = {
 export const SongsToLearn: Story = { render: () => <YourSongsPage songs={songs} trending={[{ id: "new-tide", title: "New Tide", artist: "Harbor", studyPath: "/p/new-tide/study", karaokePath: "/p/new-tide/karaoke" }]} navigate={() => {}} /> };
 export const MobileSongsToLearn: Story = { ...SongsToLearn, globals: { viewport: { value: "mobile1", isRotated: false } } };
 export const SongsToLearnUnavailable: Story = { render: () => <YourSongsPage songs={songs} trendingState="unavailable" onTrendingRetry={() => {}} navigate={() => {}} /> };
+
+export const SongSheetLeaderboard: Story = { render: () => <YourSongsPage songs={songs} navigate={() => {}} />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Harbor Lights" })); const dialog = await within(document.body).findByRole("dialog"); await expect(within(dialog).getByRole("button", { name: "Leaderboard" })).toBeVisible(); } };
