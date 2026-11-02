@@ -107,12 +107,8 @@ export function ActivityLeaderboardPage(props: LeaderboardViewProps & { readonly
     observer.observe(element); onCleanup(() => observer.disconnect());
   });
   const pin = () => props.state === "ready" && own() && !viewerVisible() ? own() : undefined;
-  const back = (event: MouseEvent) => {
-    // Only return through same-origin history; a direct open has a stable fallback.
-    if (typeof document !== "undefined" && document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1) { event.preventDefault(); history.back(); }
-  };
   return <main class="mx-auto min-w-0 max-w-6xl bg-background pb-24" data-leaderboard-page>
-    <header class="flex h-14 items-center justify-between gap-3 px-4"><a href={props.backHref} onClick={back} aria-label="Back" class="grid size-11 shrink-0 place-items-center rounded-lg focus-visible:ring-2"><IconArrowLeft class="size-6" /></a><div class="min-w-0 text-center"><h1 class="text-lg font-semibold">Leaderboard</h1><p class="truncate text-[13px] text-muted-foreground">{props.title}</p></div><span class="size-11 shrink-0" /></header>
+    <header class="flex h-14 items-center justify-between gap-3 px-4"><a href={props.backHref} aria-label="Back" class="grid size-11 shrink-0 place-items-center rounded-lg focus-visible:ring-2"><IconArrowLeft class="size-6" /></a><div class="min-w-0 text-center"><h1 class="text-lg font-semibold">Leaderboard</h1><p class="truncate text-[13px] text-muted-foreground">{props.title}</p></div><span class="size-11 shrink-0" /></header>
     <Show when={props.state !== "loading"} fallback={<div class="mx-auto max-w-2xl px-4"><BoardSkeleton /></div>}>
       <Show when={props.state === "ready"} fallback={<BoardFailure state={props.state} retry={props.onRetry} />}>
         <Show when={props.board?.entries.length} fallback={<EmptyBoard />}>

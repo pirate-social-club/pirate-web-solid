@@ -50,6 +50,7 @@ export default defineConfig({
       "src/features/activity/activity-leaderboard.test.tsx",
       "src/features/activity/activity-leaderboard-redesign.test.tsx",
       "src/features/activity/activity-leaderboard-navigation.test.ts",
+      "src/features/activity/activity-leaderboard-route.test.tsx",
       "src/features/community/page-shell/community-join-rule-model.test.ts",
       "src/features/profiles/own-profile-settings.test.tsx",
       "src/features/posts/song-player/song-player.test.tsx",
