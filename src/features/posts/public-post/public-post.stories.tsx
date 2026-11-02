@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
-import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
+import { postStoryNetworkGuard, postSongStoryDependencies, postStoryState as contentState } from "./public-post-story-fixtures";
 
 import { PublicPostRouteView } from "./public-post-route-view";
 import type { PublicPostEngagementDependencies } from "./public-post-engagement";
@@ -9,52 +9,6 @@ import type { PostEngagementTransport } from "../post-engagement/post-engagement
 import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
 import type { PublicPostRouteState } from "./public-post-route.model";
 
-function contentState(canonical: boolean): PublicPostRouteState {
-  const fixture = {
-    kind: "content",
-    post_id: "post-1",
-    content: {
-      post: {
-        id: "post-1",
-        post_type: "text",
-        community: "community-story",
-        created: 1_790_700_000,
-        title: "A searchable title",
-        body: "A bounded public description.",
-        author_persona: { persona_id: "persona-public-creator", object: "persona", display_name: "Public creator", avatar_ref: null, primary_public_handle: null },
-      },
-      upvote_count: 0,
-      downvote_count: 0,
-      comment_count: 0,
-      resolved_locale: "en",
-      translation_state: "same_language",
-      translated_title: null,
-      translated_body: null,
-    },
-    route: canonical ? {
-      canonical_path: "/posts/a-searchable-title",
-      activity_paths: {
-        study: "/posts/a-searchable-title/study",
-        karaoke: "/posts/a-searchable-title/karaoke",
-        karaoke_leaderboard: "/posts/a-searchable-title/karaoke/leaderboard",
-      },
-    } : null,
-  };
-  // SAFETY: the story fixture supplies every field read by the component; wire
-  // completeness belongs to generated-client transport tests.
-  const response = JSON.parse(JSON.stringify(fixture)) as Extract<
-    GetPublicPostsBySlugResponse,
-    { kind: "content" }
-  >;
-  return {
-    kind: "content",
-    status: 200,
-    activity: "detail",
-    response,
-    canonicalPath: canonical ? "/posts/a-searchable-title" : null,
-    canonicalUrl: canonical ? "https://pirate.sc/posts/a-searchable-title" : null,
-  };
-}
 
 const translatedState = (): PublicPostRouteState => {
   const state = contentState(true);
@@ -96,11 +50,15 @@ const songState = (): PublicPostRouteState => {
   };
 };
 
+const network = postStoryNetworkGuard();
 const meta = {
+  beforeEach: network.beforeEach,
+  afterEach: () => { expect(network.requests()).toEqual([]); },
   title: "Screens/Posts/PublicPostRoute",
   component: PublicPostRouteView,
   args: { engagement: { resolveSession: async () => "anonymous" as const } },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
+  render: args => <PublicPostRouteView {...args} song={args.song ?? postSongStoryDependencies(args.engagement?.resolveSession)} />,
 } satisfies Meta<typeof PublicPostRouteView>;
 
 export default meta;
@@ -274,12 +232,11 @@ function paperState(kind: "text" | "song", membership: "member" | "not_member", 
   const state = contentState(true);
   if (state.kind !== "content") throw new Error("expected content fixture");
   const content = state.response.content;
-  // SAFETY: the story supplies the community preview fields the post page reads.
-  const community = JSON.parse(JSON.stringify({
+  const community: NonNullable<typeof content.community> = {
     id: "community-harbor", object: "community_preview", display_name: "Harbor Collective", route_slug: "harbor-collective",
     avatar_ref: null, membership_mode: "open", human_verification_lane: null, moderators: [], membership_gate_summaries: [], rules: [],
     viewer_membership_status: membership, created: 1_790_000_000,
-  })) as NonNullable<typeof content.community>;
+  };
   const post = kind === "text"
     ? { ...content.post, community: "community-harbor", post_type: "text" as const, created: Math.floor(Date.now() / 1000) - 2 * 3600,
         title: "Weekly listening thread", body: "What have you had on repeat this week?", author_persona: persona("persona-user", "User 4KQ7M2") }
@@ -414,4 +371,53 @@ export const VideoWithChoreographyCredit: Story = {
     }}};
   })() },
   play: async ({canvasElement}) => { const canvas=within(canvasElement);await expect(canvas.getByRole("link",{name:"View choreography reference"})).toHaveAttribute("href","/post/reference-post"); },
+};
+
+
+/** The child service is intentionally unavailable; Retry uses the same controlled scope. */
+export const SongStreaksRetry: Story = {
+  args: { state: songState() },
+  render: args => {
+    const song = postSongStoryDependencies(args.engagement?.resolveSession);
+    const activity = song.activity;
+    if (!activity?.client) throw new Error("Missing activity fixture");
+    const client = activity.client;
+    let reads = 0;
+    return <PublicPostRouteView {...args} song={{ ...song, activity: { ...activity, client: { ...client,
+      get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: async (input, options) => {
+        if (++reads === 1) throw new Error("Fixture streak service unavailable");
+        return client.get_communitiesCommunityIdPostsPostIdRewardsLeaderboard(input, options);
+      },
+    } } }} />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText("Couldn't load streaks.")).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Try again" }));
+    await expect(await canvas.findByText("No active streaks yet.")).toBeVisible();
+  },
+};
+
+export const SongStreaksSessionUnavailable: Story = {
+  args: { state: songState() },
+  render: args => {
+    const song = postSongStoryDependencies(args.engagement?.resolveSession);
+    return <PublicPostRouteView {...args} song={{ ...song, activity: { ...song.activity,
+      resolveSession: async () => { throw new Error("Fixture session unavailable"); },
+    } }} />;
+  },
+  play: async ({ canvasElement }) => {
+    await expect(await within(canvasElement).findByText("Couldn't check your session. Retry to load streaks.")).toBeVisible();
+  },
+};
+
+export const SongStreaksLoading: Story = {
+  args: { state: songState() },
+  render: args => {
+    const song = postSongStoryDependencies(args.engagement?.resolveSession);
+    return <PublicPostRouteView {...args} song={{ ...song, activity: { ...song.activity, resolveSession: () => new Promise(() => {}) } }} />;
+  },
+  play: async ({ canvasElement }) => {
+    await expect(await within(canvasElement).findByText("Loading streaks…")).toBeVisible();
+  },
 };
