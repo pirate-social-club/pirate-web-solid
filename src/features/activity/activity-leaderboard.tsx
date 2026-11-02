@@ -151,7 +151,7 @@ export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: 
     }));
   }
   onCleanup(() => { disposed = true; ++generation; readController?.abort(); writeController?.abort(); clearTimeout(readTimeout); clearTimeout(writeTimeout); });
-  const presentingControls = () => <div class="space-y-3" aria-label="Presenting profile">
+  const presentingControls = () => <div role="group" class="space-y-3" aria-label="Presenting profile">
             <Show when={presentationState() === "loading"}><p role="status">Loading presenting profile…</p></Show>
             <Show when={presentationState() === "error" || presentation()?.selection.status === "unavailable"}><p>Presenting profile is unavailable.</p><Button variant="secondary" onClick={() => { void load(); }}>Retry presenting profile</Button></Show>
             <Show when={authenticated()?.personasUnavailable}><p>Profiles couldn't be loaded. Retry before changing your presenting profile.</p><Button variant="secondary" onClick={() => { void load(); }}>Retry profiles</Button></Show>

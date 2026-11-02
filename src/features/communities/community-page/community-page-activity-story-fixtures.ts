@@ -4,7 +4,18 @@ import { clearSession, refreshSession, type AuthenticatedSession } from "../../.
 import { progressFixture } from "../../activity/activity-contract-fixtures.ts";
 
 /** Story-only HTTP fixtures; the mounted activity still uses generated validation. */
-export function communityActivityStoryFetch(communityId: string, session: AuthenticatedSession, assets: ApiFetch): ApiFetch {
+export function communityActivityStoryFetch(communityId: string, session: AuthenticatedSession | "anonymous", assets: ApiFetch): ApiFetch {
+  if (session === "anonymous") return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
+    if (!url.pathname.startsWith("/api/")) return assets(input, init);
+    if ((init?.method ?? "GET") !== "GET") throw new Error(`No anonymous story fixture for ${init?.method} ${url.pathname}`);
+    if (url.pathname === "/api/users/me") return new Response(null, { status: 401 });
+    if (url.pathname === `/api/communities/${encodeURIComponent(communityId)}/rewards/leaderboard`) {
+      const board: GetCommunitiesCommunityIdRewardsLeaderboardResponse = { object: "activity_streak_leaderboard", scope: { kind: "community", community_id: communityId }, day_semantics: "account_pinned_iana_timezone_v1", entries: [], viewer_standing: null };
+      return Response.json(board);
+    }
+    throw new Error(`No anonymous story fixture for GET ${url.pathname}`);
+  };
   const user: GetUsersMeResponse = {
     id: session.userId, object: "user", verification_state: "unverified", created: 1792108800,
     verification_capabilities: { unique_human: { state: "unverified" }, age_over_18: { state: "unverified" }, minimum_age: { state: "unverified" }, nationality: { state: "unverified" }, gender: { state: "unverified" }, wallet_score: { state: "unverified" } },
@@ -34,7 +45,7 @@ export function communityActivityStoryFetch(communityId: string, session: Authen
 }
 
 /** Restore the per-story HTTP fixtures when Storybook switches stories. */
-export function installCommunityActivityStoryFixture(communityId: string, session: AuthenticatedSession) {
+export function installCommunityActivityStoryFixture(communityId: string, session: AuthenticatedSession | "anonymous") {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "fetch")!;
   const fixture = communityActivityStoryFetch(communityId, session, fetch);
   Object.defineProperty(globalThis, "fetch", { ...previous, value: fixture });

@@ -11,6 +11,7 @@ import type {
   CommunityJoinAction,
 } from "./community-engagement-api.ts";
 import type { CommunityPageSuccess } from "./community-page.model";
+import { installCommunityActivityStoryFixture } from "./community-page-activity-story-fixtures.ts";
 
 const rules = [
   { title: "Keep posts on topic", body: "Memes belong in the weekly discussion thread.", position: 1 },
@@ -479,6 +480,7 @@ export const PaperMorePhone: Story = {
 
 /** 186: a visitor on the phone's About tab. */
 export const PaperAboutPhone: Story = {
+  beforeEach: () => installCommunityActivityStoryFixture(paperData.communityId, "anonymous"),
   name: "Paper / About tab, phone",
   globals: paperPhone,
   args: {
@@ -494,7 +496,9 @@ export const PaperAboutPhone: Story = {
     const about = canvasElement.querySelector<HTMLElement>("[data-community-about]");
     if (about === null) throw new Error("Expected the About view");
     await expect(within(about).getByText("Rules")).toBeVisible();
-    await expect(within(about).getByText("Anyone can join.")).toBeVisible();
+    await expect(within(about).getByText("Anyone can join")).toBeVisible();
+    await expect(await within(about).findByText("Study or sing here today to be first.")).toBeVisible();
+    await expect(within(about).queryByText("We couldn't check your session.")).not.toBeInTheDocument();
     await expect(within(about).queryByText("Community rules")).not.toBeInTheDocument();
   },
 };
