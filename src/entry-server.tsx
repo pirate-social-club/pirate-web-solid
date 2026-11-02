@@ -1,3 +1,4 @@
+import { resolveActivityLeaderboardPreflight, type ActivityLeaderboardPreflight } from "./features/activity/activity-leaderboard-preflight.ts";
 import { env } from "cloudflare:workers";
 import { isTelegramLinkPage, isTelegramPageAlias, telegramPageRequest } from "./features/identity/telegram-linking/telegram-linking-privacy.ts";
 import { isTelegramProbePage, telegramProbeEnabled } from "./features/identity/telegram-identity-probe/telegram-identity-probe-config.ts";
@@ -103,6 +104,18 @@ export async function render(
   const renderManifest = (context?.CANONICAL_ASSET_ORIGIN === undefined
     ? manifest
     : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;
+  const activityPreflight = await resolveActivityLeaderboardPreflight(request, context?.API_NEXT_ORIGIN, context?.PUBLIC_APP_CANONICAL_ORIGIN);
+  if (activityPreflight) {
+    if (activityPreflight.kind === "method-not-allowed") return new Response(null, { status: 405, headers: { allow: "GET, HEAD", "cache-control": "private, no-store" } });
+    if (activityPreflight.state.kind === "redirect") return new Response(null, { status: 308, headers: { location: activityPreflight.state.location, "cache-control": "private, no-store", vary: "Accept-Language, Cookie" } });
+    if (event !== undefined) {
+      // SAFETY: this request-local key is written only with the typed preflight above.
+      const locals = event.locals as typeof event.locals & { activityLeaderboardPreflight?: ActivityLeaderboardPreflight };
+      locals.activityLeaderboardPreflight = activityPreflight;
+    }
+    const policy = activityPreflight.kind === "community" ? communityPageResponsePolicy(activityPreflight.state) : publicPostResponsePolicy(activityPreflight.state);
+    httpStatus(policy.status, policy.statusText); policy.headers.forEach((value, name) => httpHeader(name, value));
+  }
   const postPreflight = context?.PUBLIC_POST_PREFLIGHT ??
     await resolvePublicPostPreflight(
       request,

@@ -1,0 +1,12 @@
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
+import { ActivityLeaderboard } from "./activity-leaderboard.tsx";
+import { streakDependencies } from "./activity-leaderboard-story-fixtures.ts";
+const meta = { title: "Parts/Rewards/Streak", component: ActivityLeaderboard, args: { communityId: "community", display: "preview", href: "/c/community/leaderboard", dependencies: streakDependencies() }, parameters: { layout: "padded" }, render: args => <div class="max-w-80"><ActivityLeaderboard {...args} /></div> } satisfies Meta<typeof ActivityLeaderboard>;
+export default meta;
+type Story = StoryObj<typeof meta>;
+export const Member: Story = { play: async ({ canvasElement }) => { const canvas = within(canvasElement); await expect(await canvas.findByText("Your rank: 18")).toBeVisible(); await expect(canvas.getByRole("link", { name: /See all/ })).toHaveAttribute("href", "/c/community/leaderboard"); await expect(canvas.queryByText("Presenting as")).toBeNull(); } };
+export const Visitor: Story = { args: { dependencies: streakDependencies("visitor") } };
+export const Empty: Story = { args: { dependencies: streakDependencies("empty") } };
+export const Loading: Story = { args: { dependencies: streakDependencies("loading") } };
+export const Error: Story = { args: { dependencies: streakDependencies("error") } };
