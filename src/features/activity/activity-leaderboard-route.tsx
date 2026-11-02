@@ -1,3 +1,4 @@
+import { Spinner } from "../../design-system.ts";
 import { query } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
 import { getRequestEvent, httpHeader, httpStatus, isServer } from "@solidjs/web";
@@ -87,7 +88,7 @@ export function SongLeaderboardRouteView(props: { readonly kind: "id" | "slug"; 
     {content => { const post = () => content(); return <><Title>Leaderboard</Title><ActivityLeaderboard display="page" communityId={post()!.response.content.post.community} postId={post()!.response.post_id} title={(post()!.response.content.translation_state === "ready" ? post()!.response.content.translated_title : undefined) || post()!.response.content.post.song_title || post()!.response.content.post.title || "Song"} backHref={returnHref(post()!.canonicalPath ?? publicPostIdHref(post()!.response.post_id))} /></>; }}
   </Show>}</Show></Loading></Show>;
 }
-function RouteLoading() { return <main class="p-6" aria-busy="true"><p role="status">Loading leaderboard…</p></main>; }
+function RouteLoading() { return <main class="grid min-h-64 place-items-center p-6" aria-busy="true"><Spinner size="lg" label="Loading leaderboard" /></main>; }
 function RouteFailure() { return <main class="space-y-4 p-6"><h1 class="text-xl font-semibold">The leaderboard isn't showing</h1><a href="/communities">Back to communities</a></main>; }
 
 function RouteRedirect(props: { readonly href: string }) {

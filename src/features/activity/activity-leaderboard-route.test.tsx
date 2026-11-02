@@ -27,6 +27,8 @@ test("session changes drop guarded metadata immediately and a late former read c
   await vi.waitFor(() => expect(host.textContent).toContain("Former account title"));
   clearSession(); await vi.waitFor(() => expect(pending).toHaveLength(1));
   expect(host.textContent).not.toContain("Former account title");
+  expect(host.querySelectorAll('[role="status"]')).toHaveLength(1);
+  expect(host.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe("Loading leaderboard");
   refreshSession(); await vi.waitFor(() => expect(pending).toHaveLength(2));
   pending[1](Response.json({ error: { code: "not_found", message: "Not found", retryable: false } }, { status: 404 }));
   await vi.waitFor(() => expect(host.textContent).toContain("This post is not available."));
