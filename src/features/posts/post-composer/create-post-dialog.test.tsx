@@ -14,6 +14,7 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
+import { createSongSubmissionStore } from "../song-submission/song-submission-store";
 import { CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
 
 const disposers: Array<() => void> = [];
@@ -343,13 +344,13 @@ describe("create post request", () => {
     await uploadAudio("moderated.mp3");
     await continueToReview();
     button("Post").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("This song is awaiting manual review."));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for review"));
 
-    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close song status']")!.click();
     await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull());
   });
 
-  test("lets an author discard a non-retryable processing failure", async () => {
+  test("shows a non-retryable failure outside the authoring form", async () => {
     class NonRetryableFailureTransport extends ProductionMediaTransport {
       override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
         const result = await super.dispatch(command);
@@ -366,11 +367,6 @@ describe("create post request", () => {
         return result;
       }
     }
-    let observationTick = () => {};
-    vi.spyOn(globalThis, "setInterval").mockImplementation((callback) => {
-      observationTick = () => callback();
-      return setTimeout(() => {}, 0);
-    });
     const mediaTransport = new NonRetryableFailureTransport();
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Harbor" }}
@@ -384,33 +380,33 @@ describe("create post request", () => {
     await uploadAudio("failed.mp3");
     await continueToReview();
     button("Post").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
-    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Retry processing")).toBe(false);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Couldn't process this song"));
+    expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull();
+    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Try again")).toBe(false);
+    // The standalone host shares the approved status screen's dismissal.
+    button("Close song status").click();
+  });
 
-    const failedSnapshot = mediaTransport.snapshot;
-    if (failedSnapshot === null) throw new Error("missing failed song fixture");
-    mediaTransport.snapshot = mediaSnapshot({
-      ...failedSnapshot,
-      creation_revision: failedSnapshot.creation_revision + 1,
-      status: "processing",
-      phase: "publish",
+  test("keeps failure recovery before terms and can discard that preparation", async () => {
+    const transport = new ProductionMediaTransport();
+    const dispatch = transport.dispatch.bind(transport);
+    vi.spyOn(transport, "dispatch").mockImplementation(async command => {
+      const result = await dispatch(command);
+      if (command.kind !== "finalize" || transport.snapshot === null) return result;
+      transport.snapshot = mediaSnapshot({ ...transport.snapshot, status: "processing_failed",
+        reason_code: "workflow_terminal_unconverged", retry_count: 0, retryable: false });
+      return transport.snapshot;
     });
-    observationTick();
-    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Song processing failed."));
-
-    mediaTransport.snapshot = mediaSnapshot({
-      ...mediaTransport.snapshot,
-      status: "processing_failed",
-      reason_code: "workflow_terminal_unconverged",
-      retry_count: 0,
-      retryable: false,
-    });
-    observationTick();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} open
+      personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
+    await uploadAudio();
+    button("Next").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
-
+    expect(transport.commands.some(command => command.kind === "terms")).toBe(false);
     button("Discard and start over").click();
-    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Song processing failed."));
-    expect(document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")).not.toBeNull();
+    await vi.waitFor(() => expect(document.body.querySelector("[data-media-composer-state]")).toBeNull());
+    expect(document.body.querySelector("input[aria-label='Upload audio']")).not.toBeNull();
   });
 
   test("restores an edited share that exceeds the remainder and keeps the creator minimum", async () => {
@@ -832,8 +828,7 @@ describe("create post request", () => {
 
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
       published_resource: { post_id: "post-production", href: "/posts/production-song-title" } });
-    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
-    expect(onPublished).toHaveBeenCalledWith("/posts/production-song-title");
+    await vi.waitFor(() => expect(document.body.querySelector('a[href="/posts/production-song-title"]')?.textContent).toBe("View song"), { timeout: 5_000 });
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
     expect(mediaTransport.uploadCount).toBe(3);
   });
@@ -876,7 +871,7 @@ describe("create post request", () => {
 
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
       published_resource: { post_id: "post-wordless", href: "/posts/wordless-song-title" } });
-    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    await vi.waitFor(() => expect(document.body.querySelector('a[href="/posts/wordless-song-title"]')?.textContent).toBe("View song"), { timeout: 5_000 });
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
     expect(mediaTransport.uploadCount).toBe(3);
   });
@@ -1023,77 +1018,137 @@ describe("create post request", () => {
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
       published_resource: { post_id: "post-transient", href: "/posts/transient-song-title" } });
     mediaTransport.failReads = false;
-    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 8_000 });
+    await vi.waitFor(() => expect(document.body.querySelector('a[href="/posts/transient-song-title"]')?.textContent).toBe("View song"), { timeout: 8_000 });
   }, 20_000);
 
-  test("background reads leave Royalties and Review usable and cannot land after Post", async () => {
-    const intervals = vi.spyOn(globalThis, "setInterval");
+  test("accepted terms hand off before a held status read and double Post sends once", async () => {
+    let releaseTerms!: () => void;
+    const terms = new Promise<void>(resolve => { releaseTerms = resolve; });
     const transport = new ProductionMediaTransport();
-    const onPublished = vi.fn();
+    const originalDispatch = transport.dispatch.bind(transport);
+    vi.spyOn(transport, "dispatch").mockImplementation(async command => {
+      if (command.kind === "terms") await terms;
+      return originalDispatch(command);
+    });
+    const store = createSongSubmissionStore();
+    disposers.push(() => store.dispose());
+    const onSongSubmitted = vi.fn();
+    const [open, setOpen] = createSignal(true);
+    const onOpenChange = vi.fn(setOpen);
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
-      mediaTransport={transport} onOpenChange={() => {}} onPublished={onPublished} open
+      mediaTransport={transport} songStore={store} onOpenChange={onOpenChange} onSongSubmitted={onSongSubmitted} open={open()}
       personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
-    button("Next").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
-    const poll = intervals.mock.calls.find(([, delay]) => delay === 3_000)?.[0];
-    if (typeof poll !== "function") throw new Error("Missing song observer");
-    let answer!: (snapshot: MediaSubmissionSnapshot) => void;
-    const held = new Promise<MediaSubmissionSnapshot>(resolve => { answer = resolve; });
-    const stale = mediaSnapshot({ ...transport.snapshot!, creation_revision: 99, status: "published",
-      published_resource: { post_id: "stale", href: "/posts/stale" } });
-    let releaseCommandRead!: (snapshot: MediaSubmissionSnapshot) => void;
-    const commandRead = new Promise<MediaSubmissionSnapshot>(resolve => { releaseCommandRead = resolve; });
-    const read = vi.spyOn(transport, "read").mockImplementationOnce(() => held).mockImplementationOnce(() => commandRead);
-    poll();
-    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
-    expect(button("Next").disabled).toBe(false);
-    expect(button("Add collaborator").disabled).toBe(false);
-    button("Next").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
-    expect(button("Post").disabled).toBe(false);
-    expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
-    expect(button("Back").disabled).toBe(false);
-    poll(); poll();
-    expect(read).toHaveBeenCalledOnce();
-    button("Post").click();
-    await vi.waitFor(() => expect(button("Post").getAttribute("aria-busy")).toBe("true"));
-    releaseCommandRead(transport.snapshot!);
-    await vi.waitFor(() => expect(transport.commands.some(command => command.kind === "terms")).toBe(true));
-    answer(stale);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    expect(onPublished).not.toHaveBeenCalled();
+    await continueToReview();
+    const read = vi.spyOn(transport, "read").mockImplementation(async () => {
+      if (transport.commands.some(command => command.kind === "terms")) return new Promise(() => {});
+      return transport.snapshot;
+    });
+    const post = button("Post");
+    post.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    post.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(post.getAttribute("aria-busy")).toBe("true"));
+    expect(onSongSubmitted).not.toHaveBeenCalled();
+    expect(document.body.querySelector("[data-media-composer-state]")).toBeNull();
+    expect(document.body.textContent).not.toContain("Save reviewed lyrics");
+    releaseTerms();
+    await vi.waitFor(() => expect(onSongSubmitted).toHaveBeenCalledOnce());
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull();
     expect(transport.commands.filter(command => command.kind === "terms")).toHaveLength(1);
+    const readsAtHandoff = read.mock.calls.length;
+    store.check("submission-production");
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(readsAtHandoff + 1));
+    expect(store.items()[0]?.view.status).toBe("processing");
+    expect(onSongSubmitted).toHaveBeenCalledOnce();
   });
 
-  test("automatic observation preserves the form error on start and failure", async () => {
+  test("a failed status read after accepted terms cannot keep the author on Review", async () => {
+    const transport = new ProductionMediaTransport();
+    const originalDispatch = transport.dispatch.bind(transport);
+    vi.spyOn(transport, "dispatch").mockImplementation(async command => {
+      const result = await originalDispatch(command);
+      if (command.kind === "terms") transport.failReads = true;
+      return result;
+    });
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} open
+      personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
+    await uploadAudio();
+    await continueToReview();
+    button("Post").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Processing your song"));
+    expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull();
+    expect(document.body.textContent).not.toContain("API response was not valid JSON");
+    expect(document.body.textContent).not.toContain("Save reviewed lyrics");
+    expect(document.body.querySelector("[data-media-composer-state]")).toBeNull();
+    button("Close song status").click();
+  });
+
+  test("Royalties and Review make no periodic reads and preserve command errors", async () => {
     const intervals = vi.spyOn(globalThis, "setInterval");
     const transport = new ProductionMediaTransport();
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
       mediaTransport={transport} onOpenChange={() => {}} open
       personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
-    await continueToReview();
+    button("Next").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
+    const read = vi.spyOn(transport, "read");
+    expect(intervals.mock.calls.some(([, delay]) => delay === 3000)).toBe(false);
+    vi.useFakeTimers();
+    try {
+      await vi.advanceTimersByTimeAsync(6500);
+      expect(read).not.toHaveBeenCalled();
+      expect(button("Next").disabled).toBe(false);
+      button("Next").click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
+      expect(button("Back").disabled).toBe(false);
+    } finally { vi.useRealTimers(); }
     transport.failReads = true;
     button("Post").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("API response was not valid JSON"));
-    transport.failReads = false;
-    let fail!: (error: Error) => void;
-    const held = new Promise<MediaSubmissionSnapshot>(() => {});
-    const rejected = new Promise<MediaSubmissionSnapshot>((_resolve, reject) => { fail = reject; });
-    const read = vi.spyOn(transport, "read").mockImplementationOnce(() => rejected).mockImplementationOnce(() => held);
-    const poll = intervals.mock.calls.find(([, delay]) => delay === 3_000)?.[0];
-    if (typeof poll !== "function") throw new Error("Missing song observer");
-    poll();
-    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
-    expect(document.body.textContent).toContain("API response was not valid JSON");
-    fail(new Error("Background read failed"));
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    expect(document.body.textContent).toContain("API response was not valid JSON");
-    expect(document.body.textContent).not.toContain("Background read failed");
-    expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
+    read.mockClear();
+    vi.useFakeTimers();
+    try {
+      await vi.advanceTimersByTimeAsync(6500);
+      expect(read).not.toHaveBeenCalled();
+      expect(document.body.textContent).toContain("API response was not valid JSON");
+      expect(button("Post").getAttribute("aria-busy")).not.toBe("true");
+    } finally { vi.useRealTimers(); }
+  });
+
+  test.each([false, true])("an uncertain terms response reconciles without a new submission (accepted: %s)", async accepted => {
+    const transport = new ProductionMediaTransport();
+    const originalDispatch = transport.dispatch.bind(transport);
+    let lost = false;
+    const termsCommands: PersistedMediaCommand[] = [];
+    vi.spyOn(transport, "dispatch").mockImplementation(async command => {
+      if (command.kind === "terms") {
+        termsCommands.push(command);
+        if (!lost) {
+          lost = true;
+          if (accepted) await originalDispatch(command);
+          throw new TypeError("Terms response was lost");
+        }
+      }
+      return originalDispatch(command);
+    });
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport} onOpenChange={() => {}} open
+      personas={[activePersona("persona-one", "Profile")]} principalId="account-one" />);
+    await uploadAudio();
+    await continueToReview();
+    button("Post").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Terms response was lost"));
+    await vi.waitFor(() => expect(button("Post").disabled).toBe(false));
+    button("Post").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Processing your song"));
+    expect(transport.commands.filter(command => command.kind === "start")).toHaveLength(1);
+    expect(termsCommands).toHaveLength(accepted ? 1 : 2);
+    for (const command of termsCommands) expect(command).toEqual(termsCommands[0]);
+    expect(document.body.querySelector("form[aria-label='Post a song']")).toBeNull();
   });
 
   test("wizard navigation preserves state and supports back", async () => {
