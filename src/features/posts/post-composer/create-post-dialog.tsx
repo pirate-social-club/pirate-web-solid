@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { originalSongPostId } from "../song-submission/original-song-link";
-import { createEffect, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import {
@@ -21,7 +21,6 @@ import { royaltySplitIssue } from "./earnings-split";
 import {
   prepareSongComposer,
   projectSnapshotIntoSongComposer,
-  submitComposerLyrics,
   submitSongComposer,
 } from "./media-composer-bridge";
 import { DEFAULT_SONG_LICENSE } from "./defaults";
@@ -31,7 +30,8 @@ import { VideoComposerRuntime } from "../video-submission/video-composer-runtime
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import type { SongSourceReader } from "./song-excerpt-source";
-import { useSongSubmissionStore, type SongSubmissionStore } from "../song-submission/song-submission-store.tsx";
+import { PostedSong } from "../song-submission/posted-song";
+import { createSongSubmissionStore, useSongSubmissionStore, type SongSubmissionStore } from "../song-submission/song-submission-store.tsx";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { titleFromFilename } from "./write-step";
 import type {
@@ -63,18 +63,13 @@ function terminalMediaView(view: SongSubmissionView): boolean {
 
 function mediaStateMessage(view: SongSubmissionView): string {
   switch (view.status) {
-    case "editing": return "Ready to submit your song.";
-    case "reconciling": return "Checking on your song…";
     case "uploading": return view.bytesTotal > 0
       ? `Uploading audio… ${Math.min(100, Math.floor((view.bytesSent / view.bytesTotal) * 100))}%`
       : "Uploading audio…";
-    case "processing": return "Your song is processing. This can take a minute.";
-    case "action_required": return "This song needs the original song it's based on before it can continue.";
-    case "manual_review": return "This song is awaiting manual review.";
-    case "published": return "Song published.";
     case "blocked": return "This song was blocked by policy.";
     case "processing_failed": return "Song processing failed.";
     case "abandoned": return "This song submission was cancelled.";
+    default: return "";
   }
 }
 
@@ -217,19 +212,21 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
   const [mediaBusy, setMediaBusy] = createSignal(false);
-  const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   let mediaOperationInFlight = false;
   let mediaUploadController: AbortController | undefined;
-  let observationController: AbortController | undefined;
-
-  function stopObservation(): void {
-    observationController?.abort(new DOMException("Song observation superseded", "AbortError"));
-    observationController = undefined;
-  }
   let finishingPublishedSong = false;
 
-  const songStore = useSongSubmissionStore() ?? untrack(() => props.songStore) ?? null;
+  const hostSongStore = useSongSubmissionStore() ?? untrack(() => props.songStore) ?? null;
+  // Isolated hosts still end authoring after acceptance. Reuse the shell's
+  // observer and approved page state instead of leaving Review watching work.
+  const songStore = hostSongStore ?? createSongSubmissionStore();
+  const localSongStore = hostSongStore === null ? songStore : null;
+  const localPostedSong = () => localSongStore?.items().find(item => item.accountId === props.principalId);
+  createEffect(() => props.principalId, accountId => {
+    if (accountId === undefined) localSongStore?.clear();
+    else localSongStore?.retainAccount(accountId);
+  });
   // The coordinator stops writing this dialog's state after handover.
   let handedOver = false;
   const mediaCoordinator = !mediaEnabled ? undefined : createMediaSubmissionCoordinator({
@@ -312,8 +309,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setSongPersonaId(nextPersonaId);
     setMediaSnapshot(null);
     setMediaView({ status: "editing" });
-    observationCount = 0;
-    setObservationPaused(false);
     setTitle("");
     setSongAgeGatePolicy("none");
     setError("");
@@ -322,7 +317,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   function discardTerminalSong(): void {
-    stopObservation();
     mediaCoordinator?.discardTerminal();
     resetSongDraft();
   }
@@ -359,11 +353,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   /**
    * The server has accepted the song. Everything left is the server's work, so
    * the steps end here: the application's song owner watches it from now on,
-   * and the host shows its state (Paper ruling 14) or its card in the feed. Without that owner, as in an isolated
-   * render, the song stays in this dialog as before.
+   * and the host shows its state (Paper ruling 14) or its card in the feed. An
+   * isolated host uses the same store and page state with component lifetime.
    */
   function handOverSong(snapshot: MediaSubmissionSnapshot, personaId: string, community: string): boolean {
-    if (songStore === null || mediaCoordinator === undefined || props.principalId === undefined) return false;
+    if (mediaCoordinator === undefined || props.principalId === undefined) return false;
     if (!mediaCoordinator.termsIssued) return false;
     const coordinator = mediaCoordinator;
     const persona = personas().find(candidate => candidate.personaId === personaId);
@@ -378,8 +372,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       source: { refresh: signal => coordinator.refresh(signal), retry: signal => coordinator.retry(signal), hasPendingOriginal: () => coordinator.currentRecord?.pending_command?.kind === "reference", retryOriginal: signal => coordinator.retryReference(signal), bindOriginal: async (link, signal) => coordinator.bindReference(await originalSongPostId(link, signal), signal) },
     });
     handedOver = true;
-    props.onOpenChange(false);
-    props.onSongSubmitted?.(community, snapshot.submission_id);
+    if (hostSongStore !== null) {
+      props.onOpenChange(false);
+      props.onSongSubmitted?.(community, snapshot.submission_id);
+    }
     return true;
   }
 
@@ -406,7 +402,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }
 
   async function submitSong(prepareOnly = false): Promise<boolean> {
-    if (mediaBusy() || lyricsBusy()) return false;
+    if (mediaOperationInFlight || handedOver || mediaBusy()) return false;
     const personaId = selectedActivePersonaId();
     const community = communityId().trim();
     if (mediaCoordinator === undefined || props.principalId === undefined) {
@@ -424,7 +420,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       return false;
     }
     setError("");
-    stopObservation();
     setMediaBusy(true);
     mediaOperationInFlight = true;
     const uploadController = new AbortController();
@@ -444,8 +439,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       });
       applySnapshot(snapshot);
       setUploadFailure(null);
-      // With an owner to take it, a submitted song always goes to the feed,
-      // published already or not, and the author is taken nowhere.
+      // Acceptance ends the steps immediately. The shell or the isolated
+      // host owns the centred status page from this point.
       if (!prepareOnly && !handOverSong(snapshot, personaId, community) && snapshot.status === "published") finishSongPublished();
       return songPreparationComplete(snapshot);
     } catch (submissionError) {
@@ -465,59 +460,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     mediaUploadController?.abort(new DOMException("Upload stopped", "AbortError"));
   }
 
-  async function refreshSong(automatic = false): Promise<void> {
-    if (mediaCoordinator?.currentRecord?.submission_id == null || mediaBusy() || lyricsBusy()
-      || observationController !== undefined) return;
-    if (!automatic) {
-      observationCount = 0;
-      observationFailures = 0;
-      observationRetryAt = 0;
-      setObservationPaused(false);
-      setError("");
-    }
-    const controller = new AbortController();
-    observationController = controller;
-    try {
-      // Abort reaches the coordinator before it adopts a late snapshot.
-      const snapshot = await mediaCoordinator.refresh(controller.signal);
-      if (disposed || handedOver || controller.signal.aborted || observationController !== controller) return;
-      if (snapshot !== null) applySnapshot(snapshot);
-      observationFailures = 0;
-      observationRetryAt = 0;
-    } catch (refreshError) {
-      if (disposed || controller.signal.aborted || observationController !== controller) return;
-      if (automatic) {
-        observationFailures += 1;
-        observationRetryAt = Date.now() + Math.min(30_000, 3_000 * 2 ** (observationFailures - 1));
-        if (observationFailures >= 5) setObservationPaused(true);
-      } else {
-        setError(refreshError instanceof Error ? refreshError.message : "The song status is still uncertain.");
-      }
-    } finally {
-      if (observationController === controller) observationController = undefined;
-    }
-  }
-
-  async function saveLyrics(): Promise<void> {
-    const snapshot = mediaSnapshot();
-    if (mediaCoordinator === undefined || snapshot === null) return;
-    setError("");
-    stopObservation();
-    setLyricsBusy(true);
-    try {
-      applySnapshot(await submitComposerLyrics(mediaCoordinator, snapshot, lyrics()));
-      lyricsEdited = false;
-    } catch (lyricsError) {
-      setError(lyricsError instanceof Error ? lyricsError.message : "The reviewed lyrics could not be saved safely.");
-    } finally {
-      setLyricsBusy(false);
-    }
-  }
-
   async function retrySong(): Promise<void> {
     if (mediaCoordinator === undefined) return;
     setError("");
-    stopObservation();
     setMediaBusy(true);
     try {
       applySnapshot(await mediaCoordinator.retry());
@@ -531,7 +476,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   async function cancelSong(): Promise<void> {
     if (mediaCoordinator === undefined) return;
     setError("");
-    stopObservation();
     setMediaBusy(true);
     try {
       applySnapshot(await mediaCoordinator.cancel());
@@ -558,26 +502,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     mediaSnapshot();
     return mediaCoordinator?.termsIssued ?? false;
   };
-  let observationCount = 0;
-  let observationFailures = 0;
-  let observationRetryAt = 0;
-  const [observationPaused, setObservationPaused] = createSignal(false);
-  const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
-    if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
-      || observationController !== undefined || observationPaused()) return;
-    const view = mediaView();
-    if (view.status !== "processing"
-      && view.status !== "manual_review"
-      && (view.status !== "processing_failed" || view.retryable)) return;
-    if (mediaCoordinator?.currentRecord?.submission_id == null) return;
-    if (Date.now() < observationRetryAt) return;
-    if (++observationCount > 200) { setObservationPaused(true); return; }
-    void refreshSong(true);
-  }, 3_000) : undefined;
   onCleanup(() => {
     disposed = true;
-    if (observation !== undefined) clearInterval(observation);
-    stopObservation();
+    localSongStore?.dispose();
     mediaUploadController?.abort(new DOMException("Composer closed", "AbortError"));
   });
 
@@ -588,23 +515,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       || (view.status === "processing" && !songTermsIssued());
   };
   const songSubmitDisabled = () => mediaBusy()
-    || lyricsBusy()
     || !canContinueSongSubmit()
     || selectedActivePersonaId() === undefined
     || communityId().trim() === ""
     || royaltySplitIssue(royaltySplit(), selectedActivePersonaId()) !== "";
-  const lyricsCanSave = () => {
-    const snapshot = mediaSnapshot();
-    if (snapshot === null
-      || snapshot.audio_revision < 1
-      || snapshot.status === "published"
-      || snapshot.status === "blocked"
-      || snapshot.status === "abandoned"
-      || lyrics().length === 0
-      || lyricsBusy()) return false;
-    const current = snapshot.lyrics_state.current;
-    return current.status === "not_bound" || (current.status === "ready" && current.text !== lyrics());
-  };
   const canCancelSong = () => {
     const view = mediaView();
     return view.status === "processing" && view.phase === "awaiting_upload";
@@ -625,10 +539,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     return 2;
   };
 
-  // After Continue on the Song step the audio is uploaded and the author is
-  // still editing Rights and Review; that is not a state worth a status card.
-  const preparedDraft = () => songPreparationComplete(mediaSnapshot()) && !songTermsIssued() && mediaView().status === "processing";
-
   /** How much of the audio has been sent, once the size is known. */
   const uploadFraction = (): number | undefined => {
     const view = mediaView();
@@ -638,7 +548,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   };
 
   const mediaStatusPanel = () => (
-    <Show when={mode() === "song" && mediaView().status !== "editing" && !preparedDraft()}>
+    <Show when={mode() === "song" && (mediaView().status === "uploading"
+      || mediaCoordinator?.recoveredUploadUnavailable
+      || mediaView().status === "blocked" || mediaView().status === "abandoned"
+      || mediaView().status === "processing_failed")}>
       <div
         aria-live="polite"
         class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
@@ -670,9 +583,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         <Show when={canRetrySong()}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void retrySong()}>Retry processing</Button>
         </Show>
-        <Show when={lyricsCanSave()}>
-          <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
-        </Show>
         <Show when={(terminalMediaView(mediaView()) && mediaView().status !== "published")
           || mediaView().status === "processing_failed"}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => discardTerminalSong()}>Discard and start over</Button>
@@ -685,6 +595,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   // and record on one screen, posting details at review — not a tab inside
   // the scrolling post form. It replaces the form entirely while it runs.
   return (
+    <Show when={localPostedSong()} fallback={
     <Show
       when={mode() === "video"}
       fallback={
@@ -767,7 +678,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                     vocals: mediaCoordinator?.isStemAttachmentPending("vocal_audio") === true,
                   },
                   retained: mediaSnapshot() !== null,
-                  locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
+                  locked: mediaBusy() || songTermsIssued() || terminalMediaView(mediaView()),
                 } : undefined}
                 ageGatePolicy={songAgeGatePolicy()}
                 royaltySplit={royaltySplit()}
@@ -830,5 +741,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       </Show>
       </div>
     </Show>
+    }>{item => <div class={props.presentation === "inline" ? "w-full" : "fixed inset-0 z-50 overflow-y-auto bg-background px-4 sm:p-8"}>
+      <PostedSong item={item()} onClose={() => props.onOpenChange(false)}
+        onCheck={songStore.check} onRetry={songStore.retry} onBindOriginal={songStore.bindOriginal}
+        onRetryOriginal={songStore.retryOriginal}
+        onDismiss={id => { songStore.dismiss(id); props.onOpenChange(false); }} />
+    </div>}</Show>
   );
 }
