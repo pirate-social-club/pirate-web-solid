@@ -25,7 +25,7 @@ test("authenticated SSR never reads rewards or exposes Boost availability", () =
     return <span>{available() ? "available" : "hidden"}</span>;
   };
   const html = renderToString(() => <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account" })}>
-    <RewardServiceAvailabilityProvider client={{ get_rewardsQualificationPolicies: read }}><Probe /></RewardServiceAvailabilityProvider>
+    <RewardServiceAvailabilityProvider client={{ get_rewardsAvailability: read, get_rewardsQualificationPolicies: read }}><Probe /></RewardServiceAvailabilityProvider>
   </ApplicationSessionProvider>);
   expect(html).toContain("hidden");
   expect(html).not.toContain("available");

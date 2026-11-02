@@ -23,7 +23,7 @@ function render(dependencies: ActivityLeaderboardDependencies, scope: () => Acti
   return host;
 }
 function client(read: () => Promise<ActivityLeaderboardData> = async () => board) {
-  return { get_rewardsQualificationPolicies: vi.fn<ActivityClient["get_rewardsQualificationPolicies"]>(async () => ({ policies: [] })), get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: vi.fn(read), get_communitiesCommunityIdRewardsLeaderboard: vi.fn(read), put_communitiesCommunityIdRewardsPresentationPersona: vi.fn<ActivityClient["put_communitiesCommunityIdRewardsPresentationPersona"]>(async () => ({ object: "activity_presentation" as const, community_id: "community", persona_id: "second-profile", updated_at: "2026-10-16T00:00:00Z" })) };
+  return { get_rewardsAvailability: vi.fn(async () => ({ enabled: true })), get_rewardsQualificationPolicies: vi.fn<ActivityClient["get_rewardsQualificationPolicies"]>(async () => ({ policies: [] })), get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: vi.fn(read), get_communitiesCommunityIdRewardsLeaderboard: vi.fn(read), put_communitiesCommunityIdRewardsPresentationPersona: vi.fn<ActivityClient["put_communitiesCommunityIdRewardsPresentationPersona"]>(async () => ({ object: "activity_presentation" as const, community_id: "community", persona_id: "second-profile", updated_at: "2026-10-16T00:00:00Z" })) };
 }
 function button(host: HTMLElement | Document, text: string) { return [...host.querySelectorAll("button")].find(item => item.textContent?.includes(text))!; }
 
@@ -108,6 +108,18 @@ test("refresh removes rendered private standing before the replacement session r
   await vi.waitFor(() => expect(host.textContent).not.toContain("Your standing")); expect(host.textContent).not.toContain("Public leader");
 });
 
+test("disabled financial Rewards makes no policy read while activity standing remains available", async () => {
+  const api = client();
+  api.get_rewardsAvailability.mockResolvedValue({ enabled: false });
+  const host = render({ client: api, resolveSession: async () => member });
+  await vi.waitFor(() => expect(host.textContent).toContain("Your standing"));
+  await vi.waitFor(() => expect(host.querySelector('[aria-label="Qualification requirements"]')).toBeNull());
+  expect(api.get_rewardsAvailability).toHaveBeenCalledOnce();
+  expect(api.get_rewardsQualificationPolicies).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("Public leader");
+  expect(host.textContent).toContain("Presenting as");
+});
+
 test("server qualification terms remain independent from a leaderboard and retry without losing standing", async () => {
   const api = client(); let fail = true;
   api.get_rewardsQualificationPolicies.mockImplementation(async () => {
@@ -185,7 +197,7 @@ test("a clear notification alone reloads public standings with omitted credentia
   let signedOut = false;
   const transport = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = new URL(String(input));
-    return Response.json(url.pathname.endsWith("/qualification-policies") ? { policies: [] } : {
+    return Response.json(url.pathname.endsWith("/availability") ? { enabled: true } : url.pathname.endsWith("/qualification-policies") ? { policies: [] } : {
       ...board, entries: board.entries.map(row => ({ ...row, persona: { ...row.persona, display_name: signedOut ? "Public after sign-out" : "Public leader" } })),
     });
   });
