@@ -9,7 +9,7 @@ export function communityActivityStoryFetch(communityId: string, session: Authen
     const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
     if (!url.pathname.startsWith("/api/")) return assets(input, init);
     if ((init?.method ?? "GET") !== "GET") throw new Error(`No anonymous story fixture for ${init?.method} ${url.pathname}`);
-    if (url.pathname === "/api/users/me") return new Response(null, { status: 401 });
+    if (url.pathname === "/api/users/me" || url.pathname === "/api/personas") return Response.json({ error: { code: "auth_error", message: "Sign in required", retryable: false } }, { status: 401 });
     if (url.pathname === `/api/communities/${encodeURIComponent(communityId)}/rewards/leaderboard`) {
       const board: GetCommunitiesCommunityIdRewardsLeaderboardResponse = { object: "activity_streak_leaderboard", scope: { kind: "community", community_id: communityId }, day_semantics: "account_pinned_iana_timezone_v1", entries: [], viewer_standing: null };
       return Response.json(board);

@@ -497,7 +497,7 @@ export const PaperAboutPhone: Story = {
     if (about === null) throw new Error("Expected the About view");
     await expect(within(about).getByText("Rules")).toBeVisible();
     await expect(within(about).getByText("Anyone can join")).toBeVisible();
-    await expect(await within(about).findByText("Study or sing here today to be first.")).toBeVisible();
+    await expect(await within(about).findByText("No streaks yet")).toBeVisible();
     await expect(within(about).queryByText("We couldn't check your session.")).not.toBeInTheDocument();
     await expect(within(about).queryByText("Community rules")).not.toBeInTheDocument();
   },
