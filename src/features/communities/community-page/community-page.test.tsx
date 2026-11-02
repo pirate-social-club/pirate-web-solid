@@ -224,6 +224,25 @@ afterEach(() => {
 });
 
 describe("CommunityPage", () => {
+  test("shows one accessible spinner until community metadata resolves", async () => {
+    const client = { get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview };
+    let finish!: (value: Awaited<ReturnType<typeof loadCommunityPage>>) => void;
+    const pending = new Promise<Awaited<ReturnType<typeof loadCommunityPage>>>(resolve => { finish = resolve; });
+    const container = render(() => <CommunityPage pathSegment="xn--pokmon-dva" data={pending}
+      client={client} engagementApi={engagementApi()} loadThreads={async () => ({ posts: [], nextCursor: null })} />);
+    await vi.waitFor(() => expect(container.querySelector('[data-community-state="loading"]')).not.toBeNull());
+    const loading = container.querySelector('[data-community-state="loading"]')!;
+    const status = loading.querySelector('[role="status"]')!;
+    expect(loading.getAttribute("aria-busy")).toBe("true");
+    expect(loading.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(status.tagName.toLowerCase()).toBe("svg");
+    expect(status.getAttribute("aria-label")).toMatch(/Loading community/iu);
+    expect(loading.textContent?.trim()).toBe("");
+    finish(await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example"));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+    expect(container.querySelector('[data-community-state="loading"]')).toBeNull();
+  });
+
   test("loads real Community threads into the Reddit-style feed", async () => {
     const navigate = vi.fn();
     const loadThreads = vi.fn(async () => ({
