@@ -136,7 +136,33 @@ test.each(["karaoke", "leaderboard"] as const)("anonymous %s refusal settles wit
   expect(fetchImpl).toHaveBeenCalledOnce();
 });
 
-test("signing in from the Karaoke prompt reloads the same song in place", async () => {
+test("a server failure keeps the retryable failure state instead of asking for sign-in", async () => {
+  const fetchImpl = vi.fn(async () => Response.json({ error: { code: "internal_error", message: "Karaoke read failed", retryable: true } }, { status: 500 }));
+  const client = createKaraokeApiClient({ origin: "https://pirate.sc", fetchImpl });
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const TestRouter = createRouter({ history: memoryHistory(), routes: [{ path: "/" }] });
+  const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView postId="post-1" client={client} />}</TestRouter>, host);
+  disposers.push(() => { dispose(); host.remove(); });
+  await vi.waitFor(() => expect(host.textContent).toContain("Karaoke unavailable"));
+  expect(host.textContent).toContain("Try Again");
+  expect(host.textContent).not.toContain("Sign in to sing");
+});
+
+test("Back on the Karaoke sign-in prompt returns to the song", async () => {
+  clearSession(); refreshSession();
+  const fetchImpl = vi.fn(async () => Response.json({ error: { code: "auth_error", message: "Not authenticated", retryable: false } }, { status: 401 }));
+  const client = createKaraokeApiClient({ origin: "https://pirate.sc", fetchImpl });
+  const host = document.createElement("div"); document.body.appendChild(host);
+  const history = memoryHistory();
+  const TestRouter = createRouter({ history, routes: [{ path: "/" }, { path: "/posts/song" }] });
+  const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView exitPath="/posts/song" postId="post-1" client={client} />}</TestRouter>, host);
+  disposers.push(() => { dispose(); host.remove(); });
+  await vi.waitFor(() => expect(host.textContent).toContain("Sign in to sing"));
+  host.querySelector<HTMLButtonElement>('button[aria-label="Back"]')!.click();
+  await vi.waitFor(() => expect(history.get()).toBe("/posts/song"));
+});
+
+test("signing in from the Karaoke prompt reloads the same song", async () => {
   clearSession(); refreshSession();
   const opened = vi.fn();
   window.addEventListener(GLOBAL_SIGN_IN_EVENT, opened);
