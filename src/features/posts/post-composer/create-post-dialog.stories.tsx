@@ -118,7 +118,7 @@ class StoryMediaTransport implements MediaSubmissionTransport {
     }
     if (command.kind === "finalize") {
       this.snapshot = snapshot({ creation_revision: this.snapshot.creation_revision, audio_revision: 1, phase: "analysis" });
-      if (this.outcome !== "published") this.snapshot = outcomeSnapshot(this.outcome, this.snapshot);
+      if (this.outcome === "blocked" || this.outcome === "processing_failed") this.snapshot = outcomeSnapshot(this.outcome, this.snapshot);
       return this.snapshot;
     }
     if (command.kind === "lyrics") {
@@ -491,31 +491,14 @@ export const SongStepRights: Story = {
 };
 
 /** A real observer request held while the author navigates the editable steps. */
-export const SongStepsDuringBackgroundRead: Story = {
-  name: "Song / States / Background read keeps editing available",
-  render: () => {
-    const [hold, setHold] = createSignal(false);
-    const [pending, setPending] = createSignal(false);
-    class HeldReadTransport extends StoryMediaTransport {
-      override async read(): Promise<MediaSubmissionSnapshot | null> {
-        if (!hold()) return super.read();
-        setPending(true);
-        return new Promise(() => {});
-      }
-    }
-    return <>
-      <button onClick={() => setHold(true)}>Hold next status response</button>
-      <Show when={pending()}><span>Status response held</span></Show>
-      {dialogHarness({ mediaTransport: new HeldReadTransport() }).render()}
-    </>;
-  },
+export const SongStepsWithoutPolling: Story = {
+  name: "Song / States / Editing without background reads",
+  render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
     await canvas.findByText("Your cut of remix sales");
-    await userEvent.click(canvas.getByRole("button", { name: "Hold next status response" }));
-    await waitFor(async () => { await expect(canvas.getByText("Status response held")).toBeVisible(); }, { timeout: 5_000 });
     await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Add collaborator" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Next" }));
@@ -523,6 +506,63 @@ export const SongStepsDuringBackgroundRead: Story = {
     await expect(canvas.getByRole("button", { name: "Post" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Post" })).not.toHaveAttribute("aria-busy", "true");
     await expect(canvas.getByRole("button", { name: "Back" })).toBeEnabled();
+    await expect(canvasElement.querySelector("[data-media-composer-state]")).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Save reviewed lyrics" })).not.toBeInTheDocument();
+  },
+};
+
+export const SongTermsPending: Story = {
+  name: "Song / States / Sending Post",
+  render: () => {
+    class HeldTermsTransport extends StoryMediaTransport {
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        if (command.kind === "terms") return new Promise(() => {});
+        return super.dispatch(command);
+      }
+    }
+    return dialogHarness({ mediaTransport: new HeldTermsTransport() }).render();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await continueSongStep(canvas);
+    await userEvent.click(await canvas.findByRole("button", { name: "Post" }));
+    await waitFor(async () => { await expect(canvas.getByRole("button", { name: "Post" })).toHaveAttribute("aria-busy", "true"); });
+    await expect(canvasElement.querySelector("[data-media-composer-state]")).toBeNull();
+    await expect(canvas.queryByText("Checking on your song…")).not.toBeInTheDocument();
+  },
+};
+
+export const SongAcceptedWhileStatusUnavailable: Story = {
+  name: "Song / States / Accepted before status read",
+  render: () => {
+    class HeldAfterTermsTransport extends StoryMediaTransport {
+      accepted = false;
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        if (command.kind === "terms" && this.snapshot !== null) {
+          this.accepted = true;
+          this.snapshot = snapshot({ ...this.snapshot, creation_revision: this.snapshot.creation_revision + 1 });
+          return this.snapshot;
+        }
+        return super.dispatch(command);
+      }
+      override async read(): Promise<MediaSubmissionSnapshot | null> {
+        return this.accepted ? new Promise(() => {}) : super.read();
+      }
+    }
+    return dialogHarness({ mediaTransport: new HeldAfterTermsTransport() }).render();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await continueSongStep(canvas);
+    await userEvent.click(await canvas.findByRole("button", { name: "Post" }));
+    await expect(await canvas.findByRole("heading", { name: "Processing your song" })).toBeVisible();
+    await expect(canvas.queryByRole("heading", { name: "Review" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Save reviewed lyrics" })).not.toBeInTheDocument();
+    await expect(canvasElement.querySelector("[data-media-composer-state]")).toBeNull();
   },
 };
 
@@ -587,7 +627,10 @@ export const SongManualReview: Story = {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("This song is awaiting manual review.")).toBeInTheDocument();
+    await continueSongStep(canvas);
+    await userEvent.click(await canvas.findByRole("button", { name: "Post" }));
+    await expect(await canvas.findByRole("heading", { name: "Waiting for review" })).toBeVisible();
+    await expect(canvas.queryByRole("heading", { name: "Review" })).not.toBeInTheDocument();
   },
 };
 

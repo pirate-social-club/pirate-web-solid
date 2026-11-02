@@ -131,8 +131,8 @@ export function AppHeader(props: AppHeaderProps) {
 
 /**
  * The shell's footer nav is the design-system pattern; this wrapper only keeps
- * the shell's explicit `forceMobile` gating, which stories and SSR rely on,
- * instead of the pattern's CSS breakpoint.
+ * the shell's explicit `forceMobile` gating for stories and SSR alongside
+ * the shared mobile-only CSS breakpoint.
  */
 export interface MobileFooterNavProps {
   showSongs?: boolean;
