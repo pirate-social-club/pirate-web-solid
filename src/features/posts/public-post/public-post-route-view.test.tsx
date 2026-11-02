@@ -8,6 +8,7 @@ import type { PostEngagementTransport } from "../post-engagement/post-engagement
 import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "../post-engagement/post-engagement-pending";
 import { clearSession, refreshSession, resolveSession } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
+import { postSongStoryDependencies } from "./public-post-story-fixtures";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
@@ -24,13 +25,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"]): HTMLElement {
+function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"], song?: Parameters<typeof PublicPostRouteView>[0]["song"]): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   let dispose: () => void = () => undefined;
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement} />, container);
+    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement} song={song} />, container);
   });
   cleanups.push(() => { dispose(); container.remove(); });
   return container;
@@ -535,4 +536,23 @@ it.each([true, false])("song-reference authoring entry uses the already-resolved
   await vi.waitFor(() => expect(identity).toHaveBeenCalledOnce()); await new Promise(resolve => setTimeout(resolve, 20));
   const entry = [...container.querySelectorAll("a")].find(link => link.textContent === "Make this a Dance");
   expect(entry?.getAttribute("href")).toBe(owned ? "/dance/new/post-1" : undefined);
+});
+
+
+it.each(["anonymous", "member"] as const)("aggregate song children use controlled %s dependencies without network", async viewer => {
+  const state = communityTextState("member");
+  if (state.kind !== "content") throw new Error("Expected content");
+  const session = vi.fn(async () => viewer === "anonymous" ? "anonymous" as const : { status: "authenticated" as const, userId: "account", personas: [] });
+  const network = vi.fn(async () => { throw new Error("Unexpected real service request"); });
+  vi.stubGlobal("fetch", network);
+  const dependencies = postSongStoryDependencies(session);
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content, post: { ...state.response.content.post, post_type: "song" } } } }, undefined, {
+    resolveSession: session, readViewerVote: async () => null, readComments: async () => ({ items: [], next_cursor: null }), pendingStorage: createMemoryPendingEngagementStorage(),
+  }, dependencies);
+  await vi.waitFor(() => expect(container.textContent).toContain("No active streaks yet."));
+  expect(container.textContent).not.toContain("Couldn't check your session");
+  expect(container.textContent).not.toContain("Presenting profile is unavailable.");
+  expect(container.textContent).not.toContain("No qualification requirements returned.");
+  expect(session.mock.calls.length).toBeGreaterThanOrEqual(2);
+  expect(network).not.toHaveBeenCalled();
 });

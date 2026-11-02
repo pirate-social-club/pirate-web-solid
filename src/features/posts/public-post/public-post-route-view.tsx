@@ -8,7 +8,7 @@ import { onSessionRefreshed } from "../../../api/session.ts";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
-import { Loading, Show, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import { Loading, Show, createMemo, createSignal, onCleanup, untrack, type ComponentProps } from "solid-js";
 import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "../../karaoke/karaoke-route-view.tsx";
 import { PoolHoldNotice } from "../../rewards/pool-hold-notice.tsx";
 import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
@@ -28,9 +28,17 @@ import { Avatar, Button, IconArrowLeft, IconButton, MobilePageHeader, buttonVari
 import { TargetedPostEntry } from "../../notifications/targeted-post-entry.tsx";
 import type { CommentNavigation } from "../../notifications/comment-navigation-api.ts";
 
+export interface PublicPostSongDependencies {
+  readonly activity?: ComponentProps<typeof ActivityLeaderboard>["dependencies"];
+  readonly pool?: ComponentProps<typeof MegapotPoolSummary>["data"];
+  readonly participation?: ComponentProps<typeof SharedSongParticipationStatus>["data"];
+  readonly videoEntry?: Pick<ComponentProps<typeof SongVideoEntry>, "read" | "sessionHint" | "resolveSession">;
+}
+
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
   readonly engagement?: PublicPostEngagementDependencies;
+  readonly song?: PublicPostSongDependencies;
   readonly reload?: typeof reloadCurrentPublicPostRoute;
   readonly verifyAge?: typeof verifyAdultViewing;
 }
@@ -121,7 +129,7 @@ function goBack(fallback: string): void {
   else window.location.assign(fallback);
 }
 
-function PostDetail(props: { readonly response: PublicPostContentResponse; readonly engagement?: PublicPostEngagementDependencies; readonly target?: CommentNavigation }) {
+function PostDetail(props: { readonly response: PublicPostContentResponse; readonly engagement?: PublicPostEngagementDependencies; readonly song?: PublicPostSongDependencies; readonly target?: CommentNavigation }) {
   const locale = usePageUiLocale();
   const body = () => displayBody(props.response);
   const route = () => props.response.route;
@@ -214,10 +222,10 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
               <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 border-b border-border-soft pb-5">
                 <h1 class="sr-only">{title()}</h1>
                 <CommunityPostCard flush post={cardPost("song")} actions={controls} menuActions={menuActions} isolatePlayback={props.target !== undefined} />
-                <MegapotPoolSummary communityId={props.response.content.post.community} postId={props.response.post_id} />
-                <SharedSongParticipationStatus communityId={props.response.content.post.community} postId={props.response.post_id} />
-                <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
-                <ActivityLeaderboard communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <MegapotPoolSummary data={props.song?.pool} communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <SharedSongParticipationStatus data={props.song?.participation} communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <SongVideoEntry {...props.song?.videoEntry} resolveSession={props.song?.videoEntry?.resolveSession ?? props.engagement?.resolveSession} communityId={props.response.content.post.community} postId={props.response.post_id} />
+                <ActivityLeaderboard dependencies={{ ...props.song?.activity, resolveSession: props.song?.activity?.resolveSession ?? props.engagement?.resolveSession }} communityId={props.response.content.post.community} postId={props.response.post_id} />
                 <Show when={route()}>
                   {(songRoute) => (
                     <nav aria-label="Song activities" class="grid grid-cols-3 gap-3">
@@ -236,7 +244,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse; reado
   );
 }
 
-function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }>; readonly engagement?: PublicPostEngagementDependencies }) {
+function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }>; readonly engagement?: PublicPostEngagementDependencies; readonly song?: PublicPostSongDependencies }) {
   const route = () => props.state.response.route;
   const detailPath = () => route()?.canonical_path ?? "/";
   const karaokePath = () => route()?.activity_paths.karaoke ?? "/";
@@ -275,7 +283,7 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
           />
         </Show>
       )}>
-        <PostDetail response={props.state.response} engagement={props.engagement} target={props.state.navigation} />
+        <PostDetail response={props.state.response} engagement={props.engagement} song={props.song} target={props.state.navigation} />
       </Show>
     </>
   );
@@ -355,16 +363,16 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     <Show when={!refreshing()} fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
       <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
         <Show when={state()} keyed>
-          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} />}
+          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} song={props.song} />}
         </Show>
       </Loading>
     </Show>
   );
 }
 
-function Resolved(props: { readonly engagement?: PublicPostEngagementDependencies; readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
+function Resolved(props: { readonly engagement?: PublicPostEngagementDependencies; readonly song?: PublicPostSongDependencies; readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
   const state = untrack(() => props.state);
-  if (state.kind === "target-entry") return <TargetedPostEntry entry={state} session={props.engagement?.resolveSession}>{value => <Content state={value()} engagement={props.engagement} />}</TargetedPostEntry>;
-  if (state.kind === "content") return <Content state={state} engagement={props.engagement} />;
+  if (state.kind === "target-entry") return <TargetedPostEntry entry={state} session={props.engagement?.resolveSession}>{value => <Content state={value()} engagement={props.engagement} song={props.song} />}</TargetedPostEntry>;
+  if (state.kind === "content") return <Content state={state} engagement={props.engagement} song={props.song} />;
   return <Failure state={state} onVerified={props.onVerified} verifyAge={props.verifyAge} />;
 }
