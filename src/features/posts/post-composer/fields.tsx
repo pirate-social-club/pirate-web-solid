@@ -40,6 +40,7 @@ export function PostComposerField(props: {
   counter?: JSX.Element;
   htmlFor?: string;
   label: string;
+  required?: boolean;
   tone?: "default" | "muted";
 }) {
   return (
@@ -49,6 +50,7 @@ export function PostComposerField(props: {
         counter={props.counter}
         htmlFor={props.htmlFor}
         label={props.label}
+        required={props.required}
         tone={props.tone}
       />
       {props.children}
