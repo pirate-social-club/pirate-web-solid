@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.139.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.139.0-405cdf43.tgz",
-  "sha256": "405cdf43e3f9358d06ee9916da0ad30115e5e1958893a4059989aaa2279cfe57",
-  "source": "api-next-contracts@742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
-  "openapiSha256": "742c74d461d9dad7a441cd864f4135da8e01f6d399d8fa1d6982201cdd76651d",
-  "clientSha256": "424645e1580abae961a68c42ff3b4d44fdc0a3f88e069c3a1a7e0dac85ee92ef",
+  "version": "0.142.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.142.0-49603d66.tgz",
+  "sha256": "49603d6657d47a6da16cd83235c1cb815c1eb5cb0053b0c6d69a7a6058efc81e",
+  "source": "api-next-contracts@6566a3f6936ae15f24cc2edabb34a475efc4f1da67b47655cfc2cb102de3a100",
+  "openapiSha256": "6566a3f6936ae15f24cc2edabb34a475efc4f1da67b47655cfc2cb102de3a100",
+  "clientSha256": "6fef4ac78add898a7d9e3f1e140f8d83117a91870ba9d33e78eb414f763ec889",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -175,9 +175,14 @@
     "post_communitiesCommunityIdDanceReviewsReviewIdMediaAccess",
     "get_communitiesCommunityIdDanceReviewsReviewIdPublication",
     "delete_postsPostIdVideo",
-    "post_authSessionRenew"
+    "post_authSessionRenew",
+    "post_communitiesCommunityIdTelegramStudy",
+    "get_communitiesCommunityIdTelegramStudyCatalogue",
+    "get_rewardsAvailability"
   ],
-  "intakeStatus": "Genuine generated client139 from the independently accepted prospective no-pose Dance and persistent browser-session source. Producer PR692 passed all required hosted checks and merged normally. Previous137/138 artifacts and intake history remain preserved. Source acceptance does not establish deployment or policy admission.",
-  "sourceBase": "d82c51735734c436f05a6b80937f8ee47f203232",
-  "sourceAcceptance": "Reviewed producer af11f2cb53fa371fdee552526741c502d2b5890e is tree-identical to protected PR692 merge d82c51735734c436f05a6b80937f8ee47f203232. Genuine139 archive405cdf43 retains browser renewal from138 and matches the accepted producer bytes. Paired source/runtime acceptance and prospective policy admission remain separate."
+  "intakeStatus": "Genuine generated client0.142.0 from protected producer PR713, accepted on api-next main. Previous immutable archives remain retained.",
+  "sourceBase": "5c6248d5a4dabd744c49402db210d0383eb8980f",
+  "sourceAcceptance": "Protected API PR713 accepted as236f5a67de0d66b8c832116cfde619fe168eebf0 on2026-11-02 after exact-source independent review, all15hosted checks and a fresh live task gate. Reviewed757214a9 and squash have identical trees. Source only; no serving/runtime, activation, credentials or financial acceptance.",
+  "producerAcceptedCommit": "236f5a67de0d66b8c832116cfde619fe168eebf0",
+  "producerPullRequest": "https://github.com/pirate-social-club/api-next/pull/713"
 }

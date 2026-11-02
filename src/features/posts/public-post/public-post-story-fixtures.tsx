@@ -37,6 +37,7 @@ export function postSongStoryDependencies(
     day_semantics: "account_pinned_iana_timezone_v1", entries: [], viewer_standing: null,
   });
   const client: ActivityClient = {
+    get_rewardsAvailability: async () => ({ enabled: false }),
     get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: async input => board(input.path.communityId, input.path.postId),
     get_communitiesCommunityIdRewardsLeaderboard: async input => board(input.path.communityId),
     get_rewardsQualificationPolicies: async () => ({ policies: [

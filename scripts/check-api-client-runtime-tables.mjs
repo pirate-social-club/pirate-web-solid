@@ -8,11 +8,27 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Genuine139 preserves renewal and adds the prospective no-pose Dance contracts.
-// Pin all 140 admitted operations' response, status and error tables.
-const expectedDigest = "008e619ed598ca8eca44d4519ab0a2af11643417f5af626a3c5b2e776b0dfff0";
+// Client142 preserves all155 prior operations and adds configured Rewards availability.
+// Pin response schemas, statuses and declared errors for the complete admitted surface.
+const expectedDigest = "67ad5955bd91b0ae7cffeaa8192186a0a3153939e84d822bbb19cbb80f9681fc";
 
 const operations = [
+  "get_rewardsAvailability",
+  "get_communitiesCommunityIdTelegram",
+  "get_communitiesCommunityIdTelegramDeliveries",
+  "get_communitiesCommunityIdTelegramModels",
+  "get_communitiesCommunityIdTelegramVoices",
+  "post_communitiesCommunityIdTelegramConnect",
+  "post_communitiesCommunityIdTelegramDisconnect",
+  "post_communitiesCommunityIdTelegramSettings",
+  "post_communitiesCommunityIdTelegramCredentials",
+  "post_communitiesCommunityIdTelegramChannelSetup",
+  "get_communitiesCommunityIdTelegramChannelSetupSetupId",
+  "post_communitiesCommunityIdTelegramChannelSetupSetupIdConfirm",
+  "post_communitiesCommunityIdTelegramPublications",
+  "post_communitiesCommunityIdTelegramDeliveriesDeliveryIdResolve",
+  "post_communitiesCommunityIdTelegramStudy",
+  "get_communitiesCommunityIdTelegramStudyCatalogue",
   "get_meNotifications",
   "post_meNotificationsNotificationIdRead",
   "get_commentsCommentIdLocation",

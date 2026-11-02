@@ -7,7 +7,7 @@ test.each([undefined, "song"])("%s leaderboard SSR is a deterministic shell with
   const session = vi.fn(); const read = vi.fn(); const write = vi.fn(); const policies = vi.fn();
   const html = renderToString(() => <ActivityLeaderboard communityId="community" postId={postId} dependencies={{ resolveSession: session, client: {
     get_communitiesCommunityIdPostsPostIdRewardsLeaderboard: read, get_communitiesCommunityIdRewardsLeaderboard: read,
-    put_communitiesCommunityIdRewardsPresentationPersona: write, get_rewardsQualificationPolicies: policies,
+    put_communitiesCommunityIdRewardsPresentationPersona: write, get_rewardsAvailability: read, get_rewardsQualificationPolicies: policies,
   } }} />);
   expect(html).toContain("Loading streaks"); expect(html).not.toContain("Your standing"); expect(html).not.toContain("Presenting as");
   expect(html).not.toContain("0 days"); expect(session).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled(); expect(write).not.toHaveBeenCalled(); expect(policies).not.toHaveBeenCalled();
