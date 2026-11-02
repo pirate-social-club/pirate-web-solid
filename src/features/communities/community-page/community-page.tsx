@@ -14,6 +14,7 @@ import {
 import type { SessionResolution } from "../../../api/session.ts";
 import {
   Button,
+  Spinner,
   toast,
   Toaster,
 } from "../../../design-system.ts";
@@ -142,9 +143,8 @@ function absolutePath(path: string): string {
 function LoadingState() {
   const copy = communityCopy();
   return (
-    <main aria-busy="true" aria-live="polite" data-community-state="loading">
-      <h1>{copy.loading}</h1>
-      <p role="status">{copy.loading}</p>
+    <main aria-busy="true" class="grid min-h-64 place-items-center p-6" data-community-state="loading">
+      <Spinner class="text-primary" label={copy.loading} size="lg" />
     </main>
   );
 }
