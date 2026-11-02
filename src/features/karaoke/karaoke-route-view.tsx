@@ -342,9 +342,24 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   );
 }
 
+/** Reached only after a client load, so the server shell never needs a router here. */
+function KaraokeSignInRequired(props: { exitPath?: string }) {
+  const navigate = useNavigate();
+  return (
+    <KaraokeAuthRequiredState
+      ctaLabel="Sign in"
+      description="Sign in to sing this song."
+      onConnect={requestGlobalSignIn}
+      onConnectIntent={prepareGlobalSignIn}
+      onConnectPreload={preloadGlobalSignInAssets}
+      onExit={() => navigate(props.exitPath ?? "/")}
+      title="Sign in to sing"
+    />
+  );
+}
+
 export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   const client = props.client ?? createKaraokeApiClient();
-  const navigate = useNavigate();
   const [payload, setPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
@@ -366,7 +381,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 
   return (
-      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><Show when={!isKaraokeAuthError(loadError())} fallback={<KaraokeAuthRequiredState ctaLabel="Sign in" description="Sign in to sing this song." onConnect={requestGlobalSignIn} onConnectIntent={prepareGlobalSignIn} onConnectPreload={preloadGlobalSignInAssets} onExit={() => navigate(props.exitPath ?? "/")} title="Sign in to sing" />}><Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show></Show></Show>}>
+      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><Show when={!isKaraokeAuthError(loadError())} fallback={<KaraokeSignInRequired exitPath={props.exitPath} />}><Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show></Show></Show>}>
       {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} preparationApi={props.preparationApi} />}
     </Show>
   );
