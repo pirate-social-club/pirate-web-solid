@@ -90,6 +90,7 @@ export default function CommunityRoute(props: RouteProps<typeof route>) {
     data={data()}
     initialVideoSong={initialVideoSongFromSearch(searchParams)}
     composeText={searchParams.compose === "text"}
+    initialTab={searchParams.tab === "about" ? "about" : searchParams.tab === "songs" ? "songs" : "feed"}
     clearVideoSongIntent={() => setSearchParams({ compose: undefined, song: undefined }, { replace: true, scroll: false })}
   />;
 }

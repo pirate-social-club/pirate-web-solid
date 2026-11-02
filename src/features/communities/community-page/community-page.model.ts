@@ -1,3 +1,4 @@
+import { projectCommunityJoinRule, type CommunityJoinRule } from "../../community/page-shell/community-join-rule-model.ts";
 import { normalizeCommunityPathSegment } from "../../../api/community-path-segment.ts";
 export { normalizeCommunityPathSegment } from "../../../api/community-path-segment.ts";
 import type {
@@ -27,6 +28,7 @@ export type CommunityPageSuccess = Readonly<{
     readonly description: string | null;
     readonly avatarSrc?: string | null;
     readonly bannerSrc?: string | null;
+    readonly joinRule?: CommunityJoinRule;
     readonly membershipMode: "open" | "request" | "gated";
     readonly memberCount: number | null;
     readonly followerCount: number | null;
@@ -119,6 +121,7 @@ export function projectCommunityPage(
       avatarSrc: preview.avatar_ref ?? null,
       bannerSrc: preview.banner_ref ?? null,
       membershipMode: preview.membership_mode,
+      joinRule: projectCommunityJoinRule(preview),
       memberCount: finiteCount(preview.member_count),
       followerCount: finiteCount(preview.follower_count),
       rules: preview.rules
