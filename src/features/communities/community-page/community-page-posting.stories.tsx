@@ -194,6 +194,21 @@ function SongPostingPreview(props: CommunityPageProps) {
   return <CommunityPage {...props} mediaSubmissionTransport={transport} />;
 }
 
+/** Check the composed label/input layout, including the actual associated label. */
+async function expectPostFieldSpacing(panel: HTMLElement): Promise<void> {
+  const inputs = ["text-post-title", "text-post-body"].map(id => panel.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${id}`)!);
+  for (const input of inputs) {
+    await expect(input.labels).toHaveLength(1);
+    const label = input.labels![0];
+    await expect(label.htmlFor).toBe(input.id);
+    await waitFor(() => {
+      const fieldHeader = label.parentElement!.getBoundingClientRect();
+      expect(input.getBoundingClientRect().top - fieldHeader.bottom).toBeGreaterThanOrEqual(6);
+    });
+  }
+  await expect(inputs[0]).toHaveAttribute("aria-required", "true");
+}
+
 const meta = {
   title: "Screens/Community/CommunityPage/Posting",
   component: CommunityPage,
@@ -243,6 +258,7 @@ export const ComposerReplacesTheFeed: Story = {
     // Paper rulings 10 and 11: close and "New post" at the top left, no
     // Cancel, and Title is required with an asterisk.
     const form = within(panel);
+    await expectPostFieldSpacing(panel);
     const close = form.getByRole("button", { name: "Close composer" });
     const heading = form.getByRole("heading", { name: "New post" });
     await expect(close.getBoundingClientRect().right).toBeLessThanOrEqual(heading.getBoundingClientRect().left);
@@ -350,6 +366,7 @@ export const FullWidthComposerOnMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const form = await openComposer(canvasElement);
+    await expectPostFieldSpacing(canvasElement.querySelector<HTMLElement>("[data-text-post-panel]")!);
     const title = form.getByRole("textbox", { name: "Title" });
     const body = form.getByRole("textbox", { name: "Post" });
     const bar = await expectFlatPhoneComposer(canvasElement, title);

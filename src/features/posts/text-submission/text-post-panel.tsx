@@ -5,7 +5,6 @@ import { Show, onSettled } from "solid-js";
 import {
   Button,
   Card,
-  FormFieldLabel,
   FormNote,
   IconButton,
   IconMusicNote,
@@ -15,6 +14,7 @@ import {
   Textarea,
   Type,
 } from "../../../design-system";
+import { PostComposerField } from "../post-composer/fields.tsx";
 import { createPhoneLayout } from "../../shell/composing-surface.tsx";
 
 export interface TextPostDraft {
@@ -84,8 +84,7 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
   );
   const fields = (mobile: boolean) => (
     <>
-      <div class="flex flex-col">
-        <FormFieldLabel htmlFor="text-post-title" label="Title" required />
+      <PostComposerField htmlFor="text-post-title" label="Title" required>
         <Input
           aria-label="Title"
           aria-required="true"
@@ -96,18 +95,18 @@ export function TextPostPanel(props: TextPostPanelProps): JSX.Element {
           placeholder="Give your post a title"
           value={props.draft.title}
         />
-      </div>
-      <label class="flex flex-col gap-2">
-        <Type as="span" variant="label">Post</Type>
+      </PostComposerField>
+      <PostComposerField htmlFor="text-post-body" label="Post">
         <Textarea
           aria-label="Post"
+          id="text-post-body"
           class={mobile ? "min-h-40 w-full resize-y text-base leading-relaxed" : "min-h-48 w-full resize-y text-base leading-relaxed md:min-h-64"}
           onInput={(event) => props.onDraftChange({ ...props.draft, body: event.currentTarget.value })}
           placeholder="Write your post"
           ref={bodyInput}
           value={props.draft.body}
         />
-      </label>
+      </PostComposerField>
       <Show when={props.unavailable}>
         {reason => <FormNote tone="warning">{reason()}</FormNote>}
       </Show>
