@@ -1,6 +1,6 @@
 import { ApiClientError } from "@pirate/api-client";
 import { isServer } from "@solidjs/web";
-import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { For, Match, Switch, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { onSessionCleared, onSessionRefreshed, resolveSession, type SessionResolution } from "../../api/session.ts";
 import { Avatar, Button, Type } from "../../design-system.ts";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control.tsx";
@@ -8,6 +8,7 @@ import { communityOperationPersonas, toOperationPersonas } from "../identity/com
 import { readActivityLeaderboard, setActivityPresentation, type ActivityClient, type ActivityLeaderboardData, type ActivityScope } from "./activity-api.ts";
 import { ActivityProgress } from "./activity-progress.tsx";
 import { readPrivateProgress, readPresentation, type ActivityProgressData, type ActivityPresentationData, type PrivateActivityClient } from "./activity-private-api.ts";
+import { ActivityLeaderboardCard, ActivityLeaderboardPage } from "./activity-leaderboard-view.tsx";
 import { ActivityRequirements } from "./activity-requirements.tsx";
 
 export interface ActivityLeaderboardDependencies {
@@ -21,7 +22,7 @@ interface PendingPresentation { readonly accountId: string; readonly scope: Acti
 const label = (entry: Entry) => entry.persona.display_name || entry.persona.primary_public_handle || "Community profile";
 
 /** Only server-ranked public personas enter the list. Private standing stays separate. */
-export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: boolean; readonly dependencies?: ActivityLeaderboardDependencies }) {
+export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: boolean; readonly display?: "preview" | "page"; readonly href?: string; readonly title?: string; readonly backHref?: string; readonly dependencies?: ActivityLeaderboardDependencies }) {
   const [state, setState] = createSignal<LoadState>("loading");
   const [data, setData] = createSignal<ActivityLeaderboardData>();
   const [viewer, setViewer] = createSignal<SessionResolution>();
@@ -150,23 +151,7 @@ export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: 
     }));
   }
   onCleanup(() => { disposed = true; ++generation; readController?.abort(); writeController?.abort(); clearTimeout(readTimeout); clearTimeout(writeTimeout); });
-  return <section aria-label={props.postId ? "Song streak leaderboard" : "Community streak leaderboard"} class="min-w-0 space-y-4 rounded-xl border border-border-soft p-4" data-activity-leaderboard>
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <Type as="h2" variant="h3">{props.postId ? "Song streaks" : "Community streaks"}</Type>
-      <Show when={props.compact}><Button variant="secondary" aria-expanded={expanded() ? "true" : "false"} onClick={() => setExpanded(value => !value)}>{expanded() ? "Hide leaderboard" : "Leaderboard"}</Button></Show>
-    </div>
-    <Show when={props.compact && currentProgress()}>{entry => <p>Your streak: {entry().streak.current} days</p>}</Show>
-    <Show when={!showDetails() && state() === "loading"}><p role="status">Loading streaks…</p></Show>
-    <Show when={!showDetails() && state() !== "loading" && state() !== "ready"}><p role="alert">Streak summary unavailable. Open the leaderboard to retry.</p></Show>
-    <Show when={showDetails()}>
-    <Type as="p" variant="caption" class="text-muted-foreground">Qualifying Study and Karaoke activity counts toward streaks. Days follow each account’s pinned timezone.</Type>
-        <Show when={authenticated()} fallback={<Show when={viewer() === "anonymous"}><p>Sign in to see your private standing and choose your presenting profile.</p></Show>}>
-          <div class="space-y-3" data-private-activity-standing>
-            <Type as="h3" variant="body-strong">Your standing</Type>
-            <Show when={privateState() !== "loading"} fallback={<p role="status">Loading your progress…</p>}>
-              <Show when={currentProgress()} fallback={<p role="alert">Your progress is unavailable.</p>}>{value => <ActivityProgress progress={value()} />}</Show>
-              <Show when={privateState() === "error"}><Button variant="secondary" onClick={() => { void load(); }}>Retry progress</Button></Show>
-            </Show>
+  const presentingControls = () => <div role="group" class="space-y-3" aria-label="Presenting profile">
             <Show when={presentationState() === "loading"}><p role="status">Loading presenting profile…</p></Show>
             <Show when={presentationState() === "error" || presentation()?.selection.status === "unavailable"}><p>Presenting profile is unavailable.</p><Button variant="secondary" onClick={() => { void load(); }}>Retry presenting profile</Button></Show>
             <Show when={authenticated()?.personasUnavailable}><p>Profiles couldn't be loaded. Retry before changing your presenting profile.</p><Button variant="secondary" onClick={() => { void load(); }}>Retry profiles</Button></Show>
@@ -181,6 +166,30 @@ export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: 
             <Show when={saving()}><p role="status">Saving presenting profile…</p></Show>
             <Show when={message()}><p role="status">{message()}</p></Show>
             <Show when={!saving() ? pendingChoice() : undefined}>{pending => <Button variant="secondary" onClick={() => { void selectPersona(pending().personaId); }}>Retry profile change</Button>}</Show>
+  </div>;
+  return <Switch>
+    <Match when={props.display === "preview"}><ActivityLeaderboardCard state={state()} board={visibleData()} progress={currentProgress()} authenticated={!!authenticated()} privateState={privateState()} href={props.href ?? `/c/${encodeURIComponent(props.communityId)}/leaderboard`} onRetry={() => { void load(); }} /></Match>
+    <Match when={props.display === "page"}><ActivityLeaderboardPage state={state()} board={visibleData()} progress={currentProgress()} privateState={privateState()} authenticated={!!authenticated()} title={props.title ?? ""} backHref={props.backHref ?? `/c/${encodeURIComponent(props.communityId)}`} onRetry={() => { void load(); }} controls={<Show when={authenticated()} fallback={<p class="text-sm text-muted-foreground">Sign in to see your private standing and choose your presenting profile.</p>}><section class="space-y-4"><h2 class="font-semibold">Your presenting profile</h2>{presentingControls()}<ActivityRequirements client={props.dependencies?.client} /></section></Show>} /></Match>
+    <Match when={true}>
+  <section aria-label={props.postId ? "Song streak leaderboard" : "Community streak leaderboard"} class="min-w-0 space-y-4 rounded-xl border border-border-soft p-4" data-activity-leaderboard>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <Type as="h2" variant="h3">{props.postId ? "Song streaks" : "Community streaks"}</Type>
+      <Show when={props.postId}><a class="text-sm font-semibold text-primary-text" href={`/post/${encodeURIComponent(props.postId!)}/leaderboard`}>See all</a></Show>
+      <Show when={props.compact}><Button variant="secondary" aria-expanded={expanded() ? "true" : "false"} onClick={() => setExpanded(value => !value)}>{expanded() ? "Hide leaderboard" : "Leaderboard"}</Button></Show>
+    </div>
+    <Show when={props.compact && currentProgress()}>{entry => <p>Your streak: {entry().streak.current} days</p>}</Show>
+    <Show when={!showDetails() && state() === "loading"}><p role="status">Loading streaks…</p></Show>
+    <Show when={!showDetails() && state() !== "loading" && state() !== "ready"}><p role="alert">Streak summary unavailable. Open the leaderboard to retry.</p></Show>
+    <Show when={showDetails()}>
+    <Type as="p" variant="caption" class="text-muted-foreground">Qualifying Study and Karaoke activity counts toward streaks. Days follow each account’s pinned timezone.</Type>
+        <Show when={authenticated()} fallback={<Show when={viewer() === "anonymous"}><p>Sign in to see your private standing and choose your presenting profile.</p></Show>}>
+          <div class="space-y-3" data-private-activity-standing>
+            <Type as="h3" variant="body-strong">Your standing</Type>
+            <Show when={privateState() !== "loading"} fallback={<p role="status">Loading your progress…</p>}>
+              <Show when={currentProgress()} fallback={<p role="alert">Your progress is unavailable.</p>}>{value => <ActivityProgress progress={value()} />}</Show>
+              <Show when={privateState() === "error"}><Button variant="secondary" onClick={() => { void load(); }}>Retry progress</Button></Show>
+            </Show>
+            {presentingControls()}
           </div>
         </Show>
     <Show when={state() !== "loading"} fallback={<p role="status">Loading streaks…</p>}>
@@ -202,5 +211,7 @@ export function ActivityLeaderboard(props: ActivityScope & { readonly compact?: 
       </Show>
     </Show>
     </Show>
-  </section>;
+  </section>
+    </Match>
+  </Switch>;
 }

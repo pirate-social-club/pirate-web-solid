@@ -108,6 +108,8 @@ export {
   IconGearSix,
   IconGlobe,
   IconHandPalm,
+  IconDoorOpen,
+  IconIdentificationCard,
   IconHeart,
   IconCamera,
   IconImage,

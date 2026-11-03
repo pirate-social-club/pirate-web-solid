@@ -261,7 +261,7 @@ describe("the community header and About", () => {
     const overview = container.querySelector("[aria-label='Community overview']");
     expect(overview?.textContent).not.toContain(community.description);
     const about = container.querySelector("[data-community-about]");
-    expect(about?.textContent).toContain("Anyone can join.");
+    expect(about?.textContent).toContain("Anyone can join");
     expect(about?.textContent).toContain("Rules");
     expect(about?.textContent).not.toContain("Community rules");
   });

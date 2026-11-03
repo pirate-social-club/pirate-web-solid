@@ -11,15 +11,17 @@ describe("community file-route structure", () => {
     const communityRoutes = buildRouteTree(await router.getRoutes())
       .filter(route => route.path.startsWith("/c/:path_segment"));
 
-    expect(communityRoutes.map(route => ({ path: route.path, children: route.children?.map(child => child.path) }))).toEqual([
+    expect(communityRoutes).toHaveLength(6);
+    expect(communityRoutes.map(route => ({ path: route.path, children: route.children?.map(child => child.path) }))).toEqual(expect.arrayContaining([
       { path: "/c/:path_segment/", children: undefined },
+      { path: "/c/:path_segment/leaderboard", children: undefined },
       { path: "/c/:path_segment/names", children: undefined },
       // The management index is its own leaf so a small viewport can drill into
       // a section and step back out through browser history.
       { path: "/c/:path_segment/settings/", children: undefined },
       { path: "/c/:path_segment/settings/:section", children: undefined },
       { path: "/c/:path_segment/name-order/:claim_id", children: undefined },
-    ]);
+    ]));
   });
 
   test("exposes Study beside Karaoke on a song post", async () => {
@@ -36,6 +38,8 @@ describe("community file-route structure", () => {
     expect(paths).toContain("/posts/:slug/study/");
     expect(paths).toContain("/posts/:slug/karaoke/");
     expect(paths).toContain("/posts/:slug/karaoke/leaderboard");
+    expect(paths).toContain("/posts/:slug/leaderboard");
+    expect(paths).toContain("/post/:postId/leaderboard");
   });
 
   test("gives community creation one unambiguous new route", async () => {

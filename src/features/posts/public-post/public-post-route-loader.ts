@@ -163,3 +163,6 @@ export async function reloadCurrentPublicPostRoute(activity: PublicPostActivity,
   if (postId && activity !== "detail") return loadPublicPostById({ ...common, activity, postId });
   return { kind: "invalid", status: 400 };
 }
+
+/** Shared by the activity leaderboard, which uses the same canonical song lookup. */
+export { currentCanonicalOrigin as publicPostCanonicalOrigin, currentLocale as publicPostUiLocale };

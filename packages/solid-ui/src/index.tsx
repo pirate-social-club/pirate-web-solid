@@ -247,6 +247,8 @@ export {
   IconGift,
   IconGlobe,
   IconHandPalm,
+  IconDoorOpen,
+  IconIdentificationCard,
   IconHeart,
   IconHouse,
   IconCamera,
