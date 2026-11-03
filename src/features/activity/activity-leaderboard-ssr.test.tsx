@@ -19,3 +19,10 @@ test.each(["study", "karaoke"] as const)("%s completion SSR exposes neither priv
   expect(html).toContain("Checking this attempt"); expect(html).not.toContain("private-account"); expect(html).not.toContain("streak_day"); expect(html).not.toContain("data-earned-day-event");
   expect(session).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled();
 });
+
+
+test.each(["preview", "page"] as const)("%s redesign SSR never reads session or private standing", display => {
+  const session = vi.fn(); const read = vi.fn();
+  const html = renderToString(() => <ActivityLeaderboard communityId="community" display={display} title="Harbor" dependencies={{ resolveSession: session, privateClient: { get_communitiesCommunityIdRewardsProgress: read, get_communitiesCommunityIdPostsPostIdRewardsProgress: read, get_communitiesCommunityIdRewardsPresentationPersona: read } }} />);
+  expect(html).toContain("Loading leaderboard"); expect(html).not.toContain("Your rank:"); expect(session).not.toHaveBeenCalled(); expect(read).not.toHaveBeenCalled();
+});

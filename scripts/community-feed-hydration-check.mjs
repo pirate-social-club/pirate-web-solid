@@ -43,6 +43,9 @@ const upstream = createServer((request, response) => {
     response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
     response.end(JSON.stringify(body));
   };
+  if (path.startsWith("/c/") || path === `/communities/${communityId}/preview`) {
+    if (request.headers.cookie || request.headers.authorization || request.headers["x-csrf-token"]) credentialLeaks.push(path);
+  }
   if (path.startsWith("/c/")) {
     const label = path.slice(3);
     return send(200, { community_id: communityId, canonical_route: {
@@ -51,6 +54,13 @@ const upstream = createServer((request, response) => {
     } });
   }
   if (path === `/communities/${communityId}/preview`) return send(200, preview);
+  if (path === "/public/posts/by-id/streak-song/canonical-route" || (path === "/public/posts/by-slug" && new URL(request.url, "http://fixture").searchParams.get("slug") === "leaderboard-fixture")) {
+    const canonical = "/posts/leaderboard-fixture";
+    return send(200, { ...thread, post_id: "streak-song", content: { ...thread.content, post: { ...item.post, id: "streak-song", post_type: "song", title: "Leaderboard fixture song" } }, route: { canonical_path: canonical, activity_paths: { study: `${canonical}/study`, karaoke: `${canonical}/karaoke`, karaoke_leaderboard: `${canonical}/karaoke/leaderboard` } } });
+  }
+  if (path === `/communities/${communityId}/rewards/leaderboard` || path === `/communities/${communityId}/posts/streak-song/rewards/leaderboard`) {
+    return send(200, { object: "activity_streak_leaderboard", scope: path.includes("/posts/") ? { kind: "song", community_id: communityId, post_id: "streak-song" } : { kind: "community", community_id: communityId }, day_semantics: "account_pinned_iana_timezone_v1", entries: [], viewer_standing: null });
+  }
   if (path === `/public/posts/by-id/${item.post.id}/canonical-route` ||
       (path === "/public/posts/by-slug" && new URL(request.url, "http://fixture").searchParams.get("slug") === "hydrated-feed-fixture")) {
     return send(200, thread);
@@ -146,7 +156,35 @@ try {
       }
     } finally { await context.close(); }
   }
-  console.log(JSON.stringify({ ok: true, scenarios: ["ready", "empty", "recovered", "failed"], hydrationErrors: 0, recoveryReads: 1, feedThread: { nativeLink: true, getAndHeadRedirect: 308, canonicalThread: 200 } }));
+  const boardContext = await browser.newContext({ bypassCSP: true });
+  try {
+    const page = await boardContext.newPage();
+    const errors = [], metadataReads = [];
+    page.on("pageerror", error => errors.push(error.message));
+    page.on("console", message => { if (/hydration.*(mismatch|fail)|reactive_write_in_owned_scope/i.test(message.text())) errors.push(message.text()); });
+    page.on("request", request => { const path = new URL(request.url()).pathname; if (/^\/api\/(c\/|public\/posts\/)|\/preview$/.test(path)) metadataReads.push(path); });
+    for (const path of ["/c/board-fixture/leaderboard", "/posts/leaderboard-fixture/leaderboard"]) {
+      const response = await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
+      assert(response?.status() === 200, `${path}: leaderboard HTTP status`);
+      assert((await response.text()).includes("Loading leaderboard"), `${path}: missing deterministic SSR shell`);
+      await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached", timeout: 30_000 });
+      await page.getByText("No streaks yet", { exact: true }).waitFor({ state: "visible" });
+      assert(metadataReads.length === 0, `${path}: route preflight was not adopted: ${metadataReads.join(",")}`);
+    }
+    const redirect = await fetch(`${origin}/post/streak-song/leaderboard?from=%2Fsongs`, { redirect: "manual" });
+    const destination = new URL(redirect.headers.get("location"));
+    assert(redirect.status === 308 && destination.pathname === "/posts/leaderboard-fixture/leaderboard" && destination.searchParams.get("from") === "/songs", "Song canonical redirect lost its return context");
+    await page.goto(`${origin}${destination.pathname}${destination.search}`, { waitUntil: "domcontentloaded" });
+    await page.getByText("No streaks yet", { exact: true }).waitFor({ state: "visible" });
+    assert(await page.getByRole("link", { name: "Back", exact: true }).getAttribute("href") === "/songs", "Direct-open Back did not preserve the song library");
+    const malformed = "/" + String.fromCharCode(92) + "%";
+    await page.goto(`${origin}/c/board-fixture/leaderboard?from=${encodeURIComponent(malformed)}`, { waitUntil: "domcontentloaded" });
+    await page.getByText("No streaks yet", { exact: true }).waitFor({ state: "visible" });
+    assert(await page.getByRole("link", { name: "Back", exact: true }).getAttribute("href") === "/c/board-fixture?tab=about", "Malformed return did not fall back to About");
+    assert(errors.length === 0, `Leaderboard hydration: ${errors.join("; ")}`);
+    assert(credentialLeaks.length === 0, "Public metadata forwarded credentials");
+  } finally { await boardContext.close(); }
+  console.log(JSON.stringify({ ok: true, scenarios: ["ready", "empty", "recovered", "failed"], hydrationErrors: 0, recoveryReads: 1, feedThread: { nativeLink: true, getAndHeadRedirect: 308, canonicalThread: 200 }, leaderboards: { community: true, song: true, metadataBrowserReads: 0, canonicalReturn: "/songs", malformedReturnFallback: true } }));
 } catch (error) {
   process.stderr.write(`Community feed fixture failed during ${scenario ?? "startup"}\n`);
   process.stderr.write(workerLog);

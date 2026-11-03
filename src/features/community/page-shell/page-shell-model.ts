@@ -1,3 +1,4 @@
+import type { CommunityJoinRule } from "./community-join-rule-model.ts";
 import type { PublicProfileLabelSource } from "../../identity/public-profile-label.ts";
 import type { VideoDeliveryState } from "../../posts/video-submission/delivery-state.ts";
 export type CommunitySort = "best" | "new" | "top";
@@ -90,13 +91,14 @@ export interface CommunityData {
   posts: readonly CommunityPost[];
   /** How people join, stated once in the About card. New communities are gated. */
   membershipMode?: CommunityMembershipMode;
+  joinRule?: CommunityJoinRule;
   rules?: readonly CommunityRule[];
   referenceLinks?: readonly CommunityReferenceLink[];
 }
 
 export function membershipLine(mode: CommunityMembershipMode | undefined): string | null {
   if (mode === "gated") return "Members verify with a palm scan.";
-  if (mode === "request") return "Membership is by request.";
+  if (mode === "request") return null;
   if (mode === "open") return "Anyone can join.";
   return null;
 }
