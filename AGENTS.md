@@ -52,6 +52,31 @@ source.
   to pass. Production checks are unchanged. Do not bypass it with a
   direct Wrangler deploy. A planned gateway rotation must update the active
   manifest and Worker reference together before the command can pass.
+The fixed posting staging modes preserve accepted app2c4 and its genuine client142.
+Use the maintained deploy command with `--prepare-posting-frozen
+/tmp/pirate-posting-staging-<32hex>` to export and build that exact tree under
+actual read-only source/dependency mounts. Keep the whole genuine2f275/beb
+production output at `.tmp/build/posting-staging-production-2c4/dist` before
+changing the owned tooling checkout. Preparation validates only the exact
+reviewed future34f/ca8947 native manifest offline and records installed=false;
+it requires no gateway switch or host/database/provider credentials.
+The tooling release must retain the exact selected workspace UI tree because
+its dependency symlink resolves outside the exported app. A later main UI tree
+is refused even when package manifests match; select the accepted tooling
+feature ancestor on its published release ref after normal integration.
+Posting postchecks use only the tooling checkout's `.playwright-browsers`
+cache and verify that its pinned Chromium exists before deployment. The build
+environment stays separate and sanitized; no ambient browser-cache fallback
+is used by these posting modes.
+
+Use `--deploy-posting-frozen` or `--check-posting-frozen-release` with the same
+private prepared directory only after the matched release is reviewed. These
+modes recheck source, dependencies, retained production bytes, receipt and built
+artifact, require the actual live gateway to match immediately before upload,
+and retain direct plus full HNS release checks. Offline preparation is never
+live readiness. Normal and historical frozen modes and production paths remain
+unchanged. No arbitrary source, gateway or fixture-origin selector is admitted.
+
 - Production HNS releases use `bun run prepare:production:hns-guarded
   /absolute/candidate-manifest.json` from published `main`, or a frozen
   `release/production-*` ref published to the repository's coordinator Radicle
