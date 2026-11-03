@@ -2,6 +2,7 @@ import { requestDocumentVerification } from "../../verification/document-verific
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import { ApiClientError } from "@pirate/api-client";
+import { SESSION_FENCED_EVENT } from "../../../api/browser-session-events.ts";
 import {
   resolveSession as resolveApplicationSession,
   sessionPersonasUnavailable,
@@ -21,6 +22,10 @@ import type {
   CommunityEngagementApi,
   CommunityMembershipState,
 } from "./community-engagement-api.ts";
+import { reportCommunityMembershipFailure } from "./community-membership-diagnostic.ts";
+
+const MEMBERSHIP_DIAGNOSTIC_LIMIT = 5;
+const RECENT_SESSION_CHANGE_MS = 10_000;
 
 type EngagementMembership = CommunityMembershipState | "pending" | "blocked";
 
@@ -110,6 +115,12 @@ export function createCommunityEngagementController(
   let fullSessionStarted = false;
   let sessionRequest = 0;
   let viewerRequest = 0;
+  let membershipDiagnosticCount = 0;
+  let lastSessionChangeAt: number | undefined;
+  // Observe only while mounted: earlier events and initial resolution do not
+  // count. A read retains changes from its preceding ten seconds or while pending.
+  const noteSessionChange = () => { lastSessionChangeAt = performance.now(); };
+  if (typeof window !== "undefined") window.addEventListener(SESSION_FENCED_EVENT, noteSessionChange);
   /** undefined until the first account resolution, then the id or null. */
   let observedAccountIdentity: string | null | undefined;
   /** Mirrors whether postingSession holds a value, for same-tick guards. */
@@ -130,6 +141,7 @@ export function createCommunityEngagementController(
   };
 
   onCleanup(() => {
+    if (typeof window !== "undefined") window.removeEventListener(SESSION_FENCED_EVENT, noteSessionChange);
     profileRequest?.abort();
     documentRequest?.abort();
     active = false;
@@ -139,6 +151,10 @@ export function createCommunityEngagementController(
 
   const refreshViewerState = async (): Promise<boolean> => {
     const request = ++viewerRequest;
+    const startedAt = performance.now();
+    const recentSessionChangeAtStart = lastSessionChangeAt !== undefined
+      && startedAt - lastSessionChangeAt >= 0
+      && startedAt - lastSessionChangeAt <= RECENT_SESSION_CHANGE_MS;
     try {
       const viewer = await options.api.readViewerState(options.communityId);
       if (!active || request !== viewerRequest) return false;
@@ -149,11 +165,21 @@ export function createCommunityEngagementController(
       setViewerSettled(true);
       setError("");
       return true;
-    } catch {
+    } catch (failure) {
       if (active && request === viewerRequest) {
         setViewerReady(false);
         setViewerSettled(true);
         setError("We couldn't load your current Community membership. Retry an action to check again.");
+        // At most five failures per mounted controller; stale reads report nothing.
+        if (membershipDiagnosticCount < MEMBERSHIP_DIAGNOSTIC_LIMIT) {
+          membershipDiagnosticCount++;
+          const finishedAt = performance.now();
+          reportCommunityMembershipFailure(failure, {
+            elapsedMs: finishedAt - startedAt,
+            recentSessionChange: recentSessionChangeAtStart
+              || (lastSessionChangeAt !== undefined && lastSessionChangeAt >= startedAt),
+          });
+        }
       }
       return false;
     }
@@ -198,6 +224,7 @@ export function createCommunityEngagementController(
     observedAccountIdentity = identity;
     setAccountIdentity(identity);
     if (changed) {
+      noteSessionChange();
       // An action outcome belongs to the account that produced it.
       setMessage("");
       setError("");

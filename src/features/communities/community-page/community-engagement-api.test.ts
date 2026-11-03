@@ -1,5 +1,8 @@
 import type { CommunityEngagementApiClient } from "./community-engagement-api.ts";
 import { describe, expect, test, vi } from "vitest";
+import { ApiClientError, ApiClientProtocolError, ApiClientResponseValidationError, ApiClientUnexpectedError } from "@pirate/api-client";
+import { SessionAuthorityChangedError } from "../../../api/browser-session-events.ts";
+import { reportCommunityMembershipFailure } from "./community-membership-diagnostic.ts";
 
 import {
   CommunityEngagementLocalError,
@@ -8,6 +11,54 @@ import {
 } from "./community-engagement-api.ts";
 
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
+
+describe("bounded membership failure fields", () => {
+  const privateBody = { error: { code: "private_code", message: "private_body", retryable: false,
+    details: { private_field: "private_value" } }, request_id: "private_request" };
+  test.each([
+    [new ApiClientError({ status: 401, code: "auth_error", name: "private_name", retryable: false }, privateBody), "ApiClientError", "api", 401],
+    [new ApiClientUnexpectedError(503, privateBody), "ApiClientUnexpectedError", "api", 503],
+    [new ApiClientProtocolError("private_protocol", 502), "ApiClientProtocolError", "protocol", 502],
+    [new ApiClientResponseValidationError("private_operation", 200, "/private_path"), "ApiClientResponseValidationError", "response_validation", 200],
+    [new CommunityEngagementLocalError("invalid_response"), "CommunityEngagementLocalError", "local_validation", undefined],
+    [new SessionAuthorityChangedError(), "SessionAuthorityChangedError", "session_changed", undefined],
+    [new TypeError("private_transport"), "TypeError", "type_or_network", undefined],
+    [new DOMException("private_abort", "AbortError"), "DOMException", "aborted", undefined],
+    [new Error("private_unknown"), "Error", "unknown", undefined],
+    [{ name: "private_name", status: 401, body: "private_body" }, "unknown", "unknown", undefined],
+  ])("classifies safe %s fields without raw error content", (failure, errorClass, kind, status) => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      reportCommunityMembershipFailure(failure, { elapsedMs: 12.7, recentSessionChange: true });
+      expect(diagnostic).toHaveBeenCalledExactlyOnceWith("community.membership.read.failed", {
+        errorClass, kind, status, elapsedMs: 13, recentSessionChange: true,
+      });
+      expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("private");
+    } finally { diagnostic.mockRestore(); }
+  });
+
+  test("ignores invalid HTTP status and nonfinite timing without logging raw fields", () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      reportCommunityMembershipFailure(new ApiClientProtocolError("private", 999), {
+        elapsedMs: Infinity, recentSessionChange: false,
+      });
+      expect(diagnostic).toHaveBeenCalledExactlyOnceWith("community.membership.read.failed", {
+        errorClass: "ApiClientProtocolError", kind: "protocol", status: undefined,
+        elapsedMs: 0, recentSessionChange: false,
+      });
+    } finally { diagnostic.mockRestore(); }
+  });
+
+  test("a failed console sink cannot change membership recovery", () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => { throw new Error("private_sink"); });
+    try {
+      expect(() => reportCommunityMembershipFailure(new TypeError("private"), {
+        elapsedMs: 2, recentSessionChange: false,
+      })).not.toThrow();
+    } finally { diagnostic.mockRestore(); }
+  });
+});
 
 type JoinEligibilityV1 = Exclude<Awaited<ReturnType<CommunityEngagementApiClient["get_communitiesCommunityIdJoinEligibility"]>>, { readonly join_eligibility_version: "provider_choice_v2" }>;
 

@@ -415,6 +415,35 @@ function deferred<T>() {
 }
 
 describe("actions in flight across an account change", () => {
+  test("a failed viewer read retired by another account reports no diagnostic", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const [sessionState, setSessionState] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-a" });
+      let account = "account-a";
+      const slowViewer = deferred<void>();
+      const api: CommunityEngagementApi = {
+        readViewerState: vi.fn(() => account === "account-a"
+          ? slowViewer.promise.then(() => { throw new TypeError("private_previous_account"); })
+          : Promise.resolve({ membership: "not_member" as const, following: false, followerCount: 20 })),
+        resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+        join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona-a" })),
+        follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
+        unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
+      };
+      const controller = mountController(api, sessionState, async () => sessionFor(account, harbor.communityId));
+      await vi.waitFor(() => expect(controller.postingSession()).not.toBeUndefined());
+      account = "account-b";
+      setSessionState({ status: "authenticated", userId: "account-b" });
+      await vi.waitFor(() => expect(controller.accountIdentity()).toBe("account-b"));
+      await vi.waitFor(() => expect(controller.viewerUnknown()).toBe(false));
+      slowViewer.settle(undefined);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(diagnostic).not.toHaveBeenCalled();
+      expect(controller.error()).toBe("");
+      expect(controller.joined()).toBe(false);
+    } finally { diagnostic.mockRestore(); }
+  });
+
   test("a follow issued by account A never lands on account B", async () => {
     const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
       { status: "authenticated", userId: "account-a" },
