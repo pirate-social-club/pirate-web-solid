@@ -4,7 +4,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { CommunityAssistantSettingsPanel } from "./community-assistant-settings-panel";
 import { CommunityTelegramSettingsPanel } from "./community-telegram-settings-panel";
 import { createCommunityTelegramSettingsApi, type CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
-import type { AssistantOption, CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup } from "./community-telegram-model";
+import type { AssistantOption, CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup, CommunityTelegramStudyCatalogue, CommunityTelegramStudySettings } from "./community-telegram-model";
 import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 export function CommunityTelegramSettingsController(props: { communityId: string; section: "telegram" | "assistant"; api?: CommunityTelegramSettingsApi }) {
@@ -14,6 +14,8 @@ export function CommunityTelegramSettingsController(props: { communityId: string
   const [voices, setVoices] = createSignal<ReadonlyArray<AssistantOption>>([]);
   const [deliveries, setDeliveries] = createSignal<ReadonlyArray<CommunityTelegramDelivery>>([]);
   const [setup, setSetup] = createSignal<CommunityTelegramSetup>();
+  const [catalogue, setCatalogue] = createSignal<CommunityTelegramStudyCatalogue>();
+  const [publishingStatus, setPublishingStatus] = createSignal<"loading" | "available" | "unavailable">("loading");
   const [loading, setLoading] = createSignal(true);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -29,12 +31,12 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       ? "Only a community owner can access these settings."
       : "That change could not be completed. Refresh to check the current status.";
 
-  async function options(current: CommunityTelegramSettings) {
+  async function options(current: CommunityTelegramSettings, request = generation) {
     const results = await Promise.allSettled([
       current.openrouter.status === "valid" ? api.getModels(current.community_id) : Promise.resolve({ items: [] }),
       current.elevenlabs.status === "valid" ? api.getVoices(current.community_id) : Promise.resolve({ items: [] }),
     ]);
-    if (!active || props.communityId !== current.community_id) return;
+    if (!active || request !== generation || props.communityId !== current.community_id) return;
     if (results[0].status === "fulfilled") setModels(results[0].value.items);
     if (results[1].status === "fulfilled") setVoices(results[1].value.items);
     if (results.some((result) => result.status === "rejected" && result.reason instanceof ApiClientError && result.reason.status === 401)) {
@@ -50,10 +52,11 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       const current = await api.getSettings({ communityId: props.communityId });
       if (!active || request !== generation) return;
       setSettings(current);
-      const [activity, selection] = await Promise.all([api.getDeliveries(current.community_id), setup() ? api.getSetup(current.community_id, setup()!.id) : Promise.resolve(undefined)]);
-      if (!active || request !== generation) return;
-      setDeliveries(activity.items); setSetup(selection);
-      await options(current);
+      setCatalogue(undefined);
+      setPublishingStatus("loading");
+      void loadPublishing(current, request);
+      void options(current, request).catch(() => { if (active && request === generation) setError("Assistant options could not be loaded. Refresh to try again."); });
+      await loadCatalogue(current.community_id, request);
     } catch (reason) {
       if (active && request === generation) {
         if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
@@ -62,17 +65,43 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     }
     finally { if (active && request === generation) setLoading(false); }
   }
-  createEffect(() => props.communityId, (communityId) => {
+  async function loadPublishing(current: CommunityTelegramSettings, request: number) {
+    try {
+      const [activity, selection] = await Promise.allSettled([api.getDeliveries(current.community_id), setup() ? api.getSetup(current.community_id, setup()!.id) : Promise.resolve(undefined)]);
+      if (!active || request !== generation) return;
+      if (activity.status === "fulfilled") setDeliveries(activity.value.items);
+      if (selection.status === "fulfilled") setSetup(selection.value);
+      const failures = [activity, selection].filter(result => result.status === "rejected");
+      setPublishingStatus(failures.length ? "unavailable" : "available");
+      if (failures.some(result => result.reason instanceof ApiClientError && result.reason.status === 401)) setAuthRequired(true);
+    } catch {
+      if (active && request === generation) setPublishingStatus("unavailable");
+    }
+  }
+  async function loadCatalogue(communityId: string, request: number) {
+    try {
+      const page=await api.getStudyCatalogue(communityId);
+      if (active && request === generation && props.communityId === communityId
+        && page.integration.community_id === communityId && page.integration.revision >= (settings()?.revision ?? 0)) {
+        if (props.section === "telegram" && page.integration.revision > (settings()?.revision ?? 0)) setSettings(page.integration);
+        setCatalogue(page);
+      }
+    } catch (reason) {
+      if (active && request === generation && reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+      // A failed catalogue read stays unknown; it never becomes an empty ready catalogue.
+    }
+  }
+  createEffect(() => ({ communityId: props.communityId, section: props.section }), ({ communityId, section }) => {
     const request = ++generation;
     // Solid 2 forbids signal writes inside the owned effect callback.
     queueMicrotask(() => {
-      if (!active || request !== generation || communityId !== props.communityId) return;
-      setSettings(undefined); setSetup(undefined); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
+      if (!active || request !== generation || communityId !== props.communityId || section !== props.section) return;
+      setSettings(undefined); setSetup(undefined); setCatalogue(undefined); setPublishingStatus("loading"); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
       void load();
     });
   });
 
-  async function execute(action: (current: CommunityTelegramSettings, commandKey: string) => Promise<CommunityTelegramSettings | void>) {
+  async function execute(action: (current: CommunityTelegramSettings, commandKey: string) => Promise<CommunityTelegramSettings | CommunityTelegramStudySettings | void>) {
     const current = settings();
     if (!current || busy()) return;
     const request = generation;
@@ -80,7 +109,16 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     try {
       const next = await action(current, key());
       if (!active || request !== generation) return;
-      if (next) setSettings(next);
+      if (next && "integration" in next) {
+        setSettings(next.integration);
+        setCatalogue((page) => page ? { ...page, ...next } : undefined);
+      } else if (next) {
+        setSettings(next);
+        if (props.section === "telegram") {
+          setCatalogue(undefined);
+          void loadCatalogue(next.community_id, request);
+        }
+      }
       setSuccess("Settings saved.");
     } catch (reason) {
       if (active && request === generation) {
@@ -97,6 +135,9 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     <Show when={settings()} fallback={<div class="space-y-4"><p role={loading() ? "status" : "alert"}>{loading() ? "Loading community bot settings…" : error()}</p><Show when={!loading()}><Button onClick={() => void load()}>Try again</Button></Show></div>}>
     {(current) => <Show when={props.section === "assistant"} fallback={<CommunityTelegramSettingsPanel showHeading={false}
       settings={current()} setup={setup()} deliveries={deliveries()} loading={loading()} saving={busy()} errorMessage={error() || undefined}
+      studyCatalogue={catalogue()}
+      publishingStatus={publishingStatus()}
+      onStudyChange={(enabled) => run((snapshot, commandKey) => api.saveStudy(snapshot, enabled, commandKey))}
       onConnect={(token) => execute((snapshot, commandKey) => api.connect(snapshot, token, commandKey))}
       onDisconnect={() => run((snapshot, commandKey) => api.disconnect(snapshot, commandKey))}
       onSetup={() => run(async (snapshot, commandKey) => { const result = await api.startSetup(snapshot, commandKey); if (active) setSetup(result); })}
