@@ -1,3 +1,4 @@
+import { CommunityJoinRuleRow } from "./community-join-rule.tsx";
 import { MegapotPoolSummary } from "../../rewards/megapot-participant.tsx";
 import { publicPostIdHref } from "../../posts/public-post/public-post-route.model.ts";
 import { usePageUiLocale } from "../../../lib/ui-locale.tsx";
@@ -32,7 +33,6 @@ import {
 import { CommunityFeedSort } from "./community-feed-sort.tsx";
 import { CommunityMoreMenu, shareCommunityLink, type CommunityManageAuthority, type CommunityMoreAction } from "./community-more-menu.tsx";
 import {
-  membershipLine,
   orderedCommunityRules,
   orderedReferenceLinks,
   safeCommunityHref,
@@ -101,7 +101,8 @@ export interface CommunityPageShellProps {
   /** How many entries the lead holds, so an empty feed is not called empty. */
   feedLeadCount?: number;
   /** Server-backed activity summary supplied by the owning activity lane. */
-  activitySummary?: () => JSX.Element;
+  aboutLeaderboard?: () => JSX.Element;
+  initialTab?: "feed" | "songs" | "about";
   /** Feed posts kept first whatever the sort, newest pin first. */
   pinnedPostIds?: readonly string[];
   renderPost?: (
@@ -293,7 +294,7 @@ function FeedPending() {
 const aboutCardClass = "md:rounded-[var(--radius-3xl)] md:shadow-none max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none";
 const aboutHeadingClass = "leading-7 tracking-normal";
 
-function CommunityAbout(props: { community: CommunityData }) {
+function CommunityAbout(props: { community: CommunityData; leaderboard?: () => JSX.Element }) {
   const community = () => props.community;
   return (
     <div class="flex flex-col gap-4 max-md:gap-8">
@@ -301,14 +302,10 @@ function CommunityAbout(props: { community: CommunityData }) {
         <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
           <Type class={aboutHeadingClass} variant="h3">About</Type>
           <Type variant="body">{community().description}</Type>
-          <Show when={community().handle}>
-            {handle => <Type class="text-sm" variant="caption">{handle()}</Type>}
-          </Show>
-          <Show when={membershipLine(community().membershipMode)}>
-            {line => <Type class="text-sm" variant="caption">{line()}</Type>}
-          </Show>
+          <CommunityJoinRuleRow rule={community().joinRule} mode={community().membershipMode} />
         </CardContent>
       </Card>
+      <Show when={props.leaderboard}>{board => board()()}</Show>
       <Show when={community().rules?.length}>
         <Card class={aboutCardClass}>
           <CardContent class="flex flex-col gap-4 p-5 max-md:p-0">
@@ -385,7 +382,7 @@ function CommunityBanner(props: {
 export function CommunityPageShell(props: CommunityPageShellProps) {
   const [sort, setSort] = createSignal("Best");
   // ownedWrite: the width effect below returns a desktop viewer from About.
-  const [tab, setTab] = createSignal<CommunityTab>("feed", { ownedWrite: true });
+  const [tab, setTab] = createSignal<CommunityTab>(props.initialTab ?? "feed", { ownedWrite: true });
   const community = () => props.community;
   // About is a tab on a phone and a card beside the feed on desktop, so a
   // viewer who widens the window on About returns to the feed it sits beside.
@@ -503,7 +500,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <div class="min-w-0 flex-1">
                 <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
                 <Type class="mt-1 block truncate text-sm" variant="caption">
-                  {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
+                  <Show when={community().handle}>{handle => <>{`@${handle().replace(/^c\//u, "").replace(/^@/u, "")}`} · </>}</Show>{formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
                   <span class={confirmedMember() ? "" : "invisible"} data-community-membership-status aria-hidden={confirmedMember() ? undefined : "true"}> · Member</span>
                 </Type>
               </div>
@@ -564,7 +561,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       </div>
 
       <Show when={!props.composer}>
-        <Show when={props.activitySummary}>{summary => <div class="px-5 py-4 md:px-8">{summary()()}</div>}</Show>
         <div data-community-tabs>
         {/* A phone shares the width among three tabs. Desktop keeps Feed and
             Songs at their own width on the left; About is the card beside
@@ -616,7 +612,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             : "max-md:contents md:flex md:min-w-0 md:flex-col md:gap-4"}
         >
           <div class={!props.composer && tab() === "about" ? "contents" : "hidden md:block"} data-community-about>
-            <CommunityAbout community={community()} />
+            <CommunityAbout community={community()} leaderboard={props.aboutLeaderboard} />
           </div>
         </aside>
       </div>

@@ -97,6 +97,7 @@ describe("community page model", () => {
         avatarSrc: null,
         bannerSrc: null,
         membershipMode: "open",
+        joinRule: { kind: "open" },
         memberCount: 12,
         followerCount: 20,
         rules: [{ title: "Respect", body: "Be kind." }],

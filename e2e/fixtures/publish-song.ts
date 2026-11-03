@@ -1,11 +1,13 @@
 import type { PirateApiClient } from "@pirate/api-client";
 import type { Locator, Page, Request, Response, TestInfo } from "playwright/test";
 import { expect, test } from "./auth.ts";
+import { assertPromptSongHandoff, observeSongHandoff, type SongHandoffTiming } from "./song-handoff.ts";
 
 export type SongAcceptanceObservation = Readonly<{
   readonly lyricsRequestCount: number;
   readonly instrumentalReviewVisible: boolean;
   readonly submissionId: string;
+  readonly handoffTiming: SongHandoffTiming;
 }>;
 
 /** Detect brief disabled/busy transitions, including a blink between poll assertions. */
@@ -44,7 +46,9 @@ export async function publishSongAndVerifyPlayback(
 ): Promise<void> {
   /** Every publication of this submission, to prove there is exactly one. */
   const publications: string[] = [];
+  const termsResponses: Response[] = [];
   const lyricsCommands: string[] = [];
+  let handoff: Awaited<ReturnType<typeof observeSongHandoff>> | undefined;
   let lyricsRequestCount = 0;
   let instrumentalReviewVisible = false;
   const requestListener = (request: Request) => {
@@ -54,7 +58,10 @@ export async function publishSongAndVerifyPlayback(
   const responseListener = (response: Response) => {
     const path = new URL(response.url()).pathname;
     if (response.request().method() !== "POST" || !response.ok()) return;
-    if (/\/media-post-submissions\/[^/]+\/terms$/u.test(path)) publications.push(path);
+    if (/\/media-post-submissions\/[^/]+\/terms$/u.test(path)) {
+      publications.push(path);
+      termsResponses.push(response);
+    }
     if (/\/media-post-submissions\/[^/]+\/lyrics$/u.test(path)) lyricsCommands.push(path);
   };
   page.on("request", requestListener);
@@ -126,11 +133,19 @@ export async function publishSongAndVerifyPlayback(
 
   const publish = composer.getByRole("button", { name: "Post", exact: true });
   await assertStablePostingControl(publish);
+  handoff = await observeSongHandoff(composer);
   await publish.click();
   // The steps end when the server accepts the song. Paper ruling 14: the
   // author then sees the song's one centred state on the same page, not a
   // card in the feed, until it is published.
   await expect(composer).toBeHidden({ timeout: 180_000 });
+  const terms = termsResponses[0];
+  if (!terms) throw new Error("Composer closed without a successful terms response");
+  const handoffTiming = await handoff.measure(terms);
+  await testInfo.attach("song-terms-handoff-timing", {
+    body: JSON.stringify(handoffTiming, null, 2), contentType: "application/json",
+  });
+  assertPromptSongHandoff(handoffTiming);
   const own = page.locator("[data-posted-song]");
   await expect(own).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("[data-pending-song]")).toHaveCount(0);
@@ -143,7 +158,7 @@ export async function publishSongAndVerifyPlayback(
   expect(lyricsCommands).toHaveLength(lyrics === "" ? 0 : 1);
   const submissionId = publications[0]?.match(/^\/api\/media-post-submissions\/([A-Za-z0-9_-]+)\/terms$/u)?.[1];
   if (!submissionId) throw new Error("Published song did not expose a bounded submission identifier.");
-  onObservation?.({ lyricsRequestCount, instrumentalReviewVisible, submissionId });
+  onObservation?.({ lyricsRequestCount, instrumentalReviewVisible, submissionId, handoffTiming });
 
   testInfo.annotations.push({
     type: "cleanup-required",
@@ -180,6 +195,7 @@ export async function publishSongAndVerifyPlayback(
   } finally {
     page.off("request", requestListener);
     page.off("response", responseListener);
+    await handoff?.dispose();
   }
 }
 

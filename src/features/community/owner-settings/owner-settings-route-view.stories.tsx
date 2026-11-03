@@ -112,6 +112,7 @@ const telegramSectionApi: CommunityTelegramSettingsApi = {
   ...createCommunityTelegramSettingsApi(),
   getDeliveries: async () => ({ items: [], next_cursor: null }),
   getSettings: async () => disconnectedTelegram,
+  getStudyCatalogue: async () => ({ integration: disconnectedTelegram, enabled: false, availability: "unavailable", items: [], next_cursor: null }),
 };
 
 const moderationSectionApi: CommunityModerationSettingsApi = {
@@ -227,6 +228,8 @@ export const SectionTelegram: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByRole("button", { name: "Connect bot" })).toBeInTheDocument());
+    await expect(canvas.getByRole("link", { name: "Open BotFather" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "3. Open your bot" })).toBeInTheDocument();
   },
 };
 
