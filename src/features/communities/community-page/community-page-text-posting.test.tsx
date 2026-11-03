@@ -210,7 +210,7 @@ describe("community page text posting", () => {
     const fake = server(attempt => attempt === 1 ? "lost" : "ok");
     const container = render(() => page(fake));
     const activityPanel = () => container.querySelector<HTMLElement>("[data-activity-leaderboard]")!;
-    await vi.waitFor(() => expect(activityPanel().textContent).toContain(activity === "healthy" ? "Your streak: 3 days" : "Streak summary unavailable"));
+    await vi.waitFor(() => expect(activityPanel().textContent).toContain(activity === "healthy" ? "No streaks yet" : "The leaderboard isn't showing"));
     await post(container, "Hello world");
     await vi.waitFor(() => expect(pending(container)).not.toBeNull());
     expect(pending(container)!.querySelector("[role='alert']")).toBeNull();

@@ -101,3 +101,8 @@ describe("application chrome policy", () => {
     expect(resolveApplicationChrome("/search")).toMatchObject({ activeItemId: "none", mobileActiveItem: "none" });
   });
 });
+
+
+test.each(["/c/harbor/leaderboard", "/posts/song/leaderboard", "/post/post-id/leaderboard"])("%s lets the activity page own its header and pinned viewer edge", path => {
+  expect(resolveApplicationChrome(path)).toMatchObject({ mode: "standard", hideMobileHeader: true, hideMobileFooter: true });
+});
