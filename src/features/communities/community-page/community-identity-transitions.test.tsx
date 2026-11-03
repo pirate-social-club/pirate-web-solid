@@ -9,6 +9,7 @@ import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { AuthenticatedSession, SessionResolution } from "../../../api/session.ts";
+import { SESSION_FENCED_EVENT, SessionAuthorityChangedError } from "../../../api/browser-session-events.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
 import type { CommunityEngagementApi, CommunityMembershipState } from "./community-engagement-api.ts";
 import {
@@ -361,6 +362,51 @@ function mountController(
 }
 
 describe("account-scoped counts and the session-start guard", () => {
+  test.each(["member", "not_member"] as const)("a cancelled login read waits for fresh %s authority without showing a membership failure", async membership => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let rejectCancelled!: (error: Error) => void;
+    const cancelled = new Promise<never>((_, reject) => { rejectCancelled = reject; });
+    const fresh = deferred<{ membership: typeof membership; following: boolean; followerCount: number }>();
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>({ status: "authenticated", userId: "account-a" });
+    let refreshing = false;
+    const api: CommunityEngagementApi = {
+      readViewerState: vi.fn(() => refreshing ? fresh.promise : cancelled),
+      resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+      join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona-a" })),
+      follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
+      unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
+    };
+    try {
+      const controller = mountController(api, sessionState, async () => sessionFor("account-a", harbor.communityId));
+      await vi.waitFor(() => expect(vi.mocked(api.readViewerState).mock.calls.length).toBeGreaterThanOrEqual(2));
+      expect(controller.authorityPending()).toBe(true);
+      // Production returned 200 headers, then a normal login refresh fenced
+      // the body read before the replacement account resolution completed.
+      window.dispatchEvent(new Event(SESSION_FENCED_EVENT));
+      rejectCancelled(new SessionAuthorityChangedError());
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(controller.error()).toBe("");
+      expect(controller.viewerUnknown()).toBe(false);
+      expect(controller.authorityPending()).toBe(true);
+      expect(controller.joined()).toBe(false);
+      expect(diagnostic).not.toHaveBeenCalled();
+
+      refreshing = true;
+      const previousReads = vi.mocked(api.readViewerState).mock.calls.length;
+      setSessionState({ status: "authenticated", userId: "account-a" });
+      await vi.waitFor(() => expect(vi.mocked(api.readViewerState).mock.calls.length).toBeGreaterThan(previousReads));
+      expect(controller.authorityPending()).toBe(true);
+      fresh.settle({ membership, following: membership === "member", followerCount: 20 });
+      await vi.waitFor(() => expect(controller.authorityPending()).toBe(false));
+      expect(controller.joined()).toBe(membership === "member");
+      expect(controller.viewerUnknown()).toBe(false);
+      expect(controller.error()).toBe("");
+      expect(diagnostic).not.toHaveBeenCalled();
+      expect(api.join).not.toHaveBeenCalled();
+      expect(api.follow).not.toHaveBeenCalled();
+    } finally { diagnostic.mockRestore(); }
+  });
+
   test("signing out restores the public follower count and signing in re-resolves personas", async () => {
     const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
       { status: "authenticated", userId: "account-a" },

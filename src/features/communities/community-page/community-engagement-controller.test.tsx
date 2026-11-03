@@ -2,7 +2,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession, SessionResolution } from "../../../api/session.ts";
-import { SESSION_FENCED_EVENT } from "../../../api/browser-session-events.ts";
+import { SESSION_FENCED_EVENT, SessionAuthorityChangedError } from "../../../api/browser-session-events.ts";
 import { GLOBAL_SIGN_IN_EVENT } from "../../auth/global-sign-in-host.tsx";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import { createCommunityEngagementController, type CommunityEngagementControllerOptions } from "./community-engagement-controller.ts";
@@ -249,6 +249,27 @@ describe("terminal community persona choice", () => {
 });
 
 describe("passive membership diagnostics", () => {
+  test("a cancelled posting check preserves confirmed membership and the preceding action error without allowing Post", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { api, controller } = await setup({
+        readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 7 })),
+        follow: vi.fn(async () => { throw new Error("follow unavailable"); }),
+      });
+      await vi.waitFor(() => expect(controller.joined()).toBe(true));
+      await controller.followToggle();
+      const actionError = controller.error();
+      expect(actionError).toContain("couldn't update your follow");
+      vi.mocked(api.readViewerState).mockRejectedValue(new SessionAuthorityChangedError());
+      expect(await controller.resolvePostingSession()).toBeUndefined();
+      expect(controller.error()).toBe(actionError);
+      expect(controller.joined()).toBe(true);
+      expect(controller.viewerUnknown()).toBe(false);
+      expect(diagnostic).not.toHaveBeenCalled();
+      expect(api.join).not.toHaveBeenCalled();
+    } finally { diagnostic.mockRestore(); }
+  });
+
   test.each([true, false])("a slow failure retains a session change before or during the read: %s", async beforeRead => {
     const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
     let now = 1_000;
