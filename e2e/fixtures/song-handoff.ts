@@ -26,6 +26,13 @@ export async function observeSongHandoff(composer: Locator) {
     });
     return { dismissedAt: () => dismissedAt, disconnect: () => observer.disconnect() };
   });
+  let disposed = false;
+  const dispose = async () => {
+    if (disposed) return;
+    disposed = true;
+    try { await observation.evaluate(value => value.disconnect()); }
+    finally { await observation.dispose(); }
+  };
 
   return {
     async measure(terms: Response): Promise<SongHandoffTiming> {
@@ -38,6 +45,9 @@ export async function observeSongHandoff(composer: Locator) {
       }
       const dismissedAt = await observation.evaluate(value => value.dismissedAt());
       if (dismissedAt === null) throw new Error("Composer dismissal was not observed");
+      // Measurement is complete before the fixture reloads for playback.
+      // Release this document's handle now; later finally cleanup is harmless.
+      await dispose();
       const acknowledgedAt = timing.startTime + timing.responseEnd;
       return {
         termsResponseStartedAtMs: timing.startTime + timing.responseStart,
@@ -46,10 +56,7 @@ export async function observeSongHandoff(composer: Locator) {
         acknowledgmentToDismissalMs: dismissedAt - acknowledgedAt,
       };
     },
-    async dispose() {
-      try { await observation.evaluate(value => value.disconnect()); }
-      finally { await observation.dispose(); }
-    },
+    dispose,
   };
 }
 

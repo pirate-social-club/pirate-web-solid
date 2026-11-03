@@ -27,6 +27,7 @@ async function measureLocalHandoff(page: Page, options: {
   bodyDelayMs?: number;
   dismissalDelayMs?: number;
   dismissBeforeAcknowledgment?: boolean;
+  reloadAfterMeasurement?: boolean;
 }) {
   const server = createServer((request, response) => {
     if (request.method === "POST" && request.url === "/terms") {
@@ -63,7 +64,9 @@ async function measureLocalHandoff(page: Page, options: {
     await page.getByRole("button", { name: "Post", exact: true }).click();
     const terms = await accepted;
     await expect(composer).toBeHidden();
-    return await observation.measure(terms);
+    const timing = await observation.measure(terms);
+    if (options.reloadAfterMeasurement) await page.reload();
+    return timing;
   } finally {
     try { await observation?.dispose(); }
     finally {
@@ -92,4 +95,9 @@ test("@local-fixture rejects delayed dismissal even when the long wait would pas
 test("@local-fixture rejects dismissal before terms acknowledgment", async ({ page }) => {
   const timing = await measureLocalHandoff(page, { acknowledgmentDelayMs: 500, dismissBeforeAcknowledgment: true });
   expect(() => assertPromptSongHandoff(timing, 200)).toThrow("Composer closed before terms acknowledgment");
+});
+
+test("@local-fixture cleans up after reloading for published-song playback", async ({ page }) => {
+  const timing = await measureLocalHandoff(page, { reloadAfterMeasurement: true });
+  assertPromptSongHandoff(timing, 200);
 });
