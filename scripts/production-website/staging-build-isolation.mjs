@@ -12,7 +12,7 @@ import { APP_REPO, APP_SOURCE, APP_TREE, NODE, TOOLING_REPO, WRANGLER_BIN } from
 const BUN = "/home/t42/.bun/bin/bun";
 const API_SOURCE = "6862fa976a2fc387ee0e0274ba9f1b2abc447427";
 const hash = value => createHash("sha256").update(value).digest("hex");
-const git = args => execFileSync("/usr/bin/git", args, { cwd: APP_REPO, env: bootstrapToolEnvironment(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024 });
+const git = (args, repository = APP_REPO) => execFileSync("/usr/bin/git", args, { cwd: repository, env: bootstrapToolEnvironment(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024 });
 const text = args => git(args).toString("utf8").trim();
 const refuse = reason => { throw new Error("hns_staging_deploy_refused:" + reason); };
 
@@ -21,6 +21,8 @@ export function stagingSelection(args) {
   if (args.length === 3 && args[0] === "--deploy"
     && ["--prepare-frozen", "--deploy-frozen", "--check-frozen-release"].includes(args[1]))
     return stagingSelection(args.slice(1));
+  if (args.length === 3 && args[0] === "--deploy" && ["--prepare-posting-frozen", "--deploy-posting-frozen", "--check-posting-frozen-release"].includes(args[1])) return stagingSelection(args.slice(1));
+  if (args.length === 2 && ["--prepare-posting-frozen", "--deploy-posting-frozen", "--check-posting-frozen-release"].includes(args[0]) && /^\/tmp\/pirate-posting-staging-[a-f0-9]{32}$/u.test(args[1])) return {mode: args[0], frozen: true, posting: true, runRoot: args[1]};
   if (args.length === 1 && ["--deploy", "--check-only", "--check-release"].includes(args[0])) return { mode: args[0], frozen: false };
   if (args.length === 2 && ["--prepare-frozen", "--deploy-frozen", "--check-frozen-release"].includes(args[0])
     && /^\/tmp\/pirate-v1-solid-staging-[a-f0-9]{32}$/u.test(args[1])) return { mode: args[0], frozen: true, runRoot: args[1] };
@@ -44,7 +46,7 @@ export function frozenBuildEnvironment(input = process.env, runRoot) {
     WRANGLER_SEND_METRICS: "false", CI: "1" };
 }
 
-function privateDirectory(path) {
+export function privateDirectory(path) {
   const stat = lstatSync(path);
   assert.ok(stat.isDirectory() && !stat.isSymbolicLink() && realpathSync(path) === resolve(path));
   assert.equal(stat.uid, process.getuid()); assert.equal(stat.mode & 0o777, 0o700);
@@ -65,24 +67,24 @@ async function sources() {
   return { toolingSource, production, bunSha256: hash(readFileSync(BUN)) };
 }
 
-function entries() {
-  return git(["ls-tree", "-rz", "--full-tree", APP_SOURCE]).toString("utf8").split("\0").filter(Boolean).map(row => {
+export function stagingSourceEntries(repository = APP_REPO, source = APP_SOURCE) {
+  return git(["ls-tree", "-rz", "--full-tree", source], repository).toString("utf8").split("\0").filter(Boolean).map(row => {
     const match = /^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/u.exec(row);
     assert.ok(match && !match[3].split("/").some(part => ["", ".", ".."].includes(part)) && !match[3].includes("\n"), "Unsupported frozen export entry");
     return { mode: match[1], oid: match[2], name: match[3] };
   });
 }
 
-function assertExport(app) {
-  const tracked = entries(), names = new Set(tracked.map(row => row.name));
+export function assertStagingExport(app, repository = APP_REPO, source = APP_SOURCE) {
+  const tracked = stagingSourceEntries(repository, source), names = new Set(tracked.map(row => row.name));
   for (const row of tracked) {
     const path = join(app, row.name), stat = lstatSync(path), bytes = readFileSync(path);
     assert.ok(stat.isFile() && !stat.isSymbolicLink() && realpathSync(path) === resolve(path));
     assert.equal(createHash("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex"), row.oid, "Frozen export differs: " + row.name);
     assert.equal(Boolean(stat.mode & 0o111), row.mode === "100755");
   }
-  const dependencyLinks = new Map([["node_modules", join(APP_REPO, "node_modules")]]);
-  if (existsSync(join(APP_REPO, "packages/solid-ui/node_modules"))) dependencyLinks.set("packages/solid-ui/node_modules", join(APP_REPO, "packages/solid-ui/node_modules"));
+  const dependencyLinks = new Map([["node_modules", join(repository, "node_modules")]]);
+  if (existsSync(join(repository, "packages/solid-ui/node_modules"))) dependencyLinks.set("packages/solid-ui/node_modules", join(repository, "packages/solid-ui/node_modules"));
   function visit(directory, prefix = "") {
     for (const name of readdirSync(directory)) {
       const relative = prefix + name, path = join(directory, name), stat = lstatSync(path);
@@ -98,10 +100,10 @@ function assertExport(app) {
   visit(app);
   for (const name of [".git", ".env", ".env.local", ".env.staging", ".dev.vars", ".dev.vars.staging"])
     assert.ok(!existsSync(join(app, name)), "Unexpected live build input: " + name);
-  assert.equal(realpathSync(join(app, "node_modules")), realpathSync(join(APP_REPO, "node_modules")));
+  assert.equal(realpathSync(join(app, "node_modules")), realpathSync(join(repository, "node_modules")));
 }
 
-function run(app, command, args, environment) {
+export function runStagingBuild(app, command, args, environment) {
   const value = spawnSync(command, args, { cwd: app, env: environment, stdio: "inherit", timeout: 600_000 });
   if (value.error || value.status !== 0) refuse("frozen_staging_build_failed");
 }
@@ -114,14 +116,14 @@ export function assertStagingConfiguration(source, config) {
   assert.equal(config.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "true"); assert.equal(config.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "true");
 }
 
-function checkConfiguration(app) {
+export function checkStagingBuildConfiguration(app) {
   const source = JSON.parse(readFileSync(join(app, "wrangler.jsonc"), "utf8"));
   const config = JSON.parse(readFileSync(join(app, "dist/ssr/wrangler.json"), "utf8"));
   assertStagingConfiguration(source, config);
   return hash(readFileSync(join(app, "dist/ssr/wrangler.json")));
 }
 
-function save(path, value) {
+export function saveStagingReceipt(path, value) {
   const fd = openSync(path, "wx", 0o600);
   try { writeFileSync(fd, JSON.stringify(value, null, 2) + "\n"); fsyncSync(fd); } finally { closeSync(fd); }
   const directory = openSync(dirname(path), "r"); try { fsyncSync(directory); } finally { closeSync(directory); }
@@ -132,7 +134,7 @@ export async function prepareFrozenStagingBuild(runRoot) {
   stagingSelection(["--prepare-frozen", runRoot]);
   const pins = await sources();
   assert.equal(realpathSync("/tmp"), "/tmp");
-  entries(); // Validate all committed entry kinds and paths before tar may create anything.
+  stagingSourceEntries(); // Validate all committed entry kinds and paths before tar may create anything.
   mkdirSync(runRoot, { mode: 0o700 }); privateDirectory(runRoot);
   const app = join(runRoot, "app"); mkdirSync(app, { mode: 0o700 });
   for (const directory of ["tmp", "cache"]) mkdirSync(join(runRoot, directory), { mode: 0o700 });
@@ -141,17 +143,17 @@ export async function prepareFrozenStagingBuild(runRoot) {
   symlinkSync(join(APP_REPO, "node_modules"), join(app, "node_modules"));
   if (existsSync(join(APP_REPO, "packages/solid-ui/node_modules")))
     symlinkSync(join(APP_REPO, "packages/solid-ui/node_modules"), join(app, "packages/solid-ui/node_modules"));
-  assertExport(app);
+  assertStagingExport(app);
   const environment = frozenBuildEnvironment(process.env, runRoot);
-  run(app, BUN, ["--no-env-file", "run", "prebuild"], environment);
+  runStagingBuild(app, BUN, ["--no-env-file", "run", "prebuild"], environment);
   // Runner avoids Vite's default node_modules/.vite-temp config bundle write to qualified dependencies.
-  run(app, NODE, [join(app, "node_modules/vite/bin/vite.js"), "build", "--configLoader", "runner"], environment);
-  run(app, NODE, ["scripts/prune-solid-ssr-optional-assets.mjs"], environment);
-  assertExport(app);
-  const configSha = checkConfiguration(app), artifactSha = await websiteArtifactDigest(app);
+  runStagingBuild(app, NODE, [join(app, "node_modules/vite/bin/vite.js"), "build", "--configLoader", "runner"], environment);
+  runStagingBuild(app, NODE, ["scripts/prune-solid-ssr-optional-assets.mjs"], environment);
+  assertStagingExport(app);
+  const configSha = checkStagingBuildConfiguration(app), artifactSha = await websiteArtifactDigest(app);
   assert.notEqual(artifactSha, pins.production.artifact_sha256);
   const after = await sources(); assert.deepEqual(after, pins);
-  save(join(runRoot, "staging-prepared.json"), { kind: "pirate-frozen-staging-prepared-v1", source: APP_SOURCE, tree: APP_TREE,
+  saveStagingReceipt(join(runRoot, "staging-prepared.json"), { kind: "pirate-frozen-staging-prepared-v1", source: APP_SOURCE, tree: APP_TREE,
     tooling_source: pins.toolingSource, run_root: runRoot, artifact_sha256: artifactSha, config_sha256: configSha,
     retained_production_artifact_sha256: pins.production.artifact_sha256, retained_production_receipt_sha256: pins.production.receipt_sha256,
     uploader_sha256: pins.production.uploader_sha256, bun_sha256: pins.bunSha256, target_api_source: API_SOURCE, target_api_source_is_observed: false,
@@ -162,13 +164,13 @@ export async function prepareFrozenStagingBuild(runRoot) {
 /** Rechecks prepared bytes and both accepted source identities before every guarded upload. */
 export async function readFrozenStagingBuild(runRoot) {
   stagingSelection(["--deploy-frozen", runRoot]); privateDirectory(runRoot);
-  const app = join(runRoot, "app"); privateDirectory(app); const pins = await sources(); assertExport(app);
+  const app = join(runRoot, "app"); privateDirectory(app); const pins = await sources(); assertStagingExport(app);
   const path = join(runRoot, "staging-prepared.json"), stat = lstatSync(path);
   assert.ok(stat.isFile() && !stat.isSymbolicLink() && stat.uid === process.getuid() && (stat.mode & 0o777) === 0o600);
   const receipt = JSON.parse(readFileSync(path, "utf8"));
   assert.equal(receipt.kind, "pirate-frozen-staging-prepared-v1"); assert.equal(receipt.run_root, runRoot);
   assert.equal(receipt.source, APP_SOURCE); assert.equal(receipt.tree, APP_TREE); assert.equal(receipt.tooling_source, pins.toolingSource);
-  assert.equal(receipt.config_sha256, checkConfiguration(app)); assert.equal(receipt.artifact_sha256, await websiteArtifactDigest(app));
+  assert.equal(receipt.config_sha256, checkStagingBuildConfiguration(app)); assert.equal(receipt.artifact_sha256, await websiteArtifactDigest(app));
   assert.equal(receipt.retained_production_artifact_sha256, pins.production.artifact_sha256);
   assert.equal(receipt.retained_production_receipt_sha256, pins.production.receipt_sha256);
   assert.equal(receipt.bun_sha256, pins.bunSha256);
