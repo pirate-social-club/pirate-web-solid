@@ -2,6 +2,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession, SessionResolution } from "../../../api/session.ts";
+import { SESSION_FENCED_EVENT } from "../../../api/browser-session-events.ts";
 import { GLOBAL_SIGN_IN_EVENT } from "../../auth/global-sign-in-host.tsx";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import { createCommunityEngagementController, type CommunityEngagementControllerOptions } from "./community-engagement-controller.ts";
@@ -187,13 +188,19 @@ describe("terminal community persona choice", () => {
   });
 
   test("a failed post-join preview preserves membership without manufacturing a count", async () => {
-    const { api, controller } = await setup({}, [unboundPersona]);
-    vi.mocked(api.readViewerState).mockRejectedValue(new Error("preview unavailable"));
-    await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
-    expect(controller.joined()).toBe(true);
-    expect(controller.followerCount()).toBe(0);
-    expect(controller.message()).toBe("Joined this Community.");
-    expect(controller.error()).toContain("couldn't load");
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { api, controller } = await setup({}, [unboundPersona]);
+      vi.mocked(api.readViewerState).mockRejectedValue(new Error("preview unavailable"));
+      await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
+      expect(controller.joined()).toBe(true);
+      expect(controller.followerCount()).toBe(0);
+      expect(controller.message()).toBe("Joined this Community.");
+      expect(controller.error()).toContain("couldn't load");
+      expect(diagnostic).toHaveBeenCalledWith("community.membership.read.failed", expect.objectContaining({
+        errorClass: "Error", kind: "unknown", status: undefined,
+      }));
+    } finally { diagnostic.mockRestore(); }
   });
 
   test("zero-persona join cannot mint even through a stale confirmation", async () => {
@@ -238,5 +245,68 @@ describe("terminal community persona choice", () => {
     await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
     expect(api.join).not.toHaveBeenCalled();
     expect(controller.joined()).toBe(false);
+  });
+});
+
+describe("passive membership diagnostics", () => {
+  test.each([true, false])("a slow failure retains a session change before or during the read: %s", async beforeRead => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let now = 1_000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const { api, controller } = await setup();
+      let rejectRead: ((failure: Error) => void) | undefined;
+      vi.mocked(api.readViewerState).mockImplementation(() => new Promise((_, reject) => { rejectRead = reject; }));
+      if (beforeRead) window.dispatchEvent(new Event(SESSION_FENCED_EVENT));
+      const pending = controller.resolvePostingSession();
+      await vi.waitFor(() => expect(rejectRead).toBeTypeOf("function"));
+      now += 20_000;
+      if (!beforeRead) window.dispatchEvent(new Event(SESSION_FENCED_EVENT));
+      rejectRead!(new TypeError("private_slow_transport"));
+      await pending;
+      expect(diagnostic).toHaveBeenLastCalledWith("community.membership.read.failed", {
+        errorClass: "TypeError", kind: "type_or_network", status: undefined,
+        elapsedMs: 20_000, recentSessionChange: true,
+      });
+    } finally { diagnostic.mockRestore(); clock.mockRestore(); }
+  });
+
+  test("records request duration and an observed session fence for only ten seconds", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let now = 1_000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const { api, controller } = await setup();
+      vi.mocked(api.readViewerState).mockImplementation(async () => { now += 25; throw new TypeError("private_transport"); });
+      await controller.resolvePostingSession();
+      expect(diagnostic).toHaveBeenLastCalledWith("community.membership.read.failed", {
+        errorClass: "TypeError", kind: "type_or_network", status: undefined,
+        elapsedMs: 25, recentSessionChange: false,
+      });
+      window.dispatchEvent(new Event(SESSION_FENCED_EVENT));
+      await controller.resolvePostingSession();
+      expect(diagnostic).toHaveBeenLastCalledWith("community.membership.read.failed", expect.objectContaining({
+        elapsedMs: 25, recentSessionChange: true,
+      }));
+      now += 10_001;
+      await controller.resolvePostingSession();
+      expect(diagnostic).toHaveBeenLastCalledWith("community.membership.read.failed", expect.objectContaining({
+        elapsedMs: 25, recentSessionChange: false,
+      }));
+    } finally { diagnostic.mockRestore(); clock.mockRestore(); }
+  });
+
+  test("caps reporting at five failures while every read still follows existing recovery", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { api, controller } = await setup();
+      vi.mocked(api.readViewerState).mockRejectedValue(new TypeError("private_transport"));
+      for (let attempt = 0; attempt < 8; attempt++) expect(await controller.resolvePostingSession()).toBeUndefined();
+      expect(diagnostic).toHaveBeenCalledTimes(5);
+      expect(controller.viewerUnknown()).toBe(true);
+      expect(controller.error()).toContain("couldn't load your current Community membership");
+      expect(api.join).not.toHaveBeenCalled();
+      expect(api.follow).not.toHaveBeenCalled();
+    } finally { diagnostic.mockRestore(); }
   });
 });
