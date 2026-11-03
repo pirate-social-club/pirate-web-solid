@@ -471,7 +471,8 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("Public conversations.");
     expect(container.textContent).toContain("Respect");
     expect(container.textContent).toContain("Feed");
-    expect(container.querySelector("[aria-label='Community information']")?.textContent).toContain("c/pokémon");
+    expect(container.querySelector("[aria-label='Community overview']")?.textContent).toContain("@pokémon");
+    expect(container.querySelector("[aria-label='Community information']")?.textContent).not.toContain("c/pokémon");
     expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
       .toContain("/c/xn--pokmon-dva");
   });
@@ -785,7 +786,7 @@ describe("CommunityPage", () => {
     expect(container.querySelector("[data-community-membership-status]")?.textContent).toContain("Member");
   });
 
-  test("shows a requested membership as pending instead of joined", async () => {
+  test("does not offer an unsupported request-to-join flow", async () => {
     const api = engagementApi({
       resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),
       join: vi.fn(async () => ({ status: "requested" as const, personaId: null })),
@@ -800,13 +801,9 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
-    const request = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Request to join")!;
-    request.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Membership request sent."));
-    await vi.waitFor(() => expect(container.querySelector("[data-community-membership-slot]")?.textContent).toBe("Request pending"));
-    expect(container.querySelector("[data-community-membership-slot]")?.getAttribute("role")).toBe("status");
-    expect(container.querySelector("[data-community-membership-slot] button")).toBeNull();
+    expect(container.textContent).not.toContain("Request to join");
+    expect(container.textContent).not.toContain("Membership is by request");
+    expect(api.join).not.toHaveBeenCalled();
   });
 
   test("initializes an existing member from the authenticated preview", async () => {

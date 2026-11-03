@@ -68,6 +68,8 @@ const iconSpecs: readonly IconSpec[] = [
   { component: "IconWallet", asset: "wallet", supportsFilled: true },
   { component: "IconPlaylist", asset: "playlist", supportsFilled: true },
   { component: "IconHandPalm", asset: "hand-palm" },
+  { component: "IconDoorOpen", asset: "door-open" },
+  { component: "IconIdentificationCard", asset: "identification-card" },
   { component: "IconMicrophoneStage", asset: "microphone-stage", supportsFilled: true, defaultWeight: "fill" },
   { component: "IconArrowCounterClockwise", asset: "arrow-counter-clockwise" },
   { component: "IconGift", asset: "gift", supportsFilled: true, defaultWeight: "fill" },
