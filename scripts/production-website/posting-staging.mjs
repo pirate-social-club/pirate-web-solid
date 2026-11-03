@@ -33,6 +33,11 @@ export function assertPostingSourceIdentity(value) {
   assert.equal(value.published, POSTING.source); assert.equal(value.acceptedMainAncestor, true);
 }
 
+export function assertPostingWorkspaceIdentity(value) {
+  assert.equal(value.actualTree, value.selectedTree, "Resolved workspace source differs from selected posting tree");
+  assert.equal(value.resolvedPackage, value.workspacePackage, "Workspace dependency resolves outside the qualified source");
+}
+
 export function postingManifest(bytes = readFileSync(new URL("posting-staging-gateway.json", import.meta.url))) {
   assert.equal(sha(bytes), POSTING.gateway, "Posting manifest differs from the reviewed future gateway");
   const value = JSON.parse(bytes.toString("utf8"));
@@ -46,6 +51,18 @@ export function postingManifest(bytes = readFileSync(new URL("posting-staging-ga
 /** Preparation proves only candidate compatibility; every deploy/check must read live state. */
 export async function postingGatewayGate(mode, offline, live) {
   return mode === "--prepare-posting-frozen" ? offline() : live();
+}
+
+/** The browser selector belongs to postchecks, never the sanitized build. */
+export function postingPostcheckEnvironment(buildEnvironment) {
+  return { ...buildEnvironment, PLAYWRIGHT_BROWSERS_PATH: join(ROOT, ".playwright-browsers") };
+}
+
+export function assertPostingPostcheckBrowser(env, run = execFileSync) {
+  assert.equal(env.PLAYWRIGHT_BROWSERS_PATH, join(ROOT, ".playwright-browsers"));
+  run(NODE, ["--input-type=module", "-e",
+    "import assert from 'node:assert/strict';import {existsSync} from 'node:fs';import {chromium} from 'playwright';assert.ok(existsSync(chromium.executablePath()),'Qualified posting postcheck browser is missing');"],
+  { cwd: ROOT, env, timeout: 30_000, stdio: ["ignore", "pipe", "pipe"] });
 }
 
 export function assertPostingReceipt(receipt, expected) {
@@ -76,12 +93,19 @@ async function inputs() {
   assert.equal(provenance.version, "0.142.0");
   assert.equal(sha(readFileSync(join(ROOT, provenance.artifact))), provenance.sha256);
   dependencies.clientArtifact = provenance.sha256;
+  const workspace = {
+    selectedTree: text(["rev-parse", POSTING.source + ":packages/solid-ui"]),
+    actualTree: text(["rev-parse", "HEAD:packages/solid-ui"]),
+    resolvedPackage: realpathSync(join(ROOT, "node_modules/@pirate/web-solid-ui")),
+    workspacePackage: realpathSync(join(ROOT, "packages/solid-ui")),
+  };
+  assertPostingWorkspaceIdentity(workspace);
   const receipt = readFileSync(join(retained, "dist/website-production-prepared.json"));
   assert.equal(sha(receipt), POSTING.productionReceipt);
   assertPreparedReceipt(JSON.parse(receipt.toString("utf8")), { source: POSTING.source, artifact: POSTING.productionArtifact });
   assert.equal(await websiteArtifactDigest(retained), POSTING.productionArtifact);
   postingManifest();
-  return { toolingSource, dependencies, bun: sha(readFileSync(BUN)), uploader: sha(readFileSync(join(ROOT, "node_modules/wrangler/wrangler-dist/cli.js"))) };
+  return { toolingSource, dependencies, workspace, bun: sha(readFileSync(BUN)), uploader: sha(readFileSync(join(ROOT, "node_modules/wrangler/wrangler-dist/cli.js"))) };
 }
 
 function configuration(app) {

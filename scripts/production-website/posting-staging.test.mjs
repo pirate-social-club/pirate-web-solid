@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { assertPostingReceipt, assertPostingSourceIdentity, POSTING, postingGatewayGate, postingManifest, qualifyPostingStagingCandidate } from "./posting-staging.mjs";
+import { assertPostingPostcheckBrowser, assertPostingReceipt, assertPostingSourceIdentity, assertPostingWorkspaceIdentity, POSTING, postingGatewayGate, postingManifest, postingPostcheckEnvironment, qualifyPostingStagingCandidate } from "./posting-staging.mjs";
 import { assertStagingExport, stagingSelection } from "./staging-build-isolation.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
@@ -38,6 +38,20 @@ test("future manifest is the exact reviewed native recipe and rejects changed by
   assert.throws(() => postingManifest(Buffer.concat([bytes, Buffer.from("\n")])));
 });
 
+test("unchanged dependency manifests cannot admit the later main workspace UI", () => {
+  const git = args => execFileSync("git", args, { cwd: repository });
+  const later = "3225218090d0d00f7fe330d645bd8cd02d3e2ccf";
+  for (const name of ["package.json", "bun.lock", "packages/solid-ui/package.json", "vendor/api-client-provenance.json"])
+    assert.deepEqual(git(["show", POSTING.source + ":" + name]), git(["show", later + ":" + name]));
+  const selectedTree = git(["rev-parse", POSTING.source + ":packages/solid-ui"]).toString().trim();
+  const laterTree = git(["rev-parse", later + ":packages/solid-ui"]).toString().trim();
+  assert.notEqual(selectedTree, laterTree);
+  const proof = { selectedTree, actualTree: selectedTree, resolvedPackage: "/qualified/packages/solid-ui", workspacePackage: "/qualified/packages/solid-ui" };
+  assertPostingWorkspaceIdentity(proof);
+  assert.throws(() => assertPostingWorkspaceIdentity({ ...proof, actualTree: laterTree }), /differs from selected/u);
+  assert.throws(() => assertPostingWorkspaceIdentity({ ...proof, resolvedPackage: "/other/packages/solid-ui" }), /outside/u);
+});
+
 test("offline preparation never reads live state; deployment and checking always do", async () => {
   const calls = [];
   const offline = () => { calls.push("offline"); return { installed: false, observedLive: false }; };
@@ -56,6 +70,18 @@ test("receipt cannot replace source, inputs, artifact, future gateway or observa
   for (const change of [{ source: "other" }, { tree: "other" }, { runRoot: "other" }, { inputs: { ...expected.inputs, dependencies: {} } },
     { artifact_sha256: "other" }, { config_sha256: "other" }, { futureGateway: "other" }, { installed: true }, { observedLive: true }, { extraOverride: "forbidden" }])
     assert.throws(() => assertPostingReceipt({ ...valid, ...change }, expected));
+});
+
+test("postchecks keep the fixed pinned browser in the exact probed child environment", () => {
+  const build = { PATH: "/qualified/bin", HOME: "/fixture/home" };
+  const env = postingPostcheckEnvironment(build);
+  assert.equal(build.PLAYWRIGHT_BROWSERS_PATH, undefined);
+  assert.equal(env.PLAYWRIGHT_BROWSERS_PATH, join(repository, ".playwright-browsers"));
+  let called = false;
+  assertPostingPostcheckBrowser(env, (_node, _args, options) => { called = true; assert.equal(options.env, env); });
+  assert.equal(called, true);
+  assert.throws(() => assertPostingPostcheckBrowser({ ...env, PLAYWRIGHT_BROWSERS_PATH: "/ambient/browser" }, () => assert.fail("must refuse before probe")));
+  assert.throws(() => assertPostingPostcheckBrowser(env, () => { throw new Error("missing qualified browser"); }), /missing qualified browser/u);
 });
 
 test("actual selected app export qualifies offline, rejects dependency/export/env and built gateway tampering", async () => {

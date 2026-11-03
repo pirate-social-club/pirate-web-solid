@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { checkLiveStagingGateway } from "./hns-staging-gateway-preflight.mjs";
 import { checkStagingRelease } from "./staging-release-check.mjs";
 import { prepareFrozenStagingBuild, readFrozenStagingBuild, stagingSelection } from "./production-website/staging-build-isolation.mjs";
-import { postingGatewayGate, preparePostingStagingBuild, qualifyPostingStagingCandidate, readPostingStagingBuild } from "./production-website/posting-staging.mjs";
+import { assertPostingPostcheckBrowser, postingGatewayGate, postingPostcheckEnvironment, preparePostingStagingBuild, qualifyPostingStagingCandidate, readPostingStagingBuild } from "./production-website/posting-staging.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 // The repository pins its Playwright browsers in .playwright-browsers. Export
@@ -65,6 +65,8 @@ async function main() {
     ? await prepareFrozenStagingBuild(selection.runRoot) : await readStage(selection.runRoot);
   const operationRoot = stage?.app ?? root;
   const environment = stage?.environment ?? process.env;
+  const postcheckEnvironment = selection.posting ? postingPostcheckEnvironment(environment) : environment;
+  if (selection.posting && selection.mode !== "--prepare-posting-frozen") assertPostingPostcheckBrowser(postcheckEnvironment);
   const deploy = selection.mode === "--deploy" || selection.mode === "--deploy-frozen" || selection.mode === "--deploy-posting-frozen";
   const sha = stage?.source ?? (deploy ? assertPublishedMain() : output("git", ["rev-parse", "HEAD"]));
   if (selection.mode === "--deploy") run("bun", ["run", "build"], { ...process.env, CLOUDFLARE_ENV: "staging" });
@@ -92,11 +94,11 @@ async function main() {
     requireHns: selection.mode === "--check-only" || selection.posting === true,
     report: value => console.log(JSON.stringify(value)),
     hnsCheck: () => {
-      run("python3", ["scripts/hns-staging-serving-check.py"], environment, operationRoot);
+      run("python3", ["scripts/hns-staging-serving-check.py"], postcheckEnvironment, operationRoot);
       run("infisical", ["run", "--projectId=fac45f92-9450-42fb-8c2f-f20d043fdfab",
         "--env=staging", "--path=/services/api-next", "--path=/services/api-next/operator",
         "--silent", "--", "node", "scripts/run-hns-mainnet-route.mjs"],
-        { ...environment, ...stagingFixture }, operationRoot);
+        { ...postcheckEnvironment, ...stagingFixture }, operationRoot);
     },
   });
   if (stage) await readStage(selection.runRoot);

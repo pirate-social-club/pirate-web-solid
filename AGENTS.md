@@ -60,6 +60,14 @@ production output at `.tmp/build/posting-staging-production-2c4/dist` before
 changing the owned tooling checkout. Preparation validates only the exact
 reviewed future34f/ca8947 native manifest offline and records installed=false;
 it requires no gateway switch or host/database/provider credentials.
+The tooling release must retain the exact selected workspace UI tree because
+its dependency symlink resolves outside the exported app. A later main UI tree
+is refused even when package manifests match; select the accepted tooling
+feature ancestor on its published release ref after normal integration.
+Posting postchecks use only the tooling checkout's `.playwright-browsers`
+cache and verify that its pinned Chromium exists before deployment. The build
+environment stays separate and sanitized; no ambient browser-cache fallback
+is used by these posting modes.
 
 Use `--deploy-posting-frozen` or `--check-posting-frozen-release` with the same
 private prepared directory only after the matched release is reviewed. These
