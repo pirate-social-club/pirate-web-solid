@@ -2,7 +2,7 @@ import { requestDocumentVerification } from "../../verification/document-verific
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import { ApiClientError } from "@pirate/api-client";
-import { SESSION_FENCED_EVENT } from "../../../api/browser-session-events.ts";
+import { SESSION_FENCED_EVENT, SessionAuthorityChangedError } from "../../../api/browser-session-events.ts";
 import {
   resolveSession as resolveApplicationSession,
   sessionPersonasUnavailable,
@@ -166,6 +166,10 @@ export function createCommunityEngagementController(
       setError("");
       return true;
     } catch (failure) {
+      // A normal auth refresh can retire a 200 response while its body is
+      // being read. The replacement session resolution owns the next viewer
+      // read; cancellation establishes neither membership nor a read failure.
+      if (failure instanceof SessionAuthorityChangedError) return false;
       if (active && request === viewerRequest) {
         setViewerReady(false);
         setViewerSettled(true);
@@ -526,7 +530,8 @@ export function createCommunityEngagementController(
 
   const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
     if (!await hasAuthenticatedAccount()) return undefined;
-    if (!await refreshViewerState() || membership() !== "member") {
+    if (!await refreshViewerState()) return undefined;
+    if (membership() !== "member") {
       if (active && viewerReady()) setError("Join this Community before posting.");
       return undefined;
     }
